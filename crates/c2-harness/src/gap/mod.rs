@@ -38,6 +38,7 @@ mod classify;
 mod factors;
 pub mod fnbytes;
 pub mod fndiff;
+pub mod plan;
 mod render;
 mod report;
 mod scan;
@@ -90,6 +91,13 @@ pub struct GapConfig {
     /// generated case corpus (`scripts/mode_lane.sh`, `scripts/mode_cross.sh`),
     /// where one line per TU is tens of thousands of lines per lane.
     pub factors_tsv: Option<PathBuf>,
+    /// Write the **per-TU object-plan grade** here, one row per graded TU. Opt-in
+    /// and a file rather than stdout, for `factors_tsv`'s reason verbatim: the
+    /// counts stay on stdout, the membership they are counts *of* goes to the
+    /// file a lane asks for. See [`plan`] and #3288 — the offline parser over
+    /// these rows is the SECOND, differently-built derivation of every published
+    /// `plan-*` figure.
+    pub plan_tsv: Option<PathBuf>,
     /// Scratch root; per-TU subdirs are created below it.
     pub work: PathBuf,
     /// Reference-capture cache root (`None` = `--no-cache`). See
@@ -446,6 +454,20 @@ pub struct TuResult {
     /// not `--fnbyte-diff-jsonl` was passed, which is what lets the `fndiff-*`
     /// counters be unconditional.
     pub fndiff: Vec<String>,
+    /// **The OBJECT PLAN grade** (lane `w-objplan`): `predict(IL)` against
+    /// `observe(reference obj)`, component by component, for THIS TU.
+    ///
+    /// Its own field and not a row of [`TuResult::emit`], for the reason
+    /// [`TuResult::fn_cfg_admit`]'s doc records having learned twice: a map
+    /// somebody else sweeps by key shape silently absorbs new rows, and the
+    /// published number moves with nothing in the diff to explain it. The
+    /// verdicts here are a four-way PARTITION and an integer counter cannot
+    /// carry one.
+    ///
+    /// Populated on **every** TU including `vocab-gap` ones — that is the whole
+    /// point. `capture-fail` TUs have no reference obj, so every component
+    /// reads `Unobservable` and the TU is not a `--plan-tsv` row at all.
+    pub plan: plan::TuPlan,
     /// **The emitted-only blocking histogram**: the census key of every
     /// out-of-class row that binds to a symbol c2 actually emitted.
     ///

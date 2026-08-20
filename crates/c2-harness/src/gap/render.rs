@@ -5,6 +5,183 @@ use super::fnbytes::byte_fraction_exact;
 use super::factors::CfgReach;
 use super::{GapReport, TuClass, TuResult, PORT_WRITER_SECTIONS, WHOLE_TU_RECOGNIZERS};
 
+/// **THE OBJECT-PLAN BLOCK** (lane `w-objplan`) — the manifest curve, and the
+/// named control that keeps it honest.
+///
+/// # What is printed and why each line is there
+///
+/// * The **named control first**, always, because a set difference against
+///   `docs/plan/CONTROL_TUS.txt` means the tree or the workload stamp moved
+///   under the reader and every number below it is about a different corpus.
+///   Printed as a **count with the names**, never as a status.
+/// * Per component: `observable ⊇ known ⊇ exact`, `differs` derived, and
+///   `distinct`. Three denominators and never a bare ratio — a percentage whose
+///   denominator is not beside it is board #213's `+82` shape.
+/// * A component at `distinct == 1` is labelled **FREE** and must not be read
+///   as progress: it takes one value across the whole workload, so agreeing
+///   with it is agreeing with a constant.
+/// * The observe-side inventory, which is not a curve at all: it is the honest
+///   description of the population the un-conjuncted lanes will have to serve,
+///   and it re-derives figures (`weak externals`, `COMDAT`) this project has
+///   only ever carried.
+///
+/// **`plan-*` is NECESSARY but NOT SUFFICIENT for `match`** and the block says
+/// so on every run. It is an instrument; the byte judge is unchanged.
+fn render_plan(report: &GapReport) {
+    let ctl = report.plan_control();
+    println!(
+        "\n\x20 OBJECT PLAN (lane w-objplan) — everything about the output obj that is \
+         INDEPENDENT OF THE INSTRUCTION BYTES, graded on every TU. TWO INDEPENDENT PRODUCERS: \
+         `observe` reads the REFERENCE obj (ground truth); `c2_core::plan::predict` computes the \
+         port's plan FROM IL WITHOUT EMITTING. A grade taken over the port's own obj would be \
+         VACUOUS on the matched TUs (there its bytes ARE the reference's) and UNDEFINED on the \
+         ones it refuses. **THIS IS AN INSTRUMENT AND NEVER A GATE: `exact` here is NECESSARY \
+         but NOT SUFFICIENT for `match` — a TU can be plan-exact and mismatch on every byte.**"
+    );
+
+    // --- the named control, FIRST -----------------------------------------
+    println!(
+        "\x20   CONTROL (pinned BY NAME in docs/plan/CONTROL_TUS.txt — a control pinned by COUNT \
+         passes in an unprovisioned worktree the moment the count matches, #3219/#3231): \
+         {} pinned, {} `match` TUs found this scan, {} of the pinned present in this scan, \
+         {} entered, {} left.",
+        ctl.pinned,
+        ctl.found,
+        ctl.present,
+        ctl.diff_entered.len(),
+        ctl.diff_left.len()
+    );
+    if !ctl.diff_entered.is_empty() || !ctl.diff_left.is_empty() {
+        println!(
+            "\x20     SET DIFFERENCE — the match set moved under the pin. This is a finding about \
+             the TREE or the WORKLOAD STAMP and is reported BEFORE any number below it."
+        );
+        for n in &ctl.diff_entered {
+            println!("\x20       entered: {n}");
+        }
+        for n in &ctl.diff_left {
+            println!("\x20       left:    {n}");
+        }
+    }
+    println!(
+        "\x20     {} of {} pinned TUs are `exact` on EVERY shipped component; {} shortfall \
+         row(s). On a `match` TU the port reproduced c2's obj byte-for-byte, so it demonstrably \
+         had the information: `unknown` there is a FAILURE, not a neutral, and `differs` there \
+         means the EXTRACTOR or the PREDICTOR is wrong. (A count, not a status; `0 of 0` would \
+         say so rather than printing nothing.)",
+        ctl.exact_rows,
+        ctl.present,
+        ctl.shortfall.len()
+    );
+    for (src, component, v) in &ctl.shortfall {
+        println!("\x20       {src}  {component} = {}", v.label());
+    }
+
+    // --- the curve ---------------------------------------------------------
+    let distinct = report.plan_distinct();
+    let rows = report.plan_rows();
+    println!(
+        "\x20   PER COMPONENT over {} graded TUs — `observable` (the reference decoded) ⊇ \
+         `known` (the port also answered) ⊇ `exact`. `differs` is DERIVED here, never by the \
+         reader (board #213). `distinct` counts the DISTINCT observed values across the \
+         workload: a component at 1 is FREE — agreeing with a constant is not progress.",
+        rows.len()
+    );
+    for (i, k) in super::plan::PLAN_KEYS.iter().enumerate() {
+        let v = |r: &super::plan::PlanRow| r.verdicts[i];
+        let observable = rows
+            .iter()
+            .filter(|r| v(r) != super::plan::PlanVerdict::Unobservable)
+            .count();
+        let exact = rows
+            .iter()
+            .filter(|r| v(r) == super::plan::PlanVerdict::Exact)
+            .count();
+        let known = rows
+            .iter()
+            .filter(|r| {
+                matches!(
+                    v(r),
+                    super::plan::PlanVerdict::Exact | super::plan::PlanVerdict::Differs
+                )
+            })
+            .count();
+        let d = distinct.get(k.component).copied().unwrap_or(0);
+        println!(
+            "\x20     {:<18} observable {:>4}  known {:>4}  exact {:>4}  differs {:>4}  \
+             distinct {:>4}{}",
+            k.component,
+            observable,
+            known,
+            exact,
+            known - exact,
+            d,
+            if d == 1 { "   [FREE — one value across the workload; excluded from any headline]" } else { "" }
+        );
+    }
+
+    // --- why the port did not look ------------------------------------------
+    //
+    // The `Unknown` histogram IS the ranking of stages that owe work, and it is
+    // the entire mitigation for #3237: an instrument that returns 0 because it
+    // did not look must say so, by name.
+    let mut why: std::collections::BTreeMap<&str, usize> = Default::default();
+    for r in report.graded() {
+        for (c, reason) in &r.plan.reasons {
+            if r.plan.verdicts.get(c) == Some(&super::plan::PlanVerdict::Unknown) {
+                *why.entry(reason.as_str()).or_insert(0) += 1;
+            }
+        }
+    }
+    if why.is_empty() {
+        println!("\x20   no component read `unknown` on any graded TU.");
+    } else {
+        println!(
+            "\x20   WHY THE PORT DID NOT LOOK — component-verdicts of `unknown`, by the reason \
+             the predictor named. This histogram IS the ranking of which stage owes the work, \
+             and naming it is the whole mitigation for #3237:"
+        );
+        for (r, n) in &why {
+            println!("\x20     {r:<32} {n:>5}");
+        }
+    }
+
+    // --- the seed, sized ----------------------------------------------------
+    let subset = rows.iter().filter(|r| r.subset == Some(true)).count();
+    let with_both = rows.iter().filter(|r| r.subset.is_some()).count();
+    let extra: usize = rows.iter().filter_map(|r| r.extra).sum();
+    let missing: usize = rows.iter().filter_map(|r| r.missing).sum();
+    println!(
+        "\x20   EMIT-SET SEED (`docs/whitebox/C2_MAP.md` §3E, flag word `sym+0x4c` bit 0x20, \
+         `test dl,0x20` at 0x10b7f16e) — the emitted set is the SEEDED set CLOSED under \
+         \"referenced by an already-emitted function\", and §3E's own warning is that a port \
+         using the seed ALONE will OVER-DELETE on real TUs. So the seed is expected to be a \
+         SUBSET and the gap is the closure's size, measured rather than argued: {subset} of \
+         {with_both} TUs where both sides answered have seed ⊆ emitted; {extra} over-claimed \
+         name(s) in total (a nonzero here is a finding about the BIT, not about the port); \
+         {missing} emitted name(s) the seed does not carry (that is the CLOSURE's work)."
+    );
+
+    // --- the observe-side inventory -----------------------------------------
+    println!(
+        "\x20   REFERENCE-SIDE INVENTORY over the graded TUs — NOT a curve. These are read off \
+         real c2's objs and describe the population the un-conjuncted lanes must serve. They \
+         re-derive figures this project has only ever CARRIED (`weak externals (675 TUs)`, \
+         `COMDAT synthesis (450 TUs)` — quoted with no locator in ARCHITECTURE_PROPOSAL §1.2):"
+    );
+    for (k, n) in report.plan_observed() {
+        println!("\x20     {k:<36} {n:>8}");
+    }
+
+    let viol: usize = rows.iter().map(|r| r.violations).sum();
+    println!(
+        "\x20   CONTAINMENT CONTROL — `plan-bounds-violations` {viol}. A COUNT and not a status \
+         (STATUS trap 5). Its known answer is 0: an ordered sequence cannot be right while the \
+         set it orders is wrong, set equality implies containment, and no component may grade a \
+         TU whose reference obj did not decode."
+    );
+}
+
 /// **The known-answer control on the byte-fraction ranker** (board **#501**).
 ///
 /// A `match` TU is byte-identical to `c2`'s obj, so the port demonstrably
@@ -1168,6 +1345,8 @@ pub(super) fn print_factorization(report: &GapReport) {
         );
     }
 
+    render_plan(report);
+
     println!(
         "\n\x20 GAP-METRICS — stable `key value` pairs for scripts/status.sh; keys are an \
          interface, do not rename. The projection `emit-predicate-worth` = \
@@ -1212,6 +1391,7 @@ mod tests {
             emit_blockers: Default::default(),
             emit_witness: Vec::new(),
         fndiff: Vec::new(),
+            plan: Default::default(),
         };
         for (k, v) in keys {
             r.emit.insert((*k).into(), *v);

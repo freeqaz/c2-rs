@@ -428,6 +428,28 @@ pub struct CfgLedgerRow {
     pub intruders: Option<Vec<String>>,
 }
 
+/// The NAMED control's result — see [`GapReport::plan_control`].
+///
+/// A struct and not a tuple: the difference between *"entered"* and *"left"* is
+/// the whole content of the check, and a caller that had to remember which
+/// element was which would eventually get it backwards.
+pub struct PlanControlReport<'a> {
+    /// In the scan's `match` set and not in the pinned file.
+    pub diff_entered: Vec<&'a str>,
+    /// In the pinned file and not in the scan's `match` set.
+    pub diff_left: Vec<&'static str>,
+    pub pinned: usize,
+    pub found: usize,
+    /// How many pinned TUs this scan measured at all (a `--limit`ed scan
+    /// measures fewer, and a control over TUs that were not scanned would pass
+    /// by not looking).
+    pub present: usize,
+    /// Pinned TUs `exact` on EVERY shipped component.
+    pub exact_rows: usize,
+    /// `(src, component, verdict)` for every pinned TU that is not `exact`.
+    pub shortfall: Vec<(&'a str, &'static str, super::plan::PlanVerdict)>,
+}
+
 impl GapReport {
     /// **The five Phase 7 factors for one TU** (`docs/ROADMAP.md` §10.19 and
     /// §10.21, boards #160 and #179), in `[A, B, C, D, E]` order:
@@ -1316,6 +1338,215 @@ impl GapReport {
     ///   is precisely how `+82` survived both of its inputs moving.
     ///
     /// Pure over `results`, so the unit test below grades it with no toolchain.
+    // ======================================================================
+    // THE OBJECT PLAN (lane `w-objplan`) — the manifest curve
+    // ======================================================================
+
+    /// **The per-TU object-plan membership**, as the row type the offline
+    /// parser also produces.
+    ///
+    /// Two producers, one definition, in [`super::sets`]' shape: this is the
+    /// live one, `super::plan::parse_plan_tsv` is the offline one, and
+    /// `the_plan_tsv_view_and_the_live_report_are_the_same_rows` grades the
+    /// pair. A count re-derived from the file is therefore a count re-derived
+    /// from *this scan*.
+    ///
+    /// **Rows are the graded TUs only.** A `capture-fail` TU has no reference
+    /// obj — it was never measured, which is a different fact from every
+    /// component being wrong, and folding it in would make every denominator
+    /// look tighter (`docs/STATUS.md` trap 5).
+    pub fn plan_rows(&self) -> Vec<super::plan::PlanRow> {
+        self.graded()
+            .map(|r| super::plan::PlanRow {
+                src: r.src.clone(),
+                class: r.class.label().to_string(),
+                observable: r.plan.observable,
+                verdicts: super::plan::PLAN_COMPONENTS
+                    .iter()
+                    .map(|c| {
+                        r.plan
+                            .verdicts
+                            .get(*c)
+                            .copied()
+                            .unwrap_or(super::plan::PlanVerdict::Unobservable)
+                    })
+                    .collect(),
+                subset: r.plan.emitset_subset,
+                extra: r.plan.emitset_extra,
+                missing: r.plan.emitset_missing,
+                violations: r.plan.violations.len(),
+            })
+            .collect()
+    }
+
+    /// **How many DISTINCT values each component's OBSERVED side takes across
+    /// the graded TUs** — the free-component detector.
+    ///
+    /// `.drectve` is boilerplate on nearly every workload TU
+    /// (`IlBundle`'s own `drectve_is_boilerplate` screen exists because of it),
+    /// and a component with one distinct reference value across 870 TUs is a
+    /// **free 100 %** that makes any headline look strong and measures nothing.
+    /// So the count is published beside every component and a component at
+    /// `distinct == 1` is labelled free in the printed block.
+    pub fn plan_distinct(&self) -> std::collections::BTreeMap<&str, usize> {
+        let mut sets: std::collections::BTreeMap<&str, BTreeSet<&str>> = Default::default();
+        for r in self.graded() {
+            for (k, v) in &r.plan.sigs {
+                sets.entry(k.as_str()).or_default().insert(v.as_str());
+            }
+        }
+        sets.into_iter().map(|(k, v)| (k, v.len())).collect()
+    }
+
+    /// The observe-side inventory, summed over the graded TUs.
+    pub fn plan_observed(&self) -> std::collections::BTreeMap<&'static str, usize> {
+        let mut m: std::collections::BTreeMap<&'static str, usize> = super::plan::PLAN_OBSERVED_KEYS
+            .iter()
+            .map(|k| (*k, 0usize))
+            .collect();
+        for r in self.graded() {
+            for (k, n) in &r.plan.obs {
+                if let Some(slot) = super::plan::PLAN_OBSERVED_KEYS
+                    .iter()
+                    .find(|s| **s == k.as_str())
+                {
+                    *m.get_mut(slot).expect("seeded above") += n;
+                }
+            }
+        }
+        m
+    }
+
+    /// **The NAMED control** (deliverable 3): the identity diff against
+    /// `docs/plan/CONTROL_TUS.txt`, plus the per-control-TU verdicts.
+    ///
+    /// On a `match` TU the port reproduced c2's obj byte-for-byte, so it
+    /// demonstrably had every fact the plan describes. A component that reads
+    /// `Unknown` there is a **failure**, not a neutral; a component that reads
+    /// `Differs` there means the extractor or the predictor is wrong and the
+    /// component must not ship as a claim of disagreement.
+    pub fn plan_control(&self) -> PlanControlReport<'_> {
+        let found: Vec<&str> = self
+            .results
+            .iter()
+            .filter(|r| r.class == TuClass::Match)
+            .map(|r| r.src.as_str())
+            .collect();
+        let diff = super::plan::control_diff(found.iter().copied());
+        let pinned = super::plan::control_tus();
+        let mut shortfall: Vec<(&str, &'static str, super::plan::PlanVerdict)> = Vec::new();
+        let mut exact_rows = 0usize;
+        for r in self.results.iter().filter(|r| pinned.contains(r.src.as_str())) {
+            let mut ok = true;
+            for c in super::plan::PLAN_COMPONENTS {
+                let v = r
+                    .plan
+                    .verdicts
+                    .get(*c)
+                    .copied()
+                    .unwrap_or(super::plan::PlanVerdict::Unobservable);
+                if v != super::plan::PlanVerdict::Exact {
+                    shortfall.push((r.src.as_str(), c, v));
+                    ok = false;
+                }
+            }
+            if ok {
+                exact_rows += 1;
+            }
+        }
+        PlanControlReport {
+            diff_entered: diff.entered,
+            diff_left: diff.left,
+            pinned: diff.pinned,
+            found: diff.found,
+            present: self
+                .results
+                .iter()
+                .filter(|r| pinned.contains(r.src.as_str()))
+                .count(),
+            exact_rows,
+            shortfall,
+        }
+    }
+
+    /// The `plan-*` `gap-metric` rows. Derived here, never by the reader —
+    /// `differs = known − exact` is computed in this function for the same
+    /// reason `emit-predicate-worth` is (board #213).
+    fn plan_metrics(&self) -> Vec<(&'static str, String)> {
+        let rows = self.plan_rows();
+        let distinct = self.plan_distinct();
+        let ctl = self.plan_control();
+        let mut m: Vec<(&'static str, String)> = vec![(
+            "plan-observable",
+            rows.iter().filter(|r| r.observable).count().to_string(),
+        )];
+        for (i, k) in super::plan::PLAN_KEYS.iter().enumerate() {
+            let v = |r: &super::plan::PlanRow| r.verdicts[i];
+            let observable = rows
+                .iter()
+                .filter(|r| v(r) != super::plan::PlanVerdict::Unobservable)
+                .count();
+            let exact = rows
+                .iter()
+                .filter(|r| v(r) == super::plan::PlanVerdict::Exact)
+                .count();
+            let known = rows
+                .iter()
+                .filter(|r| {
+                    matches!(
+                        v(r),
+                        super::plan::PlanVerdict::Exact | super::plan::PlanVerdict::Differs
+                    )
+                })
+                .count();
+            m.push((k.observable, observable.to_string()));
+            m.push((k.known, known.to_string()));
+            m.push((k.exact, exact.to_string()));
+            m.push((k.differs, known.saturating_sub(exact).to_string()));
+            m.push((
+                k.distinct,
+                distinct.get(k.component).copied().unwrap_or(0).to_string(),
+            ));
+        }
+        // Does the `0x20` seed ever OVER-claim? `docs/whitebox/C2_MAP.md` §3E's
+        // rule is that the emitted set is the seeded set CLOSED under
+        // "referenced by an already-emitted function", so the seed should be a
+        // SUBSET of what c2 emitted and the closure supplies the rest. A seed
+        // that over-claims would be a finding about the BIT, not about the port.
+        m.push((
+            "plan-emitset-seed-subset",
+            rows.iter().filter(|r| r.subset == Some(true)).count().to_string(),
+        ));
+        m.push((
+            "plan-emitset-seed-extra",
+            rows.iter().filter_map(|r| r.extra).sum::<usize>().to_string(),
+        ));
+        m.push((
+            "plan-emitset-seed-missing",
+            rows.iter().filter_map(|r| r.missing).sum::<usize>().to_string(),
+        ));
+        // A COUNT and not a status (STATUS trap 5). Known answer 0.
+        m.push((
+            "plan-bounds-violations",
+            rows.iter().map(|r| r.violations).sum::<usize>().to_string(),
+        ));
+        // The named control, as counts. `plan-control-diff` is 0 iff the set the
+        // scan found IS the pinned set; a nonzero value is a finding about the
+        // tree or the workload stamp and is reported before any other number.
+        m.push(("plan-control-pinned", ctl.pinned.to_string()));
+        m.push(("plan-control-found", ctl.found.to_string()));
+        m.push((
+            "plan-control-diff",
+            (ctl.diff_entered.len() + ctl.diff_left.len()).to_string(),
+        ));
+        m.push(("plan-control-exact", ctl.exact_rows.to_string()));
+        m.push(("plan-control-shortfall", ctl.shortfall.len().to_string()));
+        for (k, n) in self.plan_observed() {
+            m.push((k, n.to_string()));
+        }
+        m
+    }
+
     pub fn metrics(&self) -> Vec<(&'static str, String)> {
         let [a, b, c, d, e, a_lo, bc, abc, abcd, joint] = self.factor_counts();
         let graded = self.graded().count();
@@ -2172,6 +2403,12 @@ impl GapReport {
                 ));
             }
         }
+        // **THE OBJECT PLAN, appended LAST and adding no key above it.** The
+        // required-zero half of this lane is that every pre-existing key reads
+        // byte-identical before and after, key-for-key; appending keeps that
+        // checkable by a plain `diff` of the two metric blocks rather than by a
+        // sort. See `plan_metrics` and `crates/c2-harness/src/gap/plan.rs`.
+        m.extend(self.plan_metrics());
         m
     }
 
