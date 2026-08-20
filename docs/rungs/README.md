@@ -138,6 +138,19 @@ unmeasured).
   the `SKIP` line for a passing test — so a registered RED reads GREEN with a
   clean suite, the right target count and the right exit code (#3219, #3231).
   The two runs are otherwise **byte-identical**; only the durations differ.
+* **DO NOT "assert 0 occurrences of `SKIP: toolchain absent`" — THAT CHECK IS
+  VACUOUS AND IT IS SATISFIED BY THE FAILURE IT CLAIMS TO DETECT** (#3341,
+  measured 2026-08-20). libtest swallows stdout for a **passing** test, and a
+  skipping test *passes*; **136 test sites can emit that line and a passing
+  suite log contains 0 of them either way.** Measured: 2 tests skipped, **0**
+  SKIP lines captured, **2** under `--nocapture`. The bullet above already
+  states this mechanism, and a coordinator who had just read it still wrote the
+  vacuous form into four lane briefs and quoted its 0 as evidence on three
+  merges — so the wrong check is named here explicitly rather than left as an
+  inference. **Assert a DURATION instead** (`census_gate` takes ~90-125 s with a
+  toolchain and 0.00 s without), or run with `--nocapture` and count. The
+  general rule the brief got right: **assert the environment, never the exit
+  code.**
 * **Count `gap-metric` keys with `grep -cE '^ *gap-metric \S+ \S+$'`.** Never
   `grep -c 'gap-metric'`, which over-counts: prose lines merely *mention* keys.
   **Three consecutive lanes hit this**, and the third *explained* the +2 by
