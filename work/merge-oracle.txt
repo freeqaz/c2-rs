@@ -1,8 +1,16 @@
-THE STAGE ORACLE IS GO — 0 of 410 objs move when it is armed, one digest over
-ten runs, and c2's REGISTER ALLOCATOR turns out to write nothing in the tuple
+THE STAGE ORACLE IS GO — 0 of 375 objs ON WHICH THE TAP ARMED AND FIRED move
+when it is armed, one digest over ten runs, and c2's REGISTER ALLOCATOR turns
+out to write nothing in the tuple
+
+    ** READ THE FIX-ROUND BLOCK AT THE END OF THIS FILE FIRST. **
+    The review returned land-with-fixes (5 major / 14 findings); every major is
+    fixed, every minor is fixed or priced, and THREE numbers in the body below
+    are superseded there — the G1 denominator (410 -> 375), the gate/suite run
+    (rebased twice), and the workload stamp (fifth value -> seventh).
 
     Branch:   wt-w-stageoracle
-    Base:     c277d3bb0
+    Base:     5f9ae0829 (rebased twice: 826ba1e41 as dispatched, then 5f9ae0829
+              when the coordinator merged w-refrev mid-fix-round)
     Kind:     characterization lane
     Outcome:  instrument
     Rung:     docs/rungs/2026-08-20-stageoracle.md
@@ -186,3 +194,85 @@ BOARD ROWS (block #3322-#3326 allocated by the coordinator)
        e:/lazer_build_gmc1 include roots. At dc3-decomp 3df8fd5412c2 the
        generator emits backslashes and the scan silently reads match 17 /
        capture-fail 851 / 343 keys.
+
+
+===========================================================================
+FIX ROUND — 2026-08-20, after review verdict `land-with-fixes`
+===========================================================================
+
+Outcome word UNCHANGED: instrument. Verdict UNCHANGED: GO. Full disposition
+table, mutations and priced declines: docs/rungs/2026-08-20-stageoracle.md §9.
+
+WHAT MOVED IN THE PUBLISHED NUMBERS
+
+  G1's denominator. 410 graded -> 375 ARMED AND FIRED (355 fixtures + 20
+  workload TUs). The other 35 armed and never fired: a TU with no function
+  body runs no per-function phase, so its byte-identity is free. The command
+  now conditions its verdict on a POSITIVE armed-and-fired check and prints
+  "G1 IS VACUOUS" otherwise — demonstrated by displacing every site address,
+  which makes the PRE-FIX binary print "G1 HOLDS over 1 graded fixtures" over
+  a run that patched nothing while printing "stage-sites-refused 7" two lines
+  above it.
+
+  The campaign was RE-RUN so the walk-refusal zero comes from a log that
+  prints the key: 0 refusals over 410 objs, 49,231 detour hits, 2,870 sites
+  armed, 0 refused. Every per-fixture count reproduces the original.
+
+  G4 (the registered gap-key identity) was measured FAILING at 105 of 395 and
+  never scored; worse, it was confounded — the two scans were at different
+  workload stamps. Re-run at ONE stamp, master's binary against this branch's:
+  ALL 395 KEYS IDENTICAL, every value. The lane moves nothing.
+
+  Five whitebox/record corrections, of which one is new and inherited:
+  "the four scheduler runs are gated ONLY by DAT_10c2e2fc" is refuted by the
+  bytes (a second per-function gate at [esi+0x1c] on three of four sites,
+  three more on sched0). /Od => 0 stands; "one run per function" is EMPIRICAL.
+
+  The observed-category cross-derivation is RETRACTED (region bodies vs region
+  terminators — a category error); the 0x30f <-> category 0x17 half is kept
+  and re-derived.
+
+NOT IN THE REVIEW, found while fixing it: the payload's fail-loud path was
+UNREACHABLE — a full arena could not announce itself, and at 8 KiB the pre-fix
+instrument reports a COLOR pair DIFFERING 1 of 6 on the fixture whose entire
+finding is IDENTICAL 7 of 7. Fixed and mutation-demonstrated.
+
+DECLINED, PRICED: the two DISCLOSURE rows land four commits after the
+adoptions they cover; rewriting 15 commits of reviewed history costs more than
+the hole is worth (the rule's letter scopes to crates/, which holds names
+only). Partial fix: each row now names its adopting commit.
+
+GATE AND SUITE AT THE TIP (rebased onto 5f9ae0829)
+
+    GATE: PASS (HATCH-RED REFUSED)
+    18 lanes — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT · 6948 fixture-verdicts
+    sweep 19556/19556 reached, 19460 graded, 0 mismatch
+    cross 90424 of 90812 cells graded, 0 mismatch
+    debug 18/18 lanes, 6948 verdicts, match 2423, 0 mismatch, 0 PANIC
+    graded tree b41e1158e6d7 (752 files)      GATE_EXIT=0
+
+    SUITE (scripts/partest.sh --jobs 14): 49 targets · 1707 passed · 0 failed
+    · 1 ignored · 1708 named results · 0 "SKIP: toolchain absent"
+    Target count derived twice (aggregate log and per-target logs) — cargo can
+    silently run a fraction of the targets. #[test] under crates/: master 1705,
+    tip 1717 (+12, all in this lane's two files).
+
+TWO THINGS THE COORDINATOR SHOULD KNOW BEFORE MERGING
+
+  1. The second rebase exposed a real integration hole and it is FIXED here:
+     w-refrev funnelled fifteen hand-rolled SKIP blocks into
+     toolchain_gate::toolchain_ready, and `c2rs stage` carried a sixteenth
+     written in parallel. Under C2RS_REQUIRE_TOOLCHAIN it would have printed
+     SKIP and exited 0 where every other command refuses.
+
+  2. The first fix-round gate run FAILED and the log is kept as evidence:
+     under a peer lane's concurrent full suite (load 38-49) the sweep read 100
+     ungraded against a carried baseline of 96, with ZERO mismatch anywhere.
+     One line in it is worth naming — ReferenceReplay=MISMATCH ... cache=hit,
+     a 39-byte LENGTH difference, i.e. the /Fo path-string class out of a
+     capture cache SHARED with the peer's gate. Clean twice in isolation, and
+     the same tree reads GATE: PASS on a quiet box. If a merge-time gate run
+     shows this shape, check what else is running before reading it as a
+     regression.
+
+DO NOT PUSH. Still not pushed. Nothing merged.
