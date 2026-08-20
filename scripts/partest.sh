@@ -31,7 +31,8 @@
 # ## Usage
 #
 #   scripts/partest.sh [--jobs N] [--test-threads T] [--out DIR]
-#                      [--report-time] [--no-doc] [--] [libtest args...]
+#                      [--report-time] [--no-doc] [--portable]
+#                      [--] [libtest args...]
 #
 #   --jobs N          test binaries in flight (default 8)
 #   --test-threads T  libtest threads inside each binary (default: libtest's own,
@@ -41,13 +42,51 @@
 #   --report-time     ask libtest for per-test durations (needs RUSTC_BOOTSTRAP,
 #                     which this script sets for the child only)
 #   --no-doc          skip the doc-test job (it is one cargo invocation)
+#   --portable        do NOT demand a toolchain (see below). Sets
+#                     C2RS_REQUIRE_TOOLCHAIN=0 explicitly, so the choice is
+#                     visible in the log rather than being an absent variable.
 #
 # Everything after `--` is handed to each test binary verbatim, so
 # `scripts/partest.sh -- --exact some::test` works.
 #
-# Set `C2RS_REQUIRE_TOOLCHAIN=1` in the environment exactly as you would for
-# `cargo test` — this script does not set it for you, because a lane that wants
-# the portable (no-toolchain) run must still be able to ask for it.
+# ## `C2RS_REQUIRE_TOOLCHAIN=1` IS THE DEFAULT HERE — board #3247's closure
+#
+# Until 2026-08-20 this script said *"this script does not set it for you"*, and
+# neither did anything else: `grep -rn REQUIRE_TOOLCHAIN crates scripts` found
+# the variable **armed and fired by nothing**. Board **#3247** closed with, in
+# those words, *"STILL OPEN … NOTHING SETS THE VARIABLE."* The measurement it
+# was opened on: `cargo test --workspace --release` reads **1,660 / 0 / 43** in a
+# provisioned worktree and **byte-identically 1,660 / 0 / 43** in one with no
+# `compilers/`, because 132 of ~179 integration tests print `SKIP: toolchain
+# absent` and PASS — and cargo swallows that line for a passing test. Two
+# registered REDs read GREEN that way (#3219, #3231), with a clean suite, the
+# right target count and the right exit code. A fresh `git worktree add` has no
+# `compilers/` (it is gitignored and does not follow a new worktree), so this is
+# not a hypothetical: it is the default state of every new lane's tree.
+#
+# **The demand is unconditional, and that is the point.** This script does NOT
+# probe for `compilers/` first: a shell-side "does the toolchain resolve"
+# predicate would be a SECOND implementation of a rule `Toolchain::locate()`
+# already owns, and "one rule, two implementations" is the hazard shape this
+# repo keeps paying for (GAPS §6, board #3134). So the script carries only the
+# DEMAND, and `crates/c2-harness/tests/require_toolchain.rs` remains the single
+# authority on whether the demand is met. A toolchain-less run therefore fails
+# on exactly one named test —
+# `require_toolchain::a_run_that_claims_to_grade_must_have_a_toolchain_to_grade_with`
+# — instead of passing green having graded nothing.
+#
+# An explicit `C2RS_REQUIRE_TOOLCHAIN` already in the environment is HONOURED
+# and never overwritten: the caller has spoken. `--portable` is the opt-out for
+# a run that deliberately grades nothing (the portable lane is entitled to be
+# empty — that is `gate.sh --require-graded`'s own argument, from the other
+# side).
+#
+# What this does NOT close, stated rather than papered over: a **partially**
+# provisioned run — `compilers/` present but `strace` or
+# `i686-w64-mingw32-gcc` absent — still skips a subset silently, because
+# `Toolchain::locate()` succeeds and the per-test `has_strace()` / `has_mingw()`
+# guards are what skip. The demand is total over "did this run have a toolchain
+# at all", not over "did every gated test execute".
 #
 # Outputs, all under `--out`:
 #
@@ -69,6 +108,7 @@ OUT="work/partest"
 REPORT_TIME=0
 DO_DOC=1
 VERIFY=0
+PORTABLE=0
 PASSTHRU=()
 
 while [ $# -gt 0 ]; do
@@ -81,9 +121,14 @@ while [ $# -gt 0 ]; do
         --out=*) OUT="${1#*=}"; shift ;;
         --report-time) REPORT_TIME=1; shift ;;
         --no-doc) DO_DOC=0; shift ;;
+        --portable) PORTABLE=1; shift ;;
         --verify) VERIFY=1; shift ;;
         --) shift; PASSTHRU=("$@"); break ;;
-        -h|--help) sed -n '3,60p' "$0"; exit 0 ;;
+        # The window moves with the header. It was `3,60p` when the header ended
+        # at line 60; the #3247 block pushed the outputs list to 91, and a stale
+        # window would have silently stopped printing the usage lines it exists
+        # to print. Ends at the `Outputs` heading.
+        -h|--help) sed -n '3,101p' "$0"; exit 0 ;;
         *) echo "partest.sh: unknown option $1" >&2; exit 2 ;;
     esac
 done
@@ -93,6 +138,36 @@ case "$JOBS" in ''|*[!0-9]*) echo "partest.sh: --jobs wants a number" >&2; exit 
 
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
+
+# ---------------------------------------------------------------------------
+# THE TOOLCHAIN DEMAND (board #3247). See the header block for the measurement.
+# ---------------------------------------------------------------------------
+# Precedence, and it is deliberate: an explicit value in the environment beats
+# everything (the caller has spoken), then `--portable`, then the default. The
+# state is PRINTED on every run — an absent variable is the thing this closes,
+# so its replacement must not itself be silent.
+if [ -n "${C2RS_REQUIRE_TOOLCHAIN+set}" ]; then
+    REQUIRE_SRC="the environment"
+elif [ "$PORTABLE" -eq 1 ]; then
+    C2RS_REQUIRE_TOOLCHAIN=0
+    REQUIRE_SRC="--portable"
+else
+    C2RS_REQUIRE_TOOLCHAIN=1
+    REQUIRE_SRC="partest.sh's default (board #3247)"
+fi
+export C2RS_REQUIRE_TOOLCHAIN
+case "$C2RS_REQUIRE_TOOLCHAIN" in
+    ''|0)
+        echo "partest.sh: C2RS_REQUIRE_TOOLCHAIN=$C2RS_REQUIRE_TOOLCHAIN from $REQUIRE_SRC —"
+        echo "            this run makes NO CLAIM to have graded anything against real c2.dll."
+        echo "            A green suite here is compatible with 132 integration tests having"
+        echo "            printed 'SKIP: toolchain absent' and passed." ;;
+    *)
+        echo "partest.sh: C2RS_REQUIRE_TOOLCHAIN=$C2RS_REQUIRE_TOOLCHAIN from $REQUIRE_SRC —"
+        echo "            a run with no toolchain will FAIL on"
+        echo "            require_toolchain::a_run_that_claims_to_grade_must_have_a_toolchain_to_grade_with"
+        echo "            rather than passing green having graded nothing. Use --portable to opt out." ;;
+esac
 
 # ---------------------------------------------------------------------------
 # 1. Build, and enumerate exactly what cargo would run.
