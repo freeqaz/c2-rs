@@ -614,7 +614,19 @@ fn cmd_snap(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], raw: u32, cw
                 if hot.is_empty() { "NONE — the allocator wrote nothing in this window".to_string() } else { hot.join(" ") }
             );
         }
-        if paired > 0 && differing == 0 {
+        // A TRUNCATED payload makes every count above a floor — and it does
+        // worse than that: at an 8 KiB arena this same fixture reports a COLOR
+        // pair DIFFERING that is 0 of 7 when the payload is whole
+        // (work/oracle/fixround/mutation_arena_full.log). So the banner is
+        // printed before any conclusion below it can be read.
+        if !c.armed.walk_refusals.is_empty() {
+            println!(
+                "  TRUNCATED — {} walk refusal(s): {}.\n                   Every count above is a FLOOR, and the phase comparisons below are\n                   comparing partial lists. Nothing here is a measurement.",
+                c.armed.walk_refusals.len(),
+                c.armed.walk_refusals.join("; ")
+            );
+        }
+        if paired > 0 && differing == 0 && c.armed.walk_refusals.is_empty() {
             println!(
                 "  FINDING, not a green: the pre/post-COLOR snapshots are IDENTICAL on every\n                   function here. The walk is reading fields COLOR does not write — it shows THAT\n                   the allocator ran, not WHAT it did."
             );

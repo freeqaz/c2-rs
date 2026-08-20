@@ -408,7 +408,11 @@ impl Toolchain {
         payload: bool,
         raw: u32,
     ) -> io::Result<(ObjImage, TapReport)> {
-        self.replay_tapped_inner(captured, bundle_dir, out_obj, taps, payload, raw, None)
+        let (obj, rep) =
+            self.replay_tapped_inner(captured, bundle_dir, out_obj, taps, payload, raw, None, true)?;
+        // `require_obj` was true, so the missing-obj case returned `Err` above.
+        let obj = obj.expect("replay_tapped_inner(require_obj = true) returned no obj");
+        Ok((obj, rep))
     }
 
     /// [`Toolchain::replay_tapped_raw`] with the load slide DELIBERATELY WRONG
@@ -428,6 +432,15 @@ impl Toolchain {
     ///
     /// The only correct outcome is **every requested site refusing and the obj
     /// coming out unchanged anyway**.
+    /// Returns `None` for the obj when the replay produced none — c2 crashed
+    /// or aborted mid-pass. That is NOT an error on this path, and the reason
+    /// is the ordering of failures: the interesting outcome of a wrong slide is
+    /// **what got armed**, and if a missing obj were an `Err` the arming
+    /// assertion could never be reached. Measured, not anticipated: with the
+    /// target check disabled, a `+0x18` slide arms five sites and c2 SIGSEGVs,
+    /// and the first version of this signature reported that as
+    /// *"forced-slide replay failed"* — a true sentence that names the wrong
+    /// defect (work/oracle/fixround/mutation_failclosed.log).
     pub fn replay_tapped_forced_slide(
         &self,
         captured: &CapturedReference,
@@ -435,7 +448,7 @@ impl Toolchain {
         out_obj: &Path,
         taps: &[&str],
         force_slide: u32,
-    ) -> io::Result<(ObjImage, TapReport)> {
+    ) -> io::Result<(Option<ObjImage>, TapReport)> {
         self.replay_tapped_inner(
             captured,
             bundle_dir,
@@ -444,6 +457,7 @@ impl Toolchain {
             false,
             0,
             Some(force_slide),
+            false,
         )
     }
 
@@ -457,7 +471,8 @@ impl Toolchain {
         payload: bool,
         raw: u32,
         force_slide: Option<u32>,
-    ) -> io::Result<(ObjImage, TapReport)> {
+        require_obj: bool,
+    ) -> io::Result<(Option<ObjImage>, TapReport)> {
         let (mut cmd, out_abs) = self.build_replay_command(captured, bundle_dir, out_obj)?;
         match force_slide {
             Some(v) => {
@@ -486,19 +501,22 @@ impl Toolchain {
             cmd.env("C2RS_STAGE_TAPS", taps.join(","));
         }
         let output = cmd.output()?;
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+        let report = TapReport::parse(&stderr);
         if !out_abs.exists() || std::fs::metadata(&out_abs)?.len() == 0 {
+            if !require_obj {
+                return Ok((None, report));
+            }
             return Err(io::Error::new(
                 io::ErrorKind::Other,
                 format!(
                     "tapped replay produced no (or an empty) obj at {} — \
-                     c2 crashed or aborted mid-pass.\nstderr:\n{}",
+                     c2 crashed or aborted mid-pass.\nstderr:\n{stderr}",
                     out_abs.display(),
-                    String::from_utf8_lossy(&output.stderr)
                 ),
             ));
         }
-        let report = TapReport::parse(&String::from_utf8_lossy(&output.stderr));
-        Ok((ObjImage::new(std::fs::read(&out_abs)?), report))
+        Ok((Some(ObjImage::new(std::fs::read(&out_abs)?)), report))
     }
 }
 

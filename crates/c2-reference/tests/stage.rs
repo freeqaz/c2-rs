@@ -104,9 +104,11 @@ fn o1() -> Vec<String> {
         .collect()
 }
 
-/// The same profile with the optimizer OFF. `/Od` is the whole point: the four
-/// scheduler runs are gated on `DAT_10c2e2fc` alone (`P_DAG.md` §1), so at
-/// `/Od` none of them happens.
+/// The same profile with the optimizer OFF. `/Od` is the whole point: the
+/// optimizer flag `DAT_10c2e2fc` is checked FIRST at each of the four
+/// scheduler sites, so at `/Od` none of them is reached. It is **necessary and
+/// not sufficient** — see [`c2_reference::stage::OPT_GATED_SITES`] for the
+/// second per-function gate at `[esi+0x1c]`, corrected in the fix round.
 fn od() -> Vec<String> {
     ["/Od", "/Oi", "/EHsc", "/GS-", "/c"]
         .iter()
@@ -244,10 +246,20 @@ fn taps_are_inert_unarmed_and_never_move_the_obj() {
 
 /// **G3 — DISCRIMINATION. The null control, and it is free.**
 ///
-/// `P_DAG.md` §1: the four scheduler runs are gated **only** by the optimizer
-/// flag `DAT_10c2e2fc` (bit 21, set at `0x10b82429`), and the bytes at
-/// `0x10b7dc83`/`0x10b7dcc2`/`0x10b7dd01` are `cmp DWORD PTR ds:0x10c2e2fc,edi`
-/// with `edi == 0`. So at `/Od` none of them is reached.
+/// The optimizer flag `DAT_10c2e2fc` (bit 21, set at `0x10b82429`) is tested
+/// FIRST at each scheduler site — `0x10b7dc83`/`0x10b7dcc2`/`0x10b7dd01` are
+/// `cmp DWORD PTR ds:0x10c2e2fc,edi` with `edi == 0`, and `0x10b7dfd9` is the
+/// same test ahead of `sched0`. So at `/Od` none of the four is reached, which
+/// is the only direction this test asserts.
+///
+/// **FIX-ROUND CORRECTION.** This doc used to say the four runs are gated
+/// *"only"* by that flag, citing `P_DAG.md` §1. The disassembly refutes it:
+/// each of the three in-band sites carries a second per-function gate
+/// (`test BYTE PTR [esi+0x1c],bl`, `bl == 1`, at
+/// `0x10b7dc8b`/`0x10b7dcca`/`0x10b7dd09`) and `sched0` carries three more
+/// (`0x10b7dfe3`, `0x10b7dff2`, `0x10b7dff9`). The `/Od` ⇒ 0 direction is
+/// unaffected; what is not structural is the converse. See
+/// [`c2_reference::stage::OPT_GATED_SITES`].
 ///
 /// If the two counts come out equal, **the instrument is measuring itself** —
 /// the fifth entry in this repo's "ranking instruments measure themselves"
@@ -308,6 +320,112 @@ fn scheduler_taps_are_silent_at_od_and_loud_at_o1() {
          clean result.\n{}",
         o1_rep.lines.join("\n")
     );
+}
+
+/// **THE FAIL-CLOSED CHECK, AGAINST A LIVE IMAGE, AT A NONZERO SLIDE.**
+///
+/// Review finding: the `+ slide` half of `tap_arm`'s check — the half the
+/// lane's first plan defect was about, when an `HMODULE`-derived slide of
+/// `ef500018` sent every site to garbage — had never executed anywhere except
+/// at slide 0, because c2.dll loads at its preferred base on every run on this
+/// box. The only standing test of the refusal path was a string parse over a
+/// synthetic stderr. **A guard nobody has watched fire is a guard nobody has
+/// tested.**
+///
+/// So this displaces every site address by `0x18` — the same value wibo hands
+/// back as an `HMODULE`, which is how the plan defect arrived — and asserts the
+/// two things a fail-closed check owes:
+///
+/// 1. **NOTHING is patched**: all seven sites refuse, and (the sharp part) five
+///    of them refuse on the TARGET check rather than the opcode check, because
+///    at `+0x18` five of the seven displaced addresses really do hold an
+///    `e8 rel32`. An opcode-only guard would have patched five call sites in
+///    the middle of c2's phase driver.
+/// 2. **The obj is byte-identical anyway.** A refusal that still perturbs the
+///    compiler is not a refusal.
+#[test]
+fn a_wrong_slide_arms_nothing_and_never_moves_the_obj() {
+    let Some(tc) = guards("a_wrong_slide_arms_nothing_and_never_moves_the_obj") else {
+        return;
+    };
+    let w = work("wrongslide");
+    let captured = tc
+        .capture_reference_with(
+            &c2_reference::to_wibo_path(&fixture(STAGE_FIXTURE).canonicalize().unwrap()),
+            &w.join("cap"),
+            &o1(),
+            None,
+        )
+        .expect("capture failed");
+    let out = captured.ref_obj_path.clone();
+
+    // The control leg: the same command at the REAL slide, so the comparison
+    // below is against a run that did arm and fire.
+    let (armed_obj, real) = tc
+        .replay_tapped(&captured, &w.join("il"), &out, STAGE_SITES)
+        .expect("tapped replay failed");
+    assert!(
+        real.armed_and_fired(),
+        "the control leg did not arm and fire, so the contrast below grades \
+         nothing:\n{}",
+        real.lines.join("\n")
+    );
+
+    // NOTE the shape: a missing obj is not an Err here, so the arming
+    // assertions below are REACHED even when the mutation this test exists to
+    // catch makes c2 crash. Ordering of failures is part of the test.
+    let (wrong_obj, wrong) = tc
+        .replay_tapped_forced_slide(&captured, &w.join("il"), &out, STAGE_SITES, 0x18)
+        .expect("forced-slide replay could not be launched at all");
+
+    assert!(
+        wrong.armed.is_empty(),
+        "A WRONG SLIDE PATCHED {} SITE(S). The fail-closed check is the only \
+         thing standing between a relocated image and five patched addresses \
+         in the middle of c2's phase driver: {:?}",
+        wrong.armed.len(),
+        wrong.armed
+    );
+    assert_eq!(
+        wrong.refused.len(),
+        STAGE_SITES.len(),
+        "expected every one of the {} sites to refuse, got {}: {:?}",
+        STAGE_SITES.len(),
+        wrong.refused.len(),
+        wrong.refused
+    );
+    assert!(
+        !wrong.armed_and_fired(),
+        "a run that armed nothing must not read as armed-and-fired"
+    );
+    // THE HALF THAT HAD NEVER RUN. `never patch a guess` is the message from
+    // the TARGET+SLIDE check; `expected e8` is the opcode check. If the target
+    // check never fires here, this test has degenerated into a second opcode
+    // test and the `+ slide` arithmetic is untested again.
+    let by_target = wrong
+        .refused
+        .iter()
+        .filter(|(_, line)| line.contains("never patch a guess"))
+        .count();
+    assert!(
+        by_target >= 4,
+        "only {by_target} of {} refusals came from the TARGET+SLIDE check; the \
+         rest are opcode refusals, so the slide arithmetic is still untested. \
+         Refusals: {:?}",
+        wrong.refused.len(),
+        wrong.refused
+    );
+    let wrong_obj = wrong_obj.expect(
+        "the refusing run produced NO obj: c2 crashed or aborted, which a run \
+         that patched nothing cannot do",
+    );
+    assert_eq!(
+        ObjImage::diff(&armed_obj, &wrong_obj),
+        ObjDiff::Identical,
+        "the REFUSING run produced a different obj than the armed one — a \
+         refusal that still perturbs the compiler is not a refusal"
+    );
+    std::fs::remove_dir_all(&w).ok();
 }
 
 /// The C site table and the Rust site list are two readers of one definition,
