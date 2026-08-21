@@ -4,6 +4,22 @@ A native Rust port of `c2.dll` — the code generator from the MSVC compiler
 that shipped with the Xbox 360 XDK (16.00.11886.00) — plus the differential
 harness that keeps the port honest by diffing it against the real thing.
 
+## The goal (decided 2026-08-21)
+
+Two ends, ranked equally:
+
+1. **Perfect reproduction, to understand MSVC's internals** — the port and the
+   whitebox record that comes with it are how we learn what the original
+   compiler actually does, which is what makes decomp tractable.
+2. **Parity: a 100% open-source implementation** of this back end.
+
+Speed is a *property* of a native port, not the reason for it. The throughput
+numbers below are real and still measured, but the section that follows was
+written when throughput **was** the thesis, and it no longer is — see
+`CLAUDE.md` § "The goal" and `docs/ARCH_REVIEW_2026-08-21.md` §7 for what
+changed and why. Read "Why bother" as history, and as an accurate description
+of the speedup, not as the project's objective.
+
 ## Why bother
 
 I work on matching decompilation of Xbox 360 games. "Matching" means you write

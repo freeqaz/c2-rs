@@ -4,9 +4,41 @@ Guidance for AI coding agents (and humans) working in this repo. Mirrors the
 parent milohax conventions that apply here.
 
 **c2-rs** — clean-room, **I/O-behavioral** native port of the MSVC Xbox 360 PPC
-compiler backend `c2.dll`, plus the differential harness that grades it. The
-thesis is **verifier throughput**: a faster `c2` speeds up every
-compile-in-the-loop decompilation workflow at once. See `README.md`.
+compiler backend `c2.dll`, plus the differential harness that grades it. See
+`README.md`.
+
+## The goal — decided by the project owner, 2026-08-21
+
+**This supersedes the "verifier throughput" thesis** that this file and
+`README.md` carried until now. That question — throughput vs. full
+reproduction — was named as *"currently owned by nobody"* in
+`STRATEGY_REVIEW_2026-08-13.md:251` and stayed unowned for eight days while
+step 5 was being priced against it. It is now owned and answered:
+
+> **Perfect reproduction**, for two ends that rank equally:
+> 1. **A clear understanding of MSVC's internals, to help with decomp.**
+> 2. **Parity — a 100% open-source implementation.**
+
+Three consequences that change how work is chosen and priced here:
+
+- **Throughput is a property, not the goal.** The ~1200–5000×/obj and the
+  scaling curve stay true and stay measured, but a lane may no longer be
+  justified *because* it buys throughput, and the 2026-08-13 NO-GO's
+  economics (consumer capped at ≈2.4×, its bottleneck moved off compilation
+  — `docs/ARCH_REVIEW_2026-08-21.md` §7) no longer bear on whether to fund
+  the port. They were an argument against a goal we do not hold.
+- **Characterization is a first-class deliverable, not overhead.** Under the
+  old thesis, "this buys characterization, not a differential grade" was a
+  downgrade — it is how `docs/STEP5_PRICING_2026-08-21.md` reads the stage
+  oracle. Under goal (1) the characterization *is* the deliverable. Whitebox
+  output under `docs/whitebox/` is product, and it was already authorized
+  (see below).
+- **Coverage is the scoreboard, and it is the hard one.** Goal (2) is
+  `match` → 870/878, so partial coverage does not pay in proportion — the
+  standing metrics and `docs/PROGRESS_METRIC.md` still govern, and a wrong
+  emit still scores below the refusal it replaced.
+
+The correctness rule below is unchanged and was never in question.
 
 ## The one correctness rule
 
