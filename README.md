@@ -47,16 +47,23 @@ modern Rust with any internal structure it likes, as long as:
 
 There is no attempt to reproduce c2.dll's own code, and no decompiled source
 anywhere in the port. The original binary is treated as a black box and its
-observable output as the spec, **with one disclosed adoption and two disclosed
-routes**: the `.gl` tag-0x10 alias record's grammar and discriminator bit are
-transcribed from the disassembly (the adoption), and two further findings —
-what that record *means*, and c2's block-move expansion decision — were located
-in the disassembly and then established from the oracle's own output, which the
-ledger marks `route:`. All three are logged with their addresses in
+observable output as the spec, **with a disclosed list of exceptions** — every
+one of them logged with its address in
 [`docs/whitebox/DISCLOSURE.md`](docs/whitebox/DISCLOSURE.md). That ledger is the
 complete list — the claim above is **per-finding**, not blanket, and every row
-in it names the site so a reader can re-check the reading. The real `c2.dll`
-stays resident under wibo as the judge, and the port never grades itself.
+in it names the site so a reader can re-check the reading. Rows are of two
+kinds: `adoption`, where a value, bit position or field layout is copied, and
+`route:`, where the disassembly said *where to look* and the fact was then
+established from the oracle's own output. Several rows are additionally
+**instrument-only** — the stage tap's site addresses and record layouts, and
+the opcode/encoding tables read by
+`crates/c2-reference/tests/middle_interfaces.rs` — and touch no emit path and
+no refusal predicate. The real `c2.dll` stays resident under wibo as the judge,
+and the port never grades itself.
+
+*(This paragraph used to enumerate "one adoption and two routes" by name. The
+enumeration went stale as the ledger grew, which is exactly the failure mode a
+count-in-prose invites; the ledger is the count.)*
 
 Honest caveat: verification is differential testing, so a green run is only
 as strong as the corpus it ran against. That's why corpus breadth gets its
