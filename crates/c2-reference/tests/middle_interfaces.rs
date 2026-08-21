@@ -19,8 +19,17 @@
 //! |---|---|
 //! | [`the_opcode_space_is_c2s_own_mnemonic_table`] | **Interface 0.** Every real-instruction tuple's `+0x4` indexes `0x10b1b260`; every structural tuple's does not |
 //! | [`the_il_subset_decoder_reproduces_the_tuple_rows`] | **Interface 1.** IL record → tuple, row-for-row, on the closed subset |
-//! | [`the_final_tuple_order_reproduces_the_text_words`] | **Interface 2.** Final tuple order + operand window → the real `.text` COMDAT bytes, 32 bits of 32 |
-//! | [`the_operand_window_never_moves_the_obj`] | the new tap field's own required-zero |
+//! | [`the_final_tuple_order_reproduces_the_text_words`] | **Interface 2.** The post-final-schedule tuple order + `w-restim`'s operand walk → the real `.text` bytes, 32 bits of 32 |
+//! | [`the_probe_levers_never_move_the_obj_at_this_lanes_profile`] | this file's own required-zero on the instrument it borrows |
+//!
+//! # This file adds nothing to the tap
+//!
+//! It drives `w-restim`'s two probe levers (`replay_tapped_probe`) and adds no
+//! site, no field and no line to `c2host/stagetap.c`. An earlier revision of
+//! this lane had its own narrower operand window; it was deleted when
+//! `w-restim` landed a strictly richer one, because two walks over
+//! `tuple+0x28`/`+0x2c` in one tap would have merged without a textual conflict
+//! and left two register encodings in one stream. Board **#3360**.
 //!
 //! # Why these fixtures
 //!
