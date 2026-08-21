@@ -534,8 +534,7 @@ mod tests {
     /// depend on `/Gy`, so neither spelling of the question may drift.
     #[test]
     fn the_pointer_walk_loop_charges_a_lead_of_two_and_not_the_published_three() {
-        let f = crate::func::IlFunction {
-            ptr_walk_loop: Some(PtrWalkModLoop {
+        let f = crate::func::IlFunction {            body: crate::func::BodyShape::PtrWalkLoop(PtrWalkModLoop {
                 params: vec![0xE3, 0xE4],
                 acc_init: 0,
                 mul_k: 0x7F,

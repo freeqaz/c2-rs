@@ -2724,7 +2724,7 @@ mod tests {
              dispatch order from being able to drop the `bl`"
         );
         assert!(!f.store_run_carried_twice(), "board #844's invariant");
-        let seq = f.call_seq.as_ref().expect("the composition is a call sequence");
+        let seq = f.call_seq().expect("the composition is a call sequence");
         let prefix = seq.store_run.as_ref().expect("the run is in the carrier");
         assert_eq!(prefix.ops.len(), 3, "the one store group, in the carrier");
         assert_eq!(prefix.live_args, 1, "the receiver alone");

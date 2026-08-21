@@ -194,7 +194,7 @@ fn the_ports_call_list_comes_from_the_emitter_and_not_from_a_copy() {
         .expect("?f@@YAXXZ has a census row");
     let f = parsed.as_ref().expect("?f@@YAXXZ parses");
     assert!(
-        f.tail_call.is_some(),
+        f.tail_call().is_some(),
         "the IlFunction still NAMES a callee — that is exactly why reading the port's \
          call list off it instead of off the emitter would be wrong"
     );

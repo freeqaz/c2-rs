@@ -296,7 +296,7 @@ impl PortC2 {
         let local_empty = |n: &String| {
             funcs
                 .iter()
-                .any(|g| &g.mangled_name == n && g.empty_body)
+                .any(|g| &g.mangled_name == n && g.empty_body())
         };
         let here = f.eh_unwind_callees.iter().filter(|n| local_empty(n)).count();
         if here == 0 {
@@ -821,7 +821,7 @@ impl PortC2 {
                     ))
                 }
                 codegen::Selected::Framed { setup } => {
-                    let fc = f.framed_call.as_ref().expect("Framed implies framed_call");
+                    let fc = f.framed_call().expect("Framed implies framed_call");
                     let body = codegen::framed_call_text(
                         &setup,
                         fc.add_k,
@@ -844,7 +844,7 @@ impl PortC2 {
                 // A Class A many-call body, built at `off` for the same reason:
                 // every `bl` word encodes its own `.text` offset.
                 codegen::Selected::Seq { setups, tail, park } => {
-                    let seq = f.call_seq.as_ref().expect("Seq implies call_seq");
+                    let seq = f.call_seq().expect("Seq implies call_seq");
                     // **W10** — same resolver as the `/Gy` path above. The
                     // conditional branch and the intra-section `b` are both
                     // self-relative, so unlike every `bl` beside them they are
@@ -902,7 +902,7 @@ impl PortC2 {
                 // lands, which is the whole of `docs/CFG_SHAPE.md` §3.3's
                 // "two encodings, one opcode".
                 codegen::Selected::CondPair(parts) => {
-                    let cp = f.cond_pair.as_ref().expect("CondPair implies cond_pair");
+                    let cp = f.cond_pair().expect("CondPair implies cond_pair");
                     let mut body = parts.text;
                     let mut calls = Vec::with_capacity(2);
                     for (rel_off, callee) in parts.branch_offsets.iter().zip([
@@ -955,7 +955,7 @@ impl PortC2 {
                     let branch_off = off + setup.len() as u32;
                     text.extend_from_slice(&setup);
                     text.extend_from_slice(&codegen::encode_tail_branch(branch_off));
-                    let callee = f.tail_call.as_ref().expect("Tail implies tail_call");
+                    let callee = f.tail_call().expect("Tail implies tail_call");
                     (
                         vec![coff::Call {
                             reloc_offset: branch_off,
@@ -1000,8 +1000,7 @@ impl PortC2 {
                 // words encode their own `.text` offset.
                 codegen::Selected::GuardChainSharedTail => {
                     let g = f
-                        .guard_chain_shared_tail
-                        .as_ref()
+                        .guard_chain_shared_tail()
                         .expect("GuardChainSharedTail implies guard_chain_shared_tail");
                     let body =
                         codegen::guard_chain_shared_tail::guard_chain_shared_tail_text(
@@ -1031,8 +1030,7 @@ impl PortC2 {
                 // shape here is: the `bl` word encodes its own `.text` offset.
                 codegen::Selected::AllocInitOrFail => {
                     let a = f
-                        .alloc_init_or_fail
-                        .as_ref()
+                        .alloc_init_or_fail()
                         .expect("AllocInitOrFail implies alloc_init_or_fail");
                     let body =
                         codegen::alloc_init_or_fail::alloc_init_or_fail_text(a, off, mode)?;
@@ -1109,8 +1107,7 @@ impl PortC2 {
                 }
                 codegen::Selected::OsfHandleGuard => {
                     let g = f
-                        .osf_handle_guard
-                        .as_ref()
+                        .osf_handle_guard()
                         .expect("OsfHandleGuard implies osf_handle_guard");
                     let body = codegen::osf_handle_guard::osf_handle_guard_text(g, off, mode)?;
                     frame = Some(coff::Frame {
@@ -1186,7 +1183,7 @@ impl PortC2 {
                     ));
                 }
                 codegen::Selected::IfCallJoin => {
-                    let j = f.if_call_join.as_ref().expect("IfCallJoin implies if_call_join");
+                    let j = f.if_call_join().expect("IfCallJoin implies if_call_join");
                     let body = codegen::if_call_join::if_call_join_text(j, off, mode)?;
                     frame = Some(coff::Frame {
                         prolog_len: body.prolog_len,
@@ -1692,7 +1689,7 @@ pub(crate) fn data_defs_of<'a>(
     // `addi`/`lwz` the scan loop's is, so the detector below carries all six
     // spellings. That widening is why this arm exists at all instead of the
     // class simply reusing the derivation.
-    let text = if let Some(g) = f.global_store_leaf.as_ref() {
+    let text = if let Some(g) = f.global_store_leaf() {
         match codegen::global_store_leaf::global_store_leaf_text(g) {
             Ok(t) => t,
             Err(e) => return Err(e),
@@ -2107,10 +2104,11 @@ mod tests {
         let mut f = codegen::testutil::func_with(Vec::new(), Vec::new());
         f.mangled_name = name.into();
         f.data_syms.clear();
-        f.empty_body = empty;
-        if !empty {
-            f.tail_call = Some("?gh@@YAXXZ".into());
-        }
+        f.body = if empty {
+            c2_il::BodyShape::EmptyBody
+        } else {
+            c2_il::BodyShape::Tail("?gh@@YAXXZ".into())
+        };
         f
     }
 

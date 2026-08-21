@@ -1300,8 +1300,7 @@ mod tests {
         // here is an obj one symbol short on every positive case at once, which
         // is `Port=Mismatch @ offset 12` (the COFF header's `NumberOfSymbols`)
         // and nothing a census number would show.
-        let fp = crate::func::IlFunction {
-            call_seq: Some(crate::func::CallSeq {
+        let fp = crate::func::IlFunction {            body: crate::func::BodyShape::Seq(crate::func::CallSeq {
                 early: Vec::new(),
                 guard: None,
                 calls: Vec::new(),
@@ -1313,8 +1312,7 @@ mod tests {
         };
         assert!(fp.touches_floating_point(), "the FP tail is a `_fltused` producer");
         // …and the integer sibling one line away is not.
-        let int_tail = crate::func::IlFunction {
-            call_seq: Some(crate::func::CallSeq {
+        let int_tail = crate::func::IlFunction {            body: crate::func::BodyShape::Seq(crate::func::CallSeq {
                 early: Vec::new(),
                 guard: None,
                 calls: Vec::new(),

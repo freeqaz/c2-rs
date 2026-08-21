@@ -554,14 +554,14 @@ fn tu_modelled_callees(
         if opt_word_mode(opt_word_at(s2)).is_some() {
             lowerable.insert(n.to_string());
         }
-        if f.empty_body {
+        if f.empty_body() {
             seed.insert(n.to_string());
         } else if f.data_syms.is_empty()
-            && f.framed_call.is_none()
-            && f.call_seq.is_none()
-            && f.cond_pair.is_none()
+            && f.framed_call().is_none()
+            && f.call_seq().is_none()
+            && f.cond_pair().is_none()
         {
-            if let Some(c) = f.tail_call.as_deref() {
+            if let Some(c) = f.tail_call() {
                 link.insert(n.to_string(), c.to_string());
             }
         }
@@ -1334,7 +1334,7 @@ impl IlBundle {
                                 // agree; without it every `/Ox` capture of the
                                 // class is an in-class claim the emitter refuses.
                                 Some(f)
-                                    if f.ptr_walk_loop.is_some()
+                                    if f.ptr_walk_loop().is_some()
                                         && opt_word_mode(opt_word)
                                             != Some(crate::OptWordMode::O1) =>
                                 {
@@ -1346,7 +1346,7 @@ impl IlBundle {
                                 // (b3) …and its body-parameterized sibling,
                                 // for the same reason and with its own key.
                                 Some(f)
-                                    if f.ptr_walk_chain_loop.is_some()
+                                    if f.ptr_walk_chain_loop().is_some()
                                         && opt_word_mode(opt_word)
                                             != Some(crate::OptWordMode::O1) =>
                                 {

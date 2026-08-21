@@ -895,18 +895,18 @@ fn differ_witness(
 /// rather than an absence — `docs/STATUS.md` trap 5.
 fn port_callees(f: &IlFunction) -> Vec<&str> {
     let mut v: Vec<&str> = Vec::new();
-    if let Some(c) = f.tail_call.as_deref() {
+    if let Some(c) = f.tail_call() {
         v.push(c);
     }
-    if let Some(fc) = f.framed_call.as_ref() {
+    if let Some(fc) = f.framed_call() {
         v.push(fc.callee.as_str());
     }
-    if let Some(cs) = f.call_seq.as_ref() {
+    if let Some(cs) = f.call_seq() {
         for c in &cs.calls {
             v.push(c.callee.as_str());
         }
     }
-    if let Some(cp) = f.cond_pair.as_ref() {
+    if let Some(cp) = f.cond_pair() {
         v.push(cp.then_arm.callee.as_str());
         v.push(cp.else_arm.callee.as_str());
     }
@@ -1101,7 +1101,7 @@ fn callee_disposition(
         Ok(g) => {
             if tu.reduces_to_nothing(callee) {
                 "reduces".to_string()
-            } else if g.empty_body {
+            } else if g.empty_body() {
                 "empty".to_string()
             } else {
                 // **Can the port lower the callee?** This is the question that
@@ -1683,7 +1683,7 @@ pub(super) fn measure(
         // nothing.
         if matches!(v, FnByte::Differs { .. }) && bytes.as_slice() == [0x4E, 0x80, 0x00, 0x20] {
             let callee = match row {
-                Some((_, Ok(f))) => f.tail_call.as_deref(),
+                Some((_, Ok(f))) => f.tail_call(),
                 _ => None,
             };
             let key = |n: Option<&str>| -> String {

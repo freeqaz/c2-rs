@@ -578,7 +578,7 @@ mod tests {
 
     fn fpfunc(params: Vec<u32>, ops: Vec<IlOp>) -> IlFunction {
         let mut f = func_with(params, ops);
-        f.float_leaf = Some(false);
+        f.body = c2_il::BodyShape::FloatLeaf(false);
         f
     }
 
@@ -695,7 +695,7 @@ mod tests {
                     IlOp::Add,
                 ],
             );
-            g.float_leaf = Some(true);
+            g.body = c2_il::BodyShape::FloatLeaf(true);
             g
         };
         let (text, consts) = float_leaf_text(&f, true).unwrap();

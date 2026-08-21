@@ -144,7 +144,7 @@ pub(crate) fn static_scan_loop_words() -> Option<Vec<u8>> {
 /// offered: the only fact that decides it is `func.static_scan_loop`, set by
 /// exactly one parser production.
 pub(crate) fn static_scan_loop_text(func: &IlFunction) -> Option<Vec<u8>> {
-    func.static_scan_loop.as_ref()?;
+    func.static_scan_loop()?;
     static_scan_loop_words()
 }
 

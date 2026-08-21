@@ -161,7 +161,7 @@ pub(crate) fn counted_accum_loop_words(l: &CountedAccumLoop) -> Option<Vec<u8>> 
 /// the only fact that decides it is `func.counted_accum_loop`, set by exactly
 /// one parser production.
 pub(crate) fn counted_accum_loop_text(func: &IlFunction) -> Option<Vec<u8>> {
-    counted_accum_loop_words(func.counted_accum_loop.as_ref()?)
+    counted_accum_loop_words(func.counted_accum_loop()?)
 }
 
 /// The selector's arm. `mode` is the per-function optimization word.
@@ -328,8 +328,8 @@ mod tests {
     fn the_selector_routes_the_shape_at_both_modes_and_to_the_same_bytes() {
         use crate::codegen::select::{select_function, OptMode, Selected};
         let mut f = super::super::testutil::func_with(vec![0xE3, 0xE4], Vec::new());
-        f.counted_accum_loop = Some(cell(CountedAccumOp::Mul, 1, false));
-        let want = counted_accum_loop_words(f.counted_accum_loop.as_ref().unwrap()).unwrap();
+        f.body = c2_il::BodyShape::CountedAccumLoop(cell(CountedAccumOp::Mul, 1, false));
+        let want = counted_accum_loop_words(f.counted_accum_loop().unwrap()).unwrap();
         for mode in [OptMode::O1, OptMode::Ox] {
             match select_function(&f, mode).expect("the selector must route this shape") {
                 Selected::Plain(t) => assert_eq!(t, want, "at {mode:?}"),

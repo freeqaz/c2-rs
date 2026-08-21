@@ -334,7 +334,7 @@ mod tests {
         // v1, v2, ul — three formals, tokens as captured.
         let mut f = crate::codegen::testutil::func_with(vec![0x0F6C, 0x0F6D, 0x0F6E], Vec::new());
         f.mangled_name = "?MemFree@NUISPEECH@@YAXPAX0K@Z".to_string();
-        f.cond_pair = Some(CondTailPair {
+        f.body = c2_il::BodyShape::CondPair(CondTailPair {
             cmp_param: 0,
             rel: Rel::Eq,
             signed: false,
@@ -358,7 +358,7 @@ mod tests {
     #[test]
     fn memfree_matches_the_published_bytes() {
         let f = memfree();
-        let parts = cond_pair_parts(&f, f.cond_pair.as_ref().unwrap()).expect("in class");
+        let parts = cond_pair_parts(&f, f.cond_pair().unwrap()).expect("in class");
         #[rustfmt::skip]
         let want: Vec<u8> = vec![
             0x7c, 0x8b, 0x23, 0x78, // mr     r11,r4
@@ -399,8 +399,8 @@ mod tests {
                 slots: vec![SlotArg::Formal(0), SlotArg::Formal(2), SlotArg::Formal(1)],
             },
         };
-        f.cond_pair = Some(pair);
-        let parts = cond_pair_parts(&f, f.cond_pair.as_ref().unwrap()).unwrap();
+        f.body = c2_il::BodyShape::CondPair(pair);
+        let parts = cond_pair_parts(&f, f.cond_pair().unwrap()).unwrap();
         // entry: `mr r11,r4` then `mr r4,r5` — descending destination.
         assert_eq!(&parts.text[..8], &[0x7c, 0x8b, 0x23, 0x78, 0x7c, 0xa4, 0x2b, 0x78]);
         // then: only `mr r3,r11` remains.
@@ -435,7 +435,7 @@ mod tests {
             let mut f =
                 crate::codegen::testutil::func_with(vec![0x0F6C, 0x0F6D, 0x0F6E], Vec::new());
             f.mangled_name = "?s_eq@@YAXPAXKH@Z".to_string();
-            f.cond_pair = Some(CondTailPair {
+            f.body = c2_il::BodyShape::CondPair(CondTailPair {
                 cmp_param: 2,
                 rel,
                 signed,
@@ -449,7 +449,7 @@ mod tests {
                     slots: vec![SlotArg::Formal(0), SlotArg::Lit(0), SlotArg::Lit(0)],
                 },
             });
-            let parts = cond_pair_parts(&f, f.cond_pair.as_ref().unwrap()).expect("in class");
+            let parts = cond_pair_parts(&f, f.cond_pair().unwrap()).expect("in class");
             // The layout is fixed for the whole grid: compare, branch, the
             // then-arm's bare tail call, the else-arm's two literals (in
             // DESCENDING destination order, r5 before r4), its tail call.
@@ -553,8 +553,11 @@ mod tests {
     #[test]
     fn signedness_selects_the_compare_instruction() {
         let mut f = memfree();
-        f.cond_pair.as_mut().unwrap().signed = true;
-        let parts = cond_pair_parts(&f, f.cond_pair.as_ref().unwrap()).unwrap();
+        match &mut f.body {
+            c2_il::BodyShape::CondPair(cp) => cp.signed = true,
+            _ => unreachable!("memfree() builds a CondPair body"),
+        }
+        let parts = cond_pair_parts(&f, f.cond_pair().unwrap()).unwrap();
         assert_eq!(&parts.text[4..8], &[0x2f, 0x03, 0x00, 0x00]);
     }
 }

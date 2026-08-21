@@ -782,14 +782,14 @@ mod tests {
             let mut f = crate::codegen::testutil::func_with(vec![0x09EA, 0x09EB], Vec::new());
             match class {
                 ChargedClass::PtrWalkModLoop => {
-                    f.ptr_walk_loop = Some(PtrWalkModLoop {
+                    f.body = c2_il::BodyShape::PtrWalkLoop(PtrWalkModLoop {
                         params: vec![0x09EA, 0x09EB],
                         acc_init: 0,
                         mul_k: 127,
                     })
                 }
                 ChargedClass::XteaEncryptLoop => {
-                    f.xtea_encrypt_loop = Some(XteaEncryptLoop {
+                    f.body = c2_il::BodyShape::XteaEncryptLoop(XteaEncryptLoop {
                         callee: "?Encipher@XTEABlockEncrypter@@AAA_K_KPAI@Z".to_string(),
                         key_off: 16,
                         nonce_off: 0,
@@ -797,7 +797,7 @@ mod tests {
                     })
                 }
                 ChargedClass::PtrWalkChainLoop => {
-                    f.ptr_walk_chain_loop = Some(PtrWalkChainLoop {
+                    f.body = c2_il::BodyShape::PtrWalkChainLoop(PtrWalkChainLoop {
                         params: vec![0x09E3],
                         acc_init: 0,
                         elem_unsigned: false,
@@ -805,7 +805,7 @@ mod tests {
                     })
                 }
                 ChargedClass::JsonUtf8Copy => {
-                    f.json_utf8_copy = Some(JsonUtf8CopyFn {
+                    f.body = c2_il::BodyShape::JsonUtf8Copy(JsonUtf8CopyFn {
                         params: vec![0x09f3, 0x09f0, 0x09f1],
                         off_buffer: 0,
                         off_size: 4,
@@ -861,7 +861,7 @@ mod tests {
     fn json_utf8_copy_is_admitted_as_a_framed_class_and_not_at_lead_plus_one() {
         use c2_il::JsonUtf8CopyFn;
         let mut f = crate::codegen::testutil::func_with(vec![0x09f3, 0x09f0, 0x09f1], Vec::new());
-        f.json_utf8_copy = Some(JsonUtf8CopyFn {
+        f.body = c2_il::BodyShape::JsonUtf8Copy(JsonUtf8CopyFn {
             params: vec![0x09f3, 0x09f0, 0x09f1],
             off_buffer: 0,
             off_size: 4,

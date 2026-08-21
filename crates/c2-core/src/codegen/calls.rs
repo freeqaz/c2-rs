@@ -1001,52 +1001,21 @@ fn ops_setup_text(
         // A SYNTHETIC function, never a `.gl` record — so "unasked" is the only
         // honest value, and it is also the one no consumer acts on.
         inlinable: None,
-        alloc_init_or_fail: None,
-        osf_handle_guard: None,
-        guard_ret_chain: None,
-        close_call_chain: None,
-        memcpy_tail: None,
-        nonce_add_run: None,
-        xtea_round_loop: None,
-        xtea_encrypt_loop: None,
-        fp_store_diamond: None,
-        ctor_forward_call: None,
-        xlrc_create_guard: None,
-        json_utf8_copy: None,
-        pool_free_list: None,
-        pool_ctor_chain: None,
+        // A synthetic operand-stream carrier, never a shaped body: `select_text`
+        // reads `params` and `ops` and nothing else.
+        body: c2_il::BodyShape::Plain,
         mangled_name: String::new(),
         source_path: None,
         params: params.to_vec(),
         ops: ops.to_vec(),
-        tail_call: None,
-        framed_call: None,
-        call_seq: None,
-        cond_pair: None,
-        compare: None,
-        cmp_shift_or: None,
-        if_call_join: None,
-        ptr_walk_loop: None,
-        static_scan_loop: None,
-        global_store_leaf: None,
-            counted_accum_loop: None,
-        guard_chain_shared_tail: None,
         data_def: None,
-        ptr_walk_chain_loop: None,
-        div_mod_leaf: None,
-        float_leaf: None,
-        fp_tail: None,
-        fp_arg_sources: None,
-        arg_sources: None,
         data_syms: Vec::new(),
         fn_addr_sym: None,
-        empty_body: false,
         // A synthetic operand-stream carrier, never a function: `select_text`
         // reads `params` and `ops` and nothing else, and the label counter never
         // sees this value.
         eh_bare: false,
         eh_unwind_callees: Vec::new(),
-            float_walk_loop: None,
     };
     let mut t = select_text(&synth, mode)?;
     let blr = encode_blr();
