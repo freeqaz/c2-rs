@@ -705,6 +705,159 @@ fn cmd_snap(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], raw: u32, cw
                 c.armed.walk_refusals.join("; ")
             );
         }
+        // ------------------------------------------------------------------
+        // THE FUNCTION WALK (C2RS_STAGE_FUNCWALK) — the observable the region
+        // tap cannot give.
+        //
+        // Two things the region tap structurally cannot do, and both are what
+        // arch review 2026-08-21 finding 1 turns on:
+        //   * it visits every tuple ONCE, so there is no suffix inflation and
+        //     a phase-to-phase comparison is over the whole function;
+        //   * it exists at `after0`, i.e. AFTER run 4 — the run that fixes
+        //     emitted instruction order, whose output was observed nowhere.
+        //
+        // Each adjacent pair is reported twice: SPINE (opcode/category/flags/
+        // cc only) and FULL (with the operand and symbol records inline).
+        // A pair that is IDENTICAL on the spine and DIFFERS on FULL is a pass
+        // whose entire output is in the operand records — which is exactly the
+        // shape the register allocator was predicted to have.
+        if !c.armed.funcs.is_empty() {
+            let fw_funcs = c.armed.funcs.iter().map(|f| f.func).max().unwrap_or(0);
+            let phases = ["sched1", "globregs", "sched2", "color", "sched3", "sched0", "after0"];
+            println!("\n  FUNCTION WALK — {} blocks over {} function(s)", c.armed.funcs.len(), fw_funcs);
+            let pick = |phase: &str, f: u32| -> Option<&c2_reference::stage::FuncWalk> {
+                c.armed.funcs.iter().find(|w| w.phase == phase && w.func == f)
+            };
+            let mut spine_diff = 0usize;
+            let mut full_diff = 0usize;
+            let mut ops_only = 0usize;
+            let mut fw_pairs = 0usize;
+            for w in phases.windows(2) {
+                let (a, b) = (w[0], w[1]);
+                for f in 1..=fw_funcs {
+                    let (Some(x), Some(y)) = (pick(a, f), pick(b, f)) else { continue };
+                    fw_pairs += 1;
+                    let (sa, sb) = (x.spine(), y.spine());
+                    let (ra, rb) = (x.rows(), y.rows());
+                    let s_same = sa == sb;
+                    let r_same = ra == rb;
+                    if !s_same { spine_diff += 1; }
+                    if !r_same { full_diff += 1; }
+                    if s_same && !r_same { ops_only += 1; }
+                    println!(
+                        "  FW {a}->{b} fn{f}: rows {}->{}  spine {}  full {}{}",
+                        ra.len(),
+                        rb.len(),
+                        if s_same { "IDENTICAL" } else { "DIFFERS  " },
+                        if r_same { "IDENTICAL" } else { "DIFFERS" },
+                        if s_same && !r_same { "   <-- OPERAND-ONLY WRITE" } else { "" },
+                    );
+                }
+            }
+            println!(
+                "  gap-metric stage-fw-pairs {fw_pairs}\n  \
+                 gap-metric stage-fw-spine-differing {spine_diff}\n  \
+                 gap-metric stage-fw-full-differing {full_diff}\n  \
+                 gap-metric stage-fw-operand-only {ops_only}"
+            );
+            // CROSS-DERIVATION (PREREG B2). The function walk and the region
+            // walk are two different readings of c2's memory — one from the
+            // function record through the block chain, one from the tuple
+            // pointer the region finder was handed. If the record-layout
+            // reading is right they must agree about which tuples exist at a
+            // phase; if it is wrong this is where it shows, rather than in a
+            // conclusion nobody can check.
+            for phase in ["sched2", "sched3"] {
+                for f in 1..=fw_funcs {
+                    let Some(w) = pick(phase, f) else { continue };
+                    let fw: Vec<String> = w.spine();
+                    // The region walk's OWN distinct rows for this (phase, fn):
+                    // the longest block, index stripped, operands stripped.
+                    let region = c
+                        .armed
+                        .blocks_at(phase, f)
+                        .into_iter()
+                        .max_by_key(|b| b.tuples.len())
+                        .map(|b| {
+                            b.tuples
+                                .iter()
+                                .map(|t| {
+                                    let t = t.split_once(" | ").map(|(s, _)| s).unwrap_or(t);
+                                    t.split_once(' ').map(|(_, r)| r.to_string()).unwrap_or_default()
+                                })
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+                    if region.is_empty() {
+                        continue;
+                    }
+                    // ORDER-SENSITIVE, deliberately — and the upgrade from a
+                    // multiset containment to this is why the reading below is
+                    // stated the narrow way it is. The multiset check passed
+                    // 14 of 14 and was VACUOUS: it would have passed just as
+                    // happily on a reversed or re-blocked walk.
+                    //
+                    // WHAT IT ESTABLISHES: the region walk starts inside one
+                    // block and runs to `next == 0`, so its opening rows must
+                    // be a SUFFIX of that block, in order. The longest such
+                    // match over all blocks is the confirmation of the
+                    // within-block direction — the direction is the whole
+                    // finding, since the C walk runs backward down
+                    // `tuple+0x10` and the reader reverses it.
+                    //
+                    // WHAT IT DOES NOT ESTABLISH, and this is a MEASURED
+                    // limit, not a caveat: the region walk continues past the
+                    // end of that block into tuples the block chain
+                    // (`block+0x4`) orders EARLIER. So `block+0x4` is a
+                    // traversal order, NOT the tuple list's order, and the
+                    // per-phase comparison above is a comparison of the same
+                    // traversal at two phases — never a claim about emitted
+                    // order.
+                    let mut best = (0usize, usize::MAX);
+                    for (bi, blk) in w.blocks.iter().enumerate() {
+                        let spine: Vec<String> = blk
+                            .iter()
+                            .map(|r| r.split_once(" | ").map(|(s, _)| s.to_string()).unwrap_or_else(|| r.clone()))
+                            .collect();
+                        let mut k = spine.len().min(region.len());
+                        while k > 0 {
+                            if spine[spine.len() - k..] == region[..k] {
+                                break;
+                            }
+                            k -= 1;
+                        }
+                        if k > best.0 {
+                            best = (k, bi);
+                        }
+                    }
+                    println!(
+                        "  FW-XDERIV {phase} fn{f}: funcwalk {} rows in {} blocks, region walk {} rows -- {}",
+                        fw.len(),
+                        w.blocks.len(),
+                        region.len(),
+                        if best.0 >= 3 {
+                            format!(
+                                "the region walk's first {} rows are the IN-ORDER TAIL of funcwalk block {}: \
+                                 the within-block direction is CONFIRMED, and the remaining {} row(s) are \
+                                 in blocks the block chain orders earlier",
+                                best.0,
+                                best.1,
+                                region.len() - best.0
+                            )
+                        } else {
+                            format!(
+                                "NO in-order tail match of length >= 3 (best {} rows, block {}) -- THE LAYOUT READING IS WRONG\n      \
+                                 funcwalk: [{}]\n      region:   [{}]",
+                                best.0,
+                                best.1,
+                                fw.join(" / "),
+                                region.join(" / "),
+                            )
+                        }
+                    );
+                }
+            }
+        }
         if paired > 0 && differing == 0 && c.armed.walk_refusals.is_empty() {
             println!(
                 "  FINDING, not a green: the pre/post-COLOR snapshots are IDENTICAL on every\n                   function here. The walk is reading fields COLOR does not write — it shows THAT\n                   the allocator ran, not WHAT it did."
