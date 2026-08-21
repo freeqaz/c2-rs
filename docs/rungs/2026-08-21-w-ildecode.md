@@ -1,0 +1,192 @@
+# w-ildecode — the opaque middle's two edges, documented; and one of them turns out to be short
+
+    Tag:       w-ildecode
+    Slug:      w-ildecode
+    Date:      2026-08-21
+    Kind:      characterization
+    Outcome:   instrument
+    Fixtures:  none — characterization: what shape does data have at the two
+               seams of the opaque middle, and by what code does c2 transform
+               it?
+    Census:    +0 — no crates/ emit rule, no refusal predicate, no fixture
+    Record:    `docs/whitebox/WB_MIDDLE_INTERFACES.md`; prereg at
+               `docs/whitebox/WB_MIDDLE_PREREG.md`, frozen as the lane's first
+               commit; scratch under `work/w-ildecode/` (gitignored)
+    Board:     #3357–#3360 (reserved at `72207b86f`, all four spent)
+
+> **`coff::Function` field this lane's work would eventually write: NONE.**
+> Arch review finding 3's prophylactic, answered honestly. This lane ports no
+> pass and writes no field; what it produces is a record and four graded tests.
+> The prophylactic's value is that a lane which cannot name a field has to say
+> so out loud.
+
+---
+
+## 0. Verdict, one line each
+
+| deliverable | outcome |
+|---|---|
+| **1. `WB_MIDDLE_INTERFACES.md`** | **SHIPPED** — both interfaces, addressed, cross-linked, READ vs MEASURED per claim, worked example traced through `mvp_add3` end to end |
+| **2a. interface-1 proof code** | **SHIPPED** — a subset decoder reproduces the live tap's rows **row for row on 3 functions**, additive chains of 2/3/4 leaves |
+| **2b. interface-2 proof code** | **SHIPPED, and larger than the brief allowed for** — **9 `.text` words, 32 bits of 32**, not the masked check the lane planned. `w-restim`'s operand walk landed mid-lane and supplied the register fields |
+| **2c. relocation/label half of the emit seam** | **FAILED.** Zero cells. Both fixtures have zero `.text` relocations and no other fixture was graded |
+| **3. DISCLOSURE rows** | **SHIPPED** — `W-MID-1`…`W-MID-4`, in the commit that adopts them |
+| **4. the cost note** | **SHIPPED** — `WB_MIDDLE_INTERFACES.md` §8, as a lower bound, and it moves ONE of the two halves |
+
+**Outcome word: `instrument`.** No fixture claimed, no census number moved, obj
+bytes required-zero and unmoved. Predicted reach was 0 TUs and the reach was 0
+TUs.
+
+---
+
+## 1. What was actually found
+
+Three things, in descending order of how much they change the picture.
+
+**(a) Interface 2 is short and interface 1 is the whole compiler.** The final
+tuple order becomes `.text` through `FUN_10bf9f15` — two array lookups
+(`0x10c3a578` base word, `0x10c39b18` encode form) and a 111-arm switch. The
+`ret`/`blr` arm is literally one instruction (`or ebx,0x2800000`). Between the
+IL token stream and the machine tuple list there is, by contrast, **nothing
+exposed**: by the time any tap can observe a tuple, selection has already run.
+That asymmetry is the lane's headline and it is what §8's re-pricing rests on.
+
+**(b) The opcode space is one named table, and there is a trap beside it.**
+`0x10b1b260`, stride 12, 0-based, `_last` at `0x295`. Immediately after it sits
+a *second* table (`0x10b1d180`, stride 16) with its own index space, which
+decodes tuple opcode `0x30f` as the trap instruction `tdlngi` in a function
+whose source is `return a+b+c`. Read as a continuation it is silently plausible
+and completely wrong.
+
+**(c) The instruction-carrying tuples are in bijection with the emitted words,
+at one site.** `w-restim`'s Probe C measured 19–22 tuples against 4–5
+instructions and concluded there is no common coordinate. That stands. What is
+added is that most of the ratio is bookkeeping — on `mvp_add3` the region-walk
+payload is 36 rows across 7 blocks for a 3-word function, but the
+whole-function list at `after0` is 8 rows of which 3 carry an instruction, and
+those 3 are exactly the 3 emitted words in order. The projection is undefined in
+the **region** coordinate and the identity in the **instruction** coordinate.
+
+---
+
+## 2. The graded results
+
+`cargo test -p c2-reference --test middle_interfaces`, four tests, all green
+under `C2RS_REQUIRE_TOOLCHAIN=1`:
+
+```
+interface-0: 75 real-instruction tuples (36 at sched0, all machine opcodes),
+             213 structural (all above the machine space),
+             6 pre-lowering pseudo-op instruction tuples
+interface-1: 3 functions, row-for-row equality, chains of 2/3/4 leaves
+interface-2: 9 .text words reproduced from the post-final-schedule tuple order,
+             32 bits of 32
+the_probe_levers_never_move_the_obj_at_this_lanes_profile ... ok
+```
+
+Fixtures: `mvp_add3.cpp` (`add3`), `mvp_two.cpp` (`add2`, `add4`),
+`mvp_call.cpp`, `il_stmt_seq.cpp`. The three functions carrying the interface-1
+and interface-2 grades are all **`Port=Match`** — byte-exact today — so the
+lane's subject matter is inside the shipped class and nothing here can move the
+required-zero.
+
+**Two positive checks the tests refuse to run without**, because both are the
+shape that has produced twelve recorded instances of absence-read-as-success in
+this project:
+
+* `armed_and_fired()` before any row is read — an unarmed run agrees with itself
+  on zero rows.
+* interface-0's `pseudo_pre > 0` liveness clause — without it, *"no pseudo-ops
+  at `sched0`"* would pass on a corpus that has no pseudo-ops anywhere.
+
+---
+
+## 3. PREREG scored — 13 H · 3 M · 3 U
+
+Full table in `WB_MIDDLE_INTERFACES.md` §7. The three that matter:
+
+* **P0.1 REFUTED.** *"Every real-instruction tuple carries a machine opcode"* is
+  false before the lowering band. Caught by the test, not by re-reading.
+* **P2.2's form values were wrong in the prereg.** The registered arm indices
+  `0x03`/`0x1e` came from reading the jump table's arms sequentially instead of
+  through `form − 1`; the real forms are `0x31` and `0x37`. Corrected in public
+  rather than folded in.
+* **P1.5 DID NOT RUN**, and it was the discriminating half of P1.4. So
+  `+0xa & 0x1f` is documented as *consistent with* an operand size (4 on every
+  4-byte tuple, 0 on every structural one) and the condition-code reading it was
+  meant to refute is **not refuted**. Said in those words in §3.3 rather than
+  claimed.
+
+Two further U rows (P1.6, P2.4) are fixture coverage this lane did not buy.
+
+---
+
+## 4. What FAILED, in those words
+
+**The relocation and label half of the emit seam: FAILED.** The brief asked for
+*"the relocation/label emission at that seam"* and this lane produced **zero
+cells** on it. Both graded fixtures have zero `.text` relocations, so the seam
+was not merely under-measured — it was not observed at all. Nothing in
+`WB_MIDDLE_INTERFACES.md` §5 says anything about relocations, and §5.6 says so
+explicitly so absence does not read as coverage.
+
+**Coverage of the encoder: 2 of 111 arms.** Enough to grade 9 words and not
+enough to say anything about the other 109. §8 names the cheap follow-up (dump
+all 111 arms and histogram `0x10c39b18` over the workload's emitted opcodes)
+and declines to extrapolate, per `#1767`.
+
+---
+
+## 5. The peer collision, and what was deleted
+
+`w-restim` landed (merge `b6fd2bf48`) while this lane was mid-flight, with a
+strictly richer version of the tap extension this lane had already written and
+greened: an eighth site `after0`, a whole-function walk from the function
+record, and an operand walk over both operand lists reaching the assigned and
+physical registers. This lane's own version — one `OPD` line per tuple carrying
+three registers via the encoder's path (`operand+0x1c → +0x28`), env-gated,
+with its own neutrality test — was **deleted** in the rebase resolution.
+
+`c2host/stagetap.c` and `crates/c2-reference/src/stage.rs` were taken **verbatim
+from master**; this lane's net delta in both is **zero lines**. Board **#3360**
+carries the rule: when a peer's instrument subsumes yours, the merge hazard is
+not the textual conflict, it is the one that *doesn't* conflict — two operand
+walks over the same pointers would have merged cleanly, doubled the payload, and
+left two register encodings (`n` and `n − 1`) in one stream.
+
+The two encodings were then **reconciled rather than assumed compatible**:
+`sym+0x08 → +0x1c` equals `operand+0x1c → +0x28` plus one, confirmed by
+construction (`0x0c` where the obj has `r11`).
+
+---
+
+## 6. Two defects found in this lane's own code, recorded
+
+* **`IMAGE_SYMBOL.Value` is at `+8`, not `+4`.** The first `.text` slicer read
+  four bytes of a mangled name as a section offset and panicked on an inverted
+  range. It also could not have used
+  `ObjImage::text_comdat_functions_with_bytes` at all: these fixtures' `.text`
+  is `0x60400020`, with **no `LNK_COMDAT` bit**, so the COMDAT walk correctly
+  returns nothing — and a test built on it would have graded **zero functions
+  while printing a pass.**
+* **The subset decoder's stopping rule was "the first byte I do not
+  recognise".** That cannot distinguish *finished* from *gave up*, and reporting
+  the second as the first is how a subset decoder manufactures a green. It now
+  stops at the epilogue label token and **refuses** a body whose label it never
+  reaches.
+
+---
+
+## 7. Gate
+
+`crates/` delta is **one new test file**; no `crates/` source, no `c2host/`
+source and no shipped rule is touched, so the required-zero metrics cannot move
+and the gate is a no-regression control.
+
+Counts as run on this branch:
+
+    (filled in by §7.1 below from the run this lane actually did)
+
+### 7.1 Run
+
+See the transcript quoted at the end of this file.
