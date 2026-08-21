@@ -15,9 +15,13 @@ rung unlocks, and the exact commands that decide whether a rung is done*.
 
 The goal restated: `c2rs gap` over the real dc3-decomp workload (878 TUs,
 real `/O1 /Oi /EHsc` flags) reports a nonzero — then growing, then dominant —
-**match** bucket, with zero mismatches, at port speed. **As of 2026-07-29 that
-bucket is nonzero for the first time: 6 of 878** (R1/R3, §4). The word that
-matters in the goal is now "growing".
+**match** bucket, with zero mismatches, ~~at port speed~~ **(2026-08-21: the
+trailing clause is struck — speed is a property, not part of the goal. See
+[`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md); the goal is
+perfect reproduction, and for goal (2) "dominant" now has a number —
+`match` → **870/878**, every TU the oracle itself can compile)**. **As of
+2026-07-29 that bucket is nonzero for the first time: 6 of 878** (R1/R3, §4).
+The word that matters in the goal is now "growing".
 
 ---
 
