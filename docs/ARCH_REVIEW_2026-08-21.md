@@ -125,6 +125,16 @@ required-zero criterion.
   `crates/` diffs), so they are not monotone.
 - Predictor denominator ceiling is 854, not the promised 870 (16 TUs refused
   by `gl_function_attrs`).
+- **Stale denominators quoted as §5 step-3 lane sizes**, re-measured at
+  `d7be7aadc`: `845` → **844**; COMDAT synthesis `450` → **399** (11% off;
+  the scan asserts `repaired + wall == graded`, 471+399=870); weak-external
+  TUs `675` → **674**. `docs/CEILING.md:280` separately warns that quoting
+  "the 450 wall" as a figure the project might *attain* inverts its sign.
+- **The counterfactual is symmetric and both halves are ≈0**: perfect
+  curves with step 5 frozen converts **1** TU; perfect step 5 with curves
+  frozen converts **2** (= `gap-metric frontier`). Neither half pays without
+  the other — which is why the *diagnosis* survives review even though the
+  *remedy's* framing does not.
 
 ### 6. The proposal text is behind its own commissioned measurements *(history + drift)*
 
@@ -143,7 +153,24 @@ required-zero criterion.
   black-box") but reality is a **partial fire**: the mechanism is green and
   one pass is unobservable. The proposal has no language for this state — the
   single highest-value amendment.
-- Sizing/anchors stale: "~15 fields" was 34 ✅; cited line numbers drifted
+- **Two citation slips, both verified, both also present verbatim in
+  `STRATEGY_REVIEW_2026-08-13.md:485-489` and copied forward**: "a perfect
+  reader converts 2" cites #3191 at `:113` and `:141` — the row is **#3190**
+  ✅; and "523 of 845 fail A,B,C simultaneously" at `:112-113` is credited to
+  `w-871`, which crosses by *mechanism* and states no such figure — it is
+  `w-vocabgap` / **#3189**, whose headline says it in those words ✅.
+- **A∧B∧C is measurably not *necessary*, and the proposal restates it as if
+  it were**: `src/system/decomp_pch.cpp` is a `match` with A false
+  (`-BCDE`), falsifying the assertion at
+  `crates/c2-harness/src/gap/factors.rs:668`. Recorded at
+  `REFACTOR_REVIEW_2026-08-20.md:127-140` ✅ and not carried across. One
+  named exception — it does not weaken the conjunction argument, which
+  survived review intact.
+- Sizing/anchors stale: "~15 fields" (`:100`) was **34** — cited to
+  `docs/rungs/2026-08-21-w8sum.md:1,24`, **not** board #844, which is
+  `w-alloc2` (store-run emitter leaf-only) and contains no occurrence of
+  "Option" ✅ — a reviewer mis-attribution caught in this audit; cited line
+  numbers drifted
   twice more; `docs/GAPS.md:2601` and `gap/fnbytes.rs:650` still describe the
   deleted `Bindings::positional` in the present tense ✅.
 
@@ -154,8 +181,10 @@ required-zero criterion.
   measured evidence: the only real consumer (decomp-synth) is source-space
   (full `cl.exe` per candidate), capped at **≈2.4×** even with an infinitely
   fast c2 (c2 = 142ms of a 245ms PCH-warm compile); its wall-clock bound has
-  **moved off compilation to generation** ✅ (`SCORING_SPEEDUP_PLAN.md:410`
-  verbatim); the uncapped IL-space regime was stood down in both repos (1
+  **moved off compilation to generation** ✅ (verbatim, in the sibling repo:
+  `../decomp-synth/docs/plans/il-witness/g2_push/SCORING_SPEEDUP_PLAN.md:410`
+  — "scoring is no longer the wall-clock bound on any wave — generation
+  is"); the uncapped IL-space regime was stood down in both repos (1
   attributable result, by source fix); the shipped hybrid prefilter has
   **never been enabled once** ✅ (`C2RS_PREFILTER` in no run script or job
   env); and work-weighted coverage is 46 of 162,147 emitted functions
