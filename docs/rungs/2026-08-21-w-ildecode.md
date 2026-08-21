@@ -69,13 +69,25 @@ whose source is `return a+b+c`. Read as a continuation it is silently plausible
 and completely wrong.
 
 **(c) The instruction-carrying tuples are in bijection with the emitted words,
-at one site.** `w-restim`'s Probe C measured 19–22 tuples against 4–5
+at one site — on a population of THREE, fenced in `WB_MIDDLE_INTERFACES.md`
+§6.1.** `w-restim`'s Probe C measured 19–22 tuples against 4–5
 instructions and concluded there is no common coordinate. That stands. What is
 added is that most of the ratio is bookkeeping — on `mvp_add3` the region-walk
 payload is 36 rows across 7 blocks for a 3-word function, but the
 whole-function list at `after0` is 8 rows of which 3 carry an instruction, and
 those 3 are exactly the 3 emitted words in order. The projection is undefined in
 the **region** coordinate and the identity in the **instruction** coordinate.
+
+**This result is fenced by this lane and not by a reviewer.** §6.1 states the
+population completely (three leaf, frameless, call-free, branch-free,
+relocation-free `int` functions) and **names in advance where it is expected to
+break**: on any **framed** function, because the final expansion switch rewrites
+the prologue pseudo-op in situ into many words
+(`WB_REGALLOC_FINDINGS.md` §4 item 2, `0x2f4`/`0x2f0` → `0x10bff95c`). The three
+graded functions are precisely the ones that cannot exhibit that. If the check
+is promoted to the fixture corpus it must be promoted as a **per-function ratio
+measurement**, never as the equality assertion it is today — that assertion goes
+red on the first framed function and would be read as an instrument defect.
 
 ---
 

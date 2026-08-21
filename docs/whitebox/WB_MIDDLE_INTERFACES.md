@@ -496,6 +496,45 @@ Both are true and they answer different questions. A port cannot emit c2's
 region trace; a port's instruction sequence is nevertheless comparable to c2's
 final tuple list, one row per word, at one site.
 
+### 6.1 THE BIJECTION'S POPULATION, AND WHAT WOULD FALSIFY IT — fenced here, by this lane
+
+**The bijection is measured on 3 functions and 9 words. That is a population of
+three, and `#1459`'s rule applies to it in full: a registered number is a
+statement about the population that suggested it.** This section fences it
+before anyone builds on it.
+
+**The population, stated completely.** `mvp_add3::add3`, `mvp_two::add2`,
+`mvp_two::add4`, at `/Ox /GS- /c`. All three are: **leaf** functions with **no
+frame** (`stwu` appears in none of them), **no call**, **no branch**, **no
+memory reference**, **no constant operand**, **zero `.text` relocations**, one
+basic block, `int`-typed throughout, and **already `Port=Match`**. Every one of
+those is a property the three share and none of them is varied.
+
+**Where the bijection is EXPECTED TO BREAK, named in advance.**
+`WB_REGALLOC_FINDINGS.md` §4 item 2 reads the final expansion pass as *"a giant
+`switch` on `instr->opcode` rewriting each pseudo-op **in situ**"*, with
+`0x2f4`/`0x2f0` calling the prologue driver `0x10bff95c` via `0x10c216f5` /
+`0x10c21719`. A prologue pseudo-op is **one tuple that becomes many words**. So:
+
+> **Predicted, and registered here rather than discovered later: on any framed
+> function the `after0` real-instruction tuple count is STRICTLY LESS than the
+> emitted word count, and the bijection fails.** The three functions graded here
+> are exactly the ones that cannot exhibit it.
+
+Two further predicted breakers, in decreasing confidence: a function with a
+`bl` (the relocation seam, §5.6, observed at zero cells); and `__savegprlr_*` /
+`__restgprlr_*` outlining, which is a call c2 synthesises with no tuple in the
+source list at all.
+
+**What this means for promoting the check to the corpus.** It should be promoted
+as a **per-function ratio measurement that reports the distribution**, not as an
+assertion of bijection — the same distinction `w-restim`'s `FW-XDERIV` had to
+make. An assertion would go red on the first framed function and be read as an
+instrument defect; a measurement would say *"bijection on N of M, and here is
+the shape of the M − N"*, which is the number a general lowerer's price
+actually needs. `the_final_tuple_order_reproduces_the_text_words` as written
+asserts equality and **must not** be pointed at the corpus unchanged.
+
 ---
 
 ## §7 PREREG scored
@@ -591,11 +630,37 @@ So, as a lower bound under a ~5:1 calibration:
   target while one built on instruction-level parity at `after0` has a
   well-defined one that nobody has built.
 
-**One concrete, cheap thing this lane recommends and did not do**: dump all 111
-encode-form arms and the `0x10c39b18` histogram over the workload's emitted
-opcodes. That converts "2 of 111 arms" into a coverage number, costs an
-afternoon, and is a prerequisite for anyone putting a real figure on interface
-2's half of the row.
+### 8.1 The encode-form slice, priced — and it is THREE jobs, not one
+
+`docs/ROADMAP_SLICING_2026-08-21.md` carries *"dump all 111 arms of
+`0x10c39b18` plus the base-word table `0x10c3a578` — 1 wk raw"*. That estimate
+is the coordinator's, not this lane's, and this lane's view is that **it prices
+three different jobs as one, and is simultaneously too high for the first and
+unpriceable for the third**.
+
+| job | what it is | this lane's price | basis |
+|---|---|---|---|
+| **(a) DUMP the two tables + histogram** | Extend `docs/whitebox/scripts/dump_opcode_tables.py` to print `base_word[op]` and `form[op]` for all `0x001`–`0x294`, and histogram `form` over the **workload's emitted opcodes**. | **≈ half a day** | The script already exists and already reads both tables; this lane wrote it and ran it in about an hour. This is a `for` loop and a `collections.Counter`. |
+| **(b) READ the arms** | Decode each arm's field composition out of the disassembly, as §5.2 does for two. | **≈ 2 days** for the stereotyped majority, **unbounded** for the tail | The arms are short and formulaic (`[op+0x1c]+0x28`, `shl`, `or`) — §5.2's two took minutes each. But several branch on `DAT_10c2e978` and several call helpers (`0x10bf983a`, `0x10bf98ec`), and this lane read **none** of those. |
+| **(c) GRADE them** | A fixture per form that emits that instruction, and an obj-byte check. | **NOT PRICEABLE UNTIL (a) RUNS** | This is the whole cost, and it scales with *how many forms the workload actually reaches*, which is exactly what (a) measures and nobody has measured. |
+
+**The correction that matters is the ordering.** (a) is a prerequisite for
+pricing (c), and pricing (c) before (a) is the same error `CEILING` §6.1's item
+F made — a figure written against an unmeasured denominator. This lane's
+expectation, registered so it can be scored: **the workload's emitted opcodes
+will concentrate hard, and 20–40 forms will cover ≥ 99 % of emitted words**, so
+a coverage-weighted (c) is a small fraction of a form-complete one. If (a)
+comes back flat instead, that expectation is refuted and the row is much more
+expensive than "1 wk".
+
+**And one thing the row does not contain at all**: relocations. §5.6 is zero
+cells, the 111 arms do not emit them, and a price for "interface 2" that covers
+the encoder and not the relocation seam is a price for part of it. That is not
+a criticism of the estimate's size; it is a statement that the estimate's
+*subject* is smaller than the row's name.
+
+**Recommendation**: re-scope the roadmap row to (a) alone — half a day, one
+script, a number nobody has — and price (b)/(c) after it, off the histogram.
 
 ---
 
