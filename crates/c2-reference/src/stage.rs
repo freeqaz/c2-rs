@@ -149,6 +149,23 @@ pub struct StageBlock {
     pub raw: Vec<String>,
 }
 
+/// The result of [`TapReport::distinct_rows`] — a payload size beside the
+/// coverage it actually represents.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DistinctRows {
+    /// Total `TU` rows in the payload — what `stage-snap-tuples` publishes.
+    pub rows: usize,
+    /// Distinct tuple positions observed, summed over `(phase, function)`
+    /// groups. A FLOOR whenever `suffix_violations > 0`.
+    pub distinct: usize,
+    /// Number of `(phase, function)` groups.
+    pub groups: usize,
+    /// Blocks whose rows are NOT a tail of the longest block in their group.
+    /// Nonzero means the nesting model above is wrong for this payload and
+    /// `distinct` must be read as a floor.
+    pub suffix_violations: usize,
+}
+
 impl TapReport {
     /// The region blocks observed at one phase, for one function.
     pub fn blocks_at(&self, phase: &str, func: u32) -> Vec<&StageBlock> {
@@ -172,6 +189,68 @@ impl TapReport {
                 .collect()
         };
         (cat("sched2"), cat("sched3"))
+    }
+
+    /// **How much of `stage-snap-tuples` is a re-read, and how much is new.**
+    ///
+    /// The bounded walk terminates on `next == 0` — the end of the FUNCTION's
+    /// tuple list, not the end of the region it was handed (`stagetap.c`'s
+    /// `tap_walk_tuples`). So the walk launched at region 1 emits the whole
+    /// list, region 2's walk emits the same list minus its first region, and so
+    /// on: within one `(phase, function)` the blocks are nested suffixes and
+    /// every published tuple count is inflated by the nesting.
+    ///
+    /// **Compare a count, never a status** (arch review 2026-08-21, finding 1).
+    /// `stage-snap-tuples` is a payload size; this is the number of distinct
+    /// tuple positions actually observed, which is what a coverage claim needs.
+    ///
+    /// The suffix structure is **checked, not assumed**: each block's rows,
+    /// with the walk index stripped, must equal the tail of the longest block
+    /// in its group. A group where that fails contributes a
+    /// `suffix_violations` count and its `distinct` term is then a FLOOR — the
+    /// blocks are not nested and the union could be larger.
+    pub fn distinct_rows(&self) -> DistinctRows {
+        // Group in first-seen order; a BTreeMap over (phase, func) would work
+        // too but the order is the diagnostic one.
+        let mut groups: Vec<((String, u32), Vec<&StageBlock>)> = Vec::new();
+        for b in &self.blocks {
+            let key = (b.phase.clone(), b.func);
+            match groups.iter_mut().find(|(k, _)| *k == key) {
+                Some((_, v)) => v.push(b),
+                None => groups.push((key, vec![b])),
+            }
+        }
+        let strip = |row: &String| -> String {
+            match row.split_once(' ') {
+                Some((_idx, rest)) => rest.to_string(),
+                None => row.clone(),
+            }
+        };
+        let mut out = DistinctRows {
+            rows: self.tuples.len(),
+            distinct: 0,
+            groups: groups.len(),
+            suffix_violations: 0,
+        };
+        for (_, blocks) in &groups {
+            let Some(longest) = blocks.iter().max_by_key(|b| b.tuples.len()) else {
+                continue;
+            };
+            let reference: Vec<String> = longest.tuples.iter().map(strip).collect();
+            out.distinct += reference.len();
+            for b in blocks {
+                let rows: Vec<String> = b.tuples.iter().map(strip).collect();
+                if rows.len() > reference.len() {
+                    out.suffix_violations += 1;
+                    continue;
+                }
+                let tail = &reference[reference.len() - rows.len()..];
+                if tail != rows.as_slice() {
+                    out.suffix_violations += 1;
+                }
+            }
+        }
+        out
     }
 
     /// Did the tap actually arm? **The environment control's predicate.**
@@ -563,6 +642,73 @@ mod tests {
         assert!(r.armed_ok(), "the bytes WERE written");
         assert!(!r.armed_and_fired(), "but nothing executed, so nothing was graded");
         assert_eq!(r.total_hits(), 0);
+    }
+
+    /// The payload's size and its COVERAGE are different numbers, and the
+    /// difference is not small: the walk runs to the end of the LIST, so the
+    /// walk launched at region 1 re-reads every later region.
+    #[test]
+    fn the_tuple_count_is_a_payload_size_and_the_distinct_count_is_the_coverage() {
+        // One function, one phase, three regions of one tuple each. Region 1's
+        // walk sees all three, region 2's sees two, region 3's sees one:
+        // 6 rows published for 3 distinct tuple positions.
+        let s = "[stagetap] SITE region ENTER sched2 fn 1 r 1\n\
+                 [stagetap] TU 0 0000000b 0d 01 00\n\
+                 [stagetap] TU 1 000000d6 0f 01 00\n\
+                 [stagetap] TU 2 0000017a 12 01 04\n\
+                 [stagetap] END-REGION\n\
+                 [stagetap] SITE region ENTER sched2 fn 1 r 2\n\
+                 [stagetap] TU 0 000000d6 0f 01 00\n\
+                 [stagetap] TU 1 0000017a 12 01 04\n\
+                 [stagetap] END-REGION\n\
+                 [stagetap] SITE region ENTER sched2 fn 1 r 3\n\
+                 [stagetap] TU 0 0000017a 12 01 04\n\
+                 [stagetap] END-REGION\n";
+        let d = TapReport::parse(s).distinct_rows();
+        assert_eq!(d.rows, 6, "the payload size");
+        assert_eq!(d.distinct, 3, "the tuple positions actually observed");
+        assert_eq!(d.groups, 1);
+        assert_eq!(d.suffix_violations, 0, "the blocks ARE nested suffixes here");
+    }
+
+    /// The nesting is CHECKED. If a block is not a tail of its group's longest
+    /// block the union may exceed the longest, so `distinct` is a floor and the
+    /// instrument has to say so rather than publish an exact-looking number.
+    #[test]
+    fn a_block_that_is_not_a_suffix_makes_the_distinct_count_a_floor() {
+        let s = "[stagetap] SITE region ENTER sched2 fn 1 r 1\n\
+                 [stagetap] TU 0 0000000b 0d 01 00\n\
+                 [stagetap] TU 1 000000d6 0f 01 00\n\
+                 [stagetap] END-REGION\n\
+                 [stagetap] SITE region ENTER sched2 fn 1 r 2\n\
+                 [stagetap] TU 0 deadbeef 19 01 00\n\
+                 [stagetap] END-REGION\n";
+        let d = TapReport::parse(s).distinct_rows();
+        assert_eq!(d.rows, 3);
+        assert_eq!(
+            d.suffix_violations, 1,
+            "`deadbeef` is not the tail of the longest block, so the nesting model fails"
+        );
+    }
+
+    /// Two phases are two independent observations of the same list, so they
+    /// group separately — a distinct count that collapsed them would under-report
+    /// coverage by exactly the factor the pre/post-COLOR pair depends on.
+    #[test]
+    fn phases_and_functions_are_separate_groups() {
+        let s = "[stagetap] SITE region ENTER sched2 fn 1 r 1\n\
+                 [stagetap] TU 0 0000000b 0d 01 00\n\
+                 [stagetap] END-REGION\n\
+                 [stagetap] SITE region ENTER sched3 fn 1 r 1\n\
+                 [stagetap] TU 0 0000000b 0d 01 00\n\
+                 [stagetap] END-REGION\n\
+                 [stagetap] SITE region ENTER sched2 fn 2 r 1\n\
+                 [stagetap] TU 0 0000000b 0d 01 00\n\
+                 [stagetap] END-REGION\n";
+        let d = TapReport::parse(s).distinct_rows();
+        assert_eq!(d.groups, 3);
+        assert_eq!(d.distinct, 3);
+        assert_eq!(d.rows, 3);
     }
 
     #[test]

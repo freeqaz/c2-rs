@@ -600,15 +600,44 @@ fn cmd_snap(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], raw: u32, cw
                 );
             }
         }
+        // A DISTINCT-ROW COUNT BESIDE THE PAYLOAD SIZE (arch review
+        // 2026-08-21, consequence 4). The walk terminates on `next == 0`, the
+        // end of the LIST, so region k's walk re-reads regions k..n and
+        // `stage-snap-tuples` counts every re-read. Publishing the payload size
+        // alone invites reading it as coverage; the two counts side by side
+        // make the inflation a number rather than a footnote.
+        let d = c.armed.distinct_rows();
         println!(
             "  gap-metric stage-snap-tuples {}\n  gap-metric stage-snap-regions {}\n  \
              gap-metric stage-snap-walk-refusals {}\n  \
+             gap-metric stage-snap-tuples-distinct {}\n  \
+             gap-metric stage-snap-tuple-groups {}\n  \
+             gap-metric stage-snap-suffix-violations {}\n  \
              gap-metric stage-color-pairs {paired}\n  \
              gap-metric stage-color-pairs-differing {differing}",
             c.armed.tuples.len(),
             c.armed.regions,
-            c.armed.walk_refusals.len()
+            c.armed.walk_refusals.len(),
+            d.distinct,
+            d.groups,
+            d.suffix_violations,
         );
+        if d.rows > 0 {
+            println!(
+                "  PAYLOAD {} rows over {} (phase,function) groups; {} DISTINCT tuple positions \
+                 ({:.1}% of the rows are suffix re-reads, inflation {:.2}x). {}",
+                d.rows,
+                d.groups,
+                d.distinct,
+                100.0 * (d.rows - d.distinct) as f64 / d.rows as f64,
+                d.rows as f64 / d.distinct.max(1) as f64,
+                if d.suffix_violations == 0 {
+                    "The nested-suffix model holds on every block, so DISTINCT is exact."
+                } else {
+                    "SUFFIX MODEL VIOLATED on at least one block — DISTINCT is a FLOOR."
+                },
+            );
+        }
         if raw > 0 {
             // WHICH BYTE OFFSETS DOES COLOR WRITE? Answered, not guessed:
             // align the sched2 and sched3 raw windows row-for-row and report
@@ -616,12 +645,20 @@ fn cmd_snap(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], raw: u32, cw
             // are structural; offsets that differ on some are data.
             let mut differ_count = vec![0usize; (raw as usize) * 2];
             let mut compared = 0usize;
+            let mut skipped = 0usize;
             for f in 1..=funcs {
                 let b2: Vec<String> = c.armed.blocks_at("sched2", f).into_iter()
                     .flat_map(|b| b.raw.iter().cloned()).collect();
                 let b3: Vec<String> = c.armed.blocks_at("sched3", f).into_iter()
                     .flat_map(|b| b.raw.iter().cloned()).collect();
-                if b2.len() != b3.len() { continue; }
+                if b2.len() != b3.len() {
+                    // A LENGTH MISMATCH IS NOT A ZERO. The two windows cannot be
+                    // aligned row-for-row, so this function contributes nothing —
+                    // and it must be counted, or the verdict below reads the
+                    // resulting silence as "COLOR wrote nothing".
+                    if !(b2.is_empty() && b3.is_empty()) { skipped += 1; }
+                    continue;
+                }
                 for (x, y) in b2.iter().zip(b3.iter()) {
                     compared += 1;
                     let (xb, yb) = (x.as_bytes(), y.as_bytes());
@@ -635,10 +672,26 @@ fn cmd_snap(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], raw: u32, cw
                 let n = differ_count[byte_off * 2] + differ_count[byte_off * 2 + 1];
                 if n > 0 { hot.push(format!("+0x{byte_off:x}({n})")); }
             }
-            println!(
-                "  RAW WINDOW {raw}B, {compared} tuple pairs aligned across sched2/sched3.\n                   offsets COLOR writes: {}",
-                if hot.is_empty() { "NONE — the allocator wrote nothing in this window".to_string() } else { hot.join(" ") }
-            );
+            // GUARD THE VERDICT ON `compared > 0` (arch review 2026-08-21,
+            // finding 1, "live wrong-but-green instance"). `hot` is empty both
+            // when the allocator wrote nothing AND when nothing was compared,
+            // and the old text asserted the first over the second. An
+            // instrument that cannot tell a measured zero from an unmeasured
+            // one is this project's signature defect wearing a required-zero's
+            // clothes; the two cases now have different sentences.
+            if compared == 0 {
+                println!(
+                    "  RAW WINDOW VACUOUS — 0 pairs aligned across sched2/sched3 \
+                     ({skipped} function(s) skipped on a length mismatch, window {raw}B).\n                   \
+                     NOTHING WAS COMPARED. This says nothing about what COLOR writes."
+                );
+            } else {
+                println!(
+                    "  RAW WINDOW {raw}B, {compared} tuple pairs aligned across sched2/sched3 \
+                     ({skipped} function(s) skipped on a length mismatch).\n                   offsets COLOR writes: {}",
+                    if hot.is_empty() { "NONE — the allocator wrote nothing in this window".to_string() } else { hot.join(" ") }
+                );
+            }
         }
         // A TRUNCATED payload makes every count above a floor — and it does
         // worse than that: at an 8 KiB arena this same fixture reports a COLOR
