@@ -483,10 +483,18 @@ input the decision was waiting on:
   871** — the 8th capture-fail is `BinkIntegration.cpp` at `C2065`
   (`w-871`, rung 2026-08-16-871).
 * **No subsystem's completion converts a block.** A perfect reader converts
-  **2** TUs (`w-vocabgap`, #3191); a perfect section emitter converts **0**
-  (`w-section`, #3210); §6.2 item F converts **0** in all four populations
-  (`w-itemF`); **523 of 845** remaining TUs fail factors A, B and C
-  simultaneously (`w-871`).
+  **2** TUs (`w-vocabgap`, ~~#3191~~ **#3190**); a perfect section emitter
+  converts **0** (`w-section`, #3210); §6.2 item F converts **0** in all four
+  populations (`w-itemF`); **523 of 845** remaining TUs fail factors A, B and
+  C simultaneously (~~`w-871`~~ **`w-vocabgap` / #3189**).
+  *(Both citations corrected 2026-08-21, lane `w-archamend`, verified against
+  `docs/BOARD.md`: #3191 is the per-TU blocking-set distribution, a different
+  row from the perfect-reader ceiling; and `w-871` crosses by mechanism and
+  states no 523 figure — #3189 is where `--factors-tsv` restricted to the 845
+  reads 3-of-3 on 523. Both errors were copied forward verbatim into
+  `ARCHITECTURE_PROPOSAL_2026-08-20.md` §1.2 item 4 and §1.3 H3, which is why
+  they are fixed here too rather than only downstream. The **figures** are
+  unchanged and were not in doubt — only the rows credited with them.)*
 * **Implied cost of the goal as written: 3,400–10,400 lanes**, 15–45× the
   entire rung record, stated as a floor (`w-871`).
 * **Every function-count figure reads ~9× optimistic as bytes** — 811/811
