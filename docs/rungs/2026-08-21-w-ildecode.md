@@ -266,14 +266,55 @@ published against. Log: `work/w-ildecode/tip_scan.log` (gitignored).
 | `factor-c` | 170 | **170** |
 | EMITTED CENSUS | 39,344 / 162,147 | **39,344 / 162,147** |
 
-### 7.4 Gate
+### 7.4 Gate — and the first run was DISCARDED by the gate's own check
 
-`C2RS_REQUIRE_TOOLCHAIN=1 scripts/gate.sh --jobs 4`. Verdict block quoted in
-§7.5. `hatch-red` reports `REFUSED HATCH-STALE` — a property of a fresh
-worktree's `work/w-hatch/` scratch and not of this lane; `gate.sh` §1273 exits 0
-on `REFUSED` and forfeits the unqualified headline, which is the designed
-behaviour.
+`C2RS_REQUIRE_TOOLCHAIN=1 scripts/gate.sh --jobs 8`, at tree `bc4b10956`,
+graded tree `5dfe54e43296` (761 files under `crates fixtures scripts`,
+content-hashed) — **identical at both ends of the run, and the run's footer
+carries no `THE TREE MOVED` line.**
+
+**A first gate run exists and is NOT quoted anywhere.** It was launched while
+this lane was still editing a test file, and its own footer says exactly what
+that costs:
+
+> *THE TREE MOVED UNDER THIS RUN — it began at `87c07e649920` (761 files) and
+> ended at `5dfe54e43296` (761 files). The verdict above was produced partly
+> from each, so it is evidence about NEITHER tree.*
+
+That run printed `GATE: PASS` with 0 mismatches everywhere. **It is still not
+evidence**, and it is recorded here rather than quietly dropped, because a green
+that the instrument itself disclaims is exactly the green a tired reader lifts.
+The block in §7.5 is the re-run, over a frozen tree, and nothing else.
+
+`hatch-red` reports `REFUSED HATCH-STALE` — a property of a fresh worktree's
+`work/w-hatch/` scratch and not of this lane; `gate.sh` exits 0 on `REFUSED` and
+forfeits the unqualified headline, which is the designed behaviour and is why
+the headline below reads `PASS (HATCH-RED REFUSED)`.
 
 ### 7.5 The verdict block, verbatim
 
-(quoted below from the run this lane actually did)
+```
+lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+graded: 6948 fixture-verdicts across all lanes
+sweep:  PASS — 19556 of 19556 selected cases reached, 19460 GRADED by the
+        oracle (96 ungraded: no reference obj), 0 mismatch (corpus 19556)
+cross:  PASS — 90424 of 90812 selected cells graded, 0 mismatch (product 90812)
+debug:  PASS — 18 of 18 lanes through a DEBUG-profile c2rs,
+        6948 fixture-verdicts, match 2423, 0 mismatch, 0 PANIC
+
+GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them graded a corpus,
+  the sweep graded 19460 of 19556 generated cases and the cross graded
+  90424 of 90812 case-lane cells, with 0 mismatches anywhere
+  ...
+graded tree: 5dfe54e43296  (761 files: crates fixtures scripts, content-hashed)
+```
+
+### 7.6 The `c2rs` binary is bit-identical across this lane's whole span
+
+The 878-TU scan in §7.3 ran at `c6bd560b8ff1`, and `crates/` changed once after
+that (`8a3e7f3e2`, the fifth test). That delta cannot reach the scan, and the
+evidence is a hash rather than an argument: the release `c2rs` is
+**sha `7f81b4355dc2`** at `a9fc1cd85`, at `bc4b10956`, and rebuilt at the tip —
+three builds spanning every `crates/` commit this lane made. A test file under
+`crates/c2-reference/tests/` links into no binary that `c2rs gap` runs, and the
+sha says so.
