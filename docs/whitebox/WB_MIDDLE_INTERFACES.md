@@ -278,8 +278,34 @@ part it omits is not decoration:
 | the **region** walk, block 0 | **7** |
 | ahead of the first region, invisible to the region walk | **9** |
 
-Those 9 are three `0x2f8` parameter-in pseudo-ops and **three `0x17a` = `stw`
-home-slot stores**, one per parameter, each with its own operand records.
+Those 9 are, exactly: three `0x2f8` parameter-in pseudo-ops, **three
+`0x17a` = `stw` home-slot stores** (one per parameter, each with its own operand
+records), and three structural markers (`0x30d`, `0x30a`, `0x309`). Six of the
+nine are real instruction-carrying tuples the region view does not contain.
+
+All sixteen, in function-walk order, `*` marking the seven the region walk
+reaches (`blk` is the function walk's block index — **traversal order, not list
+order**, `W-STAGETAP-5`):
+
+```
+  blk  opcode  cat flg  cc
+   0   0x30b   19            *
+   0   0x309   1a            *
+   1   0x30d   17
+   1   0x2f8   15  01  04        parameter in
+   1   0x2f8   15  01  04        parameter in
+   1   0x2f8   15  01  04        parameter in
+   1   0x17a   0d  01  04        stw   <- home-slot store
+   1   0x17a   0d  01  04        stw   <- home-slot store
+   1   0x17a   0d  01  04        stw   <- home-slot store
+   1   0x001   0d  01  04   *    add
+   1   0x001   0d  01  04   *    add
+   1   0x2f8   15  01  04   *    the return value
+   1   0x30f   17            *
+   1   0x309   1a            *
+   2   0x30a   18
+   2   0x309   1a
+```
 
 **So PREREG P1.2 — "the three `B9 <sym> <TYPE>` parameter loads become zero
 tuples" — is true of the region view and FALSE of the function.** The
