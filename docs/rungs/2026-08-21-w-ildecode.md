@@ -175,7 +175,7 @@ construction (`0x0c` where the obj has `r11`).
 
 ---
 
-## 6. Two defects found in this lane's own code, recorded
+## 6. Three defects found in this lane's own code, recorded
 
 * **`IMAGE_SYMBOL.Value` is at `+8`, not `+4`.** The first `.text` slicer read
   four bytes of a mangled name as a section offset and panicked on an inverted
@@ -189,6 +189,11 @@ construction (`0x0c` where the obj has `r11`).
   the second as the first is how a subset decoder manufactures a green. It now
   stops at the epilogue label token and **refuses** a body whose label it never
   reaches.
+* **§3.5's own correction undercounted its own omission.** The first draft said
+  *"those 9 are three `0x2f8` and three `stw`"* — which is six. The other three
+  are structural markers. All sixteen rows are now listed. Getting the count
+  wrong in the paragraph whose entire subject is a count that was got wrong is
+  worth a line here rather than a quiet fix.
 
 ---
 
