@@ -855,3 +855,51 @@ engineering one**, and no amendment to this document can supply it.~~
 > characterization alone, and characterization is now a **first-class
 > deliverable** rather than the consolation prize
 > `STEP5_PRICING_2026-08-21.md`'s headline reads as.
+
+> **✔ A THIRD OPTION, added 2026-08-21 by the coordinator after the research
+> round.** *[`docs/ROADMAP_SLICING_2026-08-21.md`](ROADMAP_SLICING_2026-08-21.md);
+> board **#3361**–**#3366**. The framing above — "fund 4a now, or bank
+> understanding first" — is left exactly as written, because it was the right
+> reading of what was known when it was written.*
+>
+> Four lenses were dispatched against the owner's question *"how can we chop
+> the roadmap into deliverables in fewer than 45 months"*. **Slicing does not
+> shorten it**: enumerated bottom-up with `CEILING` §5's ~5:1 applied per row
+> it reads **31–59 engineer-months** against the review's top-down 15–45, and
+> the direction is the finding — ten constructs carrying 97.3 % of the residue
+> were absorbed into two rows, and super-additivity is an overhead *of*
+> slicing, not a saving (#3365).
+>
+> All three candidate shortcuts are refuted, measured rather than argued:
+> **no near-miss TU population exists** (the 90–100 % FBM band is empty, hard
+> floor 0.200 — #3361); **the 818-TU first refusal converts exactly zero** at
+> three lift depths with an identity control, and `body-out-of-class` — row
+> 4a's own first half — is co-resident on 818 of 818 (#3362); and
+> **composition is refuted four ways**, decisively because it is anti-safe
+> under `PROGRESS_METRIC.md` (#3363).
+>
+> **So the choice is not binary.** Neither branch above needs to be taken
+> blind, because there is an **8-week Phase 0** that decides them on evidence
+> and banks a standing instrument either way — S0, the blind-reach measurement,
+> and S1, a general `Plain`+`Tail` lowering as a required-zero re-expression on
+> the live dispatcher (`ROADMAP_SLICING` §5).
+>
+> Phase 0 attacks the assumption **nothing in this tree has ever measured**:
+> whether the port's byte-exactness is a **model or a fit**. `select_function`
+> is never called for a parse-refused function, so its 91.2 % is the catalogue
+> graded against its own admission gate. The concern is not hypothetical —
+> `codegen::alloc`'s clauses are this repo's own *"fitted stand-in"* for c2's
+> unread worklist order, **clause 2 refuted on 7 of 56 fresh-holdout cells**
+> under a preregistered 52,416-configuration search. If the incumbent bytes are
+> a fit, every "general" layer is a re-fit and **4a is not 15–45 months, it is
+> unbounded**.
+>
+> Phase 0 can therefore move the figure **in either direction**, and one of its
+> outcomes should **stop the program**: if S1 holds its required-zero delta but
+> workload `fnbyte-exact 35,894` moves at all, the pricing basis is void. No
+> smaller slice can produce that result, which is the argument for spending the
+> 8 weeks before committing to either branch above.
+>
+> **What this does NOT do:** it does not un-gate step 5 either. Clauses (a),
+> (b) and (c) of row 5's NO-GO stand exactly as the block above leaves them.
+> Phase 0 is a way to price 4a, not a substitute for approving it.
