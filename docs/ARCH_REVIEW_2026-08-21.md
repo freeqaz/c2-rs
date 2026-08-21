@@ -1,5 +1,33 @@
 # Architecture review — 2026-08-21
 
+> **AMENDED 2026-08-21 by lane `w-restim` (merge `b6fd2bf48`), which this
+> review dispatched.** Finding 1 moves in BOTH directions and the reader
+> should take the amendment, not the original:
+>
+> - **COLOR *is* gradeable against real c2 — finding 1's headline is
+>   overturned.** Its output is the operand's symbol pointer being re-pointed
+>   from a candidate record to a physical-register record, readable directly
+>   (candidate id 2 → `r3`); **771 of 2,946** function-pairs move there while
+>   the tuple spine is byte-identical. 85.6% of COLOR's visible footprint was
+>   invisible to every prior measurement, including this review's. Board
+>   #3323 reproduces exactly and is unmoved — it never generalised, because
+>   its fixture is one where COLOR is a no-op 7/7.
+> - **The final schedule is gradeable too** — new site `0x10b7e701`, run 4
+>   moves the list on 149 of 2,946 functions.
+> - **What survives, and is now THE binding constraint: a PORT still cannot
+>   be graded per-stage.** Probe C measured it — on a 4/4 byte-exact fixture
+>   c2 carries 19–22 tuples and 29 regions where the port emits 4–5
+>   instructions. The two have **no common coordinate**; the projection is
+>   *undefined*, not merely unequal. That is finding 4's F1 (the unnamed,
+>   ungraded port→tuple translation layer) turned into a measured ratio.
+> - **Net:** per-stage observability buys **characterization, not a
+>   per-stage differential grade**. See `docs/STEP5_PRICING_2026-08-21.md`,
+>   which applies CEILING §5's ~5:1 calibration per row and prices the two
+>   integration prerequisites at **15–45 engineer-months** as a lower bound.
+>
+> This is what the review was for: it was dispatched to be tested, and one
+> of its load-bearing findings did not survive contact with a measurement.
+
 Seven independent review lenses over `docs/ARCHITECTURE_PROPOSAL_2026-08-20.md`,
 run after steps 0–4 of its §5 migration landed (master `d7be7aadc`). Every
 reviewer was read-only, forbidden to edit or merge, told that "no defect found"
