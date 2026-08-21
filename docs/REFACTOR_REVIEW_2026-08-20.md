@@ -178,7 +178,7 @@ Composition, measured (`wc -l`, `#[cfg(test)]` separated):
 | differential oracle spine: `lib.rs` 514 + `capture_cache.rs` 1,374 + `fixture_profile.rs` 419 + `provenance.rs` 572 + `cli/reference.rs` 669 | ~3.5k | **warranty. Preserve whole.** |
 | gap/ instrument stack (scan, fnbytes, fndiff, factors, report, render, sets, witness, classify) | ~12.6k (+4.7k cfg(test)) | **warranty's instrument layer.** Every retraction on STATUS came from here or from probe grids. Preserve; stop the growth pattern (§2.3). |
 | CLI (`main.rs` 484 + `cli/` 4,263) | ~4.7k | keep; the argv parser is already centralized (`main.rs:187-432`, boards #194/#195) — the *former* per-handler duplication is deleted and documented. |
-| perf (`perf.rs` 505 + `cli/perf.rs` 302) | ~0.8k | keep — it is the thesis metric. |
+| perf (`perf.rs` 505 + `cli/perf.rs` 302) | ~0.8k | keep — ~~it is the thesis metric~~ **it measures a real property, and the disposition is unchanged (2026-08-21: throughput is no longer the thesis — `GOAL_DECISION_2026-08-21.md`). `perf` is REPORTED, never GATED (#3336), so demoting the metric costs this row nothing: keep it, and keep quoting the ratio with its population.** |
 | research prototypes: `corpus.rs`, `retrieval.rs`, `search/`, `listing.rs`, `prefilter.rs` | ~6.3k | **dormant, not warranty** — and still *leave them* (§7.3). |
 
 **Is it one crate doing five jobs?** It is one crate doing five jobs behind

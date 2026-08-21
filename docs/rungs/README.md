@@ -67,6 +67,18 @@ test already admits all three: kinds 2 and 3 use the `Fixtures: none — <reason
    the axis, say how it would be observed, and say what you measured. "The
    bytes were identical" is the floor, not the grade.
 
+   > **AMENDED 2026-08-21 — the cost clause SURVIVES; its *reason* does not.**
+   > *"The port's whole thesis is verifier throughput"* was true when #3336 was
+   > written and is **retired** (`docs/GOAL_DECISION_2026-08-21.md`). Throughput
+   > is a property, not the goal, so it is no longer *automatically* the axis a
+   > construct rung on `PortC2::build`'s path must name. **What survives
+   > untouched is the rule itself**: a required-zero byte delta is silent about
+   > everything that is not a byte, and a criterion that cannot fail abstains
+   > rather than passes. Name an axis on which the rung **can** fail — a
+   > denominator, a binding, a precedence, a coverage weight, a cost — and say
+   > what you measured on it. #3336's measurement stands; only its
+   > *"cost is not a secondary axis for this project"* clause loses its warrant.
+
    **Corollary, same row:** if the re-expression half of a construct rung is
    reverted, the rung's own grading instrument is disarmed — the identity diff
    becomes a tautology over a purely additive tree with no production caller.
@@ -78,6 +90,34 @@ test already admits all three: kinds 2 and 3 use the `Fixtures: none — <reason
    `Census: +0`; prereg frozen before the first probe; every load-bearing
    claim cites an address or a grid cell; disassembly-derived adoption rules
    (`docs/whitebox/DISCLOSURE.md`) apply unchanged.
+
+   > **PROMOTED 2026-08-21 — a characterization lane's output IS a
+   > deliverable, and predicted reach 0 is not a mark against it.**
+   > *`docs/GOAL_DECISION_2026-08-21.md`; owner.* Goal (1) is *"perfect
+   > reproduction that gives us a clear understanding of the MSVC internals, to
+   > help us with decomp"* — so **the understanding is the product**, and
+   > `docs/whitebox/` is product rather than provenance overhead (which
+   > `CLAUDE.md` § "Whitebox analysis is AUTHORIZED" had already decided on
+   > 2026-08-17 for independent reasons; the two agree). Concretely:
+   >
+   > * **A characterization lane owes no conversion story.** It does not have
+   >   to argue that some later rung will convert a TU. `w-dagorder` was
+   >   dispatched with *"predicted reach 0, registered as such"* and had to
+   >   justify itself as *"phase machinery Option A requires"*
+   >   (`STRATEGY_REVIEW_2026-08-13.md` §8.2); under goal (1) that second
+   >   sentence is no longer owed.
+   > * **`Census: +0` and reach 0 stay REGISTERED, and that does not change.**
+   >   Preregistering a zero is what keeps the lane honest and is the opposite
+   >   of an excuse — the promotion is about what the zero *costs the lane in
+   >   the ranking*, never about relaxing prereg.
+   > * **`built` still has to be earned.** The outcome word is for a lane that
+   >   landed *what it preregistered*. A characterization lane whose findings
+   >   did not confirm says `FAILED` in that word, exactly as before.
+   > * **The judge is untouched.** Understanding c2's internals is **not** a
+   >   licence to grade the port against c2's internal state; the byte compare
+   >   against real c2 remains the sole judge, and the stage oracle's standing
+   >   bound (`docs/STEP5_PRICING_2026-08-21.md`, stageoracle §8) is what keeps
+   >   snapshot equality out of it.
 
 ## Outcome, one word
 
@@ -152,6 +192,17 @@ pattern — it was sent at a lever discharged the same day the review naming it
 was written, and **detection was incidental**, so the defect's true rate is
 unmeasured).
 
+* **THE GOAL IS PERFECT REPRODUCTION, DECIDED BY THE OWNER 2026-08-21**
+  (`docs/GOAL_DECISION_2026-08-21.md`; `CLAUDE.md` § "The goal"), for two ends
+  ranked equally — **(1) a clear understanding of MSVC's internals in service
+  of decomp** and **(2) parity, a 100 % open-source implementation.** The
+  **verifier-throughput thesis is RETIRED**; throughput is a property that may
+  neither justify a lane nor forbid one, and the 2026-08-13 NO-GO's economics
+  are **superseded, not satisfied**. Two things a brief must get right as a
+  result: **characterization output is a deliverable** (predicted reach 0 is
+  not a mark against such a lane), and **`match` → 870/878 is the scoreboard**
+  for goal (2), so partial coverage does not pay in proportion. A brief that
+  ranks or declines a lane on throughput grounds is a **dispatch defect**.
 * **Run the gate as `scripts/gate.sh --jobs 16 --require-graded` — ~80 s.**
   `--jobs 4` is ~153 s and is not the safer choice; the box was never
   CPU-starved. A lane's **first** gate in a fresh worktree still pays a

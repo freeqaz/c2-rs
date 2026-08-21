@@ -45,7 +45,12 @@ pub struct FileFraming<'a> {
 // `opt_words`, `functions`, `dyninit_tu`, `provide_data_tu`) wants the `4F 1F`
 // split and nothing else, and does exactly ONE scan for it today. An eager
 // `los` makes each of them do TWO. `functions()` is on `PortC2::build`'s path
-// and the port's whole thesis is throughput.
+// and paying two scans where one is wanted is a cost with no buyer.
+// (This clause used to read "and the port's whole thesis is throughput". That
+// thesis was retired on 2026-08-21 — `docs/GOAL_DECISION_2026-08-21.md`. The
+// engineering argument is unchanged and never needed it: the sharing bought
+// nothing, because **no call site wants both segmentations**, which is the
+// sentence this comment closes on.)
 //
 // So `los` is computed inside [`FileFraming::body_segments`], where it is
 // needed and where the incumbent already computes it. Each view then costs

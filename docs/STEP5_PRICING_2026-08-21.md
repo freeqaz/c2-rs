@@ -34,6 +34,30 @@ grade** — and characterization was already the expensive half (`CEILING` §6.1
 item F0 is 8 of item F's 17 lanes and is exactly *"the order that decided the
 registers does not appear in the obj"*).
 
+> ### ✔ 2026-08-21, HOURS LATER — **THAT HEADLINE IS A DIRECT HIT, NOT A CONSOLATION PRIZE. THE MEASUREMENT IS UNCHANGED; ONLY ITS SIGN IS.**
+> *Owner's goal decision,
+> [`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md), which cites
+> this page's headline by name. Annotated by lane `w-goaldocs`; **nothing on
+> this page is edited, re-priced or withdrawn**.*
+>
+> Goal (1) is *"the perfect reproduction that gives us a clear understanding of
+> the MSVC internals, to help us with decomp."* A mechanised, addressed account
+> of what c2's middle actually does **is the deliverable** — whether or not a
+> ported pass can be graded against it today. So *"buys characterization, not a
+> grade"* reports a **hit on goal (1)** and a **miss on goal (2)**, and
+> `ARCH_REVIEW_2026-08-21.md` reported it as a downgrade only because the
+> standing thesis at the time was verifier throughput.
+>
+> **Three things this does NOT license.** (a) The judge is untouched — reading
+> c2's internals is not permission to grade the port against c2's internal
+> state, and §8's standing bound on the stage oracle is what keeps snapshot
+> equality out of `crates/`. (b) Probe C's verdict is unchanged: the port→tuple
+> projection is **undefined**, not merely unequal. (c) Every forward cost
+> figure here is still a **lower bound** under CEILING §5's ~5:1, and the
+> 15–45 engineer-month price on the integration prerequisites is unaffected —
+> what the goal decision changes is *which end* that price is weighed against
+> (§5), not the price.
+
 ---
 
 ## 1. The per-stage table — measured, 384 fixtures, 2,946 function-pairs per bracket
@@ -177,10 +201,18 @@ rows alone are 15–45 engineer-months at the lower bound.
 
 * **No conversion.** Predicted reach 0, delivered 0. No fixture is claimed, no
   census number moves, `match 26 / mismatch 0` is unmoved by construction.
-* **The thesis-vs-870 goal question.** `STRATEGY_REVIEW_2026-08-13.md:251` —
+* **The thesis-vs-870 goal question.** ~~`STRATEGY_REVIEW_2026-08-13.md:251` —
   *"The question is currently owned by nobody"* — is still true, and this
   document does not touch it. A cost curve is an input to that decision and
-  never a substitute for it. Arch review consequence 1(c) stands.
+  never a substitute for it. Arch review consequence 1(c) stands.~~
+  **ANSWERED THE SAME DAY, AND THIS BULLET WAS RIGHT ABOUT ITS OWN ROLE**: the
+  goal is full reproduction, for understanding MSVC's internals and for parity
+  (`GOAL_DECISION_2026-08-21.md`) — decided by the owner, not derived from this
+  cost curve. Arch review consequence **1(c) is discharged**; 1(a) and 1(b)
+  still gate step 5. **This page's numbers are unaffected.** What moved is the
+  weighing: goal (1) is served by characterization alone, goal (2) is not
+  reachable without the 15–45 engineer-month integration rows, and that is the
+  open decision (`ARCHITECTURE_PROPOSAL_2026-08-20.md` §8 decision 0).
 * **IR3.** Arch review finding 4's minimal repair (give IR3 its own step in
   tuple/region coordinates) is the amendment lane's, not this one's. Probe C is
   evidence *for* it: the port→snapshot projection is undefined today, and

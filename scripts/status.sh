@@ -400,8 +400,13 @@ collect_selftest() {
 # `crates/` had moved — the second ran while three gates were saturating the
 # machine.
 #
-# It is collected anyway, because the alternative (dropping it) loses the
-# project's own thesis metric from the one page that answers "where is this".
+# It is collected anyway, because the alternative (dropping it) loses a real
+# measured property of the port from the one page that answers "where is this".
+# (This line used to call it "the project's own thesis metric". The
+# verifier-throughput thesis was retired by the owner on 2026-08-21 —
+# `docs/GOAL_DECISION_2026-08-21.md`; the goal is perfect reproduction, and
+# throughput may neither justify nor forbid a lane. Collecting it is still
+# right, and the caveats below bind exactly as before.)
 # But it is labelled in `STATUS.md`'s what-each-number-is-for table as
 # load-sensitive, and **a move in it is not signal until it is retaken on a
 # quiet box.** Do not rank lanes by it. Deliberately NOT "fixed" by pinning

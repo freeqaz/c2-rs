@@ -248,10 +248,10 @@ actually binding is `|D∨E|` — the port's codegen class, counted per TU**
 
 `w-keygen` §7 does not decline to answer whether fnbyte is worth spending on —
 it *poses* the question and routes it to `CEILING.md` §6.2, which routes it to
-the user. **The question is currently owned by nobody.** This page's §4 is the
+the user. ~~**The question is currently owned by nobody.**~~ **OWNED AND ANSWERED 2026-08-21 — §9.** This page's §4 is the
 staff work for answering it.
 
-### The goal itself — does 871/878 serve the verifier-throughput thesis? **Only in one of the two loops, and the repo already says so.**
+### The goal itself — does 871/878 serve the verifier-throughput thesis? **Only in one of the two loops, and the repo already says so.** — ⚠ **THE QUESTION THIS SUBSECTION ASKS IS RETIRED, NOT ANSWERED IN ITS OWN TERMS: the thesis it measures against is no longer the project's (owner, 2026-08-21). Every number below stands; options A–D are settled by §9.**
 
 * **The hybrid the brief asked about already exists, stricter than proposed.**
   `crates/c2-harness/src/prefilter.rs` is the shipped reject-only pre-filter:
@@ -265,9 +265,9 @@ staff work for answering it.
   function near completeness, which is an argument both *for* 871 (nothing
   less pays) and *against* per-TU incrementalism as the route (intermediate
   match counts buy ~nothing).
-* **The end-to-end cap is elsewhere.** `PRIOR_ART.md:107-137` (measured on six
+* **The end-to-end cap is elsewhere.** `PRIOR_ART.md` §2 (measured on six
   real dc3 TUs): an infinitely fast c2 speeds a source→obj compile by
-  **1.1–1.6×**; `GAPS.md:1006-1008`: even 100%-coverage backend caps the
+  **1.1–1.6×**; `GAPS.md` §5: even 100%-coverage backend caps the
   consumer's funnel at **≲2.4×** without the front end. The thesis pays fully
   only in IL-space search, where c2 is 100% of the work — "a research bet that
   has not yet paid" (`PRIOR_ART.md`), and where the meaningful coverage unit
@@ -528,6 +528,23 @@ The user answered both. **Lever 7 closes as OPTION A: reproduce `c2` fully.**
 The goal stands. Two consequences are now doctrine rather than open
 questions:
 
+> **⚠ 2026-08-21 — §8.1 CHOSE THE OPTION AND LEFT ITS *REASON* OPEN; THE
+> REASON IS NOW DECIDED TOO, AND IT IS NOT THROUGHPUT.** *Owner,
+> [`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md); §9 below.*
+> Option A is **re-confirmed and strengthened** — nothing here is withdrawn.
+> What changes is the *frame*: §8.1 chose "reproduce `c2` fully" while the
+> stated thesis was still verifier throughput, which is why §2's subsection
+> above had to ask whether 871 even *serves* that thesis, and why the second
+> bullet below leans on a throughput argument. **Full reproduction is now the
+> goal in its own right** — for understanding MSVC's internals (decomp) and
+> for parity — so it no longer needs a throughput justification and cannot be
+> attacked by one. Read the second bullet's *"no intermediate match count
+> pays (1.03× at match 25)"* as **retired reasoning with a surviving
+> conclusion**: the dispatch rule it produced (Option A means levers 1–4 and
+> `CEILING` §6.1's phases, not 845 more TU lanes) rests independently on **H1**
+> — a TU-shaped lane cannot carry a phase — which is measured, not economic,
+> and stands unchanged.
+
 * **The target number is 870, not 871** — not a retarget, an arithmetic
   correction. `graded` is 870 because real `c2` fails 8 of the 878 TUs itself
   (`BinkIntegration.cpp` at `C2065`), and no byte-exact port can match a TU
@@ -569,3 +586,52 @@ Board blocks **allocated explicitly** (`#3234`–`#3238`, `#3239`–`#3243`,
 `#3244`–`#3248`) rather than read from the next-free pointer — see
 `docs/rungs/README.md`, where wave nine's double-mint made that a standing
 rule.
+
+---
+
+## 9. Addendum 2026-08-21 — the goal question is OWNED AND ANSWERED, and this page's §2 asked it against a thesis the project no longer holds
+
+*Added by lane `w-goaldocs`. Authority:
+[`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md) — the owner's
+words, quoted there verbatim. `CLAUDE.md` § "The goal" carries the operative
+version. **Nothing above this section is rewritten**; §2's arithmetic, §8's
+prices and §8.1's decision all stand exactly as written and as dated.*
+
+**The decision.** *Perfect reproduction*, for two ends that rank equally:
+**(1)** a clear understanding of MSVC's internals, to help with decomp;
+**(2)** parity — a 100 % open-source implementation.
+
+**What that does to this page, precisely:**
+
+| this page | status after 2026-08-21 |
+|---|---|
+| §2 *"The question is currently owned by nobody"* (line 251) | **CLOSED.** Owned by the owner, answered on 2026-08-21, eight days later. It was quoted as still-open in `ARCH_REVIEW_2026-08-21.md` §7, `ARCHITECTURE_PROPOSAL_2026-08-20.md` §8 and row 5(d), `STEP5_PRICING_2026-08-21.md` §5 and board **#3355**; every one of those citations is now historical |
+| §2's subsection *"does 871/878 serve the verifier-throughput thesis?"* | **RETIRED AS A QUESTION, KEPT AS MEASUREMENT.** The Amdahl arithmetic (1.03× at 25, ~121× at 871, the ≈1/(1−p) curve), the ≲2.4× end-to-end cap, and the disclosure defect it repaired are all **still true and still worth quoting**. What is gone is their *authority over what to do*: throughput may no longer justify a lane, and — the half worth not losing — may no longer forbid one |
+| §2's options **A–D** | **A, decisively.** B (ship the prefilter as the deliverable), C (retarget at the fork-server / front end) and D (re-unit the goal in the consumer's unit) were all framed as ways to serve the *throughput* thesis, and the coordinator's §8 addendum recommended **D** on that basis. With the thesis retired, D's premise is gone: the consumer's unit is not the goal's unit. **`match` → 870/878 is the scoreboard**, per §8.1's own arithmetic correction |
+| §4 lever 7 (*"put the goal question to the user"*) | **DISCHARGED, twice** — §8.1 for the option, this section for the reason |
+| §8's recommendation of **Option D** | **SUPERSEDED.** Byte-weighted honesty (the 9× illusion) remains a real methodological finding and `SHIPPING_ROADMAP_2026-08-19.md` §6 item 4 still asks for byte-weighted curves; what does not survive is re-*defining* the goal in that unit |
+
+**The asymmetry, because it is the part that is easy to lose.** Retiring the
+thesis moots the strongest *negative* finding this project produced — the
+2026-08-13 NO-GO and the arch review's §7 economics (consumer capped at ≈2.4×,
+its bottleneck moved off compilation onto generation, the shipped hybrid
+prefilter never once enabled, work-weighted coverage 46 of 162,147). Those
+measurements stand as measurements. As an **argument** they are **superseded,
+not satisfied**: they were an argument against a goal this project does not
+hold, and no lane may be declined on them again.
+
+**What this section does NOT touch.** The one correctness rule; the port
+staying I/O-behavioral; `PROGRESS_METRIC.md`'s rule that a wrong emit scores
+strictly below the refusal it replaced; and two-sided pricing of every new
+fence (#1042, NC-5/#2691). H1–H5 are unaffected — they are findings about the
+process, not about the goal, and **H1 is now doing load-bearing work on its
+own**: it, and not the Amdahl curve, is what says a phase cannot be dispatched
+as a TU lane.
+
+**Still open, and still the owner's:** `ARCHITECTURE_PROPOSAL_2026-08-20.md`
+§8 **decision 0** — fund rows **4a** (the integration prerequisites, priced
+two-sided at **15–45 engineer-months** as a lower bound) and **4b** (IR3 in
+c2's tuple/region coordinates), or declare step 5 **characterization-only**.
+The goal decision constrains it without settling it: parity (goal 2) is
+unreachable without 4a, since a ported pass with no route to `coff::Function`
+cannot move one obj byte, while goal (1) is served by characterization alone.

@@ -1,9 +1,15 @@
 //! `c2-harness::perf` — the latency benchmark: how fast can each side turn a
 //! captured IL bundle into an `.obj`?
 //!
-//! The thesis for this port is *verifier throughput*: a faster `c2` speeds up
-//! every compile-in-the-loop workflow (search moves, preimage checks, pass@k)
-//! at once. This module measures exactly that — the per-obj latency of the two
+//! Throughput is a **property** of this port, not its goal. A faster `c2`
+//! speeds up every compile-in-the-loop workflow (search moves, preimage
+//! checks, pass@k) at once, and that is real and worth measuring — but the
+//! project's goal, decided by the owner on 2026-08-21
+//! (`docs/GOAL_DECISION_2026-08-21.md`), is **perfect reproduction**, for (1)
+//! understanding MSVC's internals in service of decomp and (2) parity — a
+//! 100 % open-source implementation. This module's numbers may **neither
+//! justify a lane nor forbid one**; `c2rs perf` is reported, never gated
+//! (board #3336). What this module measures is the per-obj latency of the two
 //! backends that produce the **same** obj from the **same** bundle:
 //!
 //! * the native port ([`c2_core::PortC2`]) — pure in-process Rust

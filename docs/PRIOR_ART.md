@@ -11,6 +11,37 @@ complexity, or serve as a reference to port from?* The answer, stated once:
 > expensive, it is a category error, because there is no emulation layer to
 > remove.**
 
+> ### ⚠ 2026-08-21 — **READ THIS PAGE AS A SURVEY, NOT AS A RANKING. ITS MIDDLE CLAUSE RANKS BY THROUGHPUT, AND THROUGHPUT NO LONGER RANKS ANYTHING HERE.**
+> *Owner's goal decision,
+> [`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md); `CLAUDE.md`
+> § "The goal". Annotated by lane `w-goaldocs` — **not one finding, licence,
+> URL or measurement below is edited or withdrawn.***
+>
+> The goal is **perfect reproduction**, for (1) understanding MSVC's internals
+> in service of decomp and (2) parity — a 100 % open-source implementation.
+> Applied to this page:
+>
+> * **"One thing reduces cost by ~an order of magnitude"** — the wibo
+>   fork-server (§1.3, §4 row 1) — buys **~10–20× on novel-input throughput at
+>   100 % coverage** and, as §4 row 1 says in its own words, *"does not move TU
+>   match by one."* Under the retired thesis that made it the headline. Under
+>   goal (2) it moves the scoreboard by **zero**, and it is **vendor-backed**,
+>   so it cannot serve goal (2) even in principle. It is still worth building
+>   if someone wants the speed — it just cannot be recommended *by this page*
+>   over work that reproduces c2.
+> * **§4's "two caps" framing is UNCHANGED and is the durable half.** Codegen
+>   coverage and the emit predicate are the caps under *any* goal, and the
+>   page's most load-bearing sentence — *"Nothing in this review touches the
+>   emit predicate"* — is a negative result about **reproduction**, not about
+>   speed.
+> * **§1's category-error finding stands entirely** (static recompilation
+>   removes no interpretation layer; there is no ISA gap). It is a fact about
+>   `c2.dll`, not an economic argument.
+> * **Everything that serves goal (1) is PROMOTED, not demoted**: §3's
+>   candidate table, §5's confident negatives (nobody has published a word
+>   about the `.ex`/`.gl`/`.sy` grammar), and every reference-quality reading
+>   of the format. Under goal (1) that record **is** product.
+
 Everything below is either measured on this box (marked **[m]**) or fetched with
 a URL. Provenance and license are given for every candidate because a GPL
 reference is a different decision from an MIT one and a leaked source dump is a
@@ -140,6 +171,29 @@ target loop is **IL-space search**, which bypasses `c1xx` entirely and where
 `c2` is 100 % of the work (`docs/EDIT_MODEL_MVP.md`). But that makes the thesis
 conditional on a research bet that has not yet paid, and the conditionality
 should be stated where the 568× is quoted.
+
+> **⚠ 2026-08-21 — THE THESIS THIS §2 IS ARGUING WITH IS RETIRED, SO THE
+> CONDITIONALITY NO LONGER MATTERS AND THE AMDAHL MEASUREMENT STILL DOES.**
+> *Owner, [`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md);
+> annotated by lane `w-goaldocs`. **The table above and the ~90–100 µs figure
+> are untouched and remain the repo's Amdahl ground truth.***
+>
+> The goal is **perfect reproduction**, for (1) understanding MSVC's internals
+> in service of decomp and (2) parity — a 100 % open-source implementation.
+> Throughput is a property. So:
+>
+> * *"the c2 port alone is Amdahl-capped there"* is still **true** and still
+>   the right thing to say beside any speedup claim; it is no longer a
+>   statement about whether the port is **worth building**.
+> * *"the thesis is conditional on a research bet that has not yet paid"*
+>   is **moot** — there is no longer a thesis for the bet to be conditional
+>   on. The IL-space regime was subsequently stood down in both repos
+>   (`ARCH_REVIEW_2026-08-21.md` §7), which under the old framing would have
+>   been bad news for the project and is now simply a fact about a consumer.
+> * The recommendation in the last sentence — **state the measurement
+>   population wherever a ratio is quoted** — **survives in full** and was
+>   discharged in `README.md` (`STRATEGY_REVIEW_2026-08-13.md` §7 item 5). A
+>   demoted metric is not an unpoliced one.
 
 ---
 

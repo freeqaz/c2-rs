@@ -43,6 +43,34 @@ equip it. Where the arithmetic reads badly it is published as arithmetic.
 > rate and factor count below stands as measured. What changed is which of them
 > is a *target* — and the answer is still none of them; they remain drivers
 > (`STATUS.md`'s standing trap).
+>
+> ---
+>
+> **✔ 2026-08-21 — THE *REASON* FOR OPTION A IS NOW DECIDED TOO, AND POINT 2's
+> ARITHMETIC IS NOT IT.** *Owner,
+> [`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md); annotated by
+> lane `w-goaldocs`. Option A is **re-confirmed**, not revisited.*
+>
+> The goal is **perfect reproduction**, for two ends ranked equally — (1) a
+> clear understanding of MSVC's internals in service of decomp, and (2) parity,
+> a 100 % open-source implementation. The **verifier-throughput thesis is
+> retired**; throughput is a property that may neither justify a lane nor
+> forbid one.
+>
+> **Point 2 above keeps its conclusion and loses one of its two supports.**
+> *"No intermediate match count pays (1.03× at match 25; value arrives near
+> p≈0.9)"* is a throughput argument and no longer carries weight on its own.
+> The conclusion — **Option A authorises §6.1's phases, dispatched as construct
+> rungs and characterization lanes, and NOT 845 more TU-conversion lanes** —
+> rests on **H1**, which is a measured claim about the unit of work, and on
+> goal (2) being coverage rather than speed. It is unchanged.
+>
+> **What this page is *for* also shifts, and in its favour.** §6.1 is a list of
+> phases that do not exist — under the retired thesis, reading c2's behaviour
+> without converting a TU was overhead to be justified. Under goal (1) it is
+> the deliverable. **Nothing on this page is re-scored**; §7's six
+> non-claims and §8's traps bind exactly as before, and the re-scope decision
+> this page was built to equip is still not this page's to make.
 
 > **Provenance rule for this page.** Every number below states the instrument
 > that printed it and the tree it was collected at, or it carries the
