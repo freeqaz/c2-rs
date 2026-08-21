@@ -618,7 +618,7 @@ impl Toolchain {
         raw: u32,
     ) -> io::Result<(ObjImage, TapReport)> {
         let (obj, rep) =
-            self.replay_tapped_inner(captured, bundle_dir, out_obj, taps, payload, raw, None, true)?;
+            self.replay_tapped_inner(captured, bundle_dir, out_obj, taps, payload, raw, None, true, None)?;
         // `require_obj` was true, so the missing-obj case returned `Err` above.
         let obj = obj.expect("replay_tapped_inner(require_obj = true) returned no obj");
         Ok((obj, rep))
@@ -667,7 +667,40 @@ impl Toolchain {
             0,
             Some(force_slide),
             false,
+            None,
         )
+    }
+
+    /// [`Toolchain::replay_tapped_with`] with the two probe levers set
+    /// EXPLICITLY rather than read from the ambient environment.
+    ///
+    /// `ops` walks each tuple's operand and symbol/candidate records; `funcwalk`
+    /// walks whole functions from the function record (and is the only way to
+    /// observe anything at the `after0` site). Both default off through every
+    /// other entry point, so a caller that does not ask for them measures
+    /// exactly what it measured before this lane.
+    pub fn replay_tapped_probe(
+        &self,
+        captured: &CapturedReference,
+        bundle_dir: &Path,
+        out_obj: &Path,
+        taps: &[&str],
+        ops: bool,
+        funcwalk: bool,
+    ) -> io::Result<(ObjImage, TapReport)> {
+        let (obj, rep) = self.replay_tapped_inner(
+            captured,
+            bundle_dir,
+            out_obj,
+            taps,
+            true,
+            0,
+            None,
+            true,
+            Some((ops, funcwalk)),
+        )?;
+        let obj = obj.expect("replay_tapped_inner(require_obj = true) returned no obj");
+        Ok((obj, rep))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -681,6 +714,7 @@ impl Toolchain {
         raw: u32,
         force_slide: Option<u32>,
         require_obj: bool,
+        probe: Option<(bool, bool)>,
     ) -> io::Result<(Option<ObjImage>, TapReport)> {
         let (mut cmd, out_abs) = self.build_replay_command(captured, bundle_dir, out_obj)?;
         match force_slide {
@@ -705,14 +739,20 @@ impl Toolchain {
         // never left to silent inheritance, which is the same inertness rule
         // `C2RS_STAGE_TAPS` gets: an ambient value in a caller's environment
         // must not be able to change what a "default" run measures.
-        for k in ["C2RS_STAGE_OPS", "C2RS_STAGE_FUNCWALK"] {
-            match std::env::var(k) {
-                Ok(v) if !v.is_empty() && v != "0" => {
-                    cmd.env(k, v);
-                }
-                _ => {
-                    cmd.env_remove(k);
-                }
+        for (k, explicit) in [("C2RS_STAGE_OPS", probe.map(|p| p.0)), ("C2RS_STAGE_FUNCWALK", probe.map(|p| p.1))] {
+            let on = match explicit {
+                // An EXPLICIT setting wins over the ambient one. A test cannot
+                // use `set_var` here: the integration binary runs its tests as
+                // threads of one process, so a `set_var` would leak into every
+                // other test's child (the same reason `replay_tapped_forced_slide`
+                // is an API and not a variable).
+                Some(v) => v,
+                None => matches!(std::env::var(k), Ok(v) if !v.is_empty() && v != "0"),
+            };
+            if on {
+                cmd.env(k, "1");
+            } else {
+                cmd.env_remove(k);
             }
         }
         if payload {

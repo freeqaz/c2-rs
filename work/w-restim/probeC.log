@@ -1,0 +1,5 @@
+  PROBE-C fn1 ?c4_mul@@YAHHHHH@Z: c2 tuples at sched1 = 19, port instructions = 4 (NO COMMON INDEX)
+  PROBE-C fn2 ?c4_sub@@YAHHHHH@Z: c2 tuples at sched1 = 19, port instructions = 4 (NO COMMON INDEX)
+  PROBE-C fn3 ?c4_add@@YAHHHHH@Z: c2 tuples at sched1 = 19, port instructions = 4 (NO COMMON INDEX)
+  PROBE-C fn4 ?c5_mul@@YAHHHHHH@Z: c2 tuples at sched1 = 22, port instructions = 5 (NO COMMON INDEX)
+  PROBE-C: 29 c2 region(s) over 4 compared function(s); 4 function(s) where the port's instruction index and c2's tuple index have different cardinality
