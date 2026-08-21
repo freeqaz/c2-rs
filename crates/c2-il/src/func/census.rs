@@ -1529,8 +1529,8 @@ impl IlBundle {
                                     // bit, keyed on `EmitBinding::name`.**
                                     //
                                     // That key and not `f.mangled_name`: this
-                                    // census's names come from
-                                    // [`Bindings::positional`], which #918
+                                    // census's names USED TO come from
+                                    // `Bindings::positional`, which #918
                                     // measured disagreeing with the per-record
                                     // binding on 74,955 workload rows, while
                                     // `emit.name(i)` is the key
@@ -1539,6 +1539,20 @@ impl IlBundle {
                                     // consumer looks the callee up by THAT key,
                                     // so the flag has to be filed under it or
                                     // the two would be looking at two functions.
+                                    //
+                                    // `Bindings::positional` is DELETED as of
+                                    // 2026-08-21 — the step-4 consolidation
+                                    // (`ARCHITECTURE_PROPOSAL_2026-08-20.md` §5,
+                                    // lane `ir1`, #3347/#3348) — and this census
+                                    // now binds through `Bindings::census`, the
+                                    // same 1:1 record pairing the gate uses, so
+                                    // no emitted census row disagrees any more
+                                    // (`fnbyte-name-disagree` 74,033 -> 0).
+                                    // **This line does not change**: `emit.name`
+                                    // is still the key the consumer looks the
+                                    // callee up by, and filing the flag under
+                                    // the consumer's key is right whether or not
+                                    // a second key happens to match it.
                                     //
                                     // `None` — no attribute map, or no row for
                                     // this name — leaves every consumer where it

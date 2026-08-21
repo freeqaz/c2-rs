@@ -47,6 +47,31 @@ test already admits all three: kinds 2 and 3 use the `Fixtures: none — <reason
    **required-zero byte delta**, graded by a line-for-line identity diff of
    per-lane gate counts before/after. A construct rung that changed any byte
    FAILED, whatever else it did.
+
+   **THE COST CLAUSE (added 2026-08-21, board #3336).** A required-zero
+   **byte** delta is silent about a required-zero **cost** delta, and the
+   criterion above cannot express throughput at all: nothing in
+   `scripts/gate.sh`, `scripts/lanes.txt`, the sweep, the cross or the debug
+   lane reads a timing, and `c2rs perf` is **reported, never gated**. Measured
+   on `ir0`: with all eleven production call sites switched to the new framing
+   the gate table was **identical line for line** — 18/18 PASS, 6,948 graded,
+   `mismatch 0`, all 395 pre-existing `gap-metric` keys unchanged — while the
+   change cost port throughput. A criterion that could not have failed did not
+   pass; it abstained. **So a construct rung MUST name at least one axis on
+   which it can fail even when every byte is identical**, in its rung header,
+   before it starts. Throughput is the obvious one for anything on
+   `PortC2::build`'s path — the port's whole thesis is verifier throughput, so
+   cost is not a secondary axis for this project — but it is not the only one:
+   a re-expression can also move a *denominator*, a *binding*, a *precedence*,
+   or the *coverage weight* of the corpus that runs the fence (#3333). Name
+   the axis, say how it would be observed, and say what you measured. "The
+   bytes were identical" is the floor, not the grade.
+
+   **Corollary, same row:** if the re-expression half of a construct rung is
+   reverted, the rung's own grading instrument is disarmed — the identity diff
+   becomes a tautology over a purely additive tree with no production caller.
+   A rung in that state says so and names the criterion that CAN fail (`ir0`
+   used four executed mutations of the framer with distinct signatures).
 3. **Characterization lane** (precedent: `2026-08-13-wb-live.md`): reads real
    c2's behavior — whitebox addresses plus obj-grid confirmation — and lands
    findings, not code. `Fixtures: none — characterization: <the question>`;
