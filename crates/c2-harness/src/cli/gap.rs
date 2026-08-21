@@ -110,18 +110,10 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
     let cache: Option<PathBuf> = if args.has("--no-cache") {
         None
     } else {
-        Some(args.path("--cache").unwrap_or_else(|| {
-            std::env::var_os("C2RS_GAP_CACHE")
-                .map(PathBuf::from)
-                // `main_repo_root`, not `repo_root`: the latter is
-                // CARGO_MANIFEST_DIR and so resolves to the *worktree* a lane's
-                // binary was built in, which is how 50 separate caches came to
-                // exist. See its doc comment for why this is resolved in code
-                // rather than exported as an env var.
-                .unwrap_or_else(|| {
-                    c2_harness::provenance::main_repo_root().join("work/capture-cache")
-                })
-        }))
+        Some(
+            args.path("--cache")
+                .unwrap_or_else(c2_harness::capture_cache::default_cache_root),
+        )
     };
     let (Some(list_file), Some(flags_file)) = (list_file, flags_file) else {
         eprintln!(
@@ -291,6 +283,23 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
         }
         if cs.foreign_detail.len() > 10 {
             println!("    … and {} more", cs.foreign_detail.len() - 10);
+        }
+        // Only when it fires, like `poison_detail` above and unlike the
+        // provenance guard: this counts an I/O failure, not a standing reading.
+        // Without it a cache that can never complete an entry reports a
+        // permanent 100% miss rate, which is indistinguishable from a cold run.
+        if cs.write_failed > 0 {
+            println!(
+                "  cache entries CAPTURED BUT NOT RECORDED: {} — every run will re-capture \
+                 these; the cache is not filling",
+                cs.write_failed
+            );
+            for line in cs.write_failed_detail.iter().take(10) {
+                println!("    WRITE FAILED {line}");
+            }
+            if cs.write_failed_detail.len() > 10 {
+                println!("    … and {} more", cs.write_failed_detail.len() - 10);
+            }
         }
     }
 

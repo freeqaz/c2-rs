@@ -519,11 +519,10 @@ pub(crate) fn cmd_diff(rest: &[String]) -> ExitCode {
     let cache_root: Option<std::path::PathBuf> = if args.has("--no-cache") {
         None
     } else {
-        Some(args.path("--cache").unwrap_or_else(|| {
-            std::env::var_os("C2RS_GAP_CACHE").map(std::path::PathBuf::from).unwrap_or_else(
-                || c2_harness::provenance::main_repo_root().join("work/capture-cache"),
-            )
-        }))
+        Some(
+            args.path("--cache")
+                .unwrap_or_else(c2_harness::capture_cache::default_cache_root),
+        )
     };
     let cache = match &cache_root {
         None => None,

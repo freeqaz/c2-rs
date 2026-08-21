@@ -161,6 +161,71 @@ fn a_hit_is_byte_identical_and_a_poisoned_entry_is_caught() {
     let _ = std::fs::remove_dir_all(&base);
 }
 
+/// `replay` OVERWRITES the obj at the path it is given, and under a cache that
+/// path is the cache entry itself.
+///
+/// This pins the premise that makes the restore in `differential_tail`
+/// load-bearing: without it a diverging replay is left behind as the "cached
+/// capture" and served as a hit next run, faking a `mismatch` on a byte-exact
+/// TU. `gap/scan.rs` carries the same restore for its own replay.
+///
+/// Deliberately pins the *premise* and not the divergence: a non-diverging
+/// replay rewrites byte-identical content (bar the COFF `TimeDateStamp`, a clock
+/// reading), so a test of the leak itself would only fire when the two calls
+/// straddle a second boundary — a race, not a check. If this test ever fails
+/// because `replay` stopped overwriting, the restore became redundant; delete it
+/// deliberately rather than leaving the reason a mystery.
+#[test]
+fn replay_overwrites_its_output_path() {
+    let Some(tc) = Toolchain::locate() else {
+        eprintln!("SKIP: toolchain absent");
+        return;
+    };
+    if !tc.has_strace() {
+        eprintln!("SKIP: strace absent");
+        return;
+    }
+    if !tc.has_mingw() {
+        eprintln!("SKIP: i686-w64-mingw32-gcc absent (needed for the c2host stub)");
+        return;
+    }
+    let cpp = fixture();
+    assert!(cpp.exists(), "tracked fixture missing: {}", cpp.display());
+    let base = work("replay-overwrite");
+    let root = base.join("cache");
+    let fallback = base.join("work");
+    std::fs::create_dir_all(&fallback).unwrap();
+    let src_arg = c2_reference::to_wibo_path(&cpp.canonicalize().unwrap());
+    let flags: Vec<String> = ["/Ox", "/GS-", "/c"].iter().map(|s| s.to_string()).collect();
+
+    let cache = CaptureCache::new(root.clone(), &tc, None, 0).unwrap();
+    let (captured, _) = cache.capture(&tc, &src_arg, &flags, None, &fallback);
+    let captured = captured.expect("capture");
+    let entry_obj = captured.ref_obj_path.clone();
+
+    // A sentinel no compiler would emit. If `replay` leaves this in place it is
+    // not writing to the path it was handed, and the restore guards nothing.
+    std::fs::write(&entry_obj, b"SENTINEL-NOT-AN-OBJ").unwrap();
+    tc.replay(&captured, &base.join("replay_il"), &entry_obj)
+        .expect("replay");
+    let after = std::fs::read(&entry_obj).unwrap();
+    assert_ne!(
+        after, b"SENTINEL-NOT-AN-OBJ",
+        "replay did not overwrite the obj at the path it was given"
+    );
+
+    // And the restore is what puts the captured bytes back — the exact call
+    // `differential_tail` makes before it can return on the mismatch path.
+    std::fs::write(&entry_obj, captured.ref_obj.as_bytes()).unwrap();
+    assert_eq!(
+        std::fs::read(&entry_obj).unwrap(),
+        captured.ref_obj.as_bytes(),
+        "the entry did not round-trip the captured bytes"
+    );
+
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 /// Changing an input must miss, not hit — the staleness half of the contract.
 /// Uses a scratch copy of the fixture so the *contents* at a fixed path change,
 /// which is precisely the case an mtime-keyed cache gets wrong.

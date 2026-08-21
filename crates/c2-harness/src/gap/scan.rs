@@ -1742,13 +1742,26 @@ pub fn gap_scan(
     progress: &(dyn Fn(usize, usize, &TuResult) + Sync),
 ) -> std::io::Result<GapReport> {
     let provenance = Provenance::collect(tc, cfg.cwd.as_deref());
+    // A cache that cannot be constructed is a MISSING SPEEDUP, never a missing
+    // grading — so degrade to the uncached path and say so, exactly as `c2rs
+    // diff` does (`cli/reference.rs`). This used to be `?`, which killed the
+    // whole scan; it never fired only because the root was always under a
+    // writable `work/`. A root that is not always creatable (a read-only or
+    // absent `$HOME`, a container, `sudo`) would have turned a working
+    // environment into a hard failure.
     let cache = match &cfg.cache {
-        Some(root) => Some(CaptureCache::new(
+        Some(root) => match CaptureCache::new(
             root.clone(),
             tc,
             cfg.cwd.as_deref(),
             cfg.validate_cache,
-        )?),
+        ) {
+            Ok(c) => Some(c),
+            Err(e) => {
+                eprintln!("gap: capture cache unavailable ({e}); capturing for real");
+                None
+            }
+        },
         None => None,
     };
     let sources: Vec<&str> = cfg

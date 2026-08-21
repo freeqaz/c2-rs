@@ -200,6 +200,25 @@ pub enum CacheOutcome {
     Poisoned,
 }
 
+/// **The one place that decides WHERE the cache lives**, given an explicit
+/// `--cache` (already applied by the caller) and the environment.
+///
+/// The rule was written twice — `cli/gap.rs` and `cli/reference.rs` carried the
+/// same eight lines — which is the "one rule, two implementations" shape
+/// [`capture_via`] below exists to close, on the same path. Two spellings of one
+/// root is how a lane ends up grading against a cache nobody realised was
+/// separate.
+///
+/// `main_repo_root`, not `repo_root`: the latter is `CARGO_MANIFEST_DIR` and so
+/// resolves to the *worktree* a lane's binary was built in, which is how 50
+/// separate caches came to exist. See its doc comment for why this is resolved
+/// in code rather than exported as an env var.
+pub fn default_cache_root() -> PathBuf {
+    std::env::var_os("C2RS_GAP_CACHE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| crate::provenance::main_repo_root().join("work/capture-cache"))
+}
+
 /// **The one place that decides "cache or straight to the toolchain".**
 ///
 /// The rule is two lines long and it was written twice — `lib.rs`'s
@@ -261,6 +280,14 @@ pub struct CacheStats {
     pub foreign: usize,
     /// One line per refused entry: `<src>: <recorded> != <serving>`.
     pub foreign_detail: Vec<String>,
+    /// Entries captured but not recorded, because completing them failed
+    /// (ENOSPC, a read-only root, a permissions change under a running scan).
+    /// Counted because the symptom is otherwise invisible: a cache that can
+    /// never write presents as a permanent 100 % miss rate, which looks exactly
+    /// like a cold run and stays that way forever.
+    pub write_failed: usize,
+    /// One line per failed completion: `<src>: <io error>`.
+    pub write_failed_detail: Vec<String>,
 }
 
 /// The cache.
@@ -576,8 +603,12 @@ impl CaptureCache {
                 match tc.capture_reference_with(src_arg, &dir, flags, cwd) {
                     Ok(fresh) => {
                         let diff = compare_captures(&hit, &fresh);
-                        let _ = write_entry(&dir, &material, &fresh);
+                        let wrote = write_entry(&dir, &material, &fresh);
                         let mut st = self.stats.lock().unwrap();
+                        if let Err(e) = wrote {
+                            st.write_failed += 1;
+                            st.write_failed_detail.push(format!("{src_arg}: {e}"));
+                        }
                         st.hits += 1;
                         match diff {
                             CaptureDiff::Identical => {
@@ -616,8 +647,13 @@ impl CaptureCache {
                 let out = tc.capture_reference_with(src_arg, &dir, flags, cwd);
                 match &out {
                     Ok(cap) => {
-                        let _ = write_entry(&dir, &material, cap);
-                        self.stats.lock().unwrap().misses += 1;
+                        let wrote = write_entry(&dir, &material, cap);
+                        let mut st = self.stats.lock().unwrap();
+                        if let Err(e) = wrote {
+                            st.write_failed += 1;
+                            st.write_failed_detail.push(format!("{src_arg}: {e}"));
+                        }
+                        st.misses += 1;
                     }
                     Err(_) => {
                         // A capture-fail is not cached: it is usually an
@@ -767,6 +803,16 @@ fn read_entry(dir: &Path, material: &[u8]) -> EntryRead {
 fn write_entry(dir: &Path, material: &[u8], cap: &CapturedReference) -> io::Result<()> {
     std::fs::create_dir_all(dir)?;
     std::fs::write(dir.join("key.bin"), material)?;
+    std::fs::write(dir.join("meta.txt"), encode_meta(cap))
+}
+
+/// The `meta.txt` text, as a pure function of the capture.
+///
+/// Split out from the I/O so a test can mutate what production actually writes
+/// instead of hand-rolling a second implementation of the grammar beside it —
+/// the hand-rolled copies in the in-module tests are what let the format and its
+/// tests drift apart.
+fn encode_meta(cap: &CapturedReference) -> String {
     let mut meta = String::new();
     meta.push_str(CACHE_FORMAT);
     meta.push('\n');
@@ -780,7 +826,7 @@ fn write_entry(dir: &Path, material: &[u8], cap: &CapturedReference) -> io::Resu
         "{CAPTURE_PATH_KEY}{}\n",
         cap.ref_obj_path.display()
     ));
-    std::fs::write(dir.join("meta.txt"), meta)
+    meta
 }
 
 /// Byte-compare two captures. `None` = identical in every field the harness
