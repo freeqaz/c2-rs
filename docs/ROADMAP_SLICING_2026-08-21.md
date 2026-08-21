@@ -206,7 +206,30 @@ calibration and is a **lower bound**, not a range.
 | # | ships | graded by | raw | LB |
 |---|---|---|---|---|
 | **S0** | **The blind-reach instrument.** For each of the 113,565 parse-refused functions, build a candidate body from a relaxed decode, run it through the one composition (`comdat::comdat_function_body`), grade against **real c2's own COMDAT bytes**. Publish `fnbyte-blind-{exact,differs,unlowerable}` beside FBM, under FBM's separation rule (never in `gate.sh`, licenses no emit). | byte-judged per function + required-zero identity (emit-path diff 0, 18-lane gate diff 0 lines, `match 26 / mismatch 0 / fnbyte-exact 35894` unmoved) | 2–4 wk | 10–20 wk |
-| **S1** | **General `Plain` + `Tail` lowering**, `Selected::Plain`/`Tail` deleted and re-added only as `#[cfg(test)]` cross-checks, driven from a per-op value carrying c2's opcode number. | required-zero byte delta on the **live** dispatcher (#3346's condition) + a **pre-registered cost criterion** (#3336; reuse ir0's protocol — per-fixture minimum over 8 rounds with a byte-identical null arm) + `after0` per-word opcode agreement as an **instrument, never a gate** | 2–4 wk | 10–20 wk |
+| **S1** | **General `Plain` + `Tail` lowering**, `Selected::Plain`/`Tail` deleted and re-added only as `#[cfg(test)]` cross-checks, driven from a per-op value carrying c2's opcode number. | required-zero byte delta on the **live** dispatcher (#3346's condition) + a **pre-registered cost criterion** (#3336; reuse ir0's protocol — per-fixture minimum over 8 rounds with a byte-identical null arm) + the `after0` opcode agreement **as a ratio measurement** (see the amendment below) — instrument, never a gate | 2–4 wk | 10–20 wk |
+
+> **AMENDED 2026-08-21, by the lane that owns the bijection.** An earlier
+> draft of this row proposed promoting `w-ildecode`'s
+> `the_final_tuple_order_reproduces_the_text_words` from 3 functions / 9 words
+> to the whole fixture corpus **unchanged**. That is wrong and would have
+> produced a false alarm. The test *asserts equality*, and the lane names in
+> advance where equality breaks: on any **framed** function, because the final
+> expansion switch rewrites the prologue pseudo-op in situ into many words
+> (`WB_REGALLOC_FINDINGS.md` §4 item 2, `0x2f4`/`0x2f0` → `0x10bff95c`).
+> Pointed at the corpus it goes **red on the first framed function** and reads
+> as an instrument defect rather than a property of c2.
+>
+> Promote it instead as a **per-function ratio that reports its
+> distribution** — *"bijection on N of M, and here is the shape of M − N"* —
+> which is the number a general lowerer's price actually needs.
+>
+> The bijection's population, fenced by the lane at its own request (#1459's
+> shape, and this project's most repeated error): **three functions, nine
+> words**, all leaf, **frameless**, call-free, branch-free, memory-free,
+> constant-free, **zero `.text` relocations**, one block, `int`, already
+> `Port=Match`, at `/Ox /GS- /c`. Every one of those properties is shared
+> across the three and **none was varied**. The three graded functions are
+> precisely the ones that *cannot* exhibit the framed-prologue expansion.
 
 **Why these two first.** They attack the assumption in §4 rather than the
 easiest work, and between them they can move the 15–45 figure **in either
@@ -258,9 +281,25 @@ literally "write more decoder," and it is 1.3% of the mass.**
 
 ### Running alongside — characterization, which is product under goal (1)
 
-- **The encoder table.** All 111 encode-form arms of `0x10c39b18` plus the
-  base-word table `0x10c3a578`, dumped exhaustively with a workload histogram.
-  `w-ildecode` has **2 of 111** and recommended this explicitly. 1 wk raw.
+- **The encoder table — re-scoped 2026-08-21, and the correction is the
+  lane's.** An earlier draft of this row priced "dump all 111 encode-form arms
+  of `0x10c39b18` plus the base-word table `0x10c3a578`" at **1 wk raw**. That
+  estimate was the coordinator's, not measured, and it **priced three jobs as
+  one**. `w-ildecode`, which holds 2 of the 111 arms, splits it:
+  - **(a) dump both tables + histogram `form` over the workload's emitted
+    opcodes — half a day.** `docs/whitebox/scripts/dump_opcode_tables.py`
+    already exists and already reads both tables; this is a loop and a counter.
+  - **(b) read the arms — ~2 days** for the stereotyped majority, and
+    **unbounded** for the tail that branches on `DAT_10c2e978` or calls
+    `0x10bf983a`/`0x10bf98ec`. None of that tail has been read.
+  - **(c) grade them — not priceable until (a) runs.** Pricing it first repeats
+    `CEILING` §6.1 item F's error: a figure against an unmeasured denominator.
+
+  **This row is therefore scoped to (a) alone**, with (b) and (c) priced off
+  the resulting histogram. Registered so it can be scored: the lane expects
+  **20–40 forms to cover ≥99% of emitted words**. Note also that the row's
+  subject **excludes relocations entirely** (§5.6, zero cells) — so it prices
+  *part of* interface 2, not interface 2.
 - **Resolve the `DAT_10c400d4` contradiction.** The repo asserts both
   *"function-scoped"* (`WB_LIVE_FINDINGS.md:258-260`) and
   *"compilation-global"* (`P_REGALLOC.md:62,188`) for the same counter — and
