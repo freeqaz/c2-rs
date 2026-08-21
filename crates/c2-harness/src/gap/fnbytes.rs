@@ -650,11 +650,28 @@ pub struct Graded {
 /// # It keys on `emit_name`, and keying on `mangled_name` was MEASURED WRONG
 ///
 /// A census row carries two names from two bindings. `IlFunction::mangled_name`
-/// is paired **positionally** over `.ex` segments; `FnCensus::emit_name` is the
-/// per-record emitted-symbol binding — the one the walk below uses to decide
-/// which row *is* which `.text` COMDAT. They disagree on **74,955** rows of the
-/// dc3 workload, which this module now counts as `fnbyte-name-disagree` on every
-/// scan rather than leaving as a paragraph in `bind.rs`.
+/// **was** paired positionally over `.ex` segments (`Bindings::positional`, a
+/// narrow `?…@@` name scan with `paired` decided on **count alone**);
+/// `FnCensus::emit_name` is the per-record emitted-symbol binding — the one the
+/// walk below uses to decide which row *is* which `.text` COMDAT. They
+/// disagreed on **74,955** rows of the dc3 workload when this key was built,
+/// which is why this module counts `fnbyte-name-disagree` on every scan rather
+/// than leaving it as a paragraph in `bind.rs`.
+///
+/// **`Bindings::positional` was DELETED on 2026-08-21** — the step-4
+/// consolidation of `ARCHITECTURE_PROPOSAL_2026-08-20.md` §5, lane `ir1`, board
+/// **#3347**/**#3348**. `mangled_name` now comes from `Bindings::census`, the
+/// **same** `gl_bound_names` scan the gate uses under the same 1:1 gate,
+/// `??`-aware and offset-checked, made total (empty where it does not bind).
+/// `fnbyte-name-disagree` consequently reads **0** on the workload, down from
+/// 74,033 at that lane's base — the single changed line in a full diff of the
+/// 484-line GAP-METRICS block, and not vacuous: of the emitted rows, 44 carry a
+/// per-record name and all 44 agree.
+///
+/// **The key stays, and keying this walk on `emit_name` stays correct.** A zero
+/// here is a measurement, not a reason to stop measuring: the two bindings are
+/// two code paths that can drift apart again, and the compiler cannot grade a
+/// name (`docs/GAPS.md` §8), so this counter is the only thing that can see it.
 ///
 /// Built from `mangled_name`, the elision fired **14** times on the workload:
 /// fourteen previously byte-exact `tail` bodies turned wrong, and **not one** of
@@ -1194,13 +1211,21 @@ pub(super) fn measure(
     *res.emit.entry("fnbyte-tu-empty-callees".into()).or_insert(0) +=
         tu.empty_callees().len();
     // **The control on the input the elision reads.** A census row carries TWO
-    // names from TWO different bindings: `IlFunction::mangled_name`, paired
-    // POSITIONALLY over `.ex` segments (`bind.rs`'s own module doc pins that
-    // disagreement), and `FnCensus::emit_name`, the per-record emitted-symbol
-    // binding this walk uses to decide which row IS which COMDAT. Where they
-    // differ, a name-keyed fact read off the first one is attached to the wrong
-    // function — so the size of the disagreement is counted on every scan rather
-    // than assumed to be zero.
+    // names from TWO bindings: `IlFunction::mangled_name` and
+    // `FnCensus::emit_name`, the per-record emitted-symbol binding this walk
+    // uses to decide which row IS which COMDAT. Where they differ, a name-keyed
+    // fact read off the first one is attached to the wrong function — so the
+    // size of the disagreement is counted on every scan rather than assumed to
+    // be zero.
+    //
+    // Until 2026-08-21 the first one was paired POSITIONALLY over `.ex`
+    // segments (`Bindings::positional`, `paired` on count alone) and this key
+    // read 74,033. `Bindings::positional` is DELETED — the step-4 consolidation
+    // (`ARCHITECTURE_PROPOSAL_2026-08-20.md` §5, lane `ir1`, #3347/#3348) —
+    // and `mangled_name` now comes from the gate's own record binding, so the
+    // key reads 0. IT IS STILL COUNTED: the two are still two code paths, the
+    // byte judge cannot grade a name, and a zero that nobody re-measures is
+    // indistinguishable from not looking.
     for (c, g) in census {
         if let (Some(en), Ok(f)) = (c.emit_name.as_deref(), g.as_ref()) {
             if !f.mangled_name.is_empty() && f.mangled_name != en {

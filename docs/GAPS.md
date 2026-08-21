@@ -2598,9 +2598,26 @@ zeroed). **The record route was taken**, on evidence rather than preference:
   carries no symbol.
 
 The known obstacle was real and is unrelated to either route:
-`Bindings::positional` reports names for ~0 real functions, and it still does.
-`FnCensus::emit_name` is a **third** binding beside the gate's and the census's,
-per record and diagnostic-only.
+~~`Bindings::positional` reports names for ~0 real functions, and it still
+does. `FnCensus::emit_name` is a **third** binding beside the gate's and the
+census's, per record and diagnostic-only.~~
+**AMENDED 2026-08-21 — `Bindings::positional` NO LONGER EXISTS** (step 4 of
+`ARCHITECTURE_PROPOSAL_2026-08-20.md` §5, lane `ir1`, merge `d7be7aadc`;
+board **#3347**/**#3348**). It is deleted, and with it the count-only pairing
+that slid by one on any TU whose `?…@@` name-scan count happened to equal the
+segment count. The census and the `diag.rs` locals probe now bind through
+`Bindings::census` — the **same** `gl_bound_names` scan the gate uses, under
+the same 1:1 gate, `??`-aware and offset-checked, made *total* (empty names
+where it does not bind rather than `None`). So there are **two** bindings here
+now, not three: the shared record binding, and `FnCensus::emit_name`, which
+stays per-record and diagnostic-only and is what this section's route reads.
+The consolidation was a required-zero obj byte delta — the emit path was
+already on `per_record`/`selective` and is untouched — and the numerator it
+moved is published rather than absorbed: `fnbyte-name-disagree` **74,033 → 0**,
+the single changed line in a full diff of the 484-line GAP-METRICS block.
+**The compiler still cannot grade a name** (that is this section's whole
+premise and it is unchanged), which is exactly why the slide was invisible to
+the byte judge for as long as it was.
 
 Two rules make it work on real input where the gate's does not:
 
