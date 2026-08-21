@@ -100,6 +100,22 @@ static const TapSite g_sites[] = {
     { "sched3",   0x10b7dd1du, 0x10be6382u, "scheduler run 3 (mode 1)" },
     { "sched0",   0x10b7e00cu, 0x10be6382u, "scheduler run 4 (mode 0), LAST" },
     { "region",   0x10be643eu, 0x10be5d4bu, "the region finder — sole call site" },
+    /* THE OBSERVATION POINT AFTER RUN 4. `0x10b7df57` is the mode-0 (final)
+     * schedule and the `sched0` site `0x10b7e00c` lives inside it
+     * (0x10b7df57 + 219 = 0x10b7e032, so the site is in range). In the
+     * per-function orchestrator `0x10b7e6af` the call at `0x10b7e701` is the
+     * FIRST one after `0x10b7df57` returns:
+     *
+     *   10b7e6f8: 8b ce                mov ecx,esi        ; esi = function rec
+     *   10b7e6fa: e8 58 f8 ff ff       call 0x10b7df57    ; run 4 (sched0)
+     *   10b7e6ff: 8b ce                mov ecx,esi
+     *   10b7e701: e8 2c f9 ff ff       call 0x10b7e032    ; <-- HERE
+     *
+     * so ecx is the function record and the final schedule has already been
+     * written. The region tap structurally cannot see this: it fires at
+     * region-finder ENTRY, run 4 has no successor run, and every `sched0`
+     * block is therefore run 4's INPUT. */
+    { "after0",   0x10b7e701u, 0x10b7e032u, "after the FINAL schedule, function record in ecx" },
 };
 #define N_SITES ((int)(sizeof(g_sites) / sizeof(g_sites[0])))
 
@@ -137,6 +153,21 @@ static int          g_payload = 0;
  * part of the canonical stream: a raw window can contain pointers, which would
  * make a digest stable only because the allocator happened to be. */
 static unsigned int g_raw = 0;
+
+/* C2RS_STAGE_OPS=1 — walk each tuple's two OPERAND lists and, from each
+ * operand, the symbol/candidate record. This is where the register allocator's
+ * output lives; the tuple record itself is byte-identical across COLOR
+ * (`docs/rungs/2026-08-20-stageoracle.md` §3). Off by default: it is three
+ * levels of foreign pointer deeper than the tuple walk and it triples the
+ * payload. */
+static int          g_ops = 0;
+
+/* C2RS_STAGE_FUNCWALK=1 — at the per-function sites, walk the WHOLE function
+ * from the function record in ecx (blocks, then tuples), instead of relying on
+ * the region tap. The region walk runs to the end of the LIST, so region k
+ * re-reads regions k..n; a function walk visits each tuple exactly once and,
+ * unlike the region tap, has an observation point at the `after0` site. */
+static int          g_walkfn = 0;
 
 static const char  *g_phase = "none";
 static unsigned int g_fn = 0;
@@ -307,6 +338,209 @@ static int plausible(unsigned int p)
 #define WALK_MAX  4096u
 #define WALK_SPAN (64u * 1024u * 1024u)
 
+/* Fail-closed field reads. An unreadable field and a zero field MUST render
+ * differently: the whole point of this probe is a pre/post-COLOR comparison,
+ * and an instrument that prints `0` for "could not read" would manufacture
+ * both nulls and differences. Every caller below prints a distinguishable
+ * token for each of the three outcomes (a value, a NULL, an unreadable). */
+static int rd32(unsigned int p, unsigned int off, unsigned int *out)
+{
+    if (!plausible(p)) return 0;
+    memcpy(out, (const void *)(uintptr_t)(p + off), 4);
+    return 1;
+}
+
+static int rd8(unsigned int p, unsigned int off, unsigned int *out)
+{
+    if (!plausible(p)) return 0;
+    *out = *(const unsigned char *)(uintptr_t)(p + off);
+    return 1;
+}
+
+static int rd16(unsigned int p, unsigned int off, unsigned int *out)
+{
+    unsigned short v;
+    if (!plausible(p)) return 0;
+    memcpy(&v, (const void *)(uintptr_t)(p + off), 2);
+    *out = v;
+    return 1;
+}
+
+/* One pointer hop that ends in a register number: `base+off` is a descriptor
+ * pointer and `descriptor+0x1c` is the register, in the `n = r + 1` encoding
+ * (`FUN_10bfebf7` bounds it to 0x0f..0x20 = r14..r31). Three outcomes, three
+ * spellings: the number, `none` (a NULL descriptor — NOT YET ASSIGNED), and
+ * `unread` (a non-NULL pointer the plausibility filter refused). */
+static void ap_regfield(unsigned int base, unsigned int off)
+{
+    unsigned int d = 0, n = 0;
+    ap(" ");
+    if (!rd32(base, off, &d)) { ap("unread"); return; }
+    if (d == 0)               { ap("none");   return; }
+    if (!rd32(d, 0x1c, &n))   { ap("unread"); return; }
+    ap_hex(n, 8);
+}
+
+/* At most this many operands per list. A list is a foreign singly-linked
+ * chain; an overrun is announced, never silently truncated. */
+#define OPS_MAX 128u
+
+/* Walk the two operand lists a tuple points to.
+ *
+ * READ FROM c2's OWN CODE, not assumed — every offset with its witness:
+ *   tuple+0x28  operand list D   `FUN_10b2ceb7` walks `piVar13[10]`
+ *   tuple+0x2c  operand list S   `FUN_10b2ceb7` walks `piVar13[0xb]`;
+ *                                `FUN_10bfebf7` walks `puVar1[0xb]`
+ *   op+0x00     next             all of the above (`puVar3 = *puVar3`)
+ *   op+0x08     kind (byte)      `*(char *)(puVar3 + 2) == '\x01'`
+ *   op+0x0a     type word (u16)  class nibble is `(u16 at op+0xa) >> 12`,
+ *                                indexed into `DAT_10b022cc`
+ *   op+0x1c     symbol           `piVar18[7]` / `puVar3[7]`
+ *   sym+0x04    symbol kind      `cVar1 = *(char *)(iVar9 + 4)`; 1, 2 or 3
+ *   sym+0x1c    candidate id     kind-2 arm feeds it to `FUN_10b2c21d`
+ *                                (candidate lookup by id)
+ *   sym+0x10 -> +0x1c  assigned register   `FUN_10b31ac9`:
+ *                                `*(uint *)(*(int *)(param_3 + 0x10) + 0x1c)`
+ *   sym+0x08 -> +0x1c  physical register   `FUN_10b2ceb7` kind-1 arm:
+ *                                `*(uint *)(*(int *)(iVar9 + 8) + 0x1c)`
+ *
+ * All `[R]`. DISCLOSURE.md carries a row for each.
+ *
+ * SCHEMA: no address appears. `id` is a compilation-global monotonic counter
+ * (`DAT_10c400d4++`) and the register fields are small integers, so the stream
+ * stays canonical — that is asserted by the determinism gate, not assumed. */
+static void tap_walk_operands(unsigned int tup)
+{
+    static const unsigned int list_off[2] = { 0x28u, 0x2cu };
+    static const char *const  list_tag[2] = { "D", "S" };
+    int L;
+    for (L = 0; L < 2; L++) {
+        unsigned int op = 0;
+        unsigned int j = 0;
+        if (!rd32(tup, list_off[L], &op)) {
+            ap_reserved("REFUSE operand tuple-unreadable\n");
+            return;
+        }
+        while (op != 0 && j < OPS_MAX) {
+            unsigned int nxt = 0, kind = 0, ty = 0, sym = 0;
+            if (!plausible(op)) {
+                ap_reserved("REFUSE operand walk-implausible\n");
+                break;
+            }
+            rd32(op, 0x0, &nxt);
+            rd8(op, 0x8, &kind);
+            rd16(op, 0xa, &ty);
+            rd32(op, 0x1c, &sym);
+            ap("OP ");  ap(list_tag[L]);
+            ap(" ");    ap_dec(j);
+            ap(" ");    ap_hex(kind, 2);
+            ap(" ");    ap_hex(ty, 4);
+            /* FOLLOW `op+0x1c` ONLY FOR OPERAND KIND 1, because that is the
+             * only kind c2 itself follows it for: `FUN_10bfebf7` guards with
+             * `*(char *)(puVar3 + 2) == '\x01'` before reading `puVar3[7]`,
+             * and `FUN_10b2ceb7` does the same. Other kinds put other things
+             * there — kind `0x0b` (the call-clobber set) carries a physical
+             * register BITSET at `op+0x18`, and its `+0x1c` read back a c2
+             * static data address on the first run of this probe. Following a
+             * field c2 does not follow is how an instrument invents both a
+             * finding and a SCHEMA VIOLATION (an address in the canonical
+             * stream) in the same read. */
+            if (kind != 1) {
+                ap(" nofollow");
+            } else if (sym == 0) {
+                ap(" nosym");
+            } else if (!plausible(sym)) {
+                ap(" unread");
+            } else {
+                unsigned int sk = 0, id = 0;
+                rd8(sym, 0x4, &sk);
+                rd32(sym, 0x1c, &id);
+                ap(" ");  ap_hex(sk, 2);
+                ap(" ");  ap_hex(id, 8);
+                ap_regfield(sym, 0x10);   /* the ASSIGNED register */
+                ap_regfield(sym, 0x08);   /* the PHYSICAL register */
+            }
+            ap("\n");
+            if (g_arena_full) { ap_reserved("REFUSE region arena-full\n"); return; }
+            j++;
+            op = nxt;
+        }
+        if (j >= OPS_MAX) { ap_reserved("REFUSE operand walk-overrun\n"); return; }
+    }
+}
+
+/* At most this many blocks per function. */
+#define BLK_MAX 4096u
+
+/* Walk one whole function from its record — the observable the region tap
+ * cannot give, and the one `after0` needs.
+ *
+ * READ FROM `FUN_10b2ceb7`, which the allocator driver `FUN_10b31c9a` calls
+ * with the function record straight through:
+ *   func+0x08 -> hdr,  hdr+0x04 -> first block
+ *                                `iVar14 = *(int *)(*(int *)(param_1 + 8) + 4)`
+ *   block+0x04  next block       `iVar14 = *(int *)(iVar14 + 4)` (loop tail)
+ *   block+0x20  the LAST tuple   `piVar13 = *(int **)(iVar14 + 0x20)`
+ *   block+0x1c  the stop value   `while (piVar13 != *(int **)(iVar14 + 0x1c))`
+ *   tuple+0x10  PREV             `piVar13 = (int *)piVar17[4]` (loop tail)
+ *
+ * THE WALK IS BACKWARD, and that is not a guess: `tuple+0x0` is `next` and
+ * `tuple+0x10` is `prev` (`0x10be626c` re-links the list with exactly that
+ * pair, `P_DAG.md` §2), so a loop advancing by `+0x10` runs from the end. The
+ * rows are therefore emitted in REVERSE order within each block and the
+ * `BLK … rev` marker says so; the reader reverses. Emitting them in the
+ * apparent order and calling it the schedule would be the whole probe's
+ * conclusion, silently inverted.
+ *
+ * All `[R]`, and CROSS-DERIVED rather than trusted: PREREG B2 requires the
+ * function walk's tuple set at `sched2` to contain every distinct row the
+ * region walk reports at `sched2`. If it does not, this reading is wrong and
+ * the probe says so. */
+static void tap_walk_function(unsigned int func)
+{
+    unsigned int hdr = 0, blk = 0, nb = 0;
+    if (!rd32(func, 0x8, &hdr) || !plausible(hdr)) {
+        ap_reserved("REFUSE funcwalk header\n");
+        return;
+    }
+    if (!rd32(hdr, 0x4, &blk)) {
+        ap_reserved("REFUSE funcwalk first-block\n");
+        return;
+    }
+    while (blk != 0 && nb < BLK_MAX) {
+        unsigned int t = 0, stop = 0, i = 0, next_blk = 0;
+        if (!plausible(blk)) { ap_reserved("REFUSE funcwalk block-implausible\n"); return; }
+        if (!rd32(blk, 0x20, &t) || !rd32(blk, 0x1c, &stop)) {
+            ap_reserved("REFUSE funcwalk block-fields\n");
+            return;
+        }
+        ap("BLK ");  ap_dec(nb);  ap(" rev\n");
+        while (t != 0 && t != stop && i < WALK_MAX) {
+            const unsigned char *b;
+            unsigned int prev = 0, opcode = 0;
+            if (!plausible(t)) { ap_reserved("REFUSE funcwalk tuple-implausible\n"); return; }
+            b = (const unsigned char *)(uintptr_t)t;
+            memcpy(&opcode, b + 4, 4);
+            memcpy(&prev, b + 0x10, 4);
+            ap("FT ");  ap_dec(i);
+            ap(" ");    ap_hex(opcode, 8);
+            ap(" ");    ap_hex(b[8], 2);
+            ap(" ");    ap_hex(b[9], 2);
+            ap(" ");    ap_hex((unsigned int)(b[10] & 0x1fu), 2);
+            ap("\n");
+            if (g_ops && (b[9] & 1u)) tap_walk_operands(t);
+            if (g_arena_full) { ap_reserved("REFUSE funcwalk arena-full\n"); return; }
+            i++;
+            t = prev;
+        }
+        if (i >= WALK_MAX) { ap_reserved("REFUSE funcwalk tuple-overrun\n"); return; }
+        if (!rd32(blk, 0x4, &next_blk)) { ap_reserved("REFUSE funcwalk block-next\n"); return; }
+        nb++;
+        blk = next_blk;
+    }
+    if (nb >= BLK_MAX) { ap_reserved("REFUSE funcwalk block-overrun\n"); return; }
+}
+
 static void tap_walk_tuples(unsigned int t)
 {
     unsigned int i = 0;
@@ -337,6 +571,14 @@ static void tap_walk_tuples(unsigned int t)
             for (k = 0; k < g_raw; k++) ap_hex(b[k], 2);
             ap("\n");
         }
+        /* ONLY REAL-INSTRUCTION TUPLES HAVE OPERAND LISTS. `FUN_10bfebf7`
+         * and `FUN_10b2ceb7` both gate their operand walk on
+         * `*(byte *)(tuple + 9) & 1` (WB_DAGORDER_FINDINGS.md §2, bit 0 =
+         * real-instruction). Without the gate this walk reads `+0x28`/`+0x2c`
+         * out of label and region-marker tuples, where they are not list
+         * heads: the first run of this probe produced operand kinds `0xf8`
+         * and symbol kinds `0x88` from exactly those rows. */
+        if (g_ops && (b[9] & 1u)) tap_walk_operands(t);
         if (g_arena_full) { ap_reserved("REFUSE region arena-full\n"); return; }
 
         i++;
@@ -369,6 +611,17 @@ unsigned int tap_enter(unsigned int retaddr, unsigned int ecx,
             if (strcmp(g_sites[i].name, "region") != 0) {
                 g_phase = g_sites[i].name;
                 if (strcmp(g_phase, "sched1") == 0) g_fn++;
+                /* ecx is the FUNCTION RECORD at every one of these sites
+                 * (`0x10b7dc59 mov esi,ecx` then `mov ecx,esi` before each
+                 * call; `0x10b7e6b0 mov esi,ecx` then `0x10b7e6ff mov ecx,esi`
+                 * at `after0`). */
+                if (g_payload && g_walkfn) {
+                    ap("FN ");   ap(g_phase);
+                    ap(" fn ");  ap_dec(g_fn);
+                    ap("\n");
+                    tap_walk_function(ecx);
+                    ap("END-FN\n");
+                }
             } else if (g_payload) {
                 ap("SITE region ENTER ");
                 ap(g_phase);
@@ -444,7 +697,11 @@ int tap_arm(HMODULE h, void *invoke_fn)
     {
         const char *pl = getenv("C2RS_STAGE_PAYLOAD");
         const char *rw = getenv("C2RS_STAGE_RAW");
+        const char *ops = getenv("C2RS_STAGE_OPS");
+        const char *fw = getenv("C2RS_STAGE_FUNCWALK");
         g_payload = (pl && *pl && *pl != '0');
+        g_ops = (ops && *ops && *ops != '0');
+        g_walkfn = (fw && *fw && *fw != '0');
         g_raw = 0;
         if (rw && *rw) {
             unsigned int v = 0;

@@ -54,8 +54,17 @@ use crate::{CapturedReference, Toolchain};
 /// `docs/ARCHITECTURE_SEAMS.md` §0 used for the `..base` and `bind.rs` moves:
 /// two readers of one definition, with a test standing where a shared header
 /// cannot (the C side is not in the Rust workspace and never will be).
+/// `after0` is the **eighth** site and the only one that observes state after
+/// the final schedule. `0x10b7df57` is run 4 (mode 0) and its site
+/// `0x10b7e00c` lives inside it; `0x10b7e701` is the first call in the
+/// per-function orchestrator `0x10b7e6af` after `0x10b7df57` returns, with
+/// `ecx` still holding the function record. Without it the run that fixes
+/// emitted instruction order has its output observed nowhere — every `sched0`
+/// region block is run 4's INPUT, because the region tap fires at region-finder
+/// entry and run 4 has no successor run
+/// (`docs/ARCH_REVIEW_2026-08-21.md` finding 1).
 pub const STAGE_SITES: &[&str] = &[
-    "sched1", "globregs", "sched2", "color", "sched3", "sched0", "region",
+    "sched1", "globregs", "sched2", "color", "sched3", "sched0", "region", "after0",
 ];
 
 /// The **four** scheduler sites that the optimizer-on flag `DAT_10c2e2fc`
@@ -133,6 +142,45 @@ pub struct TapReport {
     /// pair falls out of the region tap without ever needing the
     /// function-record → tuple-list-head offset.
     pub blocks: Vec<StageBlock>,
+    /// One entry per `FN … END-FN` payload block: a WHOLE-function walk taken
+    /// from the function record, when `C2RS_STAGE_FUNCWALK` is on. Unlike
+    /// [`TapReport::blocks`] these visit each tuple exactly once, and they are
+    /// the only observable that exists at the `after0` site.
+    pub funcs: Vec<FuncWalk>,
+}
+
+/// One whole function, walked from its record at one phase.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FuncWalk {
+    /// The per-function site that was entered: `sched1` … `sched0`, `after0`.
+    pub phase: String,
+    /// Function ordinal within the TU.
+    pub func: u32,
+    /// One `Vec` of `<opcode> <cat> <flags> <cc>[ | OP …]` rows per block, in
+    /// block-chain order, **already reversed** back into list order (the C
+    /// walk runs backward down `tuple+0x10`).
+    pub blocks: Vec<Vec<String>>,
+}
+
+impl FuncWalk {
+    /// Every row of every block, concatenated in block order.
+    pub fn rows(&self) -> Vec<String> {
+        self.blocks.iter().flat_map(|b| b.iter().cloned()).collect()
+    }
+
+    /// The rows with everything from the first `" | "` stripped — the tuple
+    /// SPINE alone, without the operand records. Comparing both is how a
+    /// difference gets attributed to the spine or to the operands rather than
+    /// reported as one undifferentiated "DIFFERS".
+    pub fn spine(&self) -> Vec<String> {
+        self.rows()
+            .iter()
+            .map(|r| match r.split_once(" | ") {
+                Some((s, _)) => s.to_string(),
+                None => r.clone(),
+            })
+            .collect()
+    }
 }
 
 /// One scheduling region as observed at one phase.
@@ -147,6 +195,23 @@ pub struct StageBlock {
     pub tuples: Vec<String>,
     /// Raw hex windows, same order, when a raw window was requested.
     pub raw: Vec<String>,
+}
+
+/// The result of [`TapReport::distinct_rows`] — a payload size beside the
+/// coverage it actually represents.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DistinctRows {
+    /// Total `TU` rows in the payload — what `stage-snap-tuples` publishes.
+    pub rows: usize,
+    /// Distinct tuple positions observed, summed over `(phase, function)`
+    /// groups. A FLOOR whenever `suffix_violations > 0`.
+    pub distinct: usize,
+    /// Number of `(phase, function)` groups.
+    pub groups: usize,
+    /// Blocks whose rows are NOT a tail of the longest block in their group.
+    /// Nonzero means the nesting model above is wrong for this payload and
+    /// `distinct` must be read as a floor.
+    pub suffix_violations: usize,
 }
 
 impl TapReport {
@@ -172,6 +237,68 @@ impl TapReport {
                 .collect()
         };
         (cat("sched2"), cat("sched3"))
+    }
+
+    /// **How much of `stage-snap-tuples` is a re-read, and how much is new.**
+    ///
+    /// The bounded walk terminates on `next == 0` — the end of the FUNCTION's
+    /// tuple list, not the end of the region it was handed (`stagetap.c`'s
+    /// `tap_walk_tuples`). So the walk launched at region 1 emits the whole
+    /// list, region 2's walk emits the same list minus its first region, and so
+    /// on: within one `(phase, function)` the blocks are nested suffixes and
+    /// every published tuple count is inflated by the nesting.
+    ///
+    /// **Compare a count, never a status** (arch review 2026-08-21, finding 1).
+    /// `stage-snap-tuples` is a payload size; this is the number of distinct
+    /// tuple positions actually observed, which is what a coverage claim needs.
+    ///
+    /// The suffix structure is **checked, not assumed**: each block's rows,
+    /// with the walk index stripped, must equal the tail of the longest block
+    /// in its group. A group where that fails contributes a
+    /// `suffix_violations` count and its `distinct` term is then a FLOOR — the
+    /// blocks are not nested and the union could be larger.
+    pub fn distinct_rows(&self) -> DistinctRows {
+        // Group in first-seen order; a BTreeMap over (phase, func) would work
+        // too but the order is the diagnostic one.
+        let mut groups: Vec<((String, u32), Vec<&StageBlock>)> = Vec::new();
+        for b in &self.blocks {
+            let key = (b.phase.clone(), b.func);
+            match groups.iter_mut().find(|(k, _)| *k == key) {
+                Some((_, v)) => v.push(b),
+                None => groups.push((key, vec![b])),
+            }
+        }
+        let strip = |row: &String| -> String {
+            match row.split_once(' ') {
+                Some((_idx, rest)) => rest.to_string(),
+                None => row.clone(),
+            }
+        };
+        let mut out = DistinctRows {
+            rows: self.tuples.len(),
+            distinct: 0,
+            groups: groups.len(),
+            suffix_violations: 0,
+        };
+        for (_, blocks) in &groups {
+            let Some(longest) = blocks.iter().max_by_key(|b| b.tuples.len()) else {
+                continue;
+            };
+            let reference: Vec<String> = longest.tuples.iter().map(strip).collect();
+            out.distinct += reference.len();
+            for b in blocks {
+                let rows: Vec<String> = b.tuples.iter().map(strip).collect();
+                if rows.len() > reference.len() {
+                    out.suffix_violations += 1;
+                    continue;
+                }
+                let tail = &reference[reference.len() - rows.len()..];
+                if tail != rows.as_slice() {
+                    out.suffix_violations += 1;
+                }
+            }
+        }
+        out
     }
 
     /// Did the tap actually arm? **The environment control's predicate.**
@@ -234,6 +361,23 @@ impl TapReport {
             out.push_str(t);
             out.push('\n');
         }
+        for f in &self.funcs {
+            out.push_str("FN ");
+            out.push_str(&f.phase);
+            out.push(' ');
+            out.push_str(&f.func.to_string());
+            out.push('\n');
+            for (i, b) in f.blocks.iter().enumerate() {
+                out.push_str("BLK ");
+                out.push_str(&i.to_string());
+                out.push('\n');
+                for row in b {
+                    out.push_str("FT ");
+                    out.push_str(row);
+                    out.push('\n');
+                }
+            }
+        }
         for w in &self.walk_refusals {
             out.push_str(w);
             out.push('\n');
@@ -263,6 +407,11 @@ impl TapReport {
     /// only lines carrying the `[stagetap] ` marker are read.
     pub fn parse(stderr: &str) -> TapReport {
         let mut r = TapReport::default();
+        // Which payload context an `OP` line belongs to. `OP` rows follow
+        // either a region-walk `TU` row or a function-walk `FT` row, and
+        // attaching one to the wrong owner would silently mix two
+        // observables.
+        let mut in_funcwalk = false;
         for raw in stderr.lines() {
             let Some(rest) = raw.trim_start().strip_prefix("[stagetap] ") else {
                 continue;
@@ -328,6 +477,66 @@ impl TapReport {
                         b.tuples.push(row.clone());
                     }
                     r.tuples.push(row);
+                }
+                Some("FN") => {
+                    // FN <phase> fn <n>
+                    let t: Vec<&str> = rest.split_whitespace().collect();
+                    let phase = t.get(1).copied().unwrap_or("?").to_string();
+                    let func = t.get(3).and_then(|v| v.parse::<u32>().ok()).unwrap_or(0);
+                    r.funcs.push(FuncWalk { phase, func, blocks: Vec::new() });
+                    in_funcwalk = true;
+                }
+                Some("BLK") => {
+                    if let Some(f) = r.funcs.last_mut() {
+                        f.blocks.push(Vec::new());
+                    }
+                }
+                Some("FT") => {
+                    // FT <i> <opcode> <cat> <flags> <cc>. The walk index is
+                    // dropped: the C side emits rows in REVERSE list order, so
+                    // the index descends and carries no information the
+                    // position does not.
+                    let row = match rest["FT ".len()..].split_once(' ') {
+                        Some((_i, v)) => v.to_string(),
+                        None => String::new(),
+                    };
+                    if let Some(b) = r.funcs.last_mut().and_then(|f| f.blocks.last_mut()) {
+                        b.push(row);
+                    }
+                }
+                Some("END-FN") => {
+                    // The C walk runs backward down `tuple+0x10` (prev), so
+                    // each block's rows arrive last-first. Reverse them here
+                    // rather than in every consumer — an observable whose
+                    // order is the finding must not be published inverted.
+                    if let Some(f) = r.funcs.last_mut() {
+                        for b in &mut f.blocks {
+                            b.reverse();
+                        }
+                    }
+                    in_funcwalk = false;
+                }
+                Some("OP") => {
+                    // Appended INLINE to the row it belongs to, so every
+                    // existing comparison over tuple rows covers the operand
+                    // records for free when the lever is on, and covers
+                    // exactly what it used to when it is off.
+                    let op = rest.to_string();
+                    let target = if in_funcwalk {
+                        r.funcs.last_mut().and_then(|f| f.blocks.last_mut()).and_then(|b| b.last_mut())
+                    } else {
+                        r.blocks.last_mut().and_then(|b| b.tuples.last_mut())
+                    };
+                    if let Some(row) = target {
+                        row.push_str(" | ");
+                        row.push_str(&op);
+                    }
+                    if !in_funcwalk {
+                        if let Some(last) = r.tuples.last_mut() {
+                            last.push_str(" | ");
+                            last.push_str(&op);
+                        }
+                    }
                 }
                 Some("SITE") => {
                     r.regions += 1;
@@ -409,7 +618,7 @@ impl Toolchain {
         raw: u32,
     ) -> io::Result<(ObjImage, TapReport)> {
         let (obj, rep) =
-            self.replay_tapped_inner(captured, bundle_dir, out_obj, taps, payload, raw, None, true)?;
+            self.replay_tapped_inner(captured, bundle_dir, out_obj, taps, payload, raw, None, true, None)?;
         // `require_obj` was true, so the missing-obj case returned `Err` above.
         let obj = obj.expect("replay_tapped_inner(require_obj = true) returned no obj");
         Ok((obj, rep))
@@ -458,7 +667,40 @@ impl Toolchain {
             0,
             Some(force_slide),
             false,
+            None,
         )
+    }
+
+    /// [`Toolchain::replay_tapped_with`] with the two probe levers set
+    /// EXPLICITLY rather than read from the ambient environment.
+    ///
+    /// `ops` walks each tuple's operand and symbol/candidate records; `funcwalk`
+    /// walks whole functions from the function record (and is the only way to
+    /// observe anything at the `after0` site). Both default off through every
+    /// other entry point, so a caller that does not ask for them measures
+    /// exactly what it measured before this lane.
+    pub fn replay_tapped_probe(
+        &self,
+        captured: &CapturedReference,
+        bundle_dir: &Path,
+        out_obj: &Path,
+        taps: &[&str],
+        ops: bool,
+        funcwalk: bool,
+    ) -> io::Result<(ObjImage, TapReport)> {
+        let (obj, rep) = self.replay_tapped_inner(
+            captured,
+            bundle_dir,
+            out_obj,
+            taps,
+            true,
+            0,
+            None,
+            true,
+            Some((ops, funcwalk)),
+        )?;
+        let obj = obj.expect("replay_tapped_inner(require_obj = true) returned no obj");
+        Ok((obj, rep))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -472,6 +714,7 @@ impl Toolchain {
         raw: u32,
         force_slide: Option<u32>,
         require_obj: bool,
+        probe: Option<(bool, bool)>,
     ) -> io::Result<(Option<ObjImage>, TapReport)> {
         let (mut cmd, out_abs) = self.build_replay_command(captured, bundle_dir, out_obj)?;
         match force_slide {
@@ -486,6 +729,31 @@ impl Toolchain {
             cmd.env("C2RS_STAGE_RAW", raw.to_string());
         } else {
             cmd.env_remove("C2RS_STAGE_RAW");
+        }
+        // THE TWO PROBE LEVERS, FORWARDED DELIBERATELY.
+        //
+        // `C2RS_STAGE_OPS` walks each tuple's operand and symbol/candidate
+        // records; `C2RS_STAGE_FUNCWALK` walks the whole function from the
+        // function record instead of relying on the region tap. Both are read
+        // from THIS process's environment and either forwarded or REMOVED —
+        // never left to silent inheritance, which is the same inertness rule
+        // `C2RS_STAGE_TAPS` gets: an ambient value in a caller's environment
+        // must not be able to change what a "default" run measures.
+        for (k, explicit) in [("C2RS_STAGE_OPS", probe.map(|p| p.0)), ("C2RS_STAGE_FUNCWALK", probe.map(|p| p.1))] {
+            let on = match explicit {
+                // An EXPLICIT setting wins over the ambient one. A test cannot
+                // use `set_var` here: the integration binary runs its tests as
+                // threads of one process, so a `set_var` would leak into every
+                // other test's child (the same reason `replay_tapped_forced_slide`
+                // is an API and not a variable).
+                Some(v) => v,
+                None => matches!(std::env::var(k), Ok(v) if !v.is_empty() && v != "0"),
+            };
+            if on {
+                cmd.env(k, "1");
+            } else {
+                cmd.env_remove(k);
+            }
         }
         if payload {
             cmd.env("C2RS_STAGE_PAYLOAD", "1");
@@ -563,6 +831,73 @@ mod tests {
         assert!(r.armed_ok(), "the bytes WERE written");
         assert!(!r.armed_and_fired(), "but nothing executed, so nothing was graded");
         assert_eq!(r.total_hits(), 0);
+    }
+
+    /// The payload's size and its COVERAGE are different numbers, and the
+    /// difference is not small: the walk runs to the end of the LIST, so the
+    /// walk launched at region 1 re-reads every later region.
+    #[test]
+    fn the_tuple_count_is_a_payload_size_and_the_distinct_count_is_the_coverage() {
+        // One function, one phase, three regions of one tuple each. Region 1's
+        // walk sees all three, region 2's sees two, region 3's sees one:
+        // 6 rows published for 3 distinct tuple positions.
+        let s = "[stagetap] SITE region ENTER sched2 fn 1 r 1\n\
+                 [stagetap] TU 0 0000000b 0d 01 00\n\
+                 [stagetap] TU 1 000000d6 0f 01 00\n\
+                 [stagetap] TU 2 0000017a 12 01 04\n\
+                 [stagetap] END-REGION\n\
+                 [stagetap] SITE region ENTER sched2 fn 1 r 2\n\
+                 [stagetap] TU 0 000000d6 0f 01 00\n\
+                 [stagetap] TU 1 0000017a 12 01 04\n\
+                 [stagetap] END-REGION\n\
+                 [stagetap] SITE region ENTER sched2 fn 1 r 3\n\
+                 [stagetap] TU 0 0000017a 12 01 04\n\
+                 [stagetap] END-REGION\n";
+        let d = TapReport::parse(s).distinct_rows();
+        assert_eq!(d.rows, 6, "the payload size");
+        assert_eq!(d.distinct, 3, "the tuple positions actually observed");
+        assert_eq!(d.groups, 1);
+        assert_eq!(d.suffix_violations, 0, "the blocks ARE nested suffixes here");
+    }
+
+    /// The nesting is CHECKED. If a block is not a tail of its group's longest
+    /// block the union may exceed the longest, so `distinct` is a floor and the
+    /// instrument has to say so rather than publish an exact-looking number.
+    #[test]
+    fn a_block_that_is_not_a_suffix_makes_the_distinct_count_a_floor() {
+        let s = "[stagetap] SITE region ENTER sched2 fn 1 r 1\n\
+                 [stagetap] TU 0 0000000b 0d 01 00\n\
+                 [stagetap] TU 1 000000d6 0f 01 00\n\
+                 [stagetap] END-REGION\n\
+                 [stagetap] SITE region ENTER sched2 fn 1 r 2\n\
+                 [stagetap] TU 0 deadbeef 19 01 00\n\
+                 [stagetap] END-REGION\n";
+        let d = TapReport::parse(s).distinct_rows();
+        assert_eq!(d.rows, 3);
+        assert_eq!(
+            d.suffix_violations, 1,
+            "`deadbeef` is not the tail of the longest block, so the nesting model fails"
+        );
+    }
+
+    /// Two phases are two independent observations of the same list, so they
+    /// group separately — a distinct count that collapsed them would under-report
+    /// coverage by exactly the factor the pre/post-COLOR pair depends on.
+    #[test]
+    fn phases_and_functions_are_separate_groups() {
+        let s = "[stagetap] SITE region ENTER sched2 fn 1 r 1\n\
+                 [stagetap] TU 0 0000000b 0d 01 00\n\
+                 [stagetap] END-REGION\n\
+                 [stagetap] SITE region ENTER sched3 fn 1 r 1\n\
+                 [stagetap] TU 0 0000000b 0d 01 00\n\
+                 [stagetap] END-REGION\n\
+                 [stagetap] SITE region ENTER sched2 fn 2 r 1\n\
+                 [stagetap] TU 0 0000000b 0d 01 00\n\
+                 [stagetap] END-REGION\n";
+        let d = TapReport::parse(s).distinct_rows();
+        assert_eq!(d.groups, 3);
+        assert_eq!(d.distinct, 3);
+        assert_eq!(d.rows, 3);
     }
 
     #[test]
