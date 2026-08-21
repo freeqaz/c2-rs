@@ -16,7 +16,7 @@ Lane `w-ildecode` / `wt-w-ildecode`, branched at master `72207b86f`, rebased
 onto `edd882f96` after `w-restim` landed. PREREG:
 [`WB_MIDDLE_PREREG.md`](WB_MIDDLE_PREREG.md), committed before the confirming
 runs; scored in §7. Board rows **#3357**–**#3360**.
-Runnable proof: `crates/c2-reference/tests/middle_interfaces.rs` (4 tests).
+Runnable proof: `crates/c2-reference/tests/middle_interfaces.rs` (5 tests).
 
 ---
 
@@ -192,7 +192,7 @@ the point, because it is exactly why a general decode is expensive.
 
 | `.ex` token | class | tuples produced | derivation |
 |---|---|---|---|
-| `B9 <varU sym> <TYPE>` — parameter load | `0x18` | **none** | DERIVED: the parameter is already in its ABI register |
+| `B9 <varU sym> <TYPE>` — parameter load | `0x18` | **none in the region view — but see §3.5** | the parameter's home-slot store is real and sits ahead of the first region |
 | `02` — binary add | `0x00` | **one**, opcode `0x001` (`add`), category `0x0d`, flags `0x01` | DERIVED: n−1 for an n-leaf chain, graded at n = 2, 3, 4 |
 | `41 <TYPE>` — return value | `0x01` | **one**, opcode `0x2f8`, category `0x15`, flags `0x01`, plus a four-row structural tail | TRANSCRIBED |
 | `3A <varU sym>` — jump to the epilogue | `0x02` | **none** at `/Ox` | DERIVED (the target is the next label) |
@@ -255,12 +255,51 @@ The tuple list at `sched1`, region block 0 — the live tap, verbatim:
     6  00000309  1a   00   00
 ```
 
-Two `02` tokens, two `add` tuples. Three `B9` loads, zero tuples. One `41`, one
-`0x2f8`. **Row for row, this is what
+Two `02` tokens, two `add` tuples. Three `B9` loads, zero tuples **in this
+view** — §3.5 is the correction. One `41`, one `0x2f8`. **Row for row, this is what
 `the_il_subset_decoder_reproduces_the_tuple_rows` reproduces** from the `.ex`
 bytes using c2's own operand-class table — and it reproduces `mvp_two.cpp`'s
 `add2` (one `add`) and `add4` (three) with the same rules, so the count is a
 prediction and not a transcription of `add3`'s two.
+
+---
+
+### 3.5 THE GRADE'S SCOPE — and PREREG P1.2 refuted at function scope `[O]`
+
+The rows above are the **region walk's first block**: the tuple list from the
+first scheduling region's head, following `next` to the end. That is the
+observable the tap has always published and the one `stage-snap-tuples` counts.
+It is a **proper subset of the function's tuple list**, and on this fixture the
+part it omits is not decoration:
+
+| at `sched1`, `mvp_add3` | rows |
+|---|---:|
+| the **function** walk (`w-restim`'s, from the function record) | **16** |
+| the **region** walk, block 0 | **7** |
+| ahead of the first region, invisible to the region walk | **9** |
+
+Those 9 are three `0x2f8` parameter-in pseudo-ops and **three `0x17a` = `stw`
+home-slot stores**, one per parameter, each with its own operand records.
+
+**So PREREG P1.2 — "the three `B9 <sym> <TYPE>` parameter loads become zero
+tuples" — is true of the region view and FALSE of the function.** The
+parameters get real machine tuples; the region walk cannot see them because it
+starts at the region finder's argument and only ever goes forward. This is
+`#1823`'s shape for the fifth time — a true statement about an **instrument**
+read as one about the **image** — and it was caught only because `w-restim`'s
+function walk made a second view of the same payload available on the same day.
+
+`the_region_view_is_a_strict_subset_of_the_function` asserts both directions
+(the `stw` tuples are IN the function walk and NOT in the region block), so the
+subset relation is checked rather than claimed, and it fails loudly if a future
+change moves the region tap's starting point.
+
+**What this does and does not cost the interface-1 result.** The row-for-row
+equality in §3.4 is unaffected — it is a statement about a well-defined
+observable and the decoder reproduces it exactly, on three functions. What it
+costs is *reach*: the subset decoded is smaller than it looked, the parameter
+half of the calling convention is outside it entirely, and §8's estimate is
+written against the corrected picture.
 
 ---
 
@@ -431,7 +470,7 @@ final tuple list, one row per word, at one site.
 | P0.3 | P0.1/P0.2 hold on ≥ 4 further fixtures | **H for P0.2, M for P0.1** — 4 fixtures, and the fixtures are what produced the refutation |
 | P0.4 | the mnemonic matches the emitted word | **H** — §5.4, via the encoding rather than the string |
 | P1.1 | two `02` tokens → two `add` tuples | **H** |
-| P1.2 | three `B9` loads → zero tuples | **H** |
+| P1.2 | three `B9` loads → zero tuples | **M — REFUTED at function scope.** True of the region view, false of the function: three `stw` home-slot stores and three `0x2f8` sit ahead of the first region. §3.5 |
 | P1.3 | `41` → one non-machine tuple pre-lowering, `0x284` after | **H** |
 | P1.4 | `+0xa & 0x1f` is the operand size in bytes | **H on the graded part** (4 on every 4-byte tuple, 0 on every structural one) and **NOT DISCRIMINATED** — see P1.5 |
 | P1.5 | a `double` fixture shows 8, a `short` fixture shows 2 | **U — DID NOT RUN.** This is the cell that would have made P1.4 a finding rather than a consistency, and its absence is why §3.3 does not claim the condition-code reading is refuted |
@@ -445,10 +484,11 @@ final tuple list, one row per word, at one site.
 | P3.2 | match 26 / mismatch 0 / fnbyte-exact 35894 unmoved | **H** — §9 |
 | P3.3 | at least one prediction is refuted | **H** — P0.1, plus P2.2's form values |
 
-**Score: 13 H · 3 M · 3 U.** The three misses are all this lane's own readings
-being too confident, and two of them (P0.1, P2.2's form values) were caught by
-the graded code rather than by re-reading — which is the argument for writing
-the code at all.
+**Score: 12 H · 4 M · 3 U.** All four misses are this lane's own readings being
+too confident, and **three of them (P0.1, P1.2, P2.2's form values) were caught
+by the graded code rather than by re-reading** — which is the whole argument for
+writing the code. P1.2's was caught last, during a proofread, by comparing two
+instruments over one payload.
 
 ---
 
@@ -473,7 +513,7 @@ paths, and the interface-1 subset.
 | **which tuples are instructions** | unknown | **`+0x9` bit 0, 288 rows, 0 counterexamples** | §2.3 |
 | **tuple → PPC word** | black box | **`base_word[op] \| form-fields`, 2 tables, 1 function, 9 words graded** | §5 |
 | **the register fields** | *"not in the tuple"* | **two pointer hops** *(w-restim)*, **and the two paths reconciled** | §5.3 |
-| **IL token → tuple** | black box | **legible for a 7-token closed subset, on a shape with no calls, no branches, no memory, no constants** | §3 |
+| **IL token → tuple** | black box | **legible for a 7-token closed subset, on a shape with no calls, no branches, no memory, no constants — and over a REGION view that omits the parameter home-slot stores entirely** | §3, §3.5 |
 | **relocations / labels at the emit seam** | black box | **still black box — 0 cells** | §5.6 |
 | **the other ~110 encode forms** | black box | **still black box — 2 of 111 arms read** | §5.2 |
 | **selection and the lowering band** | black box | **still black box** — one pseudo-op watched turn into one machine opcode | §4 |

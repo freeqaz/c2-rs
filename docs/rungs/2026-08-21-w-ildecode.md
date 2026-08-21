@@ -16,7 +16,7 @@
 
 > **`coff::Function` field this lane's work would eventually write: NONE.**
 > Arch review finding 3's prophylactic, answered honestly. This lane ports no
-> pass and writes no field; what it produces is a record and four graded tests.
+> pass and writes no field; what it produces is a record and five graded tests.
 > The prophylactic's value is that a lane which cannot name a field has to say
 > so out loud.
 
@@ -32,6 +32,16 @@
 | **2c. relocation/label half of the emit seam** | **FAILED.** Zero cells. Both fixtures have zero `.text` relocations and no other fixture was graded |
 | **3. DISCLOSURE rows** | **SHIPPED** — `W-MID-1`…`W-MID-4`, in the commit that adopts them |
 | **4. the cost note** | **SHIPPED** — `WB_MIDDLE_INTERFACES.md` §8, as a lower bound, and it moves ONE of the two halves |
+
+**Late correction, found during the final proofread and worth the top of the
+page**: the interface-1 grade is over the **region walk's first block**, which
+is a *proper subset* of the function's tuple list — 7 rows of 16 on `mvp_add3`
+at `sched1`. The 9 rows it omits are three parameter-in pseudo-ops and **three
+`stw` home-slot stores**, so **PREREG P1.2 ("the three `B9` parameter loads
+become zero tuples") is REFUTED at function scope** and true only of the region
+view. `#1823`'s shape for the fifth time. It is now a test
+(`the_region_view_is_a_strict_subset_of_the_function`) rather than a sentence,
+and `WB_MIDDLE_INTERFACES.md` §3.5 carries it.
 
 **Outcome word: `instrument`.** No fixture claimed, no census number moved, obj
 bytes required-zero and unmoved. Predicted reach was 0 TUs and the reach was 0
@@ -71,7 +81,7 @@ the **region** coordinate and the identity in the **instruction** coordinate.
 
 ## 2. The graded results
 
-`cargo test -p c2-reference --test middle_interfaces`, four tests, all green
+`cargo test -p c2-reference --test middle_interfaces`, five tests, all green
 under `C2RS_REQUIRE_TOOLCHAIN=1`:
 
 ```
@@ -81,6 +91,9 @@ interface-0: 75 real-instruction tuples (36 at sched0, all machine opcodes),
 interface-1: 3 functions, row-for-row equality, chains of 2/3/4 leaves
 interface-2: 9 .text words reproduced from the post-final-schedule tuple order,
              32 bits of 32
+scope:       sched1 function walk 16 rows (3 stw), region block 0 7 rows (0 stw)
+             — the interface-1 grade covers the region view and NOT the 9 rows
+             ahead of it
 the_probe_levers_never_move_the_obj_at_this_lanes_profile ... ok
 ```
 
@@ -101,7 +114,7 @@ this project:
 
 ---
 
-## 3. PREREG scored — 13 H · 3 M · 3 U
+## 3. PREREG scored — 12 H · 4 M · 3 U
 
 Full table in `WB_MIDDLE_INTERFACES.md` §7. The three that matter:
 
@@ -111,6 +124,8 @@ Full table in `WB_MIDDLE_INTERFACES.md` §7. The three that matter:
   `0x03`/`0x1e` came from reading the jump table's arms sequentially instead of
   through `form − 1`; the real forms are `0x31` and `0x37`. Corrected in public
   rather than folded in.
+* **P1.2 REFUTED at function scope.** See the correction at the top of this
+  page and `WB_MIDDLE_INTERFACES.md` §3.5.
 * **P1.5 DID NOT RUN**, and it was the discriminating half of P1.4. So
   `+0xa & 0x1f` is documented as *consistent with* an operand size (4 on every
   4-byte tuple, 0 on every structural one) and the condition-code reading it was
@@ -199,13 +214,13 @@ are no-regression controls rather than the thing that makes the claim.
 `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --no-fail-fast`:
 
 ```
-TOTAL PASSED: 1769    TOTAL FAILED: 0
+TOTAL PASSED: 1770    TOTAL FAILED: 0
 "SKIP: toolchain absent" occurrences: 0
 ```
 
-**The delta against `w-restim`'s 1,765 is exactly +4**, and all four are this
-lane's: `crates/c2-reference/tests/middle_interfaces.rs`, one target, four
-tests. `1765 + 4 = 1769`.
+**The delta against `w-restim`'s 1,765 is exactly +5**, and all five are this
+lane's: `crates/c2-reference/tests/middle_interfaces.rs`, one target, five
+tests. `1765 + 5 = 1770`.
 
 One repair was needed on the way and is worth recording because it is a
 tripwire a docs-shaped lane will hit again:

@@ -498,10 +498,15 @@ fn func_tuples(rep: &c2_reference::stage::TapReport, phase: &str, func: u32) -> 
 /// Later blocks are suffixes of it (`ARCH_REVIEW` §1: 65.1% of the payload),
 /// so taking block 0 and no other is how this file avoids counting a suffix.
 ///
-/// It is deliberately NOT the function walk: the function walk additionally
-/// carries the tuples ahead of the first region (`0x30a`, `0x30d`), which the
-/// decoder below makes no claim about, and a comparison that quietly widened
-/// its subject would be scoring a different prediction than the one registered.
+/// It is deliberately NOT the function walk, and the difference is much bigger
+/// than the region tap's users have had reason to notice. On `mvp_add3` at
+/// `sched1` the function walk carries **16** rows and this block carries
+/// **7**: ahead of the first region sit three `0x2f8` parameter-in pseudo-ops
+/// and three `stw` (`0x17a`) home-slot stores that the region walk never
+/// reaches, because it starts at the region finder's argument and only ever
+/// goes forward. [`the_region_view_is_a_strict_subset_of_the_function`]
+/// measures exactly that, because a subset relation asserted in prose is a
+/// subset relation nobody checked.
 fn region_first_block(
     rep: &c2_reference::stage::TapReport,
     phase: &str,
@@ -1009,3 +1014,62 @@ fn the_probe_levers_never_move_the_obj_at_this_lanes_profile() {
     );
 }
 
+
+
+// ---------------------------------------------------------------------------
+// The scope of the interface-1 grade, measured rather than asserted
+// ---------------------------------------------------------------------------
+
+/// **PREREG P1.2 IS REFUTED AT FUNCTION SCOPE, AND THIS TEST IS THE
+/// REFUTATION.**
+///
+/// P1.2 said the three `B9 <sym> <TYPE>` parameter loads become **zero**
+/// tuples. That is true of what the region walk shows and false of the
+/// function: at `sched1` `mvp_add3` carries three `0x17a` (`stw`) home-slot
+/// stores and three `0x2f8` parameter-in pseudo-ops **ahead of the first
+/// scheduling region**, where the region walk — which starts at the region
+/// finder's argument and only goes forward — structurally cannot see them.
+///
+/// So the interface-1 grade is a statement about a **proper subset** of the
+/// function's tuple list, and this test makes the code say so instead of the
+/// prose. It asserts both directions, because only the pair is informative:
+/// the `stw` tuples are IN the function walk and NOT in the region block.
+///
+/// This is the same shape as `#1823` and `#3356` — a true statement about an
+/// instrument read as one about the image — caught here by comparing two
+/// instruments that `w-restim` made available on the same payload.
+#[test]
+fn the_region_view_is_a_strict_subset_of_the_function() {
+    let Some((tc, img)) = ready("scope") else { return };
+    /// `stw` — the home-slot store this test is looking for.
+    const STW: u32 = 0x17a;
+    assert_eq!(img.mnemonic(STW).as_deref(), Some("stw"));
+    let (rep, _) = snap(&tc, &fixture("mvp_add3.cpp"), "scope");
+    let fw = func_tuples(&rep, "sched1", 1).expect("no sched1 funcwalk");
+    let rb = region_first_block(&rep, "sched1", 1).expect("no sched1 region block");
+    assert!(
+        fw.len() > rb.len(),
+        "the function walk ({}) is not larger than the region block ({}) — either \
+         the region tap now sees the whole list or one of the two walks is broken",
+        fw.len(),
+        rb.len()
+    );
+    let fw_stw = fw.iter().filter(|t| t.opcode == STW).count();
+    let rb_stw = rb.iter().filter(|t| t.opcode == STW).count();
+    assert!(
+        fw_stw >= 3,
+        "expected at least three `stw` home-slot stores in the function walk, saw {fw_stw}"
+    );
+    assert_eq!(
+        rb_stw, 0,
+        "the region block now contains {rb_stw} `stw` tuple(s) — P1.2's scope limit is gone \
+         and the interface-1 grade's subject has changed"
+    );
+    eprintln!(
+        "scope: sched1 function walk {} rows ({fw_stw} stw), region block 0 {} rows ({rb_stw} stw) \
+         — the interface-1 grade covers the region view and NOT the {} rows ahead of it",
+        fw.len(),
+        rb.len(),
+        fw.len() - rb.len()
+    );
+}
