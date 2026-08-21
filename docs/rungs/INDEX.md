@@ -269,6 +269,7 @@ the header block this table is read from.
 | 2026-08-20 | w-refrev | [refrev](2026-08-20-refrev.md) | 10 | unchanged, +0 |
 | 2026-08-20 | stageoracle | [stageoracle](2026-08-20-stageoracle.md) | 8 | +0 — no crates/ behaviour, no fixture, no emit rule changes |
 | 2026-08-20 | w-warranty | [warranty](2026-08-20-warranty.md) | 9 | unchanged, +0 |
+| 2026-08-21 | goaldocs | [goaldocs](2026-08-21-goaldocs.md) | 10 | +0 — no crates/ emit rule, no refusal predicate, no fixture, no |
 | 2026-08-21 | ir1 | [ir1](2026-08-21-ir1.md) | 12 | +0 emitted — diagnostic-only; required-zero obj byte delta. The census NUMERATOR moves and is published below, not absorbed |
 | 2026-08-21 | restim | [restim](2026-08-21-restim.md) | 9 | +0 — no crates/ emit rule, no refusal predicate, no fixture |
 | 2026-08-21 | w8sum | [w8sum](2026-08-21-w8sum.md) | 11 | +0 — a re-expression, not a widening; required-zero byte delta |
