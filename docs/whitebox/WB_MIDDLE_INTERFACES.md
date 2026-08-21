@@ -331,26 +331,39 @@ written against the corrected picture.
 
 ## §4 The lowering band, watched
 
-Same function, the tuple list after the lowering band, at `after0` — the
-**whole-function** walk, so it also carries the two tuples ahead of the first
-region:
+Same function, the whole-function walk on **both** sides — `sched1`'s 16 rows
+(§3.5) against `after0`'s 8. Comparing the *region* view on one side and the
+function view on the other is how this section read before §3.5 existed, and it
+made the band look like a one-tuple rename.
 
 ```
-  opcode   cat  flg
-  0000030a  18   00
-  0000030d  17   00
-  00000001  0d   01     add        <-- unchanged
-  00000001  0d   01     add        <-- unchanged
-  0000030f  17   00
-  00000284  10   01     ret        <-- 0x2f8 became a MACHINE opcode
-  0000030b  19   00
-  00000309  1a   00
+  after0, function-walk order          what happened to it
+  ----------------------------------   ----------------------------------------
+  0x30a  18                            (kept)
+  0x30d  17                            (kept)
+  0x001  0d  01  add                   KEPT UNCHANGED, operands and all
+  0x001  0d  01  add                   KEPT UNCHANGED, operands and all
+  0x30f  17                            (kept)
+  0x284  10  01  ret                   was 0x2f8 — a PSEUDO-OP became a MACHINE
+                                       opcode, and moved after the 0x30f marker
+  0x30b  19                            (kept)
+  0x309  1a                            (kept)
+
+  gone across the band, 8 rows:
+    3 x 0x2f8  15 01 04                the three parameter-in pseudo-ops
+    3 x 0x17a  0d 01 04  stw           the three home-slot stores
+    2 x 0x309  1a                      two of the three structural markers
 ```
 
-One tuple changed opcode; one structural tuple was deleted; the two `add`s and
-their operands are untouched. That is the whole lowering band on this shape, and
-it is the smallest legible instance of what `ARCH_REVIEW` calls the general
-lowering.
+So the band did three distinguishable things on this shape: it **deleted the
+whole parameter-home-slot prologue** (six tuples — at `/Ox`, with no spill and
+no address taken, the parameters stay in `r3`/`r4`/`r5`), it **rewrote one
+pseudo-op into a machine opcode** and moved it past the block marker, and it
+**left the two `add`s and their operand records untouched**.
+
+That is the smallest legible instance of what `ARCH_REVIEW` calls the general
+lowering — and note that two of the three things it did are *deletions*, which
+is the half a port has no way to observe from the obj alone.
 
 ---
 

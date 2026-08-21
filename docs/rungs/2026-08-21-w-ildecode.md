@@ -175,7 +175,7 @@ construction (`0x0c` where the obj has `r11`).
 
 ---
 
-## 6. Three defects found in this lane's own code, recorded
+## 6. Four defects found in this lane's own code and record, recorded
 
 * **`IMAGE_SYMBOL.Value` is at `+8`, not `+4`.** The first `.text` slicer read
   four bytes of a mangled name as a section offset and panicked on an inverted
@@ -189,6 +189,12 @@ construction (`0x0c` where the obj has `r11`).
   the second as the first is how a subset decoder manufactures a green. It now
   stops at the epilogue label token and **refuses** a body whose label it never
   reaches.
+* **§4 compared a region view on one side to a function view on the other.**
+  Before §3.5 existed, "the lowering band, watched" read as a one-tuple rename.
+  Against the function walk on both sides it is three things: the whole
+  six-tuple parameter-home-slot prologue **deleted**, one pseudo-op rewritten
+  into a machine opcode, and the two `add`s untouched. Two of the three are
+  deletions — the half a port cannot see from the obj at all.
 * **§3.5's own correction undercounted its own omission.** The first draft said
   *"those 9 are three `0x2f8` and three `stw`"* — which is six. The other three
   are structural markers. All sixteen rows are now listed. Getting the count
