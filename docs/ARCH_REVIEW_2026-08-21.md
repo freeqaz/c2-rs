@@ -190,15 +190,21 @@ required-zero criterion.
 - **A∧B∧C is measurably not *necessary*, and the proposal restates it as if
   it were**: `src/system/decomp_pch.cpp` is a `match` with A false
   (`-BCDE`), falsifying the assertion at
-  `crates/c2-harness/src/gap/factors.rs:668`. Recorded at
+  `crates/c2-harness/src/gap/factors.rs:670` (`:668`, which this review
+  first cited, is the D column — corrected by `w-archamend`). Recorded at
   `REFACTOR_REVIEW_2026-08-20.md:127-140` ✅ and not carried across. One
   named exception — it does not weaken the conjunction argument, which
   survived review intact.
 - Sizing/anchors stale: "~15 fields" (`:100`) was **34** — cited to
   `docs/rungs/2026-08-21-w8sum.md:1,24`, **not** board #844, which is
   `w-alloc2` (store-run emitter leaf-only) and contains no occurrence of
-  "Option" ✅ — a reviewer mis-attribution caught in this audit; cited line
-  numbers drifted
+  "Option" ✅. **Corrected again by `w-archamend`: this was not a reviewer's
+  invention.** Board #3345's own headline opens *"BOARD #844's '34
+  MUTUALLY-EXCLUSIVE `Option<Shape>` FIELDS…'"* and the w8sum rung repeats
+  it, so the mis-attribution is in the repo's board and rung; this review's
+  first correction blamed the wrong source. #844 is right for the half-emit
+  hazard and wrong for the count, and the proposal now separates them. Cited
+  line numbers drifted
   twice more; `docs/GAPS.md:2601` and `gap/fnbytes.rs:650` still describe the
   deleted `Bindings::positional` in the present tense ✅.
 
