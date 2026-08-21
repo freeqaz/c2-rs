@@ -502,6 +502,21 @@ fixture:
 
 ## 9. Decisions requested
 
+> **⚠ 2026-08-21 — items 1, 5 and 6 are affected by the owner's goal decision
+> ([`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md)); see the
+> banner at §1. In short: **1** may not be accepted *because* the vendor-backed
+> service is faster to ship or faster to run — parity is goal (2) and a
+> vendor-backed service moves it by zero, so this is an ordering question about
+> two different products, not a ranking. **5** is weakened: M2 was framed as
+> the go/no-go *gate* in front of native investment, and under goal (1) its
+> snapshots are a deliverable in their own right — it has since been built and
+> graded (`docs/rungs/2026-08-20-stageoracle.md`). **6** is a *throughput*
+> priority question (which consumer's loop to optimize) and is no longer a
+> decision this project needs in order to choose work; the IL-space regime was
+> subsequently stood down in both repos (`ARCH_REVIEW_2026-08-21.md` §7).
+> Items **2**, **3** and **4** are untouched, and item 3 is if anything
+> strengthened. Annotated by lane `w-goaldocs`; nothing below is edited.**
+
 Review should explicitly accept or reject each item:
 
 1. **Product:** ship a vendor-backed compatibility service before native parity.
