@@ -80,6 +80,55 @@ Consequences for how lanes are chosen:
   guessing.
 - **Two-sided pricing of every new fence** (#1042, NC-5/#2691). Unchanged.
 
+## AMENDED 2026-08-21 (later the same day) — the ranking, and two new consumers
+
+The owner returned to the goal statement and **ranked the two ends**. Quoted,
+because the second sentence changes the port's value model, not just its
+priority:
+
+> *"Goal #1 is definitely the biggest. #2 is also very valuable and helps #1
+> by giving us not just docs, but actual code we can tweak to instrument +
+> help produce signals about the compiler's state. this is especially
+> valuable for training AI models to reverse the compiler and give us a
+> matching pretext. (and build a better permuter to 'brute force' fixing code
+> that is close, but wrong because of opaque compiler internal state)"*
+
+Three consequences:
+
+1. **"Ranked equally" above is superseded.** Goal (1) — understanding MSVC's
+   internals in service of decomp — is primary. Goal (2) — parity — remains a
+   real end, and is additionally **instrumental to (1)**: the port is not only
+   an artifact and a body of docs but an **executable, tweakable model of c2**
+   that can be instrumented to produce signals about compiler state that the
+   opaque binary cannot be made to emit.
+
+2. **Two named downstream consumers now exist, and lanes may be priced
+   against them:**
+   - **Training data for AI models that reverse the compiler** — producing a
+     *matching pretext*: source that recompiles to the target bytes. The port
+     supplies what the binary cannot: aligned `(IL, internal state, bytes)`
+     triples at every pipeline stage, in unlimited volume.
+   - **A better permuter** — when candidate code is close but wrong because
+     of opaque internal compiler state, a search over the port's exposed
+     decision points can find the configuration that lands the bytes. The
+     repo has already run ad-hoc versions of exactly this: the 52,416- and
+     13,104-configuration searches behind `codegen::alloc`/`schedule` *are*
+     permuter runs against fitted constants.
+
+3. **A design rule for every general layer built from here on (S1 onward):
+   expose decision points as an explicit, enumerable decision surface** —
+   allocation order, scheduling tie-breaks, label counters — rather than
+   baking them in as fitted constants. A baked constant serves goal (2) only;
+   a named, settable decision point serves the permuter and the training
+   pipeline at zero extra correctness cost, and it is what turns a
+   close-but-wrong mismatch from *opaque* into *searchable*.
+
+**What this does NOT change** — restated because instrument-thinking is where
+it will be tested: the one correctness rule stands, a wrong emit still scores
+strictly below the refusal it replaced, and any sliding or per-stage score is
+an **instrument, never a gate** (`FUNCTION_BYTE_MATCH.md`'s separation rule is
+the template: never in `gate.sh`, licenses no emit).
+
 ## Still open — the owner's, and not answered by this decision
 
 `ARCHITECTURE_PROPOSAL_2026-08-20.md` §8 **decision 0**, added by

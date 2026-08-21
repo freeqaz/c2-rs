@@ -331,6 +331,18 @@ A slicing that silently absorbed these would repeat the proposal's own error.
 4. **Publish the denominator in the sentence that states a null** (#3356).
 5. **No slice dispatched off a blocked-key size ranking** — `fence-blocks-sole`
    is 0 for every cause ✅, and this failure family is now at six instances.
+6. **Read before probe** *(added 2026-08-21 with the owner's goal
+   re-ranking — `GOAL_DECISION_2026-08-21.md` § "AMENDED",
+   `WHITEBOX_LEVERAGE_2026-08-21.md`)*. Before any slice budgets a probe
+   grid or a fitted-parameter search, price the whitebox read that would
+   answer the same question and prefer it. Item F's 13-raw/65-calibrated
+   pricing is the black-box number; no slice may quote it as the cost of the
+   *fact* when the cost of *reading* the fact has not been priced.
+7. **Expose the decision surface** *(same amendment)*. Every general layer
+   ships its arbitrary choices — allocation order, scheduling tie-breaks,
+   label counters — as named, enumerable parameters, not baked constants.
+   The permuter and the training-signal pipeline consume that surface; a
+   baked constant is a fit the next population re-opens.
 
 ---
 

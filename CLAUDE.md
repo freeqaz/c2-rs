@@ -15,9 +15,23 @@ reproduction — was named as *"currently owned by nobody"* in
 `STRATEGY_REVIEW_2026-08-13.md:251` and stayed unowned for eight days while
 step 5 was being priced against it. It is now owned and answered:
 
-> **Perfect reproduction**, for two ends that rank equally:
+> **Perfect reproduction**, for two ends:
 > 1. **A clear understanding of MSVC's internals, to help with decomp.**
 > 2. **Parity — a 100% open-source implementation.**
+
+**Ranking amended by the owner later the same day** (see
+`docs/GOAL_DECISION_2026-08-21.md` § "AMENDED"): goal (1) is primary; goal
+(2) remains a real end and is additionally **instrumental to (1)** — the port
+is an executable, tweakable model of c2 that can be instrumented to emit
+signals about compiler state, with two named consumers: **training AI models
+to reverse the compiler** (matching-pretext generation) and **a permuter that
+searches the port's exposed decision points** to fix close-but-wrong code.
+General layers built from here on expose decision points (allocation order,
+scheduling ties, label counters) as named, settable parameters rather than
+baked constants. **Read-before-probe is the standing doctrine for
+characterization** (`docs/WHITEBOX_LEVERAGE_2026-08-21.md`): before any
+probe-grid or fitted-search lane is dispatched, price the binary read that
+would answer the same question, and prefer it.
 
 Three consequences that change how work is chosen and priced here:
 
