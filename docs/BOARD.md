@@ -4256,7 +4256,21 @@ here; nothing is minted beyond the block.
 
 ---
 
-## RESERVED — NOTHING IS RESERVED ANY MORE. `#3322`–`#3336` HAVE ALL LANDED.
+## RESERVED — three lanes in flight off `309c4c989` (2026-08-21)
+
+`board_audit.sh` cannot see a row on an unmerged branch, so in-flight lanes
+reserve here. A block leaves this list when its lane merges or is abandoned
+with a commit saying why.
+
+- `#3349`–`#3356` — `wt-w-restim` (step-5 re-pricing: instrument fixes,
+  probes A/B/C, per-stage cost curve).
+- `#3357`–`#3360` — `wt-w-ildecode` (characterization: minimum documentation
+  of the opaque middle's two interfaces — IL-record→tuple decode, final
+  tuple order→COFF lowering).
+- `wt-w-archamend` (proposal amendments) expects to claim none; if it needs
+  one it takes `#3361`+ and updates this block in its own branch.
+
+Previously: `#3322`–`#3336` all landed 2026-08-20.
 
 **This block held four branch-only ranges and now holds none.** `w-ir0` was the
 last of the four-branch wave; with it merged, every number this block was
