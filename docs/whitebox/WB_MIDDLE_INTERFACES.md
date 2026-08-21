@@ -592,4 +592,18 @@ The lane's `crates/` delta is **one new test file**. No `crates/` source is
 touched, no `c2host/` source is touched (the tap extension this lane wrote was
 deleted in favour of `w-restim`'s — see the commit that says so), so the
 required-zero metrics cannot move and the gate is a no-regression control.
-Counts in [`../rungs/2026-08-21-w-ildecode.md`](../rungs/2026-08-21-w-ildecode.md) §Gate.
+Counts in [`../rungs/2026-08-21-w-ildecode.md`](../rungs/2026-08-21-w-ildecode.md) §7.
+
+The 878-TU scan is at c2-rs tip `c6bd560b8ff1` (clean) and workload stamp
+`2f666acc8aa2` (clean): **match 26 · mismatch 0 · fnbyte-exact 35,894 ·
+factor-c 170 · emitted census 39,344 / 162,147** — every figure identical to the
+one this lane was dispatched against.
+
+**One gate run had to be discarded and the instrument is why.** The first
+`gate.sh` run was launched while this file was still being edited, and its
+footer says so in those words: *"THE TREE MOVED UNDER THIS RUN — it began at
+`87c07e649920` and ended at `5dfe54e43296`. The verdict above was produced
+partly from each, so it is evidence about NEITHER tree."* The verdict was
+`GATE: PASS`, 0 mismatches everywhere; it is still not evidence, and the rung
+quotes only the re-run over a frozen tree. Recorded because a green that the
+gate itself disclaims is exactly the kind a tired reader quotes.
