@@ -208,13 +208,23 @@ struct Tuple {
 }
 
 impl Tuple {
+    /// A region-walk row: `<idx> <opcode> <cat> <flags> <cc>`.
     fn parse(row: &str) -> Option<Tuple> {
-        let t: Vec<&str> = row.split_whitespace().collect();
+        Tuple::from_fields(&row.split_whitespace().collect::<Vec<_>>()[1..])
+    }
+    /// A function-walk row: `<opcode> <cat> <flags> <cc>[ | OP …]`. The walk
+    /// index is not present — `w-restim`'s parser drops it, because the C walk
+    /// runs backward and the index descends.
+    fn parse_spine(row: &str) -> Option<Tuple> {
+        let spine = row.split(" | ").next()?;
+        Tuple::from_fields(&spine.split_whitespace().collect::<Vec<_>>())
+    }
+    fn from_fields(t: &[&str]) -> Option<Tuple> {
         Some(Tuple {
-            opcode: u32::from_str_radix(t.get(1)?, 16).ok()?,
-            cat: u8::from_str_radix(t.get(2)?, 16).ok()?,
-            flags: u8::from_str_radix(t.get(3)?, 16).ok()?,
-            cc: u8::from_str_radix(t.get(4)?, 16).ok()?,
+            opcode: u32::from_str_radix(t.first()?, 16).ok()?,
+            cat: u8::from_str_radix(t.get(1)?, 16).ok()?,
+            flags: u8::from_str_radix(t.get(2)?, 16).ok()?,
+            cc: u8::from_str_radix(t.get(3)?, 16).ok()?,
         })
     }
     /// `+0x9` bit 0 — "this tuple is a real machine instruction".
@@ -223,25 +233,59 @@ impl Tuple {
     }
 }
 
-/// One `OPD <idx> <dst> <src1> <src2>` row: hardware register numbers, or
-/// `ABSENT` where the operand link was not a plausible pointer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// The register operands of one tuple, taken from `w-restim`'s operand walk.
+///
+/// Its row is `OP <D|S> <j> <kind> <ty>[ <symkind> <id> <assigned> <physical>]`,
+/// one per operand, appended to the tuple row after `" | "`. List `S`
+/// (`tuple+0x2c`) is the **destination** side and list `D` (`tuple+0x28`) the
+/// **source** side — which is not a guess about the names but a reading of the
+/// encoder `FUN_10bf9f15`, whose register arm at `0x10bf9f91` takes `RT` from
+/// `[tuple+0x2c]` and `RA`/`RB` from `[tuple+0x28]` and `[[tuple+0x28]]`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct Operands {
-    dst: u32,
-    src1: u32,
-    src2: u32,
+    /// Register numbers from list `S` (`tuple+0x2c`), in list order.
+    s: Vec<u32>,
+    /// Register numbers from list `D` (`tuple+0x28`), in list order.
+    d: Vec<u32>,
 }
 
 const ABSENT: u32 = 0xffff_ffff;
 
 impl Operands {
-    fn parse(row: &str) -> Option<Operands> {
-        let t: Vec<&str> = row.split_whitespace().collect();
-        Some(Operands {
-            dst: u32::from_str_radix(t.get(1)?, 16).ok()?,
-            src1: u32::from_str_radix(t.get(2)?, 16).ok()?,
-            src2: u32::from_str_radix(t.get(3)?, 16).ok()?,
-        })
+    /// Parse every `OP` record appended to one function-walk row.
+    ///
+    /// The register taken is the **physical** one — the last field, `sym+0x08 →
+    /// +0x1c` — because that is the field `w-restim` measured COLOR writing
+    /// (candidate id 2 → r3). It arrives in c2's own register NUMBERING, where
+    /// index 1 is `r0` (`WB_REGALLOC_FINDINGS.md` §2), so the hardware number a
+    /// PPC field wants is `n - 1`; that conversion is done in [`Operands::hw`]
+    /// and nowhere else.
+    fn parse(row: &str) -> Operands {
+        let mut o = Operands::default();
+        for rec in row.split(" | ").skip(1) {
+            let t: Vec<&str> = rec.split_whitespace().collect();
+            if t.first() != Some(&"OP") {
+                continue;
+            }
+            let reg = match t.last() {
+                Some(v) => u32::from_str_radix(v, 16).unwrap_or(ABSENT),
+                None => ABSENT,
+            };
+            match t.get(1) {
+                Some(&"S") => o.s.push(reg),
+                Some(&"D") => o.d.push(reg),
+                _ => {}
+            }
+        }
+        o
+    }
+
+    /// c2's register index → the 5-bit hardware register number.
+    fn hw(n: u32) -> Option<u32> {
+        if n == ABSENT || n == 0 || n > 33 {
+            return None;
+        }
+        Some(n - 1)
     }
 }
 
@@ -289,7 +333,11 @@ fn text_functions(obj: &ObjImage) -> Vec<(String, Vec<u32>)> {
             } else {
                 String::from_utf8_lossy(&b[o..o + 8]).trim_end_matches('\0').to_string()
             };
-            syms.push((g32(o + 4), name));
+            // `Value` is at +8, NOT at +4. Measured, not anticipated: +4 is the
+            // second half of the 8-byte `Name` union, so the first version of
+            // this function read four bytes of a mangled name as an offset and
+            // panicked with an inverted slice range.
+            syms.push((g32(o + 8), name));
         }
         i += 1 + naux;
     }
@@ -369,13 +417,17 @@ fn ready(tag: &str) -> Option<(Toolchain, Image)> {
     Some((tc, img))
 }
 
-/// One capture + one tapped replay with the operand window on, for one fixture.
-/// Returns `(per-phase blocks, the obj that replay produced)`.
-fn snap(
-    tc: &Toolchain,
-    cpp: &Path,
-    tag: &str,
-) -> (Vec<c2_reference::stage::StageBlock>, ObjImage) {
+/// One capture + one tapped replay with **`w-restim`'s two probe levers on**
+/// (`ops` = the operand/symbol walk, `funcwalk` = the whole-function walk from
+/// the function record), for one fixture.
+///
+/// This lane wrote its own narrower operand window before `w-restim` landed and
+/// **deleted it**: `replay_tapped_probe` already follows the same pointers and
+/// additionally reaches the `after0` site, which is the one that matters here —
+/// the region tap fires at region-finder *entry*, so every `sched0` block is
+/// the final schedule's INPUT, and only `after0` shows the order that actually
+/// reaches the encoder.
+fn snap(tc: &Toolchain, cpp: &Path, tag: &str) -> (c2_reference::stage::TapReport, ObjImage) {
     let w = work(tag);
     let abs = cpp.canonicalize().unwrap();
     let flags: Vec<String> = FLAGS.iter().map(|s| (*s).to_string()).collect();
@@ -389,7 +441,7 @@ fn snap(
         .unwrap_or_else(|e| panic!("{tag}: capture failed: {e}"));
     let out = cap.ref_obj_path.clone();
     let (obj, rep) = tc
-        .replay_tapped_operands(&cap, &w.join("il"), &out, STAGE_SITES)
+        .replay_tapped_probe(&cap, &w.join("il"), &out, STAGE_SITES, true, true)
         .unwrap_or_else(|e| panic!("{tag}: tapped replay failed: {e}"));
     // POSITIVE CHECK before any row is read. An unarmed run yields an empty
     // block list, and "0 rows agreed with 0 rows" is the vacuous green this
@@ -406,32 +458,52 @@ fn snap(
         "{tag}: the payload is TRUNCATED ({:?}) — every row below would be a floor",
         rep.walk_refusals
     );
-    assert!(!rep.operands.is_empty(), "{tag}: the operand window emitted nothing");
-    assert_eq!(
-        rep.operands.len(),
-        rep.tuples.len(),
-        "{tag}: the operand window and the tuple stream are not in lockstep"
-    );
-    (rep.blocks, obj)
+    (rep, obj)
 }
 
-/// The FULL tuple list at one phase for one function — the FIRST region block,
-/// which walks from the list head to `next == 0` and therefore covers the whole
-/// list. (`ARCH_REVIEW` §1: 65.1% of the payload is suffix re-reads of exactly
-/// this list; taking block 0 and no other is how this file avoids counting a
-/// suffix twice.)
-fn full_list(
-    blocks: &[c2_reference::stage::StageBlock],
-    phase: &str,
-    func: u32,
-) -> Option<(Vec<Tuple>, Vec<Operands>)> {
-    let b = blocks.iter().find(|b| b.phase == phase && b.func == func)?;
-    let tuples: Vec<Tuple> = b.tuples.iter().filter_map(|r| Tuple::parse(r)).collect();
-    let ops: Vec<Operands> = b.operands.iter().filter_map(|r| Operands::parse(r)).collect();
-    if tuples.len() != b.tuples.len() || ops.len() != b.operands.len() {
+/// The whole-function tuple list at one phase, in list order, with the operand
+/// records appended to each row (`w-restim`'s `FuncWalk::rows`).
+fn func_rows(rep: &c2_reference::stage::TapReport, phase: &str, func: u32) -> Option<Vec<String>> {
+    rep.funcs
+        .iter()
+        .find(|f| f.phase == phase && f.func == func)
+        .map(|f| f.rows())
+}
+
+/// The same list, decoded to tuples.
+#[allow(dead_code)]
+fn func_tuples(rep: &c2_reference::stage::TapReport, phase: &str, func: u32) -> Option<Vec<Tuple>> {
+    let rows = func_rows(rep, phase, func)?;
+    let out: Vec<Tuple> = rows.iter().filter_map(|r| Tuple::parse_spine(r)).collect();
+    if out.len() != rows.len() {
         return None;
     }
-    Some((tuples, ops))
+    Some(out)
+}
+
+/// **The interface-1 observable**: the region walk's FIRST block at one phase.
+///
+/// The region tap is handed the head of the first scheduling region and walks
+/// `next` until it is zero, so block 0 is the tuple list from that head to the
+/// end of the list, in list order — the same rows `stage-snap-tuples` counts.
+/// Later blocks are suffixes of it (`ARCH_REVIEW` §1: 65.1% of the payload),
+/// so taking block 0 and no other is how this file avoids counting a suffix.
+///
+/// It is deliberately NOT the function walk: the function walk additionally
+/// carries the tuples ahead of the first region (`0x30a`, `0x30d`), which the
+/// decoder below makes no claim about, and a comparison that quietly widened
+/// its subject would be scoring a different prediction than the one registered.
+fn region_first_block(
+    rep: &c2_reference::stage::TapReport,
+    phase: &str,
+    func: u32,
+) -> Option<Vec<Tuple>> {
+    let b = rep.blocks.iter().find(|b| b.phase == phase && b.func == func)?;
+    let out: Vec<Tuple> = b.tuples.iter().filter_map(|r| Tuple::parse(r)).collect();
+    if out.len() != b.tuples.len() {
+        return None;
+    }
+    Some(out)
 }
 
 // ---------------------------------------------------------------------------
@@ -461,9 +533,9 @@ fn the_opcode_space_is_c2s_own_mnemonic_table() {
     let mut pseudo_pre = 0usize;
     let mut graded_final = 0usize;
     for name in ["mvp_add3.cpp", "mvp_two.cpp", "mvp_call.cpp", "il_stmt_seq.cpp"] {
-        let (blocks, _) = snap(&tc, &fixture(name), "i0");
-        assert!(!blocks.is_empty(), "{name}: no region blocks");
-        for b in &blocks {
+        let (rep, _) = snap(&tc, &fixture(name), "i0");
+        assert!(!rep.blocks.is_empty(), "{name}: no region blocks");
+        for b in &rep.blocks {
             for row in &b.tuples {
                 let t = Tuple::parse(row).unwrap_or_else(|| panic!("{name}: bad row {row:?}"));
                 if t.is_instruction() {
@@ -601,23 +673,41 @@ fn ex_token_width(img: &Image, body: &[u8], p: usize) -> Option<usize> {
 ///   from any table; both are read off one snapshot.
 /// * DERIVED — the `cc` column is the operand size in bytes from the IL TYPE
 ///   word's size index `(v >> 9) & 7` (PREREG P1.4).
+/// * TRANSCRIBED — `4F 01 <byte>`, the source-line record, is three bytes wide
+///   and produces no tuple. `0x4F` is operand class `0x0C`, whose payload is a
+///   sub-record read by `FUN_10b9761e` off an 8-byte-stride descriptor table at
+///   `0x10b26268` and then a ~14-arm switch; decoding that table is well
+///   outside this lane's subset, so exactly ONE sub-opcode is pinned from the
+///   corpus and **every other `0x4F` sub-opcode refuses.** This matters: only
+///   `mvp_add3` (a one-line definition) has no interior line record, and
+///   without this rule the multi-line fixtures — the ones that make the `add`
+///   count a prediction rather than a transcription — could not be graded.
 ///
-/// Returns `None` — refuses — on any token outside the subset.
+/// # The stopping rule
+///
+/// The decode ENDS at the epilogue label token `29 <sym>`, not at "the first
+/// `0x4F`". A decoder that stops at whatever it does not recognise cannot tell
+/// "finished" from "gave up", and reporting the second as the first is how a
+/// subset decoder manufactures a green.
+///
+/// Returns `None` — refuses — on any token outside the subset, and on a body
+/// whose epilogue label is never reached.
 fn decode_body_to_tuples(img: &Image, body: &[u8]) -> Option<Vec<Tuple>> {
     let mut out: Vec<Tuple> = Vec::new();
     let mut p = 0usize;
+    let mut closed = false;
     // The operand size, carried from the last TYPE word seen. add3's operands
     // are all `86 41 74` → word 0x641 → size index (0x641 >> 9) & 7 = 3 → 4.
     let mut size = 0u8;
     while p < body.len() {
         let op = body[p];
-        // The trailing metadata records and the end-of-stream marker end the
-        // walk BEFORE their width is asked for: `0x4F` is operand class `0x0C`,
-        // whose payload is a sub-record the subset does not read, and asking
-        // for its width would make this decoder refuse a body it has in fact
-        // finished decoding.
-        if op == 0x4f || op == 0x4d {
-            break;
+        if op == 0x4f {
+            // The ONLY pinned sub-record. Anything else refuses.
+            if *body.get(p + 1)? != 0x01 {
+                return None;
+            }
+            p += 3;
+            continue;
         }
         let w = ex_token_width(img, body, p)?;
         match op {
@@ -651,10 +741,20 @@ fn decode_body_to_tuples(img: &Image, body: &[u8]) -> Option<Vec<Tuple>> {
                 out.push(Tuple { opcode: 0x30b, cat: 0x19, flags: 0, cc: 0 });
                 out.push(Tuple { opcode: 0x309, cat: 0x1a, flags: 0, cc: 0 });
             }
-            0x3a | 0x54 | 0x29 | 0x53 => {} // jump to the epilogue, scope close, label
-            _ => return None,               // outside the subset: REFUSE, never skip
+            // the jump to the epilogue, and the scope close before its label
+            0x3a | 0x54 | 0x53 => {}
+            // the epilogue label — the body is closed here and nothing after it
+            // is this decoder's subject
+            0x29 => {
+                closed = true;
+                break;
+            }
+            _ => return None, // outside the subset: REFUSE, never skip
         }
         p += w;
+    }
+    if !closed {
+        return None;
     }
     Some(out)
 }
@@ -721,9 +821,9 @@ fn the_il_subset_decoder_reproduces_the_tuple_rows() {
         let predicted = decode_body_to_tuples(&img, bodies[body_ix]).unwrap_or_else(|| {
             panic!("{name} body {body_ix}: the subset decoder REFUSED — a token outside the closed subset")
         });
-        let (blocks, _) = snap(&tc, &fixture(name), "i1");
-        let (observed, _) = full_list(&blocks, "sched1", func)
-            .unwrap_or_else(|| panic!("{name} fn{func}: no sched1 block"));
+        let (rep, _) = snap(&tc, &fixture(name), "i1");
+        let observed = region_first_block(&rep, "sched1", func)
+            .unwrap_or_else(|| panic!("{name} fn{func}: no sched1 region block"));
         assert_eq!(
             predicted, observed,
             "{name} fn{func}: the decoder's rows differ from the tap's\n  predicted: {predicted:?}\n  observed:  {observed:?}"
@@ -746,77 +846,91 @@ fn the_il_subset_decoder_reproduces_the_tuple_rows() {
 // INTERFACE 2 — final tuple order → COFF `.text`
 // ---------------------------------------------------------------------------
 
+/// The encode-form values of the two arms the traced subset reaches. Read from
+/// `0x10c39b18[opcode]` at run time and asserted against these here, so a wrong
+/// form table would fail loudly instead of silently selecting the other arm.
+const FORM_XO_RT_RA_RB: u32 = 0x31;
+const FORM_RET: u32 = 0x37;
+
 /// Encode one real-instruction tuple, for the closed form subset.
 ///
 /// `base_word[opcode] | <fields>`, exactly as `FUN_10bf9f15` composes it. Only
 /// the two forms the traced subset reaches are implemented; anything else
 /// REFUSES.
-fn encode(img: &Image, t: Tuple, o: Operands) -> Option<u32> {
+fn encode(img: &Image, t: Tuple, o: &Operands) -> Option<u32> {
     let base = img.base_word(t.opcode)?;
-    let form = img.form(t.opcode)?;
-    match form {
-        // The three-register arm (0x10bf9f91): RT | RA | RB, 5 bits each, at
-        // bits 21 / 16 / 11.
-        0x03 => {
-            if o.dst == ABSENT || o.src1 == ABSENT || o.src2 == ABSENT {
-                return None;
-            }
-            Some(base | ((o.dst & 0x1f) << 21) | ((o.src1 & 0x1f) << 16) | ((o.src2 & 0x1f) << 11))
+    match img.form(t.opcode)? {
+        // The three-register arm, `0x10bfa456`, read instruction for
+        // instruction: RA from `[tuple+0x28]`, RT from `[tuple+0x2c]`, RB from
+        // `[[tuple+0x28]]`, each via `operand+0x1c` then `+0x28`, composed
+        // `((RT << 5 | RA) << 5 | RB) << 11` and OR-ed onto the base word at
+        // `0x10bfae19` — i.e. bits 21 / 16 / 11.
+        f if f == FORM_XO_RT_RA_RB => {
+            let rt = Operands::hw(*o.s.first()?)?;
+            let ra = Operands::hw(*o.d.first()?)?;
+            let rb = Operands::hw(*o.d.get(1)?)?;
+            Some(base | (rt << 21) | (ra << 16) | (rb << 11))
         }
-        // `ret`/`blr` (form 0x1e): no register operands; the BO field is the
-        // form's own constant 20 ("branch always").
-        0x1e => Some(base | (20 << 21)),
+        // `ret`/`blr`, arm `0x10bfa2a5`, which is a single instruction:
+        // `or ebx,0x2800000` — no operand is read at all, and `0x02800000` is
+        // the `BO` field 20 ("branch always") at bit 21.
+        f if f == FORM_RET => Some(base | (20 << 21)),
         _ => None,
     }
 }
 
 /// **PREREG P2.1 / P2.2 / P2.3 / P2.5 — the lowering byte check.**
 ///
-/// Given the `sched0`-entry tuple order and the operand window, reproduce the
-/// `.text` COMDAT bytes of one function, all 32 bits of every word, and compare
-/// against the obj the same run produced.
+/// Given the tuple order observed at the **`after0`** site — after the final
+/// schedule, so this is the order that actually reaches the encoder — plus
+/// `w-restim`'s operand walk, reproduce the `.text` bytes of one function, all
+/// 32 bits of every word, and compare against the obj the same run produced.
+///
+/// The site matters and is the reason this test could not have been written
+/// before `w-restim` landed: every `sched0` region block is run 4's *input*
+/// (the region tap fires at region-finder entry and run 4 has no successor
+/// run), so a check built on `sched0` would be grading the order that goes
+/// *into* the last schedule, not the one that comes out.
 #[test]
 fn the_final_tuple_order_reproduces_the_text_words() {
     let Some((tc, img)) = ready("interface-2") else { return };
-    // (fixture, function ordinal, COMDAT ordinal)
+    // (fixture, function ordinal, .text function ordinal)
     let cells: [(&str, u32, usize); 3] = [
         ("mvp_add3.cpp", 1, 0),
         ("mvp_two.cpp", 1, 0),
         ("mvp_two.cpp", 2, 1),
     ];
     let mut words_graded = 0usize;
-    for (name, func, comdat) in cells {
-        let (blocks, obj) = snap(&tc, &fixture(name), "i2");
-        let (tuples, ops) = full_list(&blocks, "sched0", func)
-            .unwrap_or_else(|| panic!("{name} fn{func}: no sched0 block"));
-        assert_eq!(tuples.len(), ops.len(), "{name}: tuple/operand rows out of step");
+    for (name, func, ord) in cells {
+        let (rep, obj) = snap(&tc, &fixture(name), "i2");
+        let rows = func_rows(&rep, "after0", func)
+            .unwrap_or_else(|| panic!("{name} fn{func}: no after0 funcwalk"));
         let funcs = text_functions(&obj);
         assert!(
-            funcs.len() > comdat,
+            funcs.len() > ord,
             "{name}: only {} .text functions in the obj",
             funcs.len()
         );
-        let (fname, real) = &funcs[comdat];
+        let (fname, real) = &funcs[ord];
 
         // P2.1: the real-instruction tuples, in order, are the emitted words.
-        let insns: Vec<(Tuple, Operands)> = tuples
+        let insns: Vec<(Tuple, Operands)> = rows
             .iter()
-            .zip(ops.iter())
+            .filter_map(|r| Tuple::parse_spine(r).map(|t| (t, Operands::parse(r))))
             .filter(|(t, _)| t.is_instruction())
-            .map(|(t, o)| (*t, *o))
             .collect();
         assert_eq!(
             insns.len(),
             real.len(),
-            "{name} fn{func} ({fname}): {} real-instruction tuples at sched0 entry \
-             but {} emitted words",
+            "{name} fn{func} ({fname}): {} real-instruction tuples after the final \
+             schedule but {} emitted words\n  rows: {rows:#?}",
             insns.len(),
             real.len()
         );
 
         // P2.2 / P2.3: every word, all 32 bits.
         for (i, (t, o)) in insns.iter().enumerate() {
-            let got = encode(&img, *t, *o).unwrap_or_else(|| {
+            let got = encode(&img, *t, o).unwrap_or_else(|| {
                 panic!(
                     "{name} fn{func} word {i}: no encode rule for opcode {:#x} ({:?}) \
                      form {:?} operands {o:?} — the subset REFUSES rather than guessing",
@@ -837,22 +951,27 @@ fn the_final_tuple_order_reproduces_the_text_words() {
         }
     }
     assert!(words_graded >= 9, "only {words_graded} words graded");
-    eprintln!("interface-2: {words_graded} .text words reproduced from the final tuple order, 32 bits of 32");
+    eprintln!(
+        "interface-2: {words_graded} .text words reproduced from the post-final-schedule \
+         tuple order, 32 bits of 32"
+    );
 }
 
 // ---------------------------------------------------------------------------
-// The new tap field's own required-zero
+// This lane's own required-zero on the instrument it borrows
 // ---------------------------------------------------------------------------
 
-/// **The operand window must not move a single obj byte.**
+/// **The two probe levers, as THIS file drives them, must not move an obj
+/// byte.**
 ///
-/// It is the first thing in this tap that dereferences a pointer *out of* the
-/// tuple record, so its neutrality is not inherited from the walk's — it has to
-/// be measured on its own. Same shape as `stage.rs`'s G1: one disarmed replay,
-/// one armed-with-operands replay, byte compare.
+/// `w-restim` grades its own neutrality; this is not a second copy of that. The
+/// combination used here — both levers on, all eight sites, at `/Ox /GS- /c`
+/// rather than the workload profile — is a configuration no other test runs,
+/// and the whole value of the interface-2 result is that the obj it is compared
+/// against is the one c2 would have produced untapped.
 #[test]
-fn the_operand_window_never_moves_the_obj() {
-    let Some((tc, _img)) = ready("operand-neutrality") else { return };
+fn the_probe_levers_never_move_the_obj_at_this_lanes_profile() {
+    let Some((tc, _img)) = ready("probe-neutrality") else { return };
     let w = work("i2n");
     let abs = fixture("mvp_add3.cpp").canonicalize().unwrap();
     let flags: Vec<String> = FLAGS.iter().map(|s| (*s).to_string()).collect();
@@ -865,7 +984,7 @@ fn the_operand_window_never_moves_the_obj() {
         .expect("disarmed replay");
     assert!(rep0.lines.is_empty(), "the DISARMED leg printed stage-tap output");
     let (armed, rep1) = tc
-        .replay_tapped_operands(&cap, &w.join("il1"), &out, STAGE_SITES)
+        .replay_tapped_probe(&cap, &w.join("il1"), &out, STAGE_SITES, true, true)
         .expect("armed replay");
     assert!(
         rep1.armed_and_fired(),
@@ -873,10 +992,11 @@ fn the_operand_window_never_moves_the_obj() {
         rep1.armed,
         rep1.total_hits()
     );
-    assert!(!rep1.operands.is_empty(), "the operand window emitted nothing");
+    assert!(!rep1.funcs.is_empty(), "the function walk emitted nothing");
     assert_eq!(
         ObjImage::diff(&disarmed, &armed),
         ObjDiff::Identical,
-        "THE OPERAND WINDOW MOVED THE OBJ — the oracle is grading a different compiler"
+        "THE PROBE LEVERS MOVED THE OBJ — the oracle is grading a different compiler"
     );
 }
+
