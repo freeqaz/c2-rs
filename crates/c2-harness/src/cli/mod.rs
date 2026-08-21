@@ -10,6 +10,7 @@
 //! `tests/cli_flags.rs::locate_is_reachable_only_through_the_arg_seam` now scans
 //! `main.rs` *and every file in this directory* to keep it that way.
 
+pub(crate) mod cache;
 pub(crate) mod census;
 pub(crate) mod corpus;
 pub(crate) mod factors;

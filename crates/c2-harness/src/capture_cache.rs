@@ -385,6 +385,31 @@ impl KeyLock {
         }
     }
 
+    /// Take the lock if it is free **right now**, or give up immediately.
+    ///
+    /// Deliberately not [`KeyLock::acquire`]: that waits `LOCK_WAIT_MAX` and
+    /// breaks a lock older than `LOCK_STALE_AFTER`, which is right for a capture
+    /// (the alternative is a key wedged forever by one SIGKILL) and wrong for
+    /// the GC. A GC that breaks a lock is a GC deciding a capture is dead, which
+    /// it cannot know; the safe reading of a held lock is "someone is working
+    /// here, skip it" — the entry will still be there next pass.
+    fn try_acquire(root: &Path, key: &str) -> Option<KeyLock> {
+        let dir = root.join(LOCK_DIR);
+        std::fs::create_dir_all(&dir).ok()?;
+        let path = dir.join(key);
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+        {
+            Ok(mut f) => {
+                let _ = writeln!(f, "{}", std::process::id());
+                Some(KeyLock { path })
+            }
+            Err(_) => None,
+        }
+    }
+
     fn is_stale(path: &Path) -> bool {
         std::fs::metadata(path)
             .and_then(|m| m.modified())
@@ -937,6 +962,309 @@ fn argv_without_il(argv: &[String]) -> Vec<&str> {
     out
 }
 
+// ---------------------------------------------------------------------------
+// Reclamation (board #3265). The cache had no GC and nothing evicts, so it grew
+// to ~21.5 M entries; the 2026-08-04 cleanup was a one-off manual delete, which
+// is why it grew back. What follows is that cleanup as code.
+// ---------------------------------------------------------------------------
+
+/// `src-arg\0` — the first NUL-delimited field of the per-TU key tail.
+const SRC_ARG_TAG: &[u8] = b"src-arg\x00";
+/// `\0cwd\0`.
+const CWD_TAG: &[u8] = b"\x00cwd\x00";
+
+fn find_sub(hay: &[u8], needle: &[u8]) -> Option<usize> {
+    if needle.is_empty() || hay.len() < needle.len() {
+        return None;
+    }
+    (0..=hay.len() - needle.len()).find(|&i| &hay[i..i + needle.len()] == needle)
+}
+
+/// The fields of a `key.bin` a reclamation pass needs: the shared context
+/// prefix, and the two components that name the source file.
+///
+/// Parsing rather than re-deriving is the point — a re-derivation would need
+/// this binary's own toolchain digests and workload tree, i.e. it could only
+/// ever classify the generation it is standing in.
+///
+/// The split is unambiguous only because `context` contains no NUL (it is
+/// entirely `format!`-built newline-terminated text) — `the_context_contains_no_nul`
+/// holds that, since without it this parse is a guess that happens to work.
+pub struct KeyFields<'a> {
+    /// Everything before `src-arg\0`: format tag, tool digests, wibo, tree,
+    /// tree-dirty, cache-root. Identifies the *generation*.
+    pub context: &'a [u8],
+    pub src_arg: &'a str,
+    /// Empty when the capture passed no `--cwd`.
+    pub cwd: &'a str,
+}
+
+/// Split raw key material into [`KeyFields`]. `None` if it is not key material.
+pub fn parse_key_material(material: &[u8]) -> Option<KeyFields<'_>> {
+    let at = find_sub(material, SRC_ARG_TAG)?;
+    let context = &material[..at];
+    let rest = &material[at + SRC_ARG_TAG.len()..];
+    let end = rest.iter().position(|b| *b == 0)?;
+    let src_arg = std::str::from_utf8(&rest[..end]).ok()?;
+    let cat = find_sub(rest, CWD_TAG)?;
+    let after = &rest[cat + CWD_TAG.len()..];
+    let cend = after.iter().position(|b| *b == 0)?;
+    let cwd = std::str::from_utf8(&after[..cend]).ok()?;
+    Some(KeyFields { context, src_arg, cwd })
+}
+
+/// What a reclamation pass decided about one entry. Everything except
+/// [`EntryVerdict::Unreachable`] is a KEEP.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EntryVerdict {
+    /// The source file is present: this key can still be formed.
+    Live,
+    /// The source's directory is readable and the source is not in it, so
+    /// `key_material` would return `None` and **this key can never be formed
+    /// again**. The only predicate that deletes.
+    Unreachable,
+    /// Could not be established — an unreadable or absent parent directory, an
+    /// unparseable key. **Kept**, and counted, because "unknown" must not mean
+    /// "delete": an unmounted volume or a workload tree mid-`git checkout` is
+    /// indistinguishable from a deleted source, and the 2026-08-04 age
+    /// predicate was refuted for exactly this class of mistake.
+    Unknown(String),
+    /// Younger than the pass's `min_age` floor.
+    TooYoung,
+    /// Another process holds this key's lock.
+    Locked,
+}
+
+/// Classify one entry from its key material alone.
+pub fn classify_entry(material: &[u8]) -> EntryVerdict {
+    let Some(k) = parse_key_material(material) else {
+        return EntryVerdict::Unknown("key material did not parse".into());
+    };
+    let cwd = (!k.cwd.is_empty()).then(|| PathBuf::from(k.cwd));
+    let src = host_source_path(k.src_arg, cwd.as_deref());
+    if src.exists() {
+        return EntryVerdict::Live;
+    }
+    // The source is absent — but so is every file on a volume that is not
+    // mounted. Only a readable parent makes "absent" mean "deleted".
+    match src.parent() {
+        Some(p) if std::fs::read_dir(p).is_ok() => EntryVerdict::Unreachable,
+        Some(p) => EntryVerdict::Unknown(format!("parent unreadable: {}", p.display())),
+        None => EntryVerdict::Unknown("source path has no parent".into()),
+    }
+}
+
+/// Knobs for [`gc`].
+pub struct GcOptions {
+    /// Delete. Default is a dry run: a reclamation pass that ran silently is
+    /// indistinguishable from one that did not.
+    pub apply: bool,
+    /// Stop after this many entries (bounds a first `--apply`).
+    pub limit: Option<usize>,
+    /// Do not touch an entry younger than this.
+    ///
+    /// Age used to **protect**, never to evict. The distinction is the whole
+    /// correction of 2026-08-04: a hit never rewrites mtime and `/home` is
+    /// `noatime`, so age cannot tell a live entry from residue and an age-based
+    /// *eviction* would have deleted the live gate working set.
+    pub min_age: Duration,
+    /// Context digests (from [`generations`]) to delete wholesale, whatever the
+    /// source predicate says. Operator-supplied on purpose — a shared root
+    /// legitimately holds several live generations at once, so "not the context
+    /// I would compute" is not a safe predicate for the code to apply itself.
+    pub drop_generations: Vec<String>,
+}
+
+impl Default for GcOptions {
+    fn default() -> Self {
+        GcOptions {
+            apply: false,
+            limit: None,
+            min_age: Duration::from_secs(3600),
+            drop_generations: Vec::new(),
+        }
+    }
+}
+
+/// Counts from one reclamation pass. Every field is printed; a number nobody
+/// prints is a number nobody can check.
+#[derive(Clone, Debug, Default)]
+pub struct GcReport {
+    pub scanned: usize,
+    pub live: usize,
+    pub unreachable: usize,
+    pub unknown: usize,
+    pub too_young: usize,
+    pub locked: usize,
+    pub generation_dropped: usize,
+    /// Children of the root that are neither a 32-hex entry nor [`LOCK_DIR`].
+    /// **Counted, never deleted** — an unrecognised name is exactly the case
+    /// where a reclamation pass should not be guessing.
+    pub strays: usize,
+    pub stray_names: Vec<String>,
+    pub deleted: usize,
+    pub delete_failed: usize,
+    /// One line per distinct `Unknown` reason, capped.
+    pub unknown_detail: Vec<String>,
+}
+
+fn is_entry_name(name: &str) -> bool {
+    name.len() == 32 && name.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+/// Read an entry's stored key material. **The one format-dependent read** in the
+/// reclamation path, so a container change is one function.
+fn entry_key_material(dir: &Path) -> Option<Vec<u8>> {
+    std::fs::read(dir.join("key.bin")).ok()
+}
+
+/// Walk `root` one level and reclaim provably-unreachable entries.
+///
+/// **Enumeration is bounded by construction and must stay that way.**
+/// `read_dir` is a lazy `getdents64` iterator, so it holds one name at a time —
+/// that is why the standing rule forbids *globs* over a cache root and not
+/// `readdir`. A shell glob over this directory has twice taken the machine down
+/// with the OOM killer (62 GB and 72 GB of anonymous RSS in a `zsh`).
+/// So: never `collect()` the entries, never sort them, never build a `Vec` of
+/// paths, and never recurse into an entry. Adding any of those reintroduces the
+/// OOM at 21.5 M entries.
+pub fn gc(root: &Path, opts: &GcOptions, progress: &dyn Fn(usize)) -> io::Result<GcReport> {
+    let mut rep = GcReport::default();
+    for ent in std::fs::read_dir(root)? {
+        let Ok(ent) = ent else { continue };
+        let name = ent.file_name().to_string_lossy().into_owned();
+        if name == LOCK_DIR {
+            continue;
+        }
+        // From the dirent, not a `stat` per entry.
+        if !ent.file_type().map(|t| t.is_dir()).unwrap_or(false) || !is_entry_name(&name) {
+            rep.strays += 1;
+            if rep.stray_names.len() < 20 {
+                rep.stray_names.push(name);
+            }
+            continue;
+        }
+        if let Some(n) = opts.limit {
+            if rep.scanned >= n {
+                break;
+            }
+        }
+        rep.scanned += 1;
+        if rep.scanned % 100_000 == 0 {
+            progress(rep.scanned);
+        }
+        let dir = ent.path();
+
+        let young = std::fs::metadata(&dir)
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.elapsed().ok())
+            .is_some_and(|age| age < opts.min_age);
+        if young {
+            rep.too_young += 1;
+            continue;
+        }
+
+        let Some(material) = entry_key_material(&dir) else {
+            rep.unknown += 1;
+            note(&mut rep.unknown_detail, "no readable key.bin");
+            continue;
+        };
+
+        let drop_gen = !opts.drop_generations.is_empty()
+            && parse_key_material(&material)
+                .map(|k| opts.drop_generations.contains(&digest128(k.context)))
+                .unwrap_or(false);
+
+        let verdict = classify_entry(&material);
+        match &verdict {
+            EntryVerdict::Live => rep.live += 1,
+            EntryVerdict::Unreachable => rep.unreachable += 1,
+            EntryVerdict::TooYoung => rep.too_young += 1,
+            EntryVerdict::Locked => rep.locked += 1,
+            EntryVerdict::Unknown(why) => {
+                rep.unknown += 1;
+                note(&mut rep.unknown_detail, why);
+            }
+        }
+        if verdict != EntryVerdict::Unreachable && !drop_gen {
+            continue;
+        }
+        if drop_gen && verdict != EntryVerdict::Unreachable {
+            rep.generation_dropped += 1;
+        }
+
+        // Never remove an entry someone is capturing into. The lock is not a
+        // complete guard — `capture()` is fail-open, so an unguarded capture
+        // leaves this free to succeed — but the residual is small: an entry
+        // being captured has a source that exists, which is `Live`, and the
+        // `min_age` floor covers the `--drop-generation` arm.
+        let Some(_guard) = KeyLock::try_acquire(root, &name) else {
+            rep.locked += 1;
+            if verdict == EntryVerdict::Unreachable {
+                rep.unreachable -= 1;
+            }
+            continue;
+        };
+        if !opts.apply {
+            continue;
+        }
+        match std::fs::remove_dir_all(&dir) {
+            Ok(()) => rep.deleted += 1,
+            Err(_) => rep.delete_failed += 1,
+        }
+    }
+    Ok(rep)
+}
+
+fn note(detail: &mut Vec<String>, why: &str) {
+    if detail.len() < 20 && !detail.iter().any(|d| d == why) {
+        detail.push(why.to_string());
+    }
+}
+
+/// Histogram the root by generation: `(context digest, entries, decoded context)`.
+///
+/// A shared root holds several live generations at once — fixture captures key
+/// as `tree unknown`, the workload scan carries the dc3 tree, the sweep and the
+/// cross bring their own — so **which** generations are dead is an operator
+/// judgement, not one this code can make. This prints the evidence for it.
+/// `every` samples one entry in N — the histogram costs one `open` per entry
+/// read, so a full pass over 22.5 M entries is hours of random IO. A sample is
+/// a *sample*: callers must print the rate beside the counts, never scale them
+/// up silently.
+pub fn generations(root: &Path, every: usize) -> io::Result<(Vec<(String, usize, String)>, usize)> {
+    let mut seen: Vec<(String, usize, String)> = Vec::new();
+    let every = every.max(1);
+    let mut seq = 0usize;
+    let mut read = 0usize;
+    for ent in std::fs::read_dir(root)? {
+        let Ok(ent) = ent else { continue };
+        let name = ent.file_name().to_string_lossy().into_owned();
+        if name == LOCK_DIR || !is_entry_name(&name) {
+            continue;
+        }
+        seq += 1;
+        if seq % every != 0 {
+            continue;
+        }
+        let Some(material) = entry_key_material(&ent.path()) else {
+            continue;
+        };
+        read += 1;
+        let Some(k) = parse_key_material(&material) else {
+            continue;
+        };
+        let d = digest128(k.context);
+        match seen.iter_mut().find(|(x, _, _)| *x == d) {
+            Some((_, n, _)) => *n += 1,
+            None => seen.push((d, 1, String::from_utf8_lossy(k.context).into_owned())),
+        }
+    }
+    seen.sort_by(|a, b| b.1.cmp(&a.1));
+    Ok((seen, read))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1290,6 +1618,163 @@ mod tests {
             "two spellings of one cache directory must serve from one path"
         );
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    // ---- reclamation (board #3265) ------------------------------------------
+
+    /// A scratch cache root with one hand-built entry keyed on `src`.
+    fn gc_fixture(tag: &str, src: &Path) -> (PathBuf, PathBuf, Vec<u8>) {
+        let root = std::env::temp_dir().join(format!("c2rs-gc-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let mut material = b"c2rs-capture-cache/v1\ntree unknown+dirty-unknown\n".to_vec();
+        material.extend_from_slice(b"src-arg\x00");
+        material.extend_from_slice(src.display().to_string().as_bytes());
+        material.extend_from_slice(b"\x00src-bytes\x00");
+        material.extend_from_slice(b"0:deadbeef");
+        material.extend_from_slice(b"\x00cwd\x00");
+        material.extend_from_slice(b"\x00flags\x00\x00");
+        let key = digest128(&material);
+        let dir = root.join(&key);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("key.bin"), &material).unwrap();
+        std::fs::write(dir.join("meta.txt"), "base _CL_1\narg -il\n").unwrap();
+        // Older than any `min_age` this test uses.
+        (root, dir, material)
+    }
+
+    /// `min_age` protects a recent entry; a pass that must act uses 0.
+    fn gc_now() -> GcOptions {
+        GcOptions { apply: true, min_age: Duration::from_secs(0), ..GcOptions::default() }
+    }
+
+    /// The parse the whole reclamation path rests on. Without this the split on
+    /// `src-arg\0` is a guess that happens to work.
+    #[test]
+    fn the_context_contains_no_nul() {
+        let base = std::env::temp_dir().join(format!("c2rs-ctxnul-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+        let Some(tc) = Toolchain::locate() else {
+            eprintln!("SKIP: toolchain absent");
+            return;
+        };
+        let c = CaptureCache::new(base.join("cache"), &tc, None, 0).unwrap();
+        let material = c.key_material("Z:\\x.cpp", &["/Ox".to_string()], None);
+        // No source file, so this may be `None`; when it is, assert on the
+        // context the cache built for itself instead.
+        let ctx = c.context.as_bytes();
+        assert!(
+            !ctx.contains(&0u8),
+            "the cache context grew a NUL — parse_key_material splits on the first \
+             `src-arg\\0` and would now find it inside the context"
+        );
+        if let Some(m) = material {
+            let k = parse_key_material(&m).expect("key material must parse");
+            assert!(!k.context.contains(&0u8));
+        }
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn key_material_parses_back_to_its_src_arg_and_cwd() {
+        let (root, _dir, material) = gc_fixture("parse", Path::new("/nonexistent/x.cpp"));
+        let k = parse_key_material(&material).expect("parse");
+        assert_eq!(k.src_arg, "/nonexistent/x.cpp");
+        assert_eq!(k.cwd, "");
+        assert!(k.context.starts_with(b"c2rs-capture-cache/v1\n"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// **"Unknown" must not mean "delete".** A source whose PARENT directory
+    /// cannot be read is indistinguishable from a deleted source — an unmounted
+    /// volume, a workload tree mid-`git checkout` — so the entry is kept. This
+    /// is the row the refuted 2026-08-04 age predicate did not have.
+    #[test]
+    fn gc_keeps_an_entry_whose_source_parent_is_unreadable() {
+        let (root, dir, _) = gc_fixture("unknown", Path::new("/nonexistent-volume/sub/x.cpp"));
+        let rep = gc(&root, &gc_now(), &|_| {}).unwrap();
+        assert_eq!(rep.unknown, 1, "an unreadable parent must classify as unknown");
+        assert_eq!(rep.unreachable, 0);
+        assert_eq!(rep.deleted, 0);
+        assert!(dir.is_dir(), "gc deleted an entry it could not establish");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The one predicate that deletes: the source's directory is readable and
+    /// the source is not in it, so `key_material` returns `None` and this key
+    /// can never be formed again.
+    #[test]
+    fn gc_deletes_only_a_provably_unreachable_entry() {
+        let live = std::env::temp_dir().join(format!("c2rs-gclive-{}.cpp", std::process::id()));
+        std::fs::write(&live, b"int f(){return 0;}\n").unwrap();
+        let (root_l, dir_l, _) = gc_fixture("live", &live);
+        let rep = gc(&root_l, &gc_now(), &|_| {}).unwrap();
+        assert_eq!(rep.live, 1, "an existing source must be LIVE");
+        assert_eq!(rep.deleted, 0);
+        assert!(dir_l.is_dir());
+        let _ = std::fs::remove_dir_all(&root_l);
+
+        // Same shape, source removed from a directory that still reads.
+        std::fs::remove_file(&live).unwrap();
+        let (root_d, dir_d, _) = gc_fixture("dead", &live);
+        let rep = gc(&root_d, &gc_now(), &|_| {}).unwrap();
+        assert_eq!(rep.unreachable, 1);
+        assert_eq!(rep.deleted, 1);
+        assert!(!dir_d.exists(), "a provably-unreachable entry survived --apply");
+        let _ = std::fs::remove_dir_all(&root_d);
+    }
+
+    /// A dry run is the default and must not touch anything.
+    #[test]
+    fn gc_dry_run_deletes_nothing() {
+        let (root, dir, _) = gc_fixture("dry", Path::new("/tmp/c2rs-gc-absent-source.cpp"));
+        let opts = GcOptions { min_age: Duration::from_secs(0), ..GcOptions::default() };
+        let rep = gc(&root, &opts, &|_| {}).unwrap();
+        assert_eq!(rep.unreachable, 1, "the predicate should still classify");
+        assert_eq!(rep.deleted, 0, "a dry run deleted something");
+        assert!(dir.is_dir());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A key someone is capturing into is skipped, not deleted.
+    #[test]
+    fn gc_skips_a_locked_key() {
+        let (root, dir, _) = gc_fixture("locked", Path::new("/tmp/c2rs-gc-absent-source.cpp"));
+        let key = dir.file_name().unwrap().to_string_lossy().into_owned();
+        let held = KeyLock::acquire(&root, &key).expect("take the lock");
+        let rep = gc(&root, &gc_now(), &|_| {}).unwrap();
+        assert_eq!(rep.locked, 1, "a held key must be skipped");
+        assert_eq!(rep.deleted, 0);
+        assert!(dir.is_dir(), "gc deleted an entry another process holds");
+        drop(held);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// `.locks` is not an entry and must never be walked as one.
+    #[test]
+    fn gc_never_touches_the_lock_dir() {
+        let (root, _dir, _) = gc_fixture("lockdir", Path::new("/tmp/c2rs-gc-absent-source.cpp"));
+        let locks = root.join(LOCK_DIR);
+        std::fs::create_dir_all(&locks).unwrap();
+        std::fs::write(locks.join("deadbeef"), b"1\n").unwrap();
+        let rep = gc(&root, &gc_now(), &|_| {}).unwrap();
+        assert_eq!(rep.strays, 0, "{LOCK_DIR} was counted as a stray");
+        assert!(locks.is_dir(), "gc removed the lock directory");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// An unrecognised child is counted and KEPT — a reclamation pass should not
+    /// be guessing about a name it does not know.
+    #[test]
+    fn gc_reports_strays_without_deleting_them() {
+        let (root, _dir, _) = gc_fixture("stray", Path::new("/tmp/c2rs-gc-absent-source.cpp"));
+        let stray = root.join("NOTAKEY-README");
+        std::fs::write(&stray, b"hello\n").unwrap();
+        let rep = gc(&root, &gc_now(), &|_| {}).unwrap();
+        assert_eq!(rep.strays, 1);
+        assert!(rep.stray_names.iter().any(|s| s == "NOTAKEY-README"));
+        assert!(stray.exists(), "gc deleted a stray it did not recognise");
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

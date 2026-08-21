@@ -26,6 +26,7 @@ use c2_reference::Toolchain;
 
 mod cli;
 
+use cli::cache::cmd_cache;
 use cli::census::cmd_census;
 use cli::corpus::{cmd_corpus_gen, cmd_corpus_sample, cmd_corpus_stats};
 use cli::factors::cmd_factors;
@@ -54,6 +55,7 @@ fn main() -> ExitCode {
         "replay" => cmd_replay(rest),
         "replay-c1" => cmd_replay_c1(rest),
         "diff" => cmd_diff(rest),
+        "cache" => cmd_cache(rest),
         "census" => cmd_census(rest),
         "bench" => cmd_bench(rest),
         "perf" => cmd_perf(rest),
