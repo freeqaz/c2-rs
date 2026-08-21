@@ -381,10 +381,18 @@ impl IlBundle {
 
         // ── per-body decode, evaluated whatever the binding did ───────────
         //
-        // `Bindings::positional` is used ONLY for its locals view, which is
+        // `Bindings::census` is used ONLY for its locals view, which is
         // `SyLocals::new(sy, segs)` — a function of `.sy` and the segment list
-        // and of nothing the naming decides. Its `names` are never read here.
-        let probe = Bindings::positional(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs);
+        // and of nothing the naming decides. Its `names` are never read here
+        // (the real names come from `real`/`selective` above), so the IR1
+        // consolidation of the census pairing does not touch this probe.
+        let probe = Bindings::census(
+            gl,
+            self.get("in").unwrap_or(&[]),
+            self.get("sy"),
+            &segs,
+            &starts,
+        );
         let mut shapes = Vec::with_capacity(segs.len());
         for (i, seg) in segs.iter().enumerate() {
             match parse_segment(seg, probe.locals(i)) {

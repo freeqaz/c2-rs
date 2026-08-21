@@ -4320,10 +4320,27 @@ report.
 
 ### `#3345`–`#3346` are `w-w8sum`'s and both are spent above.
 
-### **THE NEXT FREE NUMBER IS `#3347`.**
+## `ir1` (`docs/ARCHITECTURE_PROPOSAL_2026-08-20.md` §5 step 4)
+
+Construct rung, rung [`rungs/2026-08-21-ir1.md`](rungs/2026-08-21-ir1.md).
+`Fixtures: none`. `Census: +0` emitted. Required-zero **obj** byte delta,
+verified as a line-for-line identity diff of the 18-lane gate counts, base
+`c7049bac1` (merge `w-w8sum`) vs tip `74df5c50d` = **0 lines**. The census
+NUMERATOR moves and is published in row **#3348**, not absorbed. Numbers below
+are read from `work/ir1/{base_gate.log,tip_gate.log,gate_counts_*.txt,base_metrics.txt,tip_scan.out,tip_partest.log}`.
+
+| row | claim | state | evidence | consequence |
+|---|---|---|---|---|
+| **3347**<sub>ir1</sub> | **THE CENSUS AND THE GATE NO LONGER USE TWO DIFFERENT NAME BINDINGS — `Bindings::positional`'s POSITIONAL SLIDE IS DELETED AND THE CENSUS BINDS PER RECORD LIKE THE GATE** | **BUILT at a required-zero obj byte delta.** The census bound names by a narrow `mangled_names` scan (`?…@@` names in file order, `paired` on COUNT alone, body offsets ignored) that could not see a `??`-name or tell a data symbol from a function, so it slid pairing by one and put a wrong-but-green name on emitted census rows the byte judge cannot grade (`docs/GAPS.md` §8). `Bindings::positional` is deleted; `Bindings::census` — `per_record`'s exact, `??`-aware, offset-checked 1:1 pairing **made total** (empty names where it does not bind, not `None`) — replaces it in `census.rs` and the `diag.rs` locals probe. The emit path was already on `per_record`/`selective` and is untouched, so the change is diagnostic-only | 18-lane gate identity diff **= 0 lines** over 22 count-bearing rows, base `c7049bac1` (tree `4412b8c75ffe`) vs tip `74df5c50d` (tree `46194eea3ebc`): 18/18 PASS both ends, 6,948 verdicts, sweep 19,460, cross 90,424, debug 2,423, `mismatch 0` everywhere, `hatch-red` REFUSED both ends (#1389), `GATE_EXIT=0` · workload `match 26 / mismatch 0 / fnbyte-exact 35894 / EMITTED CENSUS 39344/162147` all unmoved · `cargo test -p c2-il` 664/0 · partest 1,761/0/1, 51 targets, 0 `SKIP: toolchain absent`, under `C2RS_REQUIRE_TOOLCHAIN=1` · `git diff 74df5c50d HEAD -- crates fixtures scripts` = 0 | rungs/2026-08-21-ir1.md §1,§4 · `crates/c2-il/src/func/bind.rs` · `crates/c2-il/src/func/census.rs` · `crates/c2-il/src/func/diag.rs` · roadmap #14 | **THE SEAM TEST THAT PINNED THE TWO BINDINGS APART BECOMES THE TEST THAT PINS THEM TOGETHER.** `the_two_bindings_are_the_open_seam_and_are_pinned_apart` existed to FAIL the day roadmap #14 landed; it is now `the_two_bindings_agree_after_the_ir1_consolidation` (`per_record.names() == census.names()`), so the day one binding is edited away from the other it fails again. A construct rung whose re-expression is on a DIAGNOSTIC path is graded by the gate proving the emit path unmoved — the gate-count identity is the whole check, and the graded-tree hashes differing while every count holds is exactly its signature |
+| **3348**<sub>ir1</sub> | **THE CENSUS NUMERATOR `fnbyte-name-disagree` MOVES 74,033 → 0, AND THE MOVE IS PUBLISHED HERE, NOT ABSORBED INTO A GREEN SCAN** | **PUBLISHED.** `fnbyte-name-disagree` counts emitted census rows whose per-record `mangled_name` is non-empty and DISAGREES with the emit binding's `emit_name`. At base the positional slide put a disagreeing name on **74,033** rows; at tip it is **0**. A full `diff` of the 484-line GAP-METRICS block, base vs tip on the 878-TU workload (`dc3-decomp 2f666acc8aa2`, cl `16.00.11886.00`, `--replay-every 1`), returns **exactly this one changed line** — every other metric byte-identical | measured with a temporary counter over the same scan (reverted before commit, `grep ztmp crates/` = 0): of the emitted rows, **44** now carry a per-record name (TU binds 1:1) and **all 44 AGREE** with the emit binding — so the 0 is real, not vacuous (44 comparable names, 0 disagreements) — and **336,353** carry no per-record name because their TU does not bind 1:1 (`App.cpp`: 3,752 records vs 9,033 segments), honest residue in place of a slid name. `fnbyte-exact 35894` and EMITTED CENSUS `39344/162147` unmoved → obj byte delta zero | rungs/2026-08-21-ir1.md §5 · `crates/c2-harness/src/gap/fnbytes.rs` (`fnbyte-name-disagree`) · `work/ir1/tip_scan.out` · **#3347** | **A NAME-KEYED FACT READ OFF A SLID BINDING IS ATTACHED TO THE WRONG FUNCTION, AND ONLY A NON-BYTE METRIC CAN SEE IT.** The slide was invisible to the compiler judge for 74,033 rows because a name is not gradeable; the gap metric is what measured it and what proves it retired. The consolidation retires it not by re-pairing all 74,033 (only 44 emitted rows bind 1:1) but by the census DECLINING to name what it cannot bind — the residue is the honest size of a strict binding on a workload whose TUs mostly do not bind 1:1, the same reason `match` is 26 |
+
+### `#3347`–`#3348` are `ir1`'s and both are spent above.
+
+### **THE NEXT FREE NUMBER IS `#3349`.**
 
 `#3312`–`#3321` (`w-c2map3`, `w-cfgclass`), `#3337`–`#3341` (`w-warranty`),
-`#3342`–`#3344` (`w-refrev`) and `#3345`–`#3346` (`w-w8sum`) are spent above. The
+`#3342`–`#3344` (`w-refrev`), `#3345`–`#3346` (`w-w8sum`) and `#3347`–`#3348`
+(`ir1`) are spent above. The
 line at the `w-suitecost` block still reading
 *"THE NEXT FREE NUMBER IS `#3312`"* is that lane's own end-of-block pointer,
 correct when written and superseded by this one — the pointer is per-block and

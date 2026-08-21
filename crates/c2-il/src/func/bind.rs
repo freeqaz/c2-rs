@@ -10,35 +10,33 @@
 //! therefore fail-closed: a binding that cannot be established is `None`, never
 //! a plausible guess.
 //!
-//! # Two bindings, and they are not the same binding
+//! # ONE binding, two totality policies (roadmap #14 / IR1, board #3347)
 //!
 //! [`IlBundle::functions`] (the gate) and [`IlBundle::census_functions`] (the
 //! diagnostic that sizes the census/gate disagreement) each answer "what is
-//! this segment called?", and **they answer it differently today**:
+//! this segment called?", and **they now answer it the same way** — the
+//! `??`-aware, per-record pairing — differing only in what they do when it
+//! cannot be established:
 //!
 //! | | gate | census |
 //! |---|---|---|
 //! | segments | `split_functions_at` — every `4F 1F` | `split_function_bodies_at` — anchored on the `LO` body marker |
-//! | names | [`Bindings::per_record`] — each `.gl` record's framed body-start offset must **be** a split point, in order and 1:1 | [`Bindings::positional`] — `mangled_names` zipped onto segments, used only when the counts match |
-//! | on failure | refuses the whole TU | reports the body's real blocker, with no name |
+//! | names | [`Bindings::per_record`] — each `.gl` record's framed body-start offset must **be** a split point, in order and 1:1 | [`Bindings::census`] — the **same** [`gl_bound_names`] scan under the **same** 1:1 gate |
+//! | on failure | refuses the whole TU (`None`) | reports the body's real blocker, with no name (unpaired) |
 //!
-//! Both differences are deliberate and documented at their sites: `4F 1F` is
-//! two bytes and also occurs inside token payloads, so a raw scan over a real
-//! TU over-counts by ~2 % (measured on `system/world/Dir.cpp`), which is why
-//! the *denominator* anchors on `LO`; and `mangled_names` accepts only `?…@@…`
-//! forms while `.gl` also lists externals, so positional pairing is
-//! meaningless on a real TU and is gated on the count agreeing.
+//! [`super::gl::gl_bound_names`] The segment difference is deliberate and
+//! documented at its site: `4F 1F` is two bytes and also occurs inside token
+//! payloads, so a raw scan over a real TU over-counts by ~2 % (measured on
+//! `system/world/Dir.cpp`), which is why the *denominator* anchors on `LO`.
 //!
-//! **They are still two answers to one question**, and unifying them —
-//! `census_functions` binding per record through [`Bindings::per_record`] like
-//! the gate — is roadmap #14's scheduled follow-up. It is *not* this module's
-//! introduction, because it **moves the census numerator**, and the numerator
-//! is the measurement everything else is differenced against. What this module
-//! does is put both bindings, and the three different ways the census reads its
-//! name list, in one file where the disagreement is visible instead of spread
-//! across two hundred lines of two call sites.
-//! `the_two_bindings_are_the_open_seam_and_are_pinned_apart` below pins the
-//! disagreement so the day it closes is visible.
+//! Until the IR1 consolidation the census bound by a **narrow `mangled_names`
+//! scan** that could not see a `??`-prefixed name and so **slid its pairing by
+//! one** — a wrong-but-green name in the census numerator (`docs/GAPS.md` §6).
+//! Closing that **moved the census numerator**, and because the numerator is
+//! the measurement everything else is differenced against, the move is
+//! published as board #3347 and rung `2026-08-21-ir1.md`, not absorbed.
+//! `the_two_bindings_agree_after_the_ir1_consolidation` below pins that the two
+//! now agree, so the day they drift apart again is visible.
 //!
 //! # What lives here
 //!
@@ -51,8 +49,7 @@
 //! restructure exists to avoid.
 
 use super::gl::{
-    gl_defined_names, gl_extern_data_names, gl_symbol_runs_all_separators, mangled_names,
-    source_path, GlIndex,
+    gl_defined_names, gl_extern_data_names, gl_symbol_runs_all_separators, source_path, GlIndex,
 };
 use super::sy::{SyLocals, SyView};
 
@@ -503,9 +500,12 @@ pub(crate) enum SelectiveStop {
 /// Everything a `.ex` segment list needs bound to it, built once per bundle.
 ///
 /// There is no "which binding" discriminant field: the two constructors —
-/// [`Bindings::per_record`] and [`Bindings::positional`] — *are* the
-/// distinction, and a field nothing reads would be dead weight pretending to be
-/// a check.
+/// [`Bindings::per_record`] (fallible, the gate's) and [`Bindings::census`]
+/// (its `??`-aware pairing made total, the census's) — *are* the distinction,
+/// and a field nothing reads would be dead weight pretending to be a check.
+/// Both bind per record under the same 1:1 gate (roadmap #14 / IR1, board
+/// #3347); `census` differs only in that an unpaired record set yields empty
+/// names instead of an error.
 /// **W-FENCE163 — the NARROW string-literal name prefix, and only the narrow
 /// one.** `??_C@_0` is MSVC's mangling for a `char` literal whose name-hash form
 /// is the short one; it is the entire measured population (`w-section` §3.3:
@@ -801,28 +801,59 @@ impl<'a> Bindings<'a> {
         ))
     }
 
-    /// The **census's** binding: `mangled_names` paired onto the segment list by
-    /// position, which is only meaningful when it yields exactly one name per
-    /// body. On a real TU it finds far fewer, so pairing there would attach
-    /// wrong names to functions — [`Self::reported_name`] then reports none
-    /// rather than a plausible-looking lie.
+    /// The **census's** binding — roadmap #14's consolidation (the IR1 SymGraph,
+    /// board #3347). It is [`Bindings::per_record`]'s **exact** pairing — the
+    /// same `??`-aware [`super::gl::gl_bound_names`] scan and the same 1:1
+    /// frame gate — made **total**: where the records bind 1:1 onto the split
+    /// points this yields precisely `per_record`'s names, and where they do not
+    /// it yields an *unpaired* binding (no name reported, the varargs gate
+    /// silent) rather than `None`, because the census must report *why* a body
+    /// is out of class and refusing the TU for want of names would replace every
+    /// real blocking feature with this one and destroy the histogram that ranks
+    /// the roadmap.
     ///
-    /// Infallible on purpose: the census's job is to report *why* a body is out
-    /// of class, and refusing the TU for want of names would replace every real
-    /// blocking feature with this one and destroy the histogram that ranks the
-    /// roadmap.
-    pub(crate) fn positional(
+    /// This **replaces the narrow `mangled_names` scan** that could not see a
+    /// `??`-prefixed name and therefore **slid its pairing by one** — reporting
+    /// `?w_add` as the name of a thunk's body with no indication anything was
+    /// wrong (`docs/GAPS.md` §6's wrong-but-green defect, living in the census
+    /// numerator). The two bindings are now ONE pairing under two totality
+    /// policies: the gate refuses (`None`), the census reports honest residue
+    /// (unpaired). `the_two_bindings_agree_after_the_ir1_consolidation` below
+    /// pins that they no longer disagree; board #3347 records the numerator move
+    /// closing the seam produced.
+    ///
+    /// Infallible on purpose (see above). The name list is meaningful only under
+    /// the 1:1 gate `per_record` requires; otherwise the census reports neither
+    /// a name nor an unclaimed set, exactly as the positional pairing did when
+    /// its counts disagreed — but now for the *whole* `??`-aware record set, not
+    /// a scan blind to half of it.
+    pub(crate) fn census(
         gl: &'a [u8],
         inb: &'a [u8],
         sy: Option<&[u8]>,
         segs: &[&[u8]],
+        starts: &[usize],
     ) -> Bindings<'a> {
-        let names = mangled_names(gl);
-        let paired = names.len() == segs.len();
+        // The SAME pairing `per_record` binds: the `??`-aware framed record
+        // walk, gated 1:1 onto the `.ex` split points in order. `per_record`
+        // returns `None` on failure; the census keeps a binding for its locals
+        // and resolvers (which read `.gl`/`.sy`, never the name list) and simply
+        // reports no name.
+        let (bound, gl_unclaimed) = super::gl::gl_bound_names(gl);
+        let paired = bound.len() == segs.len()
+            && bound
+                .iter()
+                .zip(starts)
+                .all(|(&(off, _), &s)| off as usize == s);
+        let (names, unclaimed) = if paired {
+            (bound.into_iter().map(|(_, n)| n).collect(), gl_unclaimed)
+        } else {
+            (Vec::new(), Vec::new())
+        };
         Bindings {
             paired,
             names,
-            unclaimed: Vec::new(),
+            unclaimed,
             src: source_path(gl),
             symbols: GlIndex::new(gl),
             gl,
@@ -842,10 +873,10 @@ impl<'a> Bindings<'a> {
     ///
     /// Empty when there is none. That is deliberate and is why it is spelled
     /// out here rather than left as an `unwrap_or_default()` at a call site:
-    /// under [`Bindings::positional`] with an unpaired list, `names[i]` may
-    /// still exist and be the **wrong** name, and the census passes it anyway —
-    /// the value only reaches `IlFunction::mangled_name`, which the census
-    /// never emits from, and refusing here would cost the histogram a row. A
+    /// under [`Bindings::census`] an unpaired record set carries **no** names
+    /// at all (`names` is empty), so `name_for_shape` returns `""` at every
+    /// index rather than a slid, wrong name (roadmap #14 / IR1). The value only
+    /// reaches `IlFunction::mangled_name`, which the census never emits from. A
     /// caller that emits must use [`Bindings::per_record`].
     pub(crate) fn name_for_shape(&self, i: usize) -> String {
         self.names.get(i).cloned().unwrap_or_default()
@@ -1182,7 +1213,7 @@ pub(crate) fn callee_defined_here_unmodelled<'a>(
 }
 
 /// The set [`callee_defined_here`] tests against, for a caller that has only
-/// `.gl` — the census, whose [`Bindings::positional`] names are all mangled
+/// `.gl` — the census, whose [`Bindings::census`] names are all mangled
 /// names and not the defined ones.
 ///
 /// Every member is a name a `.gl` record with a **body-start offset** claimed,
@@ -1483,47 +1514,54 @@ mod tests {
         );
     }
 
-    /// Positional pairing is meaningful only when the counts agree, and when it
-    /// is not, the census reports **no** name rather than a plausible lie — but
-    /// still hands the shape conversion whatever is at that index, and holds the
-    /// varargs gate silent. Those are three different reads of one list, made at
-    /// three different places in one closure before this module existed.
+    /// **Roadmap #14 / IR1.** [`Bindings::census`] is `per_record`'s pairing
+    /// made total: when the record set does not bind 1:1 onto the split points
+    /// it is *unpaired* and reports **no** name — and, unlike the positional
+    /// scan it replaced, feeds **no** plausible-but-wrong name into the shape
+    /// conversion either. The census never emits from that name, so an honest
+    /// empty is strictly better than a slid one (`docs/GAPS.md` §6).
     #[test]
-    fn positional_reports_no_name_when_unpaired_but_still_feeds_the_conversion() {
+    fn census_is_unpaired_and_nameless_when_the_records_do_not_bind_one_to_one() {
         let gl = two_records();
         let three: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4], &[0u8; 4]];
-        let b = Bindings::positional(&gl, &[], None, &three);
-        assert!(!b.paired, "2 names against 3 segments is not a pairing");
+        let b = Bindings::census(&gl, &[], None, &three, &[0, 40, 80]);
+        assert!(!b.paired, "2 records against 3 segments is not a pairing");
         assert_eq!(b.reported_name(0), None);
         assert_eq!(b.reported_name(2), None);
-        // …and the conversion still gets index 0's name, wrong or not, because
-        // the census never emits from it and refusing would cost a histogram row.
-        assert_eq!(b.name_for_shape(0), "?a@@YAHXZ");
+        // The conversion is fed NOTHING when unpaired: the positional slide that
+        // handed index 0's name to a segment it did not name is gone. `name_for_
+        // shape` on an unpaired census binding is the empty string at every
+        // index, not the `k`-th name in the file.
+        assert_eq!(b.name_for_shape(0), String::new());
         assert_eq!(b.name_for_shape(2), String::new());
         // The name-derived gate is silent when unpaired, by the same rule.
         assert!(!b.is_varargs(0));
 
-        // Paired, the same list reports and gates normally.
+        // Paired 1:1, it reports and gates normally — and with the SAME names
+        // [`Bindings::per_record`] binds on this layout.
         let two: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4]];
-        let b = Bindings::positional(&gl, &[], None, &two);
+        let b = Bindings::census(&gl, &[], None, &two, &[0, 40]);
         assert!(b.paired);
         assert_eq!(b.reported_name(0).as_deref(), Some("?a@@YAHXZ"));
     }
 
-    /// **The open seam.** The gate binds per record and the census binds by
-    /// position, and on the very layout `gl.rs`'s own test was written for they
-    /// give different answers: `mangled_names` cannot see a `??`-prefixed name,
-    /// so it pairs `?w_add` with the *thunk's* body and the data symbol with
-    /// `?w_add`'s.
+    /// **The seam, now closed (roadmap #14 / IR1, board #3347).** The gate and
+    /// the census once bound differently: the gate binds per record, and the
+    /// old positional census used a narrow `mangled_names` scan that could not
+    /// see a `??`-prefixed name, so on the very layout `gl.rs`'s own test was
+    /// written for it slid pairing by one — it paired `?w_add` with the
+    /// *thunk's* body and the data symbol with `?w_add`'s, a wrong-but-green
+    /// shape the oracle cannot grade.
     ///
-    /// Closing this — `census_functions` binding per record like the gate — is
-    /// roadmap #14's scheduled follow-up, and it **moves the census numerator**,
-    /// which is why it is not done silently. This test exists so the day it
-    /// lands is visible: when the two agree, this assertion fails, and the
-    /// numerator move gets recorded instead of absorbed.
+    /// [`Bindings::census`] is now [`Bindings::per_record`]'s exact,
+    /// `??`-aware pairing made total, so on this layout the two AGREE. This
+    /// test pins that agreement: the day one binding is edited away from the
+    /// other, it fails. Closing the seam moved the census numerator, which is
+    /// recorded in board #3347 rather than absorbed.
     #[test]
-    fn the_two_bindings_are_the_open_seam_and_are_pinned_apart() {
-        // The `il_gl_record_order.cpp` layout.
+    fn the_two_bindings_agree_after_the_ir1_consolidation() {
+        // The `il_gl_record_order.cpp` layout — the `??`-prefixed thunk is the
+        // case the old positional scan was blind to.
         let mut gl = Vec::new();
         gl.extend_from_slice(&gl_record("??__Egs@@YAXXZ", 0));
         gl.extend_from_slice(&gl_record("?w_add@@YAHH@Z", 40));
@@ -1534,7 +1572,7 @@ mod tests {
 
         let per_record = Bindings::per_record(&gl, &[], None, &segs, &[0, 40])
             .expect("the records' offsets are the split points");
-        let positional = Bindings::positional(&gl, &[], None, &segs);
+        let census = Bindings::census(&gl, &[], None, &segs, &[0, 40]);
 
         assert_eq!(
             per_record.names(),
@@ -1542,22 +1580,16 @@ mod tests {
             "the gate binds each name to the record carrying its own body offset"
         );
         assert_eq!(
-            positional.names(),
-            ["?w_add@@YAHH@Z".to_string(), "?gs@@3US@@A".to_string()],
-            "the census's narrow scan cannot see `??` names, so it slides by one"
-        );
-        assert_ne!(
             per_record.names(),
-            positional.names(),
-            "if these ever agree, roadmap #14's follow-up landed — record the \
-             census numerator move rather than deleting this test quietly"
+            census.names(),
+            "IR1: the census now binds per record like the gate — one binding, \
+             so on this `??`-bearing layout they agree instead of sliding"
         );
-        // And the slide is silent: positional is *paired* here, so the census
-        // would report `?w_add` as the name of the thunk's body with no
-        // indication anything is wrong. That is the wrong-but-green shape the
-        // oracle cannot grade.
-        assert!(positional.paired);
-        assert_eq!(positional.reported_name(0).as_deref(), Some("?w_add@@YAHH@Z"));
+        // The census reports the CORRECT name for the thunk's body, not the
+        // `?w_add` the positional slide once handed it.
+        assert!(census.paired);
+        assert_eq!(census.reported_name(0).as_deref(), Some("??__Egs@@YAXXZ"));
+        assert_eq!(census.reported_name(1).as_deref(), Some("?w_add@@YAHH@Z"));
     }
 
     // ---- EmitBinding (`docs/GAPS.md` §8) ---------------------------------
@@ -2044,7 +2076,7 @@ mod tests {
         gl.extend_from_slice(&gl_record("?ok@@YAHH@Z", 40));
         let segs: Vec<&[u8]> = vec![&[0u8; 4], &[0u8; 4]];
         let gate = Bindings::per_record(&gl, &[], None, &segs, &[0, 40]).expect("bound");
-        let census = Bindings::positional(&gl, &[], None, &segs);
+        let census = Bindings::census(&gl, &[], None, &segs, &[0, 40]);
         assert!(gate.is_varargs(0) && !gate.is_varargs(1));
         assert_eq!(
             (census.is_varargs(0), census.is_varargs(1)),
@@ -2196,7 +2228,7 @@ mod tests {
         gl.extend(data_record([0x13, 0x0A], "?objA@@3HA", 0x00, 0x01));
         gl.extend(data_record([0x14, 0x0A], "?objB@@3HA", 0x00, 0x02));
         let segs: Vec<&[u8]> = vec![&[0u8; 4]];
-        let b = Bindings::positional(&gl, &[], None, &segs);
+        let b = Bindings::census(&gl, &[], None, &segs, &[0]);
 
         // ---- the SCANNER half: all four names are visible, `25` included.
         for (t, want) in [
