@@ -508,7 +508,7 @@ final tuple list, one row per word, at one site.
 | P2.5 | the registers are not in the tuple; a tuple-only check cannot supply them | **H**, and it stopped mattering: `w-restim`'s operand walk supplies them, so §5.4 is 32 bits of 32 rather than the masked check this lane planned |
 | P3.1 | 0 TUs converted, 0 obj bytes moved | **H** — §9 |
 | P3.2 | match 26 / mismatch 0 / fnbyte-exact 35894 unmoved | **H** — §9 |
-| P3.3 | at least one prediction is refuted | **H** — P0.1, plus P2.2's form values |
+| P3.3 | at least one prediction is refuted | **H** — three: P0.1, P1.2, and P2.2's form values |
 
 **Score: 12 H · 4 M · 3 U.** All four misses are this lane's own readings being
 too confident, and **three of them (P0.1, P1.2, P2.2's form values) were caught
