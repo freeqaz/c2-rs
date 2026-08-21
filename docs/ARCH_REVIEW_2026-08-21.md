@@ -44,7 +44,12 @@ of the very lanes it commissioned, step 5's grading premise fails for both of
 its named targets, two hard prerequisites appear in no row and no budget, IR3
 is specified in a coordinate system c2's middle does not use, and the strategic
 justification is split between two goals whose choice is the owner's and has
-been unowned since 2026-08-13.
+~~been unowned since 2026-08-13~~ **— OWNED AND ANSWERED THE SAME DAY THIS
+REVIEW LANDED: the goal is full reproduction, for understanding MSVC's
+internals and for parity ([`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md)).
+Read §7 with its banner: the split collapses onto §7's second bullet, and the
+first bullet's economics are *superseded, not satisfied.* The other four
+defects in this verdict are untouched by that and still stand.**
 
 ## Convergent findings
 
@@ -211,6 +216,39 @@ required-zero criterion.
 ### 7. The economics are split between two goals, and the choice is unowned
 *(cost/benefit)*
 
+> ### ✔ 2026-08-21, SAME DAY — **THE CHOICE IS NO LONGER UNOWNED. THE OWNER TOOK IT, AND THIS SECTION'S FIRST BULLET IS SUPERSEDED — NOT SATISFIED.**
+> *[`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md); `CLAUDE.md`
+> § "The goal". Annotated in place by lane `w-goaldocs`; **no measurement below
+> is withdrawn or edited**.*
+>
+> The goal is **perfect reproduction**, for two ends ranked equally — (1) a
+> clear understanding of MSVC's internals in service of decomp, and (2) parity,
+> a 100 % open-source implementation. The **verifier-throughput thesis is
+> retired**, demoted to a property of a native port.
+>
+> **So the split this section diagnoses collapses onto its second bullet.**
+> Step 5 is priced against Option A / 870, and against Option A it is *"the
+> right and only trade"* — this section's own words, unchanged.
+>
+> **The first bullet's evidence stands; its force does not.** ≈2.4×, the
+> bottleneck having moved off compilation onto generation, `C2RS_PREFILTER`
+> never once enabled, 46 of 162,147 emitted functions, the hot-TU-first and
+> c1xx-instead refutations — every one is a real measurement and every one
+> stays quotable *as a measurement*. What is gone is the conclusion: it was an
+> argument against a goal this project does not hold. **This is the specific
+> misreading to avoid: it is SUPERSEDED, not SATISFIED.** Nobody met the
+> 2026-08-13 NO-GO's two-clause reopen tripwire; the tripwire is guarding a
+> question that is no longer asked. **No lane may be declined on these grounds
+> again**, and — the half worth not losing — none may be *justified* on them
+> either.
+>
+> Consequence **1(c)** below (*"the owner re-owning the thesis-vs-870 goal
+> question"*) is therefore **DISCHARGED**. Consequences 1(a) and 1(b) are
+> untouched and still gate step 5. The **free option** in consequence 5
+> (enable `C2RS_PREFILTER=1` on one wave) is still free and still the owner's,
+> but it is now a curiosity about a property rather than an input to a funding
+> decision.
+
 - Against the **verifier-throughput thesis**, step 5 is a WRONG-TRADE on
   measured evidence: the only real consumer (decomp-synth) is source-space
   (full `cl.exe` per candidate), capped at **≈2.4×** even with an infinitely
@@ -261,8 +299,10 @@ required-zero criterion.
 ## Consequences (dispatched 2026-08-21)
 
 1. **Step 5 as written: NO-GO.** Task #8 is gated on (a) the amendments
-   below, (b) the re-estimation lane's cost curve, and (c) the owner
-   re-owning the thesis-vs-870 goal question.
+   below, (b) the re-estimation lane's cost curve, and ~~(c) the owner
+   re-owning the thesis-vs-870 goal question~~ **(c) — DISCHARGED the same
+   day: the owner answered it, and the answer is full reproduction
+   (`GOAL_DECISION_2026-08-21.md`). (a) and (b) still gate.**
 2. **Proposal amendment lane** — apply the required corrections (§4 partial-
    fire language + F0-based positive case; §6 calibration applied not cited,
    scorable step definitions, three curve predicates deleted/qualified; §1.2
