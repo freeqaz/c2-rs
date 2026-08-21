@@ -243,10 +243,15 @@ pub struct FnCensus {
     /// the `.gl` function record whose body-start offset lands in this segment.
     ///
     /// A *different* field from [`FnCensus::name`], and deliberately so. `name`
-    /// is [`Bindings::positional`]'s answer, which on a real translation unit is
-    /// `None` for every row (`src/App.cpp`: 3,752 names against 9,033 segments,
-    /// so the pairing is refused whole). This one is per record, so it answers on
-    /// real input — 131,041 of 142,205 emitted symbols across 371 workload TUs.
+    /// is [`Bindings::census`]'s answer — the per-record, `??`-aware pairing the
+    /// gate uses ([`Bindings::per_record`]), made total — which is `None` for
+    /// every row unless the TU binds 1:1 (`src/App.cpp`: 3,752 records against
+    /// 9,033 segments, so the pairing is unpaired and reports no name). This one
+    /// is [`EmitBinding`], a THIRD binding under a window-free framing that binds
+    /// a record to the segment *containing* its offset rather than requiring a
+    /// 1:1 gate, so it answers on far more real input — 131,041 of 142,205
+    /// emitted symbols across 371 workload TUs — and the two can still differ,
+    /// which `fnbyte-name-disagree` counts.
     ///
     /// It exists to be joined against the obj's `.text` COMDAT leaders
     /// ([`c2_obj::ObjImage::text_comdat_functions`], from the harness, which is
@@ -665,10 +670,12 @@ impl IlBundle {
         // neither does: which obj symbol, if any, is this row.
         let emit = EmitBinding::new(gl, &seg_starts);
         // The whole correspondence seam comes from ONE place ([`super::bind`]).
-        // The census's names are paired POSITIONALLY, which is a different
-        // binding from the gate's per-record one — `bind.rs`'s module doc states
-        // that disagreement and pins it; closing it is roadmap #14's follow-up
-        // and moves the numerator, so it is not done silently here.
+        // **Roadmap #14 / IR1 (board #3347): the census now binds through the
+        // SAME `??`-aware, per-record pairing the gate uses** —
+        // [`Bindings::census`] is [`Bindings::per_record`] made total (unpaired
+        // rather than `None` when the records do not bind 1:1), so the census no
+        // longer slides a narrow `mangled_names` scan by one. The numerator that
+        // move produced is published, not absorbed (rung `2026-08-21-ir1.md`).
         //
         // `.gl` is deliberately NOT threaded into the body parse. The assignment
         // class used to decide "is this destination a global?" by asking whether
@@ -684,7 +691,13 @@ impl IlBundle {
         // `IlBundle::functions` would refuse for want of a local, or the reverse.
         // Over the census's own segment list, which is NOT the gate's: see
         // `bind.rs`'s table.
-        let bind = Bindings::positional(gl, self.get("in").unwrap_or(&[]), self.get("sy"), &segs);
+        let bind = Bindings::census(
+            gl,
+            self.get("in").unwrap_or(&[]),
+            self.get("sy"),
+            &segs,
+            &seg_starts,
+        );
         let resolve = |tok: u32| -> Option<String> { bind.resolve(tok) };
         let resolve_data = |tok: u32| -> Option<String> { bind.resolve_data(tok) };
         // **W-DATA** — the same DEFINED-object resolver `IlBundle::functions`
@@ -699,10 +712,11 @@ impl IlBundle {
         let src = bind.src.clone();
         // **W-INLFENCE** — the names this TU DEFINES, built once per bundle for
         // the post-parse gate (c) below. Built from `.gl` directly and not from
-        // `bind.names()`, because the census's binding is
-        // [`Bindings::positional`] and its names are **all** mangled names —
-        // callees included — so testing a callee against them would refuse every
-        // call in the workload. See [`defined_name_set`].
+        // `bind.names()`, because [`Bindings::census`] reports a name list only
+        // under `per_record`'s 1:1 gate — empty on the real workload's unpaired
+        // TUs, and 1:1 with the DEFINED body segments where it is not — so
+        // neither shape carries the whole defined set (inline callees included)
+        // this fence needs. See [`defined_name_set`].
         let defined = &defined_name_set(gl);
         // **W-INLFENCE** — the defined callees mechanism E already models,
         // built LAZILY because the fence fires on **one** row in the whole
@@ -1624,6 +1638,22 @@ mod tests {
         v
     }
 
+    /// One `.gl` **function record** carrying a body-start offset, in the frame
+    /// [`super::super::gl::gl_bound_names`] reads. This is what makes the census
+    /// *bind*: after IR1 the census pairs per record (like the gate), so a
+    /// fixture that omits these records is *unpaired* and reports no name. The
+    /// token records above (`<tok> 00 <name> 00`) resolve callees and are a
+    /// DIFFERENT view; a realistic `.gl` carries both.
+    fn gl_body_record(name: &str, body_off: u32) -> Vec<u8> {
+        let mut v = vec![0u8];
+        v.extend_from_slice(name.as_bytes());
+        v.push(0);
+        v.extend_from_slice(&[0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x80]);
+        v.extend_from_slice(&body_off.to_le_bytes());
+        v
+    }
+
+
     /// A `.gl` with two real records: `<token> 00 <name> 00`, which is the shape
     /// [`super::super::gl::gl_symbol_index`] reads the callee name out of.
     fn gl_two_records() -> Vec<u8> {
@@ -1660,7 +1690,15 @@ mod tests {
         assert_eq!(census.len(), 2);
         assert_eq!(census[0].verdict, FnVerdict::InClass("void-tail-call"));
         assert!(!census[1].verdict.in_class());
-        assert_eq!(census[0].name.as_deref(), Some("?f@@YAXXZ"));
+        // **Roadmap #14 / IR1.** This minimal fixture carries only the token
+        // records callee resolution needs, not the body-offset records the
+        // per-record census binding pairs on, so the TU is *unpaired* and the
+        // census reports no name — the honest answer, and the same one it gives
+        // the real workload's unpaired TUs (`src/App.cpp`). Verdict independence,
+        // the subject here, is unaffected; a name IS reported once the records
+        // bind (`a_body_the_ladder_never_ran_for_reads_disp_not_run`, and
+        // `bind.rs`'s `the_two_bindings_agree_after_the_ir1_consolidation`).
+        assert_eq!(census[0].name, None);
         // In-class functions carry no hex window; blocked ones point at the
         // offending byte inside theirs.
         assert!(census[0].hex.is_empty());
@@ -1811,10 +1849,19 @@ mod tests {
         ex.extend_from_slice(MVP_CALL);
         ex.extend_from_slice(&seg_head());
         ex.extend_from_slice(MVP_CALL);
+        // The token records resolve the callees; the body-offset records at the
+        // split points are what make the census *bind* (roadmap #14 / IR1) — a
+        // variadic function is refused on its NAME, and after IR1 the census has
+        // a name to refuse on only when the records pair 1:1 with the segments,
+        // exactly as the gate does. Omit them and the TU is unpaired, no name is
+        // seen, and this test's subject (a name-refused body) never arises.
+        let (starts, _) = split_function_bodies_at(&ex);
         let mut gl = vec![0xE4, 0x09, 0x00];
         gl.extend_from_slice(b"?f@@YAXXZ\x00");
         gl.extend_from_slice(&[0xE3, 0x09, 0x00]);
         gl.extend_from_slice(b"?v@@YAXZZ\x00");
+        gl.extend_from_slice(&gl_body_record("?f@@YAXXZ", starts[0] as u32));
+        gl.extend_from_slice(&gl_body_record("?v@@YAXZZ", starts[1] as u32));
         let bundle = crate::IlBundle {
             base_name: "t".into(),
             files: vec![("ex".to_string(), ex), ("gl".to_string(), gl)]
