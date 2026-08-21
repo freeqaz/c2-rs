@@ -233,8 +233,9 @@ TOTAL PASSED: 1770    TOTAL FAILED: 0
 lane's: `crates/c2-reference/tests/middle_interfaces.rs`, one target, five
 tests. `1765 + 5 = 1770`.
 
-One repair was needed on the way and is worth recording because it is a
-tripwire a docs-shaped lane will hit again:
+Confirmed at the tip, over a frozen `crates/` tree, with the run's own log at
+`/tmp/w-ildecode-suite2.log`. One repair was needed on the way and is worth
+recording because it is a tripwire a docs-shaped lane will hit again:
 `crates/c2-harness/tests/rung_registry.rs::rung_index_is_generated_and_current`
 failed until `scripts/gen_rung_index.sh` was re-run. A new rung file is a code
 change as far as that test is concerned.
