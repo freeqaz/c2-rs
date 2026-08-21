@@ -6,6 +6,43 @@
 **Decision requested:** approve the two-track product strategy and the native
 phase gates in §7.
 
+> ### ⚠ 2026-08-21 — **THE OWNER ANSWERED §1's OWN CONDITIONAL, AND THE ANSWER PUTS THIS PAGE'S TRACK 1 BELOW ITS TRACK 2.**
+> *[`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md); `CLAUDE.md`
+> § "The goal". Annotated in place by lane `w-goaldocs`; **no measurement,
+> milestone, exit gate or estimate below is edited or withdrawn**, and this
+> page's status stays *proposal for review*.*
+>
+> §1's last paragraph says: *"If the product requirement forbids using the
+> vendor DLL, this is not a near-term shipping project. It is a
+> compiler-backend reconstruction program and should be staffed, budgeted and
+> reviewed as one."* **The owner's stated goal (2) is parity — a 100 %
+> open-source implementation — so that conditional is now TRUE, and this page's
+> own consequence follows: it is a reconstruction program.**
+>
+> * **Track 1 (the vendor-backed compatibility service, M1) is not the goal
+>   and cannot become it.** It may still be worth building as a service; it
+>   moves the parity scoreboard by zero and depends on the binary parity is
+>   defined as replacing. **It may not be ranked ahead of native work on
+>   throughput grounds** — the verifier-throughput thesis is retired, and §5.1's
+>   2.76×/1.44×/1.01× and §5.2's `1/(1−p)` curve are kept as *measurements* that
+>   neither justify nor forbid a lane.
+> * **§6's operating-model items are UNAFFECTED and several get stronger.**
+>   Items 3 (publish per-subsystem metrics), 4 (byte-weighted coverage), 5
+>   (DEV/HELDOUT split) and 6 (ban path-keyed dispatch) are about honest
+>   measurement of *reproduction* and stand on their own. Item 1's proposal to
+>   retire the board is a live question this annotation does not settle.
+> * **§4's "three meanings of 100 %" is the most durable thing here**, and goal
+>   (2) is stated in its terms: `870/870` on the pinned dc3 workload is *native
+>   dc3 parity*, not proof of all `c2.dll` behavior. That distinction survives
+>   the goal decision intact.
+> * **M2 (the intermediate-state reference oracle) is PROMOTED.** This page
+>   calls it *"the go/no-go milestone for renewed native investment"*, i.e. an
+>   instrument earning its keep by unblocking something else. Under goal (1) —
+>   understanding MSVC's internals in service of decomp — the snapshots and the
+>   whitebox record are **the deliverable**, not the gate in front of it. It
+>   has since been built and graded (`docs/rungs/2026-08-20-stageoracle.md`,
+>   board #3322) and re-priced (`docs/STEP5_PRICING_2026-08-21.md`).
+
 ## 1. Executive decision
 
 This project can ship a useful, exact product soon, or it can continue toward a

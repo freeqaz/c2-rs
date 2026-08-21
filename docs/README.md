@@ -12,9 +12,18 @@ least two fixtures; the standing confirmation of the whole set is the
 differential harness itself (`port(IL) == c2(IL)` byte-exact, timestamp
 normalized).
 
-**Start here.** These two are the entry points; everything below them is
+**Start here.** These are the entry points; everything below them is
 reference material you should arrive at with a question already in hand.
 
+- `GOAL_DECISION_2026-08-21.md` — **what this project is for, decided by the
+  owner**: perfect reproduction, for two ends ranked equally — (1) a clear
+  understanding of MSVC's internals, in service of decomp, and (2) parity, a
+  100 % open-source implementation. It **retires the verifier-throughput
+  thesis** (throughput is a property that may neither justify nor forbid a
+  lane) and **promotes characterization to a first-class deliverable**.
+  Read it before reading any other doc on this list as an argument for what
+  to do next — several of them were written while the thesis still stood and
+  carry dated annotations saying so.
 - `SHIPPING_ROADMAP_2026-08-19.md` — **proposal for getting to a shippable
   product and then native parity**: separates vendor-backed compatibility from
   a vendor-free backend, defines three meanings of 100%, ranks the available

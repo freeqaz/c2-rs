@@ -265,9 +265,9 @@ staff work for answering it.
   function near completeness, which is an argument both *for* 871 (nothing
   less pays) and *against* per-TU incrementalism as the route (intermediate
   match counts buy ~nothing).
-* **The end-to-end cap is elsewhere.** `PRIOR_ART.md:107-137` (measured on six
+* **The end-to-end cap is elsewhere.** `PRIOR_ART.md` §2 (measured on six
   real dc3 TUs): an infinitely fast c2 speeds a source→obj compile by
-  **1.1–1.6×**; `GAPS.md:1006-1008`: even 100%-coverage backend caps the
+  **1.1–1.6×**; `GAPS.md` §5: even 100%-coverage backend caps the
   consumer's funnel at **≲2.4×** without the front end. The thesis pays fully
   only in IL-space search, where c2 is 100% of the work — "a research bet that
   has not yet paid" (`PRIOR_ART.md`), and where the meaningful coverage unit

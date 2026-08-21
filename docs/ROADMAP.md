@@ -8207,8 +8207,15 @@ and 142× is why no rate may be borrowed between arms** (§9.17, #153).
 * **The engine.** Pre-registration, counterfactual sizing, priced declines, and
   the merge gate all stand. Five lanes, zero TU movement and four declines is what
   a working estimate discipline looks like from the inside.
-* **The perf thesis.** Verifier throughput is already delivered and is independent
-  of coverage.
+* ~~**The perf thesis.** Verifier throughput is already delivered and is independent
+  of coverage.~~ **RETIRED 2026-08-21 — there is no perf thesis.** The owner
+  decided the goal is **perfect reproduction**, for (1) understanding MSVC's
+  internals in service of decomp and (2) parity, a 100 % open-source
+  implementation (`docs/GOAL_DECISION_2026-08-21.md`; `CLAUDE.md` § "The
+  goal"). The throughput is real, still measured, and still independent of
+  coverage — it is a **property**, and it may neither justify a lane nor forbid
+  one. The two bullets above it (the correctness rule, the engine) are
+  unchanged and were never in question.
 
 ## 10.8 The standing hazard, promoted
 

@@ -996,6 +996,31 @@ the populations here when they move.
 ## 5. The payoff contract — what downstream integration exists and when this
 work starts paying
 
+> ### ⚠ 2026-08-21 — **THIS SECTION IS NO LONGER A FUNDING ARGUMENT. IT IS A RECORD OF ONE CONSUMER'S INTEGRATION CONTRACT, AND IT NEITHER JUSTIFIES NOR FORBIDS A LANE HERE.**
+> *Owner's goal decision, [`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md);
+> `CLAUDE.md` § "The goal". Annotated by lane `w-goaldocs`; **nothing below is
+> edited or withdrawn**.*
+>
+> The goal is **perfect reproduction**, for (1) understanding MSVC's internals
+> in service of decomp and (2) parity — a 100 % open-source implementation.
+> *"The port this project was built to accelerate"* describes how the work
+> **started**, not what it is **for** now. Three consequences for how to read
+> the rest of §5:
+>
+> * **The ≲2.4× cap, the ~245 ms / ~45 ms split and the `1/(1−p)` curve are
+>   kept as measurements** and stay quotable as such. As *arguments about what
+>   to build here* they are **superseded, not satisfied** — the same reading
+>   `docs/ARCH_REVIEW_2026-08-21.md` §7 now carries.
+> * **The tripwire and the NO-GO are the consumer's, and this section already
+>   says so** (*"nothing in this repo may declare it re-opened"*). That rule is
+>   unchanged. What is new is that neither the tripwire's state nor the
+>   consumer's verdict is an input to whether a lane here is worth doing.
+> * **The integration-shape and byte-identity bullets are UNTOUCHED and still
+>   bind.** Reject-only, fail-closed, the port is never the judge, 1-in-N
+>   audits, replay raw-identical including the timestamp, mismatch at a hard 0
+>   — those are correctness doctrine, not economics, and the goal decision
+>   explicitly changes nothing about the judge.
+
 The consuming project (decomp-synth, the guided-search decompilation engine
 this port was built to accelerate) assessed c2-rs for its frontier scoring
 loop on 2026-07-29. Condensed verdict, so the payoff line is visible from

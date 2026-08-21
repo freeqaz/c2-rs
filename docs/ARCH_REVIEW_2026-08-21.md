@@ -210,7 +210,9 @@ required-zero criterion.
   first correction blamed the wrong source. #844 is right for the half-emit
   hazard and wrong for the count, and the proposal now separates them. Cited
   line numbers drifted
-  twice more; `docs/GAPS.md:2601` and `gap/fnbytes.rs:650` still describe the
+  twice more; ~~`docs/GAPS.md:2601`~~ **`docs/GAPS.md` §8** (re-anchored
+  2026-08-21 — the line number had drifted; §8 now carries the amendment in
+  place) and `gap/fnbytes.rs:650` still describe the
   deleted `Bindings::positional` in the present tense ✅.
 
 ### 7. The economics are split between two goals, and the choice is unowned
