@@ -50,6 +50,7 @@ pub use func::{
     InInitReport, InInitResidue, InSymbolRef,
     CallSeq, CmpShiftOr, CompareLeaf, DataObject, DataTu, DynInitTu, ProvideDataObject, ProvideDataTu, EhScopeTuIl, FpTail, FramedCall, GlDataRow, InAliasReport,
     IlFunction, IlOp,
+    BodyShape,
     DivModLeaf,
     FloatWalkLoop, FloatWalkOp, FloatWalkShape,
     FpDiamondConstStore, FpDiamondDiv, FpStoreDiamond, CtorForwardCall,

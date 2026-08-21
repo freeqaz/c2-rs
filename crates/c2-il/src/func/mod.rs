@@ -2976,6 +2976,111 @@ impl CompareLeaf {
     }
 }
 
+/// **The W8 sum type: the one body-shape discriminant of [`IlFunction`]**
+/// (board #232/#844).
+///
+/// This retires the ~34 mutually-exclusive `Option<Shape>` fields that
+/// [`IlFunction`] used to carry. At most one of those was ever `Some` for any
+/// body — a hand-maintained sum type with no compiler enforcement of the
+/// "exactly one" invariant — and `c2_core::codegen::select_function` re-derived
+/// the winner through an ordered `if func.X.is_some()` chain, where a body that
+/// populated two fields was half-emitted (board #232: 255 commits live on
+/// master reading `mismatch 0`). Now the discriminant is a single value: the
+/// invariant is a type, `select_function` is a total `match`, and the
+/// projection accessors on [`IlFunction`] (`framed_call()`, `tail_call()`,
+/// `float_leaf()`, `empty_body()`, …) read the old fields back out of it.
+///
+/// **The tail-call family is the one place the old fields were NOT mutually
+/// exclusive**: `tail_call` was set together with one of `fp_tail`,
+/// `fp_arg_sources` or `arg_sources`, or with neither (a void/int tail,
+/// distinguished by whether `ops` is empty). Those become the four `*Tail`
+/// variants that each carry the callee name; the void/int split stays an
+/// `ops.is_empty()` check inside `select_function`'s [`BodyShape::Tail`] arm,
+/// exactly where it was, so no construction site has to decide it.
+///
+/// Every variant maps one-to-one to a retired field; `Plain` is the no-shape
+/// case (the `ops` leaf pattern-matchers spell it) and `base()`'s default.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BodyShape {
+    /// No recognised whole-body shape. The body, if any, is `ops`, and
+    /// `select_function`'s leaf pattern-matchers (`indirect_load_text`,
+    /// `addr_leaf_text`, `store_leaf_text`, `select_text`) spell it. `base()`'s
+    /// default.
+    Plain,
+    /// A tail call to a single external — `tail_call`. `ops` empty is the void
+    /// tail (`void f(){ g(); }`), a non-empty `ops` the integer argument
+    /// sub-expression. Carries the resolved callee mangled name.
+    Tail(String),
+    /// A single-argument floating-point tail call — `tail_call` + `fp_tail`.
+    /// `params` holds the FP formals alone.
+    FpTail { callee: String, fp: FpTail },
+    /// A multi-argument floating-point tail call (W34) — `tail_call` +
+    /// `fp_arg_sources`. `sources` is the permutation over the FP formals.
+    FpMultiTail { callee: String, sources: Vec<usize> },
+    /// A multi-argument (GPR) tail call — `tail_call` + `arg_sources`.
+    MultiTail { callee: String, slots: Vec<SlotArg> },
+    /// A framed non-leaf call (`return g(a) + k`) — `framed_call`.
+    Framed(FramedCall),
+    /// A Class A many-call body — `call_seq`.
+    Seq(CallSeq),
+    /// A W8 two-arm conditional tail call — `cond_pair`.
+    CondPair(CondTailPair),
+    /// A comparison leaf (W6) — `compare`.
+    Compare(CompareLeaf),
+    /// W43 `return ((unsigned)(P != 0) << SH) | C;` — `cmp_shift_or`.
+    CmpShiftOr(CmpShiftOr),
+    /// The pointer-walk accumulate loop — `ptr_walk_loop`.
+    PtrWalkLoop(PtrWalkModLoop),
+    /// The `if`/`else`-with-a-join whose arms are calls — `if_call_join`.
+    IfCallJoin(IfCallJoinFn),
+    /// The body-parameterised pointer-walk loop — `ptr_walk_chain_loop`.
+    PtrWalkChainLoop(PtrWalkChainLoop),
+    /// The integer divide/modulo leaf — `div_mod_leaf`.
+    DivModLeaf(DivModLeaf),
+    /// A W13a floating-point leaf; the bool is double-precision — `float_leaf`.
+    FloatLeaf(bool),
+    /// W-DATA static-array scan loop — `static_scan_loop`.
+    StaticScanLoop(StaticScanLoop),
+    /// W-WORDWRAP file-scope-global store leaf — `global_store_leaf`.
+    GlobalStoreLeaf(GlobalStoreLeaf),
+    /// W-BDNZ counted-loop class — `counted_accum_loop`.
+    CountedAccumLoop(CountedAccumLoop),
+    /// W-BLOCKIR float array-walk counted loop — `float_walk_loop`.
+    FloatWalkLoop(FloatWalkLoop),
+    /// W-BIQUAD null-guarded float-store diamond — `fp_store_diamond`.
+    FpStoreDiamond(FpStoreDiamond),
+    /// W-BIQUAD forwarding constructor — `ctor_forward_call`.
+    CtorForwardCall(CtorForwardCall),
+    /// W-EXTDATA sunk-`||`-guard shared-tail body — `guard_chain_shared_tail`.
+    GuardChainSharedTail(GuardChainSharedTailFn),
+    /// W-UNDNAME guarded allocation with a shared error store — `alloc_init_or_fail`.
+    AllocInitOrFail(AllocInitOrFailFn),
+    /// W-OSFINFO range-and-flag guarded table lookup — `osf_handle_guard`.
+    OsfHandleGuard(OsfHandleGuardFn),
+    /// W-XLR two-stage create/attach guard — `xlrc_create_guard`.
+    XlrcCreateGuard(XlrcCreateGuardFn),
+    /// W-JSON UTF-16 → UTF-8 copy loop — `json_utf8_copy`.
+    JsonUtf8Copy(JsonUtf8CopyFn),
+    /// W-POOL2 intrusive free-list PUSH/POP leaf — `pool_free_list`.
+    PoolFreeList(PoolFreeList),
+    /// W-POOL2 free-list constructor chain build — `pool_ctor_chain`.
+    PoolCtorChain(PoolCtorChain),
+    /// W-IFN framed guard chain with a materialised common epilogue — `guard_ret_chain`.
+    GuardRetChain(GuardRetChain),
+    /// W-MMIO3 guarded close chain — `close_call_chain`.
+    CloseCallChain(CloseCallChain),
+    /// W-XTEA2 whole-body `memcpy` tail branch — `memcpy_tail`.
+    MemcpyTail(MemcpyTail),
+    /// W-XTEA3 two-element 64-bit member run — `nonce_add_run`.
+    NonceAddRun(NonceAddRun),
+    /// W-XTEA3 XTEA round loop — `xtea_round_loop`.
+    XteaRoundLoop(XteaRoundLoop),
+    /// W-XTEA3 framed XTEA block loop — `xtea_encrypt_loop`.
+    XteaEncryptLoop(XteaEncryptLoop),
+    /// An empty body (`void f() {}`): a bare `blr` — `empty_body`.
+    EmptyBody,
+}
+
 /// A parsed MVP function: enough to drive the codegen + COFF emitter.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IlFunction {
@@ -2991,107 +3096,16 @@ pub struct IlFunction {
     /// branch (`[Load]` passthrough, `[Load,Lit,Add]` for `g(a+1)`). Empty for a
     /// void tail call and for a framed call.
     pub ops: Vec<IlOp>,
-    /// If this function is a **tail call** to a single external, its mangled
-    /// name (the callee). Codegen emits a `b <callee>` with a REL24 relocation
-    /// instead of an arithmetic body: a bare branch for the void tail call
-    /// (`ops` empty) or `void f(){g();}`, or an argument-setup prefix + branch
-    /// for an integer tail call (`ops` = the argument sub-expression). W4a:
-    /// single external only.
-    pub tail_call: Option<String>,
-    /// If this function is a **framed non-leaf call** (`return g(a) + k`), the
-    /// callee + post-op literal. Distinct from `tail_call` (which is a bare
-    /// `b g`). W4b2: single-function TU, single external only.
-    pub framed_call: Option<FramedCall>,
-    /// If this function is a **Class A many-call body** (`void f(){ g1(); g2(); }`
-    /// and friends), the call list and what follows them. Framed like
-    /// [`Self::framed_call`] — same 96-byte frame, same `.pdata` record, same
-    /// label stride — but with one REL24 site per call instead of one.
-    /// [`Self::params`] carries the formals the first call's arguments index.
-    pub call_seq: Option<CallSeq>,
-    /// If this function is a **W8 two-arm conditional tail call**, the decoded
-    /// branch and both arms. Mutually exclusive with the other body kinds, and
-    /// the only one of them whose lowering emits a `bc`.
-    pub cond_pair: Option<CondTailPair>,
-    /// If this function is a **comparison leaf** (`return a <rel> k;`, W6), the
-    /// decoded comparison. Mutually exclusive with the other body kinds.
-    pub compare: Option<CompareLeaf>,
-    /// **W43** — if this function is `return ((unsigned)(P != 0) << SH) | C;`.
-    /// Mutually exclusive with the other body kinds, [`Self::compare`]
-    /// included: the two share a spine but not a body.
-    pub cmp_shift_or: Option<CmpShiftOr>,
-    /// If this function is the **pointer-walk accumulate loop**, its parameters.
-    /// Mutually exclusive with the other body kinds, and the only one whose
-    /// lowering emits a **backward** branch.
-    ///
-    /// It makes [`Self::label_slots`] return `None`: `w-loop` measured that a
-    /// leaf loop charges the compiler-label counter `+1..+4` — never 1 — and
-    /// which of the four is a function of the *source* loop shape, not of the
-    /// emitted bytes (three source shapes emit the identical 24 bytes and charge
-    /// `+1`, `+3`, `+1`). So the charge is real, is not derivable from anything
-    /// this struct carries, and is **unobservable in a TU with no framed
-    /// function**, which is the only kind of TU this shape may appear in. Board
-    /// **#746**.
-    pub ptr_walk_loop: Option<PtrWalkModLoop>,
-    /// If this function is the **`if`/`else`-with-a-join whose arms are calls**,
-    /// its formals, its two literals and its two resolved callees. See
-    /// [`IfCallJoinFn`].
-    ///
-    /// Mutually exclusive with every other body kind — exactly one parser
-    /// production sets it. Unlike [`Self::ptr_walk_loop`] it **is framed**, so
-    /// [`Self::label_slots`] answers with a real number rather than refusing.
-    pub if_call_join: Option<IfCallJoinFn>,
-    /// If this function is the **body-parameterized pointer-walk loop**, its
-    /// one formal and its accumulate **operation list**. See
-    /// [`PtrWalkChainLoop`].
-    ///
-    /// Mutually exclusive with [`Self::ptr_walk_loop`]: the two recognizers
-    /// accept disjoint grammars (a rotated `for` against a top-test `while`),
-    /// and exactly one parser production sets each field.
-    pub ptr_walk_chain_loop: Option<PtrWalkChainLoop>,
-    /// If this function is the **integer divide/modulo leaf**, its two formals
-    /// and the operator. See [`DivModLeaf`].
-    ///
-    /// Unlike [`Self::ptr_walk_loop`] this body is a **single basic block** and
-    /// emits no branch at all, so it takes no compiler-label slot and
-    /// [`Self::label_slots`] treats it like every other leaf.
-    pub div_mod_leaf: Option<DivModLeaf>,
-    /// If this function is a **W13a floating-point leaf**, whether it is double
-    /// precision. Mutually exclusive with the other body kinds.
-    pub float_leaf: Option<bool>,
-    /// If this function is a **single-argument floating-point tail call**, its
-    /// argument marshalling. Set together with [`Self::tail_call`], and then
-    /// [`Self::params`] holds the FP formals **alone**, in FP-file order.
-    ///
-    /// Deliberately not folded into [`Self::float_leaf`], whose two readers
-    /// ([`Self::label_slots`] and `float_leaf_text`) both want "this body is a
-    /// W13 arithmetic chain" and neither wants "this body touches FP" — that
-    /// conflation was the tenth, eleventh and twelfth wrong-bytes emits
-    /// (`docs/CODEGEN_FP_ARGS.md` §4, §4.1). This shape's stride is 1 like any
-    /// other tail call's; only [`Self::touches_floating_point`] is true of it.
-    pub fp_tail: Option<FpTail>,
-    /// A **multi-argument** floating-point tail call's argument permutation, W34.
-    /// `Some(sources)` means `return g(x1, …, xn)` with `n >= 2` and every
-    /// argument a bare FP formal: `sources[i]` is the index into [`Self::params`]
-    /// — which then holds the FP formals **alone**, in FP-file order — of the
-    /// value FP argument register `f(i+1)` wants. Set together with
-    /// [`Self::tail_call`], and then [`Self::ops`] is empty.
-    ///
-    /// Separate from [`Self::arg_sources`] because that one indexes the **GPR**
-    /// argument registers `r(3+i)`. A call that needed both would need the two
-    /// files' interleaved schedule, which `docs/CODEGEN_FP_ARGS.md` §1.1 records
-    /// as uncharacterized and the parser refuses.
-    pub fp_arg_sources: Option<Vec<usize>>,
-    /// A **multi-argument** tail call's argument slots. `Some(slots)` means this
-    /// is `return g(a1, …, an)` with `n >= 2` and every argument either a bare
-    /// parameter or (WLA) a literal: `slots[i]` is what argument slot `i`
-    /// (register `r(3+i)`) wants — [`SlotArg::Formal`] indexes [`Self::params`],
-    /// [`SlotArg::Lit`] is one `li r(3+i),k`. Set together with
-    /// [`Self::tail_call`], and then [`Self::ops`] is empty — the slot list, not
-    /// an operand stream, is the whole argument setup.
-    ///
-    /// The one-argument case keeps using `ops` instead, because it can carry a
-    /// computed argument (`g(a + 1)`) that this form cannot express.
-    pub arg_sources: Option<Vec<SlotArg>>,
+    /// **The single body-shape discriminant** (board #232/#844, the W8 sum
+    /// type). Replaces the ~34 mutually-exclusive `Option<Shape>` fields that
+    /// used to live here: at most one was ever `Some`, a hand-maintained sum
+    /// type with no compiler enforcement, and `select_function` re-derived the
+    /// winner through an ordered `is_some` chain. Now there is exactly one
+    /// value and the projection accessors below (`framed_call()`, `tail_call()`,
+    /// …) read it back. Co-travelling data that is NOT the discriminant
+    /// (`params`, `ops`, `data_syms`, `data_def`, `eh_bare`, …) stays in its own
+    /// field.
+    pub body: BodyShape,
     /// **WR1 — the named data symbols whose addresses this body materializes**,
     /// already resolved through `.gl` to their mangled names (`?gI@@3HA`), in
     /// **emission order** — ascending `.text` offset of the `lis` that opens each
@@ -3174,130 +3188,6 @@ pub struct IlFunction {
     /// unclaimed-`.gl`-name gate refuses a TU that defines the data its own code
     /// reads.
     pub data_def: Option<IlDataDef>,
-    /// **W-DATA — the static-array scan loop** (`?NextHashPrime@@YAHH@Z`).
-    /// Set by exactly one parser production; [`Self::ops`] is empty for it.
-    pub static_scan_loop: Option<StaticScanLoop>,
-    /// **W-WORDWRAP — the file-scope-global store leaf**
-    /// (`wordwrap.cpp`'s `?WordWrap_SetOption@@YAXI@Z`). Set by exactly one
-    /// parser production; [`Self::ops`] is empty for it. A LEAF that DEFINES the
-    /// object it writes, so — like [`Self::static_scan_loop`] — it travels with
-    /// [`Self::data_def`] set and contributes nothing to [`Self::callees`] or
-    /// [`Self::data_syms`]; unlike it, the object is `.bss` rather than a
-    /// `.data` COMDAT, which is what [`IlDataDef::uninitialized`] carries.
-    pub global_store_leaf: Option<GlobalStoreLeaf>,
-    /// **W-BDNZ — the counted-loop class** (`wb-loop`'s guard + `mtctr`/`bdnz`
-    /// passes). Set by exactly one parser production; [`Self::ops`] is empty for
-    /// it. Makes [`Self::label_slots`] return `None`, for a reason this lane
-    /// measured rather than inherited — see there.
-    pub counted_accum_loop: Option<CountedAccumLoop>,
-    /// **W-BLOCKIR — the float array-walk counted loop.** Set by exactly one
-    /// parser production; [`Self::ops`] is empty for it. Makes
-    /// [`Self::label_slots`] return `None`, on `counted_accum_loop`'s reasoning
-    /// and this lane's own measurement — see there.
-    pub float_walk_loop: Option<FloatWalkLoop>,
-    /// **W-BIQUAD — the null-guarded float-store diamond**
-    /// (`?SetCoefficients@Biquad@DSP@@QAAXPAM@Z`). Set by exactly one parser
-    /// production; [`Self::ops`] is empty for it. It is a **leaf** — no frame,
-    /// no `.pdata` — and it pools two constants, which is what makes the TU it
-    /// belongs to the first one needing `.rdata` on the `/Gy` path.
-    pub fp_store_diamond: Option<FpStoreDiamond>,
-    /// **W-BIQUAD — the constructor that is nothing but a forwarded member
-    /// call** (`??0Biquad@DSP@@QAA@PAM@Z`). Set by exactly one parser
-    /// production; [`Self::ops`] is empty for it. It IS framed — `.pdata`, a
-    /// `$M`/`$M`/`$T` triple and the framed label stride — so
-    /// [`Self::is_framed`] has an arm for it.
-    pub ctor_forward_call: Option<CtorForwardCall>,
-    /// **W-EXTDATA — the sunk-`||`-guard, shared-tail body** (`_vswprintf_s_l`).
-    /// Set by exactly one parser production; [`Self::ops`] is empty for it.
-    pub guard_chain_shared_tail: Option<GuardChainSharedTailFn>,
-    /// **W-UNDNAME — the guarded allocation with a shared error store**
-    /// (`?append@DName@@QAAXPAVDNameNode@@@Z`). Set by exactly one parser
-    /// production; [`Self::ops`] is empty for it.
-    pub alloc_init_or_fail: Option<AllocInitOrFailFn>,
-    /// **W-OSFINFO** — the range-and-flag guarded table lookup, or `None`.
-    pub osf_handle_guard: Option<OsfHandleGuardFn>,
-    /// **W-XLR** — the two-stage create/attach guard, or `None`. The only body
-    /// kind whose frame uses the `__savegprlr_N`/`__restgprlr_N` helper.
-    pub xlrc_create_guard: Option<XlrcCreateGuardFn>,
-    /// **W-JSON** — the UTF-16 → UTF-8 copy loop, when the body is exactly that
-    /// class. Set by exactly one parser production; `ops` is empty for it.
-    pub json_utf8_copy: Option<JsonUtf8CopyFn>,
-    /// **W-POOL2** — the intrusive free-list PUSH/POP leaf, or `None`. Set by
-    /// exactly one parser production; [`Self::ops`] is empty for it. It is a
-    /// LEAF with no relocation, so it appears in no other accessor on this
-    /// struct: not [`Self::callees`], not `data_syms`, not [`Self::is_framed`].
-    pub pool_free_list: Option<PoolFreeList>,
-    /// **W-POOL2** — the free-list constructor's chain build, or `None`. A LEAF
-    /// with a `bdnz` loop, so — like every other loop class here — it takes
-    /// [`Self::label_slots`]'s `None`.
-    pub pool_ctor_chain: Option<PoolCtorChain>,
-    /// **W-IFN** — the framed guard chain whose arms are `return K` and whose
-    /// spine is a block copy (`mmio.cpp`'s `mmioGetInfo`, `mmioSetInfo`). Set by
-    /// exactly one parser production; [`Self::ops`] is empty for it. It names no
-    /// `.gl` symbol at all — the one external it calls, `memcpy`, arrives as an
-    /// intrinsic SELECTOR and has no `.gl` record — so unlike every other framed
-    /// class here it contributes nothing to [`Self::callees`] or
-    /// [`Self::data_syms`], and the name is minted by the emitter.
-    pub guard_ret_chain: Option<GuardRetChain>,
-    /// **W-MMIO3** — the guarded close chain (`mmio.cpp`'s `mmioClose`). Set by
-    /// exactly one parser production; [`Self::ops`] is empty for it. FRAMED: a
-    /// 96-byte frame with one saved GPR, a `.pdata` record and an ordinary
-    /// `$M`/`$M`/`$T` triple, so it needs no [`Self::label_lead`] arm and no
-    /// [`Self::label_slots`] arm — the same finding `guard_ret_chain` records
-    /// two fields up, and here it is checked against this TU's own obj, whose
-    /// three framed functions sit at `$M3381`, `$M3386` and `$M3396` with five
-    /// leaves between the last two.
-    ///
-    /// It contributes **two** names to [`Self::callees`] and not three: the
-    /// ELIDED callee is deliberately absent, because the obj carries no
-    /// relocation, no branch and no symbol for it. It is still accounted at
-    /// `IlBundle::functions` — as one of the TU's own `.gl` defined names,
-    /// which it must be for the elision to be licensed at all.
-    pub close_call_chain: Option<CloseCallChain>,
-    /// **W-XTEA2** — the whole-body `memcpy` tail branch
-    /// (`EncryptXTEA.cpp`'s `?SetKey`). Set by exactly one parser production;
-    /// [`Self::ops`] is empty for it. Like [`Self::guard_ret_chain`] it names no
-    /// `.gl` symbol — `memcpy` arrives as an intrinsic SELECTOR with no `.gl`
-    /// record — so it contributes nothing to [`Self::callees`] or
-    /// [`Self::data_syms`] and the name is minted by the emitter. **Where that
-    /// minted symbol goes is the one thing the two classes do not share**: this
-    /// user is a LEAF with no `$T`, and its `memcpy` sits in the callee region.
-    pub memcpy_tail: Option<MemcpyTail>,
-    /// **W-XTEA3** — the two-element 64-bit member run whose addend is a
-    /// zero-extended 32-bit formal (`EncryptXTEA.cpp`'s `?SetNonce`). Set by
-    /// exactly one parser production; [`Self::ops`] is empty for it. A LEAF that
-    /// names no `.gl` symbol, takes no relocation and emits no label, so it
-    /// contributes nothing to [`Self::callees`], [`Self::data_syms`] or the
-    /// label counter — `plan_labels` already charges it the 1 that
-    /// `work/w-xtea2/LABGRID.txt`'s `x-setnonce` row measures.
-    pub nonce_add_run: Option<NonceAddRun>,
-    /// **W-XTEA3** — the XTEA round loop (`EncryptXTEA.cpp`'s `?Encipher`). Set
-    /// by exactly one parser production; [`Self::ops`] is empty for it. A LEAF
-    /// that names no `.gl` symbol and takes no relocation, but it carries a BACK
-    /// EDGE, so unlike every other leaf here its label stride is not 1 — see
-    /// [`Self::label_lead`], which returns **2** for it on
-    /// `work/w-xtea2/LABGRID.txt`'s `x-encipher` row.
-    pub xtea_round_loop: Option<XteaRoundLoop>,
-    /// **W-XTEA3** — the framed XTEA block loop (`EncryptXTEA.cpp`'s
-    /// `?Encrypt`). Set by exactly one parser production; [`Self::ops`] is empty
-    /// for it. FRAMED: it owns a `.pdata` record, a `$M`/`$M`/`$T` triple and
-    /// three REL24 sites, two of which are the frame's own
-    /// `__savegprlr_26`/`__restgprlr_26` pair. Its label lead is **4** — see
-    /// [`Self::label_lead`].
-    pub xtea_encrypt_loop: Option<XteaEncryptLoop>,
-    /// True iff this function's body is **empty** (`void f() {}`): no expression at
-    /// all, so codegen emits a bare `blr`. Mutually exclusive with the other body
-    /// kinds.
-    ///
-    /// (These discriminators want to be one enum. [`BodyShape`] already *is* that
-    /// enum — the parser produces it and `functions()` immediately flattens it into
-    /// the parallel options above, which `PortC2::build` then re-derives through two
-    /// separate priority chains. The remaining reason to defer is the CFG step's
-    /// real body IR (docs/ROADMAP.md §G4), but carrying `BodyShape` here does not
-    /// need that design and would remove the second decision tree. This doc block
-    /// was itself misattached to `float_leaf` for a while, which is the kind of
-    /// damage the sum type prevents.)
-    pub empty_body: bool,
     /// **This body carries an EH-enabled `5C`/`5D`/`5E` object-goes-live marker
     /// and is on the CHEAP side of `docs/EH_RECORDS.md` §6's boundary** —
     /// `eh-bare`: one object live, one statement, nothing else. c2 emits an
@@ -3449,43 +3339,10 @@ impl IlFunction {
             source_path: src.clone(),
             params: Vec::new(),
             ops: Vec::new(),
-            tail_call: None,
-            framed_call: None,
-            call_seq: None,
-            cond_pair: None,
-            compare: None,
-            cmp_shift_or: None,
-            ptr_walk_loop: None,
-            if_call_join: None,
-            ptr_walk_chain_loop: None,
-            div_mod_leaf: None,
-            float_leaf: None,
-            fp_tail: None,
-            fp_arg_sources: None,
-            arg_sources: None,
+            body: BodyShape::Plain,
             data_syms: Vec::new(),
             fn_addr_sym: None,
             data_def: None,
-            static_scan_loop: None,
-            global_store_leaf: None,
-            counted_accum_loop: None,
-            float_walk_loop: None,
-            fp_store_diamond: None,
-            ctor_forward_call: None,
-            guard_chain_shared_tail: None,
-            alloc_init_or_fail: None,
-            osf_handle_guard: None,
-            xlrc_create_guard: None,
-            json_utf8_copy: None,
-            pool_free_list: None,
-            pool_ctor_chain: None,
-            guard_ret_chain: None,
-            close_call_chain: None,
-            memcpy_tail: None,
-            nonce_add_run: None,
-            xtea_round_loop: None,
-            xtea_encrypt_loop: None,
-            empty_body: false,
             eh_bare: false,
             eh_unwind_callees: Vec::new(),
             // **`None` means UNASKED, and every consumer must read it that
@@ -3494,6 +3351,288 @@ impl IlFunction {
             // is "nobody has looked at the `.gl` yet".
             inlinable: None,
         }
+    }
+
+    // ---- W8 sum-type projections ----------------------------------------
+    //
+    // The retired `Option<Shape>` fields, read back out of [`Self::body`]. Each
+    // is a pure function of the discriminant and borrows from it, so every
+    // reader that used to touch `self.FIELD` now calls `self.FIELD()`. The
+    // "exactly one" invariant the parallel fields could only assert by
+    // convention is now the enum itself.
+
+    /// Framed non-leaf call (`framed_call`).
+    #[inline]
+    pub fn framed_call(&self) -> Option<&FramedCall> {
+        match &self.body {
+            BodyShape::Framed(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// Class A many-call body (`call_seq`).
+    #[inline]
+    pub fn call_seq(&self) -> Option<&CallSeq> {
+        match &self.body {
+            BodyShape::Seq(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W8 two-arm conditional tail call (`cond_pair`).
+    #[inline]
+    pub fn cond_pair(&self) -> Option<&CondTailPair> {
+        match &self.body {
+            BodyShape::CondPair(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// Comparison leaf (`compare`).
+    #[inline]
+    pub fn compare(&self) -> Option<&CompareLeaf> {
+        match &self.body {
+            BodyShape::Compare(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W43 compare/shift/or leaf (`cmp_shift_or`).
+    #[inline]
+    pub fn cmp_shift_or(&self) -> Option<&CmpShiftOr> {
+        match &self.body {
+            BodyShape::CmpShiftOr(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// Pointer-walk accumulate loop (`ptr_walk_loop`).
+    #[inline]
+    pub fn ptr_walk_loop(&self) -> Option<&PtrWalkModLoop> {
+        match &self.body {
+            BodyShape::PtrWalkLoop(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// `if`/`else`-with-a-join whose arms are calls (`if_call_join`).
+    #[inline]
+    pub fn if_call_join(&self) -> Option<&IfCallJoinFn> {
+        match &self.body {
+            BodyShape::IfCallJoin(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// Body-parameterised pointer-walk loop (`ptr_walk_chain_loop`).
+    #[inline]
+    pub fn ptr_walk_chain_loop(&self) -> Option<&PtrWalkChainLoop> {
+        match &self.body {
+            BodyShape::PtrWalkChainLoop(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// Integer divide/modulo leaf (`div_mod_leaf`).
+    #[inline]
+    pub fn div_mod_leaf(&self) -> Option<&DivModLeaf> {
+        match &self.body {
+            BodyShape::DivModLeaf(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W13a floating-point leaf; `Some(double)` (`float_leaf`).
+    #[inline]
+    pub fn float_leaf(&self) -> Option<bool> {
+        match &self.body {
+            BodyShape::FloatLeaf(d) => Some(*d),
+            _ => None,
+        }
+    }
+    /// Single-argument FP tail call's marshalling (`fp_tail`).
+    #[inline]
+    pub fn fp_tail(&self) -> Option<&FpTail> {
+        match &self.body {
+            BodyShape::FpTail { fp, .. } => Some(fp),
+            _ => None,
+        }
+    }
+    /// Multi-argument FP tail call permutation (`fp_arg_sources`).
+    #[inline]
+    pub fn fp_arg_sources(&self) -> Option<&[usize]> {
+        match &self.body {
+            BodyShape::FpMultiTail { sources, .. } => Some(sources),
+            _ => None,
+        }
+    }
+    /// Multi-argument (GPR) tail call slots (`arg_sources`).
+    #[inline]
+    pub fn arg_sources(&self) -> Option<&[SlotArg]> {
+        match &self.body {
+            BodyShape::MultiTail { slots, .. } => Some(slots),
+            _ => None,
+        }
+    }
+    /// W-DATA static-array scan loop (`static_scan_loop`).
+    #[inline]
+    pub fn static_scan_loop(&self) -> Option<&StaticScanLoop> {
+        match &self.body {
+            BodyShape::StaticScanLoop(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-WORDWRAP file-scope-global store leaf (`global_store_leaf`).
+    #[inline]
+    pub fn global_store_leaf(&self) -> Option<&GlobalStoreLeaf> {
+        match &self.body {
+            BodyShape::GlobalStoreLeaf(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-BDNZ counted-loop class (`counted_accum_loop`).
+    #[inline]
+    pub fn counted_accum_loop(&self) -> Option<&CountedAccumLoop> {
+        match &self.body {
+            BodyShape::CountedAccumLoop(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-BLOCKIR float array-walk loop (`float_walk_loop`).
+    #[inline]
+    pub fn float_walk_loop(&self) -> Option<&FloatWalkLoop> {
+        match &self.body {
+            BodyShape::FloatWalkLoop(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-BIQUAD float-store diamond (`fp_store_diamond`).
+    #[inline]
+    pub fn fp_store_diamond(&self) -> Option<&FpStoreDiamond> {
+        match &self.body {
+            BodyShape::FpStoreDiamond(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-BIQUAD forwarding constructor (`ctor_forward_call`).
+    #[inline]
+    pub fn ctor_forward_call(&self) -> Option<&CtorForwardCall> {
+        match &self.body {
+            BodyShape::CtorForwardCall(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-EXTDATA sunk-`||`-guard body (`guard_chain_shared_tail`).
+    #[inline]
+    pub fn guard_chain_shared_tail(&self) -> Option<&GuardChainSharedTailFn> {
+        match &self.body {
+            BodyShape::GuardChainSharedTail(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-UNDNAME guarded allocation (`alloc_init_or_fail`).
+    #[inline]
+    pub fn alloc_init_or_fail(&self) -> Option<&AllocInitOrFailFn> {
+        match &self.body {
+            BodyShape::AllocInitOrFail(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-OSFINFO guarded table lookup (`osf_handle_guard`).
+    #[inline]
+    pub fn osf_handle_guard(&self) -> Option<&OsfHandleGuardFn> {
+        match &self.body {
+            BodyShape::OsfHandleGuard(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-XLR create/attach guard (`xlrc_create_guard`).
+    #[inline]
+    pub fn xlrc_create_guard(&self) -> Option<&XlrcCreateGuardFn> {
+        match &self.body {
+            BodyShape::XlrcCreateGuard(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-JSON UTF-16 → UTF-8 copy loop (`json_utf8_copy`).
+    #[inline]
+    pub fn json_utf8_copy(&self) -> Option<&JsonUtf8CopyFn> {
+        match &self.body {
+            BodyShape::JsonUtf8Copy(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-POOL2 free-list PUSH/POP leaf (`pool_free_list`).
+    #[inline]
+    pub fn pool_free_list(&self) -> Option<&PoolFreeList> {
+        match &self.body {
+            BodyShape::PoolFreeList(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-POOL2 free-list constructor chain (`pool_ctor_chain`).
+    #[inline]
+    pub fn pool_ctor_chain(&self) -> Option<&PoolCtorChain> {
+        match &self.body {
+            BodyShape::PoolCtorChain(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-IFN guard chain with a materialised epilogue (`guard_ret_chain`).
+    #[inline]
+    pub fn guard_ret_chain(&self) -> Option<&GuardRetChain> {
+        match &self.body {
+            BodyShape::GuardRetChain(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-MMIO3 guarded close chain (`close_call_chain`).
+    #[inline]
+    pub fn close_call_chain(&self) -> Option<&CloseCallChain> {
+        match &self.body {
+            BodyShape::CloseCallChain(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-XTEA2 whole-body `memcpy` tail branch (`memcpy_tail`).
+    #[inline]
+    pub fn memcpy_tail(&self) -> Option<&MemcpyTail> {
+        match &self.body {
+            BodyShape::MemcpyTail(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-XTEA3 two-element 64-bit member run (`nonce_add_run`).
+    #[inline]
+    pub fn nonce_add_run(&self) -> Option<&NonceAddRun> {
+        match &self.body {
+            BodyShape::NonceAddRun(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-XTEA3 XTEA round loop (`xtea_round_loop`).
+    #[inline]
+    pub fn xtea_round_loop(&self) -> Option<&XteaRoundLoop> {
+        match &self.body {
+            BodyShape::XteaRoundLoop(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// W-XTEA3 framed XTEA block loop (`xtea_encrypt_loop`).
+    #[inline]
+    pub fn xtea_encrypt_loop(&self) -> Option<&XteaEncryptLoop> {
+        match &self.body {
+            BodyShape::XteaEncryptLoop(x) => Some(x),
+            _ => None,
+        }
+    }
+    /// A tail call to a single external (`tail_call`): the resolved callee
+    /// mangled name, for the void/int tail and every FP/multi variant alike.
+    #[inline]
+    pub fn tail_call(&self) -> Option<&str> {
+        match &self.body {
+            BodyShape::Tail(c)
+            | BodyShape::FpTail { callee: c, .. }
+            | BodyShape::FpMultiTail { callee: c, .. }
+            | BodyShape::MultiTail { callee: c, .. } => Some(c.as_str()),
+            _ => None,
+        }
+    }
+    /// Empty body (`void f() {}`): a bare `blr` (`empty_body`).
+    #[inline]
+    pub fn empty_body(&self) -> bool {
+        matches!(self.body, BodyShape::EmptyBody)
     }
 
     /// **Board #844's invariant: a carried store run is carried ALONE.**
@@ -3549,7 +3688,7 @@ impl IlFunction {
             || self.data_def.is_some()
             || !self.eh_unwind_callees.is_empty()
             || self.eh_bare
-            || self.empty_body
+            || self.empty_body()
             || self.is_framed()
             || self.body_has_loop()
         {
@@ -3557,20 +3696,20 @@ impl IlFunction {
         }
         // Every remaining body-shape discriminator this struct carries. Listed
         // rather than derived, so a NEW shape does not silently become "pure".
-        if self.tail_call.is_some()
-            || self.cond_pair.is_some()
-            || self.compare.is_some()
-            || self.cmp_shift_or.is_some()
-            || self.div_mod_leaf.is_some()
-            || self.float_leaf.is_some()
-            || self.fp_tail.is_some()
-            || self.fp_arg_sources.is_some()
-            || self.arg_sources.is_some()
-            || self.global_store_leaf.is_some()
-            || self.fp_store_diamond.is_some()
-            || self.pool_free_list.is_some()
-            || self.memcpy_tail.is_some()
-            || self.nonce_add_run.is_some()
+        if self.tail_call().is_some()
+            || self.cond_pair().is_some()
+            || self.compare().is_some()
+            || self.cmp_shift_or().is_some()
+            || self.div_mod_leaf().is_some()
+            || self.float_leaf().is_some()
+            || self.fp_tail().is_some()
+            || self.fp_arg_sources().is_some()
+            || self.arg_sources().is_some()
+            || self.global_store_leaf().is_some()
+            || self.fp_store_diamond().is_some()
+            || self.pool_free_list().is_some()
+            || self.memcpy_tail().is_some()
+            || self.nonce_add_run().is_some()
         {
             return false;
         }
@@ -3596,8 +3735,7 @@ impl IlFunction {
     pub fn store_run_carried_twice(&self) -> bool {
         !self.ops.is_empty()
             && self
-                .call_seq
-                .as_ref()
+                .call_seq()
                 .is_some_and(|s| s.store_run.is_some())
     }
 
@@ -3713,16 +3851,15 @@ impl IlFunction {
         // academic: `?SetKey` is function 2 of 5 and the framed `?Encrypt` that
         // carries the TU's only labels is function 5, so a slot charged late
         // would move a `$M` that a slot charged early does not.
-        self.guard_ret_chain.is_some() || self.memcpy_tail.is_some()
+        self.guard_ret_chain().is_some() || self.memcpy_tail().is_some()
     }
 
     pub fn touches_floating_point(&self) -> bool {
-        self.float_leaf.is_some()
-            || self.fp_tail.is_some()
-            || self.fp_arg_sources.is_some()
+        self.float_leaf().is_some()
+            || self.fp_tail().is_some()
+            || self.fp_arg_sources().is_some()
             || self
-                .call_seq
-                .as_ref()
+                .call_seq()
             // **W-FLTRET is the fifth producer, and it is the first that emits no
             // FP instruction at all.** `float f(O* o){ o->Poll(); return
             // o->Level(); }` is `mr r31,r3 · bl · mr r3,r31 · bl · addi r1,r1,96
@@ -3751,7 +3888,7 @@ impl IlFunction {
             // it every positive case is one symbol short at COFF offset 12.
             // The recognizer requires the third formal to be a 4-byte real, so
             // this is a structural fact of the class and not a body scan.
-            || self.if_call_join.is_some()
+            || self.if_call_join().is_some()
             // **W-BLOCKIR — the float array-walk loop.** Every body in the class
             // loads, computes and stores single-precision floats, so this is a
             // structural fact of the class rather than a body scan — the same
@@ -3761,7 +3898,7 @@ impl IlFunction {
             // (`work/w-blockir/ref/ipp.dis.txt` and the symbol table beside it),
             // and without this arm the whole obj is one symbol short — which is
             // exactly what it was, graded `mismatch` before this line existed.
-            || self.float_walk_loop.is_some()
+            || self.float_walk_loop().is_some()
             // **W-BIQUAD — the float-store diamond.** Every body in the class
             // stores single-precision floats out of pooled `.rdata` constants,
             // so this is a structural fact of the class rather than a body scan
@@ -3770,7 +3907,7 @@ impl IlFunction {
             // after `?SetCoefficients`' COMPLETE group (its own symbol, then
             // BOTH `.rdata` section-symbol/`__real@` pairs), and without this
             // arm the whole obj is one symbol short.
-            || self.fp_store_diamond.is_some()
+            || self.fp_store_diamond().is_some()
     }
 
     /// True iff this function establishes a **stack frame** — it gets a `.pdata`
@@ -3780,18 +3917,18 @@ impl IlFunction {
     /// shape cannot leave one of them behind. Both framed shapes are non-leaf
     /// calls whose result (or whose successor statement) outlives the `bl`.
     pub fn is_framed(&self) -> bool {
-        self.framed_call.is_some()
+        self.framed_call().is_some()
             // **W-BIQUAD** — nine words with a `stwu`, a `bl` and a `.pdata`
             // record. The label triple that comes with it is the reason
             // `Biquad.cpp`'s other function's label charge had to be measured.
-            || self.ctor_forward_call.is_some()
-            || self.call_seq.is_some()
-            || self.if_call_join.is_some()
-            || self.guard_chain_shared_tail.is_some()
-            || self.alloc_init_or_fail.is_some()
-            || self.osf_handle_guard.is_some()
-            || self.xlrc_create_guard.is_some()
-            || self.json_utf8_copy.is_some()
+            || self.ctor_forward_call().is_some()
+            || self.call_seq().is_some()
+            || self.if_call_join().is_some()
+            || self.guard_chain_shared_tail().is_some()
+            || self.alloc_init_or_fail().is_some()
+            || self.osf_handle_guard().is_some()
+            || self.xlrc_create_guard().is_some()
+            || self.json_utf8_copy().is_some()
             // **W-IFN — the guard chain with a materialised common epilogue.**
             // It carries a 96-byte frame, a `.pdata` record and a `$M`/`$M`/`$T`
             // triple, and its label stride is the framed constant: **5** under
@@ -3805,17 +3942,17 @@ impl IlFunction {
             // stated reason — those four were widening LEAF classes, where
             // `plan_labels` mints nothing and the counter advances by an amount
             // with no representation in the obj at all.
-            || self.guard_ret_chain.is_some()
+            || self.guard_ret_chain().is_some()
             // **W-MMIO3 — the guarded close chain.** A 96-byte frame with one
             // saved GPR, a `.pdata` record and a `$M`/`$M`/`$T` triple, framed
             // in exactly the sense this predicate means. Its label stride is
             // the framed constant and needs no arm anywhere else — re-derived
             // seed-free on `mmio.cpp`'s own three framed functions.
-            || self.close_call_chain.is_some()
+            || self.close_call_chain().is_some()
             // **W-XTEA3 — the framed XTEA block loop.** A `__savegprlr_26`
             // frame, a `.pdata` record and a `$M`/`$M`/`$T` triple, so it is
             // framed in exactly the sense this predicate means.
-            || self.xtea_encrypt_loop.is_some()
+            || self.xtea_encrypt_loop().is_some()
     }
 
     /// **Does this function's body carry a BACK EDGE?**
@@ -3833,15 +3970,15 @@ impl IlFunction {
     /// (the fence keeps refusing) and never a byte. Every member is a class
     /// whose emitted body contains a `bdnz` or a backward `bc`.
     pub fn body_has_loop(&self) -> bool {
-        self.ptr_walk_loop.is_some()
-            || self.ptr_walk_chain_loop.is_some()
-            || self.counted_accum_loop.is_some()
-            || self.float_walk_loop.is_some()
-            || self.static_scan_loop.is_some()
-            || self.pool_ctor_chain.is_some()
-            || self.json_utf8_copy.is_some()
-            || self.xtea_round_loop.is_some()
-            || self.xtea_encrypt_loop.is_some()
+        self.ptr_walk_loop().is_some()
+            || self.ptr_walk_chain_loop().is_some()
+            || self.counted_accum_loop().is_some()
+            || self.float_walk_loop().is_some()
+            || self.static_scan_loop().is_some()
+            || self.pool_ctor_chain().is_some()
+            || self.json_utf8_copy().is_some()
+            || self.xtea_round_loop().is_some()
+            || self.xtea_encrypt_loop().is_some()
     }
 
     /// **Label-counter slots this function takes BEFORE its own `$M` triple.**
@@ -3865,7 +4002,7 @@ impl IlFunction {
     /// that `c2_core::coff::plan_labels` — which adds the lead before looking at
     /// the frame at all — charges both kinds through one path.
     pub fn label_lead(&self) -> u32 {
-        self.call_seq.as_ref().map_or(0, |s| s.tail.label_lead())
+        self.call_seq().map_or(0, |s| s.tail.label_lead())
             + u32::from(self.eh_bare)
             // **W-CFG1 charges ONE slot before its own triple**, so a framed
             // function of this class strides 6 under `/Gy` where every other
@@ -3877,7 +4014,7 @@ impl IlFunction {
             // out of the difference entirely. `scripts/gt_label_stride.py`'s
             // anchor control is the shipped 5 on a `Seq` body in the same TU
             // (`fixtures/cpp/wcfg1_join_then_seq.cpp`).
-            + u32::from(self.if_call_join.is_some())
+            + u32::from(self.if_call_join().is_some())
             // **W-UNDNAME charges NOTHING before its own triple, and that is
             // the measurement rather than the default.**
             //
@@ -3901,7 +4038,7 @@ impl IlFunction {
             // Written as an explicit `+ 0` rather than as a missing term,
             // because a class silently absent from this sum is indistinguishable
             // from one nobody thought about.
-            + 0 * u32::from(self.alloc_init_or_fail.is_some())
+            + 0 * u32::from(self.alloc_init_or_fail().is_some())
             // **W-EXTDATA charges ONE slot before its own triple too**, so this
             // class strides 6 under `/Gy` exactly as W-CFG1 does — and the
             // number is MEASURED, against the oracle, not carried over by
@@ -3956,8 +4093,7 @@ impl IlFunction {
             // does. `docs/LABEL_COUNTER.md` is mode- AND sub-shape-dependent,
             // and this is a sub-shape at zero byte distance.
             + u32::from(
-                self.guard_chain_shared_tail
-                    .as_ref()
+                self.guard_chain_shared_tail()
                     .is_some_and(|g| !g.sunk_arms),
             )
             // **W-OSFINFO charges ONE slot before its own triple**, and this is
@@ -3987,7 +4123,7 @@ impl IlFunction {
             // written here rather than in a rung so the next class to be added
             // meets it before choosing a number. `docs/LABEL_COUNTER.md` §1.1's
             // placement (a LEAD, before the triple) is unchanged.
-            + u32::from(self.osf_handle_guard.is_some())
+            + u32::from(self.osf_handle_guard().is_some())
             // **W-XLR charges TWO slots before its own triple, and it REFUTES
             // the rule the four terms above were fitted to.**
             //
@@ -4019,7 +4155,7 @@ impl IlFunction {
             // no mechanism, and no replacement rule is proposed here. Saying so
             // is the point — a refuted rule replaced by a second guess would be
             // worth less than a refuted rule and an honest gap.
-            + 2 * u32::from(self.xlrc_create_guard.is_some())
+            + 2 * u32::from(self.xlrc_create_guard().is_some())
             // **W-JSON charges FOUR slots before its own triple, and
             // `docs/LABEL_COUNTER.md` §1.1's surcharge table predicts TWO.**
             //
@@ -4047,7 +4183,7 @@ impl IlFunction {
             // but that is one witness, and `w-xlr`'s refutation of the
             // `b`-counting rule is exactly what a second one-witness rule buys
             // you. The number is recorded; the gap is left open.
-            + 4 * u32::from(self.json_utf8_copy.is_some())
+            + 4 * u32::from(self.json_utf8_copy().is_some())
             // **W-XTEA3 — the XTEA round loop charges TWO slots**, and it is the
             // first LEAF class here whose lead is not zero.
             //
@@ -4079,7 +4215,7 @@ impl IlFunction {
             // from being a wrong number is the recognizer's mode gate: this class
             // is unreachable at any mode but the one the 3 was measured at, and
             // at `/Ox` the same source is 1,352 bytes anyway.
-            + 2 * u32::from(self.xtea_round_loop.is_some())
+            + 2 * u32::from(self.xtea_round_loop().is_some())
             // **W-XTEA3 — the framed XTEA block loop charges FOUR slots before
             // its own triple**, and it is the largest lead on this list.
             //
@@ -4102,7 +4238,7 @@ impl IlFunction {
             // why: `x-encrypt` against `x-encrypt-alone` differ by
             // **thirty-three** at `/Ox` and by **zero** at `/O1`, so what moves
             // there is the INLINER, not the counter.
-            + 4 * u32::from(self.xtea_encrypt_loop.is_some())
+            + 4 * u32::from(self.xtea_encrypt_loop().is_some())
             // **W-FENCEB — the pointer-walk loop charges TWO slots, and this is
             // the SECOND leaf class here with a non-zero lead.**
             //
@@ -4152,7 +4288,7 @@ impl IlFunction {
             // `match` at `/O1` and `NotImplemented` at `/Ox` — against real
             // `c2.dll`. A later lane widening `ptr_walk_loop` codegen to `/Ox`
             // reddens that test rather than silently emitting a wrong `$M`.
-            + 2 * u32::from(self.ptr_walk_loop.is_some())
+            + 2 * u32::from(self.ptr_walk_loop().is_some())
             // **W-SLOTS — the float array-walk loop charges TWO slots, the SAME
             // two the pointer-walk loop above charges, and both classes are
             // spelled `for`.** Third leaf class here with a non-zero lead;
@@ -4232,7 +4368,7 @@ impl IlFunction {
             // reaches its obj (board #742). **`3` is the number the objs
             // literally read**, and its red is the sharpest cell here: it is the
             // `_fltused` slot being charged twice. `work/w-slots/mutate.sh`.
-            + 2 * u32::from(self.float_walk_loop.is_some())
+            + 2 * u32::from(self.float_walk_loop().is_some())
     }
 
     /// Every external this function calls, in **first-reference order** — which is
@@ -4241,13 +4377,12 @@ impl IlFunction {
     /// callee twice and each site needs its own REL24, while the *symbol* is
     /// emitted once.
     pub fn callees(&self) -> impl Iterator<Item = &str> {
-        self.tail_call
-            .as_deref()
+        self.tail_call()
             .into_iter()
-            .chain(self.framed_call.as_ref().map(|c| c.callee.as_str()))
+            .chain(self.framed_call().map(|c| c.callee.as_str()))
             // **W-BIQUAD** — one call, one REL24, and in `Biquad.cpp` the target
             // is a function this obj defines.
-            .chain(self.ctor_forward_call.as_ref().map(|c| c.callee.as_str()))
+            .chain(self.ctor_forward_call().map(|c| c.callee.as_str()))
             // **W-XTEA3: ONE name.** The body's other two REL24 sites are the
             // frame's `__savegprlr_26`/`__restgprlr_26` pair, which the IL never
             // names — they are minted by the frame class, travel on
@@ -4255,7 +4390,7 @@ impl IlFunction {
             // label rather than in this list's region. Listing them here would
             // put them in the wrong half of the symbol table, which is the same
             // note `xlrc_create_guard`'s omission carries three arms up.
-            .chain(self.xtea_encrypt_loop.as_ref().map(|c| c.callee.as_str()))
+            .chain(self.xtea_encrypt_loop().map(|c| c.callee.as_str()))
             // **W-MMIO3: TWO names, in `.text` OFFSET order.** The first call's
             // `bl` is at `+0x30` and the void call's at `+0x60`, so the first
             // is the earlier symbol in the per-function region — the same rule
@@ -4264,29 +4399,29 @@ impl IlFunction {
             // listing it would put a symbol in the callee region that nothing
             // relocates against.
             .chain(
-                self.close_call_chain
-                    .iter()
+                self.close_call_chain()
+                    .into_iter()
                     .flat_map(|c| [c.call1.as_str(), c.void_call.as_str()]),
             )
             .chain(
-                self.call_seq
-                    .iter()
+                self.call_seq()
+                    .into_iter()
                     .flat_map(|s| s.calls.iter().map(|c| c.callee.as_str())),
             )
             // W8: both arms, in BLOCK order — the then-arm's `b` is emitted
             // first, so its REL24 site is the lower offset and its symbol the
             // earlier one in the per-function region.
             .chain(
-                self.cond_pair
-                    .iter()
+                self.cond_pair()
+                    .into_iter()
                     .flat_map(|c| [c.then_arm.callee.as_str(), c.else_arm.callee.as_str()]),
             )
             // W-CFG1: both arms, in BLOCK order — the `s >= k2` arm's `bl` is at
             // the lower `.text` offset, so its symbol is the earlier one in the
             // per-function region for the same reason W8's then-arm is.
             .chain(
-                self.if_call_join
-                    .iter()
+                self.if_call_join()
+                    .into_iter()
                     .flat_map(|c| [c.callee_hi.as_str(), c.callee_lo.as_str()]),
             )
             // **W-EXTDATA: three names, in BLOCK order, and `errno` appears
@@ -4303,8 +4438,8 @@ impl IlFunction {
             // REFHI/REFLO, not a branch, and this iterator is consumed as a call
             // edge. It is accounted in `IlBundle::functions` by its own clause.
             .chain(
-                self.guard_chain_shared_tail
-                    .iter()
+                self.guard_chain_shared_tail()
+                    .into_iter()
                     .flat_map(|c| [c.helper.as_str(), c.errno.as_str(), c.invalid.as_str()]),
             )
             // **W-UNDNAME: ONE name.** The body's other two externals are the
@@ -4317,7 +4452,7 @@ impl IlFunction {
             //
             // Omitting this arm is not a silent gap: the accounting gate refuses
             // the whole TU with `unclaimed-gl-symbol`, which is how it was found.
-            .chain(self.alloc_init_or_fail.iter().map(|a| a.alloc.as_str()))
+            .chain(self.alloc_init_or_fail().into_iter().map(|a| a.alloc.as_str()))
             // **W-OSFINFO: TWO names, in BLOCK order.** Both `bl`s are in the
             // one error block and `<errno>`'s is at the lower `.text` offset, so
             // its symbol is the earlier one in the per-function region.
@@ -4335,8 +4470,8 @@ impl IlFunction {
             // lane in a row to find an unpriced reader refusal made it the first
             // thing this lane looked for.
             .chain(
-                self.osf_handle_guard
-                    .iter()
+                self.osf_handle_guard()
+                    .into_iter()
                     .flat_map(|g| [g.errno.as_str(), g.doserrno.as_str()]),
             )
             // **W-XLR: TWO names, in `.text` order** — `create` at `+0x2c` and
@@ -4354,8 +4489,8 @@ impl IlFunction {
             // would put them in the wrong half of the symbol table and give
             // `plan_text_order` two call edges the IL does not have.
             .chain(
-                self.xlrc_create_guard
-                    .iter()
+                self.xlrc_create_guard()
+                    .into_iter()
                     .flat_map(|g| [g.create.as_str(), g.attach.as_str()]),
             )
     }
@@ -4428,7 +4563,7 @@ impl IlFunction {
         // live `mismatch` against real `c2.dll`, while its separating control
         // `fixtures/cpp/wvl_chain3.cpp` (the identical loop with no framed
         // function beside it) stays `match`.
-        if self.ptr_walk_chain_loop.is_some() {
+        if self.ptr_walk_chain_loop().is_some() {
             return None;
         }
         // **W-BDNZ — the counted loop refuses too, and the reason is this
@@ -4549,7 +4684,7 @@ impl IlFunction {
         // What a later rung still owes is the **mode**: a charge this class can
         // ship needs `label_lead` to know the optimization word, and §7.6
         // forbids that today.
-        if self.counted_accum_loop.is_some() {
+        if self.counted_accum_loop().is_some() {
             return None;
         }
         // **W-SLOTS — THE FLOAT ARRAY-WALK LOOP'S `None` IS LIFTED**, and the
@@ -4606,10 +4741,10 @@ impl IlFunction {
         // admits it: a `None` here rejects only a TU that pairs this shape with
         // a **framed** function, and `Pool.cpp` has none. That boundary is
         // `w-loop` §5.1's, unchanged.
-        if self.pool_ctor_chain.is_some() {
+        if self.pool_ctor_chain().is_some() {
             return None;
         }
-        if let Some(c) = &self.compare {
+        if let Some(c) = self.compare() {
             return Some(self.label_lead() + c.label_slots());
         }
         // **A CONSTANT-FREE FP leaf consumes 1, like any other leaf.** This
@@ -4652,7 +4787,7 @@ impl IlFunction {
         // the "one slot per TU-level external" story that once explained the
         // `+1` is REFUTED in both directions (§2.1), and it would have licensed
         // a pooled constant at +0.
-        if self.float_leaf.is_some() && self.ops.iter().any(|o| matches!(o, IlOp::FpLit { .. })) {
+        if self.float_leaf().is_some() && self.ops.iter().any(|o| matches!(o, IlOp::FpLit { .. })) {
             return None;
         }
         // **An FP-touching function consumes 1, like any other — the extra slot

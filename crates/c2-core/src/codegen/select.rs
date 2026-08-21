@@ -12,7 +12,7 @@
 //! census/gate cross-check (`crates/c2-harness/tests/census_gate.rs`) is only
 //! meaningful because there is one decision procedure here, not two.
 
-use c2_il::IlFunction;
+use c2_il::{BodyShape, IlFunction};
 use crate::BackendError;
 use crate::codegen::calls;
 use crate::codegen::calls::{call_seq_parts, int_tail_call_text, permute_args_text};
@@ -288,367 +288,199 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
     // rule on purpose: the alternative to refusing is picking a winner between
     // the two fields, and picking a winner is the defect itself.
     super::store_run_call::gate_carrier(func)?;
-    if func.framed_call.is_some() {
-        // The argument setup, through the same selector the integer tail call
-        // uses: `[Load(first formal)]` selects to a bare `blr` (an empty setup,
-        // the value is already in r3) and `[Load(other formal)]` to
-        // `mr r3,rN ; blr`. Dropping the `blr` leaves exactly the words that go
-        // between the prologue and the `bl`.
-        let mut setup = select_text(func, mode)?;
-        let blr = encode_blr();
-        debug_assert!(setup.ends_with(&blr), "select_text always terminates in blr");
-        setup.truncate(setup.len() - blr.len());
-        return Ok(Selected::Framed { setup });
-    }
-    if let Some(seq) = &func.call_seq {
-        let (setups, tail, park) = call_seq_parts(&func.params, seq, mode)?;
-        return Ok(Selected::Seq { setups, tail, park });
-    }
-    // **W8 — the two-arm conditional tail call.** Asked here, beside the other
-    // shapes that own their whole branch layout and ahead of every leaf: its
-    // body ends in two `b`s to two externals, so it is a *tail-call* shape in
-    // every respect the obj can see, and the leaf recognizers below all
-    // pattern-match operand streams this shape does not have. It cannot take a
-    // body from any of them — `func.cond_pair` is set by exactly one parser
-    // production and by nothing else.
-    if let Some(pair) = &func.cond_pair {
-        return Ok(Selected::CondPair(cond_pair_parts(func, pair)?));
-    }
-    // **W-BIQUAD — the float-store diamond.** Asked beside the other shapes
-    // that own their whole branch layout and ahead of every leaf: its body ends
-    // in a `blr` like a leaf, but it contains two intra-function branches and
-    // two pooled constants, and none of the leaf recognizers below can spell
-    // either. It cannot take a body from any of them —
-    // `func.fp_store_diamond` is set by exactly one parser production and by
-    // nothing else.
-    // **W-BIQUAD — the forwarding constructor**, asked beside the other framed
-    // shapes that own their whole obj shape and ahead of every leaf, exactly
-    // where `framed_call` is. `func.ctor_forward_call` is set by one parser
-    // production and by nothing else, so it can take a body from nothing.
-    if func.ctor_forward_call.is_some() {
-        return Ok(Selected::CtorForwardCall);
-    }
-    if let Some(d) = &func.fp_store_diamond {
-        let (text, consts) = crate::codegen::fp_store_diamond::fp_store_diamond_text(d)?;
-        return Ok(Selected::FpStoreDiamond { text, consts });
-    }
-    if func.tail_call.is_some() {
+    // **The dispatch is a TOTAL match on `func.body`** (the W8 sum type, board
+    // #232/#844). Each arm is one retired `Option<Shape>` field; the "exactly
+    // one is `Some`" invariant the ordered `is_some` chain could only assert by
+    // convention is the enum itself now, and the match is exhaustive so a new
+    // shape cannot be silently unhandled.
+    //
+    // The per-adjacency ordering the old chain documented is preserved as arm
+    // order, but the arms are mutually exclusive by construction (one variant
+    // per body), so the order is now READABILITY and no longer correctness —
+    // with ONE exception: the `Plain` arm's internal leaf recognizers
+    // (`indirect_load_text`/`addr_leaf_text`/`store_leaf_text`) read the same
+    // `ops` stream and stay ordered. `compare`/`cmp_shift_or` are their own
+    // arms rather than tail checks of `Plain`, which is precedence-safe because
+    // a compare/cmp-shift-or body carries an empty `ops` stream — the three leaf
+    // matchers returned `None` for it in the old chain, so it only ever reached
+    // its own `is_some` check.
+    match &func.body {
+        // `framed_call` — its own obj shape. The argument setup runs through the
+        // same selector the integer tail call uses; dropping the terminating
+        // `blr` leaves exactly the words between the prologue and the `bl`.
+        BodyShape::Framed(_) => {
+            let mut setup = select_text(func, mode)?;
+            let blr = encode_blr();
+            debug_assert!(setup.ends_with(&blr), "select_text always terminates in blr");
+            setup.truncate(setup.len() - blr.len());
+            Ok(Selected::Framed { setup })
+        }
+        // A Class A many-call body — owns its whole obj shape.
+        BodyShape::Seq(seq) => {
+            let (setups, tail, park) = call_seq_parts(&func.params, seq, mode)?;
+            Ok(Selected::Seq { setups, tail, park })
+        }
+        // **W8 — the two-arm conditional tail call.** A tail-call shape in every
+        // respect the obj can see (its body ends in two `b`s to two externals);
+        // the leaf recognizers below match operand streams it does not have.
+        BodyShape::CondPair(pair) => Ok(Selected::CondPair(cond_pair_parts(func, pair)?)),
+        // **W-BIQUAD — the forwarding constructor**, a framed whole-obj shape:
+        // the body is a pure function of `base_off`, built by the caller.
+        BodyShape::CtorForwardCall(_) => Ok(Selected::CtorForwardCall),
+        // **W-BIQUAD — the float-store diamond.** A leaf that branches: it
+        // carries its bytes because nothing in it depends on where it lands.
+        BodyShape::FpStoreDiamond(d) => {
+            let (text, consts) = crate::codegen::fp_store_diamond::fp_store_diamond_text(d)?;
+            Ok(Selected::FpStoreDiamond { text, consts })
+        }
+        // ---- the tail-call family (the old `func.tail_call` block, now one arm
+        // per register-file/argument variant) ----
+        //
         // A single-argument **floating-point** tail call: the argument is in the
-        // other register file, so its setup is at most one `fmr`/`frsp` rather
-        // than an operand stream. Asked before `arg_sources`/`ops`, both of which
-        // are empty for this shape and would otherwise select the bare branch —
-        // i.e. drop the move. See `fp_tail_call_text`.
-        if let Some(fp) = &func.fp_tail {
-            return Ok(Selected::Tail(fp_tail_call_text(&func.params, fp)?));
-        }
+        // other register file, so its setup is at most one `fmr`/`frsp`.
+        BodyShape::FpTail { fp, .. } => Ok(Selected::Tail(fp_tail_call_text(&func.params, fp)?)),
         // A multi-argument **floating-point** tail call: a permutation of the FP
-        // argument file, then the branch. Asked beside `fp_tail` and before
-        // `arg_sources` for the same reason — the two `*_sources` fields index
-        // different register files and are never both set.
-        if let Some(sources) = &func.fp_arg_sources {
-            return Ok(Selected::Tail(fp_permute_args_text(sources)?));
+        // argument file, then the branch.
+        BodyShape::FpMultiTail { sources, .. } => {
+            Ok(Selected::Tail(fp_permute_args_text(sources)?))
         }
-        // Multi-argument: a register permutation, then the branch.
-        if let Some(sources) = &func.arg_sources {
-            return Ok(Selected::Tail(permute_args_text(sources)?));
+        // Multi-argument (GPR): a register permutation, then the branch.
+        BodyShape::MultiTail { slots, .. } => Ok(Selected::Tail(permute_args_text(slots)?)),
+        // The plain tail call, void vs int split by `ops.is_empty()` exactly
+        // where it lived inside the old `tail_call` block: a VOID tail call
+        // (`void f(){ g(); }`, and the generated empty destructor) has no
+        // argument to compute, so the setup is empty; an integer tail call
+        // computes its argument into r3 and `int_tail_call_text` appends the
+        // branch itself, so the setup is its text minus the last word.
+        BodyShape::Tail(_) => {
+            if func.ops.is_empty() {
+                Ok(Selected::Tail(Vec::new()))
+            } else {
+                let (mut text, _) = int_tail_call_text(func, 0, mode)?;
+                text.truncate(text.len() - 4);
+                Ok(Selected::Tail(text))
+            }
         }
-        // A VOID tail call (`void f(){ g(); }`, and the generated empty
-        // destructor): no argument to compute, so the setup is empty.
-        if func.ops.is_empty() {
-            return Ok(Selected::Tail(Vec::new()));
+        // The framed whole-body guard/chain shapes. Each is a pure function of
+        // its carrier and `base_off`; every `bl`/`b` word encodes its own
+        // `.text` offset, so the caller builds the bytes. The emitter is called
+        // here for its mode gate, which board #1638 keeps in exactly one place
+        // shared by `function_gate` and both writers.
+        BodyShape::GuardChainSharedTail(g) => {
+            guard_chain_shared_tail_text(g, 0, mode)?;
+            Ok(Selected::GuardChainSharedTail)
         }
-        // An integer tail call: the argument computed into r3. `int_tail_call_text`
-        // appends the branch itself, so the setup is its text minus the last word.
-        let (mut text, _) = int_tail_call_text(func, 0, mode)?;
-        text.truncate(text.len() - 4);
-        return Ok(Selected::Tail(text));
-    }
-    // **The pointer-walk accumulate loop**, asked here — after every shape that
-    // owns its own obj layout and before every leaf recognizer.
-    //
-    // Its position is free rather than load-bearing, and saying which is the
-    // point of this comment: `func.ptr_walk_loop` is set by exactly one parser
-    // production, no other shape sets it, and this body's operand stream
-    // (`ops` is empty, `params` is two formals) matches none of the leaf
-    // pattern-matchers below. It sits above them so that a reader meets the one
-    // shape with a back edge before the straight-line ones, which is a
-    // readability claim and not a correctness one.
-    // **W-CFG1 — the `if`/`else`-with-a-join.** Asked here, beside the other
-    // whole-body shapes and ahead of every leaf recognizer, for the reason the
-    // loops below are: `func.if_call_join` is set by exactly one parser
-    // production, `func.ops` is empty for it, and no leaf pattern-matcher below
-    // can take its body. Its position relative to the two loops is free — the
-    // three fields are mutually exclusive by construction — and it is first
-    // because it is the only one of the three that is FRAMED, which is the
-    // property the arms above this point share.
-    // **W-EXTDATA — the sunk-`||`-guard body.** Same placement argument as
-    // `if_call_join` immediately below and the same freedom: the field is set by
-    // exactly one parser production, `func.ops` is empty for it, and no leaf
-    // pattern-matcher can take its body. It is asked first among the framed
-    // whole-body shapes only because it is the newest; nothing depends on that.
-    if func.guard_chain_shared_tail.is_some() {
-        // The mode gate is asked in the emitter as well as in the parser (board
-        // #1638), and calling the emitter here is what makes `function_gate` and
-        // both writers ask it in exactly one place.
-        guard_chain_shared_tail_text(
-            func.guard_chain_shared_tail.as_ref().unwrap(),
-            0,
-            mode,
-        )?;
-        return Ok(Selected::GuardChainSharedTail);
-    }
-    // **W-UNDNAME — the guarded allocation with a shared error store.** Same
-    // placement argument as its two neighbours and the same freedom: the field
-    // is set by exactly one parser production, `func.ops` is empty for it, and
-    // no leaf pattern-matcher can take its body.
-    if func.alloc_init_or_fail.is_some() {
-        // The mode gate is asked in the emitter as well as in the parser (board
-        // #1638), and calling the emitter here is what makes `function_gate` and
-        // both writers ask it in exactly one place.
-        alloc_init_or_fail_text(func.alloc_init_or_fail.as_ref().unwrap(), 0, mode)?;
-        return Ok(Selected::AllocInitOrFail);
-    }
-    // **W-OSFINFO — the range-and-flag guarded table lookup.** Same placement
-    // argument as its three neighbours and the same freedom: the field is set by
-    // exactly one parser production, `func.ops` is empty for it, and no leaf
-    // pattern-matcher can take its body.
-    if func.osf_handle_guard.is_some() {
-        // The mode gate is asked in the emitter as well as in the parser (board
-        // #1638), and calling the emitter here is what makes `function_gate` and
-        // both writers ask it in exactly one place.
-        osf_handle_guard_text(func.osf_handle_guard.as_ref().unwrap(), 0, mode)?;
-        return Ok(Selected::OsfHandleGuard);
-    }
-    // **W-IFN — the guard chain with a materialised common epilogue.** Same
-    // placement argument as its neighbours and the same freedom: the field is
-    // set by exactly one parser production, `func.ops` is empty for it, and no
-    // leaf pattern-matcher can take its body.
-    if func.guard_ret_chain.is_some() {
-        // The mode gate is asked in the emitter as well as in the parser (board
-        // #1638), and calling the emitter here is what makes `function_gate` and
-        // both writers ask it in exactly one place.
-        guard_ret_chain_text(func.guard_ret_chain.as_ref().unwrap(), 0, mode)?;
-        return Ok(Selected::GuardRetChain);
-    }
-    // **W-MMIO3 — the guarded close chain.** Same placement argument as its
-    // neighbours and the same freedom: the field is set by exactly one parser
-    // production, `func.ops` is empty for it, and no leaf pattern-matcher can
-    // take its body. It is beside `guard_ret_chain` because the two are the
-    // same TU's, and after it because that one names a class already matched.
-    if func.close_call_chain.is_some() {
-        // The mode gate is asked in the emitter as well as in the parser (board
-        // #1638), and calling the emitter here is what makes `function_gate` and
-        // both writers ask it in exactly one place.
-        crate::codegen::close_call_chain::close_call_chain_text(
-            func.close_call_chain.as_ref().unwrap(),
-            0,
-            mode,
-        )?;
-        return Ok(Selected::CloseCallChain);
-    }
-    // **W-XLR — the two-stage create/attach guard.** Same placement argument as
-    // its four neighbours and the same freedom: the field is set by exactly one
-    // parser production, `func.ops` is empty for it, and no leaf pattern-matcher
-    // can take its body. It is after `osf_handle_guard` because that class names
-    // a TU that was matched before this one.
-    if func.xlrc_create_guard.is_some() {
-        // The mode gate is asked in the emitter as well as in the parser (board
-        // #1638), and calling the emitter here is what makes `function_gate` and
-        // both writers ask it in exactly one place.
-        xlrc_create_guard_text(func.xlrc_create_guard.as_ref().unwrap(), 0, mode)?;
-        return Ok(Selected::XlrcCreateGuard);
-    }
-    // **W-JSON — the UTF-16 → UTF-8 copy loop.** Same placement argument as its
-    // five neighbours and the same freedom: the field is set by exactly one
-    // parser production, `func.ops` is empty for it, and no leaf pattern-matcher
-    // can take its body. It is after `xlrc_create_guard` because that class
-    // names a TU that was matched before this one.
-    if func.json_utf8_copy.is_some() {
-        // The mode gate is asked in the emitter as well as in the parser (board
-        // #1638), and calling the emitter here is what makes `function_gate` and
-        // both writers ask it in exactly one place.
-        json_utf8_copy_text(func.json_utf8_copy.as_ref().unwrap(), 0, mode)?;
-        return Ok(Selected::JsonUtf8Copy);
-    }
-    if func.if_call_join.is_some() {
-        // The mode gate lives in the emitter, not here, so that `function_gate`
-        // and both writers ask it in exactly one place.
-        if_call_join_text(func.if_call_join.as_ref().unwrap(), 0, mode)?;
-        return Ok(Selected::IfCallJoin);
-    }
-    // **W-POOL2 — the free-list PUSH/POP leaf and the constructor that builds
-    // the chain.** Both take `Selected::Plain`, like `ptr_walk_loop` beside
-    // them and for the same three reasons: no relocation, no pooled constant
-    // and no label. The fields are set by exactly one parser production each,
-    // `func.ops` is empty for both, and no leaf pattern-matcher below can take
-    // either body.
-    //
-    // The mode gate is asked in the emitter as well as in the parser (board
-    // #1638), and calling the emitter here is what makes `function_gate` and
-    // both writers ask it in exactly one place.
-    if let Some(g) = &func.pool_free_list {
-        return Ok(Selected::Plain(pool_free_list_text(g, mode)?));
-    }
-    if let Some(c) = &func.pool_ctor_chain {
-        return Ok(Selected::Plain(pool_ctor_chain_text(c, mode)?));
-    }
-    // **W-XTEA2 — the whole-body `memcpy` tail branch.** Same placement argument
-    // as the whole-body shapes above and the same freedom: `func.memcpy_tail` is
-    // set by exactly one parser production, `func.ops` is empty for it, and no
-    // leaf pattern-matcher below can take its body. It is here — among the
-    // whole-body shapes and above every leaf — rather than beside the ordinary
-    // tail call, because its callee is minted and the tail-call arm above reads
-    // `func.tail_call`, which is `None` for this class.
-    //
-    // The mode gate is asked in the emitter as well as in the parser (board
-    // #1638), and calling the emitter here is what makes `function_gate` and both
-    // writers ask it in exactly one place.
-    if let Some(m) = &func.memcpy_tail {
-        return Ok(Selected::MemcpyTail(memcpy_tail_text(m, mode)?));
-    }
-    // **W-XTEA3 — the two-element 64-bit member run.** Same placement argument
-    // as the whole-body shapes above and the same freedom: `func.nonce_add_run`
-    // is set by exactly one parser production, `func.ops` is empty for it, and no
-    // leaf pattern-matcher below can take its body. `Selected::Plain`, because
-    // the class takes no relocation, defines no label and mints no external —
-    // the reference obj's `.text #7` reads `nrel 0`.
-    //
-    // The mode gate is asked in the emitter as well as in the parser (board
-    // #1638), and calling the emitter here is what makes `function_gate` and both
-    // writers ask it in exactly one place.
-    if let Some(n) = &func.nonce_add_run {
-        return Ok(Selected::Plain(nonce_add_run_text(n, mode)?));
-    }
-    // **W-XTEA3 — the XTEA round loop.** Same placement argument as every loop
-    // around it and the same freedom: `func.xtea_round_loop` is set by exactly
-    // one parser production, `func.ops` is empty for it, and no leaf
-    // pattern-matcher below can take its body. `Selected::Plain`, because the
-    // class takes no relocation, mints no external and defines no label symbol —
-    // the reference obj's `.text #8` reads `nrel 0`.
-    //
-    // Unlike `counted_accum_loop` it admits `/O1` alone: at `/Ox` the same
-    // source is 1,352 bytes with a `__savegprlr_28` frame. The gate is in the
-    // READER, where the census can see it too (board #1638), and re-asked here.
-    if let Some(x) = &func.xtea_round_loop {
-        return Ok(Selected::Plain(xtea_round_loop_text(x, mode)?));
-    }
-    // **W-XTEA3 — the framed XTEA block loop.** A whole-obj shape like every
-    // framed class above it: it owns its `.pdata` record, its label triple and
-    // three REL24 sites, so — as with `IfCallJoin` and `XlrcCreateGuard` — the
-    // bytes are built by the caller, which knows where the function lands, and
-    // this arm only decides that the class is in.
-    //
-    // The mode gate is asked in the emitter as well as in the parser (board
-    // #1638), and calling the emitter here is what makes `function_gate` and
-    // both writers ask it in exactly one place.
-    if let Some(x) = &func.xtea_encrypt_loop {
-        xtea_encrypt_loop_text(x, 0, mode)?;
-        return Ok(Selected::XteaEncryptLoop);
-    }
-    if let Some(l) = &func.ptr_walk_loop {
-        return Ok(Selected::Plain(ptr_walk_loop_text(l, mode)?));
-    }
-    // **W-DATA — the static-array scan loop.** Same placement argument as the
-    // two loops around it and the same freedom: `func.static_scan_loop` is set
-    // by exactly one parser production, `func.ops` is empty for it, and no leaf
-    // pattern-matcher below can take its body.
-    //
-    // It is the only arm in this function whose obj carries a section the
-    // *function* did not produce — a COMDAT `.data` for the object it
-    // references. That section is **not** decided here: `Selected` has no
-    // variant for it, deliberately, because the section belongs to the obj and
-    // not to the instruction selection, and `coff::emit_comdat_obj` reads it off
-    // `Function::data_defs`. Board #844's invariant is unaffected — this shape
-    // sets one field and no other.
-    if func.static_scan_loop.is_some() {
-        return Ok(Selected::Plain(crate::codegen::static_scan_loop::static_scan_loop_emit(
-            func, mode,
-        )?));
-    }
-    // **W-WORDWRAP — the file-scope-global store leaf.** Placed immediately
-    // after `static_scan_loop`, its only sibling that also carries a
-    // `Function::data_defs`, and on the same freedom: `func.global_store_leaf`
-    // is set by exactly one parser production, `func.ops` is empty for it, and
-    // no leaf pattern-matcher below can take its body.
-    //
-    // **No mode is asked, and that is a measurement.** Every other arm here that
-    // gates on `mode` does so because its `/Ox` bytes DIFFER; GRID G compiled
-    // this body at `/O1`, `/O1 /Oi`, `/O2`, `/Ox` and `/Ox /Gy` and got the
-    // identical three words each time. `/Od` is refused upstream by
-    // `opt_word_mode`, which is `None` there.
-    if let Some(g) = &func.global_store_leaf {
-        return Ok(Selected::Plain(crate::codegen::global_store_leaf::global_store_leaf_text(g)?));
-    }
-    // **W-BDNZ — the counted-`for` accumulate loop.** Same placement argument as
-    // every loop around it and the same freedom: `func.counted_accum_loop` is
-    // set by exactly one parser production, `func.ops` is empty for it, and no
-    // leaf pattern-matcher below can take its body.
-    //
-    // It is the first arm here that accepts **both** optimization modes on a
-    // measurement rather than by inheriting `Ox` from the MVP: `/Ox` emits the
-    // identical eight words (`work/w-bdnz/probe/L5ox.obj`) and every cell is
-    // graded at both. Board #844's invariant is unaffected — this shape sets one
-    // field and no other.
-    if func.counted_accum_loop.is_some() {
-        return Ok(Selected::Plain(
+        BodyShape::AllocInitOrFail(a) => {
+            alloc_init_or_fail_text(a, 0, mode)?;
+            Ok(Selected::AllocInitOrFail)
+        }
+        BodyShape::OsfHandleGuard(g) => {
+            osf_handle_guard_text(g, 0, mode)?;
+            Ok(Selected::OsfHandleGuard)
+        }
+        BodyShape::GuardRetChain(g) => {
+            guard_ret_chain_text(g, 0, mode)?;
+            Ok(Selected::GuardRetChain)
+        }
+        BodyShape::CloseCallChain(c) => {
+            crate::codegen::close_call_chain::close_call_chain_text(c, 0, mode)?;
+            Ok(Selected::CloseCallChain)
+        }
+        BodyShape::XlrcCreateGuard(g) => {
+            xlrc_create_guard_text(g, 0, mode)?;
+            Ok(Selected::XlrcCreateGuard)
+        }
+        BodyShape::JsonUtf8Copy(g) => {
+            json_utf8_copy_text(g, 0, mode)?;
+            Ok(Selected::JsonUtf8Copy)
+        }
+        // **W-CFG1 — the `if`/`else`-with-a-join**, a framed unit variant.
+        BodyShape::IfCallJoin(c) => {
+            if_call_join_text(c, 0, mode)?;
+            Ok(Selected::IfCallJoin)
+        }
+        // **W-POOL2** — the free-list PUSH/POP leaf and the constructor that
+        // builds the chain; both `Selected::Plain` (no relocation, no pooled
+        // constant, no label). Mode gate in the emitter (board #1638).
+        BodyShape::PoolFreeList(g) => Ok(Selected::Plain(pool_free_list_text(g, mode)?)),
+        BodyShape::PoolCtorChain(c) => Ok(Selected::Plain(pool_ctor_chain_text(c, mode)?)),
+        // **W-XTEA2 — the whole-body `memcpy` tail branch.** Its callee is
+        // minted, not read out of the IL, which is why it is its own variant and
+        // not `Tail`.
+        BodyShape::MemcpyTail(m) => Ok(Selected::MemcpyTail(memcpy_tail_text(m, mode)?)),
+        // **W-XTEA3 — the two-element 64-bit member run** (`Selected::Plain`,
+        // `nrel 0`).
+        BodyShape::NonceAddRun(n) => Ok(Selected::Plain(nonce_add_run_text(n, mode)?)),
+        // **W-XTEA3 — the XTEA round loop** (`Selected::Plain`, `nrel 0`);
+        // admits `/O1` alone, gate in the reader (board #1638).
+        BodyShape::XteaRoundLoop(x) => Ok(Selected::Plain(xtea_round_loop_text(x, mode)?)),
+        // **W-XTEA3 — the framed XTEA block loop**, a framed unit variant.
+        BodyShape::XteaEncryptLoop(x) => {
+            xtea_encrypt_loop_text(x, 0, mode)?;
+            Ok(Selected::XteaEncryptLoop)
+        }
+        // The pointer-walk accumulate loop.
+        BodyShape::PtrWalkLoop(l) => Ok(Selected::Plain(ptr_walk_loop_text(l, mode)?)),
+        // **W-DATA — the static-array scan loop.** Its COMDAT `.data` object is
+        // read off `Function::data_defs` by the obj writer, not decided here.
+        BodyShape::StaticScanLoop(_) => Ok(Selected::Plain(
+            crate::codegen::static_scan_loop::static_scan_loop_emit(func, mode)?,
+        )),
+        // **W-WORDWRAP — the file-scope-global store leaf.** No mode gate: GRID G
+        // measured identical bytes at every optimize mode; `/Od` is refused
+        // upstream by `opt_word_mode`.
+        BodyShape::GlobalStoreLeaf(g) => Ok(Selected::Plain(
+            crate::codegen::global_store_leaf::global_store_leaf_text(g)?,
+        )),
+        // **W-BDNZ — the counted-`for` accumulate loop**, accepts both modes on
+        // a measurement.
+        BodyShape::CountedAccumLoop(_) => Ok(Selected::Plain(
             crate::codegen::counted_accum_loop::counted_accum_loop_emit(func, mode)?,
-        ));
-    }
-    // **W-BLOCKIR — the float array-walk counted loop.** Same placement
-    // argument as the shape above and the same freedom: `func.float_walk_loop`
-    // is set by exactly one parser production, `func.ops` is empty for it, and
-    // no leaf pattern-matcher below can take its body. Board #844's invariant is
-    // unaffected — this shape sets one field and no other.
-    //
-    // Unlike `counted_accum_loop` it takes no `mode`: the reader admits `/O1`
-    // alone, because `/Ox` unrolls the loop four times and emits 688 bytes where
-    // `/O1` emits 48 (`work/w-blockir/probe/ipp_ox.dis.txt`). The mode gate is
-    // in the READER, where the census can see it too (board #1638).
-    if func.float_walk_loop.is_some() {
-        return Ok(Selected::Plain(
+        )),
+        // **W-BLOCKIR — the float array-walk counted loop.** `/O1` alone (reader
+        // gate, board #1638).
+        BodyShape::FloatWalkLoop(_) => Ok(Selected::Plain(
             crate::codegen::float_walk_loop::float_walk_loop_text(func)?,
-        ));
+        )),
+        // The body-parameterized pointer-walk loop — variable-length text, so
+        // the caller must take the length from the returned bytes.
+        BodyShape::PtrWalkChainLoop(l) => Ok(Selected::Plain(ptr_walk_chain_loop_text(l, mode)?)),
+        // The integer divide/modulo leaf — the straight-line chain refuses its
+        // operator outright, so neither can take the other's body.
+        BodyShape::DivModLeaf(d) => Ok(Selected::Plain(div_mod_leaf_text(d, mode)?)),
+        // An empty body: a bare `blr`.
+        BodyShape::EmptyBody => Ok(Selected::Plain(encode_blr().to_vec())),
+        // The FP leaf. Its op vocabulary (`Load`/`Lit`/`FpLit` + `+ - * /`) is
+        // disjoint from the indirect-load and address leaves', which is why it
+        // is safe as its own arm.
+        BodyShape::FloatLeaf(double) => {
+            let (text, consts) = float_leaf_text(func, *double)?;
+            Ok(Selected::Float { text, consts })
+        }
+        // W43 compare/shift/or leaf, and the W6 comparison leaf — each its own
+        // branchless spine. Own arms rather than `Plain` tails: both carry an
+        // empty `ops` stream, so the `Plain` leaf matchers below would return
+        // `None` for them (which is exactly why the old ordered chain reached
+        // their `is_some` checks only after those matchers declined).
+        BodyShape::CmpShiftOr(cso) => Ok(Selected::Plain(cmp_shift_or_text(cso, mode)?)),
+        BodyShape::Compare(cmp) => Ok(Selected::Plain(compare_leaf_text(cmp, mode)?)),
+        // **The no-shape body.** Its `ops` stream is spelled by the leaf
+        // pattern-matchers IN ORDER — the one place a precedence is still
+        // load-bearing, because all three read the same stream — then the
+        // ordinary arithmetic selector, which refuses whatever it cannot lower.
+        BodyShape::Plain => {
+            if let Some(t) = indirect_load_text(func) {
+                return Ok(Selected::Plain(t?));
+            }
+            if let Some(t) = addr_leaf_text(func) {
+                return Ok(Selected::Plain(t?));
+            }
+            if let Some(t) = store_leaf_text(func, mode) {
+                return Ok(Selected::Plain(t?));
+            }
+            Ok(Selected::Plain(select_text(func, mode)?))
+        }
     }
-    // **The body-parameterized pointer-walk loop.** Same placement argument as
-    // the shape above and the same freedom: `func.ptr_walk_chain_loop` is set by
-    // exactly one parser production, `func.ops` is empty for it, and no leaf
-    // pattern-matcher below can take its body. Unlike every shape before it the
-    // text it returns has **no fixed length** — the emitter computes it from the
-    // accumulate's operation list — which is why the caller must keep taking the
-    // length from the returned bytes and never from a constant.
-    if let Some(l) = &func.ptr_walk_chain_loop {
-        return Ok(Selected::Plain(ptr_walk_chain_loop_text(l, mode)?));
-    }
-    // The integer divide/modulo leaf. Ahead of the straight-line chain for the
-    // same reason the loop is: it is a whole-body shape, and the chain below
-    // refuses its operator outright (`straightline.rs`'s `IlOp::Div` arm), so
-    // neither can take a body from the other.
-    if let Some(d) = &func.div_mod_leaf {
-        return Ok(Selected::Plain(div_mod_leaf_text(d, mode)?));
-    }
-    if func.empty_body {
-        return Ok(Selected::Plain(encode_blr().to_vec()));
-    }
-    if let Some(double) = func.float_leaf {
-        let (text, consts) = float_leaf_text(func, double)?;
-        return Ok(Selected::Float { text, consts });
-    }
-    if let Some(t) = indirect_load_text(func) {
-        return Ok(Selected::Plain(t?));
-    }
-    if let Some(t) = addr_leaf_text(func) {
-        return Ok(Selected::Plain(t?));
-    }
-    if let Some(t) = store_leaf_text(func, mode) {
-        return Ok(Selected::Plain(t?));
-    }
-    if let Some(cso) = &func.cmp_shift_or {
-        return Ok(Selected::Plain(cmp_shift_or_text(cso, mode)?));
-    }
-    if let Some(cmp) = &func.compare {
-        return Ok(Selected::Plain(compare_leaf_text(cmp, mode)?));
-    }
-    Ok(Selected::Plain(select_text(func, mode)?))
 }
 
 /// **Diagnostic: would the port accept this one function?** Runs

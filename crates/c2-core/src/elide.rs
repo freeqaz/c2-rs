@@ -429,7 +429,7 @@ impl TuEmptyCallees {
                 // line is neither how the property is maintained nor how it would
                 // be lost.
                 let (seeds, here) = match rows[j].1 {
-                    Reduction::Parsed(f) => (f.empty_body, elidable_step(f)),
+                    Reduction::Parsed(f) => (f.empty_body(), elidable_step(f)),
                     Reduction::NoEffectCall(callee) => (false, Some(callee)),
                     Reduction::NoEffectNothing => (true, None),
                 };
@@ -562,7 +562,7 @@ impl TuEmptyCallees {
 ///
 /// The three conditions, in the order the module docs give them.
 pub fn drops_tail_call(f: &IlFunction, tu: &TuEmptyCallees) -> bool {
-    let Some(callee) = f.tail_call.as_deref() else {
+    let Some(callee) = f.tail_call() else {
         return false;
     };
     // Condition 3 — a caller that materializes a named data symbol is a cell no
@@ -593,12 +593,12 @@ pub fn drops_tail_call(f: &IlFunction, tu: &TuEmptyCallees) -> bool {
 ///   *asserted* away here: an `IlFunction` is a parse result and this is a
 ///   predicate over it, not over the parser's invariants.
 fn elidable_step(f: &IlFunction) -> Option<&str> {
-    if !f.data_syms.is_empty() || f.framed_call.is_some() || f.call_seq.is_some()
-        || f.cond_pair.is_some()
+    if !f.data_syms.is_empty() || f.framed_call().is_some() || f.call_seq().is_some()
+        || f.cond_pair().is_some()
     {
         return None;
     }
-    f.tail_call.as_deref()
+    f.tail_call()
 }
 
 #[cfg(test)]
@@ -615,13 +615,13 @@ mod tests {
 
     fn empty(name: &str) -> IlFunction {
         let mut f = named(name);
-        f.empty_body = true;
+        f.body = c2_il::BodyShape::EmptyBody;
         f
     }
 
     fn tail_caller(name: &str, callee: &str) -> IlFunction {
         let mut f = named(name);
-        f.tail_call = Some(callee.to_string());
+        f.body = c2_il::BodyShape::Tail(callee.to_string());
         f
     }
 
@@ -661,7 +661,7 @@ mod tests {
     #[test]
     fn a_same_tu_non_empty_callee_is_not_elided() {
         let mut g = named("?g@@YAXXZ");
-        g.tail_call = Some("?ext@@YAXXZ".into());
+        g.body = c2_il::BodyShape::Tail("?ext@@YAXXZ".into());
         let funcs = vec![g, tail_caller("?f@@YAXXZ", "?g@@YAXXZ")];
         let tu = TuEmptyCallees::of(&funcs);
         assert_eq!(tu.len(), 0);
@@ -697,7 +697,7 @@ mod tests {
     #[test]
     fn a_name_defined_twice_with_different_bodies_is_refused() {
         let mut g2 = named("?g@@YAXXZ");
-        g2.tail_call = Some("?ext@@YAXXZ".into());
+        g2.body = c2_il::BodyShape::Tail("?ext@@YAXXZ".into());
         let funcs = vec![empty("?g@@YAXXZ"), g2, tail_caller("?f@@YAXXZ", "?g@@YAXXZ")];
         let tu = TuEmptyCallees::of(&funcs);
         assert_eq!(tu.len(), 0);
@@ -774,8 +774,7 @@ mod tests {
             // it is `k5` at d = 3, `k6` at d = 2 and `k7` at d = 1.
             let mut funcs = chain(3);
             let idx = funcs.len() - 1 - stop;
-            funcs[idx].tail_call = Some("?ext@@YAXXZ".into());
-            funcs[idx].empty_body = false;
+            funcs[idx].body = c2_il::BodyShape::Tail("?ext@@YAXXZ".into());
             let tu = TuEmptyCallees::of(&funcs);
             for (k, f) in funcs.iter().enumerate().skip(1) {
                 // Everything strictly deeper than the break still elides;
@@ -903,7 +902,7 @@ mod tests {
     #[test]
     fn a_seq_mid_node_is_refused() {
         let mut g1 = tail_caller("?g1@@YAXXZ", "?h@@YAXXZ");
-        g1.call_seq = Some(c2_il::CallSeq {
+        g1.body = c2_il::BodyShape::Seq(c2_il::CallSeq {
             calls: Vec::new(),
             tail: c2_il::SeqTail::Void,
             saved: Vec::new(),
@@ -981,7 +980,7 @@ mod tests {
         funcs.push(tail_caller("?ext_caller@@YAXXZ", "?nowhere@@YAXXZ"));
         let tu = TuEmptyCallees::of(&funcs);
         for f in &funcs {
-            if f.empty_body {
+            if f.empty_body() {
                 continue;
             }
             assert_eq!(
@@ -1118,7 +1117,7 @@ mod tests {
     #[test]
     fn a_seed_that_disagrees_with_a_parsed_definition_is_refused() {
         let mut live = named("?g@@YAXXZ");
-        live.tail_call = Some("?ext@@YAXXZ".into());
+        live.body = c2_il::BodyShape::Tail("?ext@@YAXXZ".into());
         let caller = tail_caller("?f@@YAXXZ", "?g@@YAXXZ");
         let rows = vec![
             ("?g@@YAXXZ", Reduction::NoEffectNothing),
@@ -1167,7 +1166,7 @@ mod tests {
     fn an_unnamed_definition_admits_nothing() {
         let mut g = func_with(Vec::new(), Vec::new());
         g.mangled_name = String::new();
-        g.empty_body = true;
+        g.body = c2_il::BodyShape::EmptyBody;
         g.data_syms.clear();
         let tu = TuEmptyCallees::of(&[g]);
         assert_eq!(tu.len(), 0);

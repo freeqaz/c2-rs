@@ -584,8 +584,7 @@ mod tests {
     /// spelling of the question may accidentally return a number.
     #[test]
     fn the_counted_loop_charges_an_unrepresentable_number_of_label_slots() {
-        let f = crate::func::IlFunction {
-            counted_accum_loop: Some(CountedAccumLoop {
+        let f = crate::func::IlFunction {            body: crate::func::BodyShape::CountedAccumLoop(CountedAccumLoop {
                 params: vec![0xE3, 0xE4],
                 acc_init: 0,
                 op: CountedAccumOp::Sub,

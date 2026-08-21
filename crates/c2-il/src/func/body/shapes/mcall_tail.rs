@@ -1732,8 +1732,7 @@ mod tests {
         // symbol by missing a shape in this producer, and the failure mode is an
         // obj one symbol short on every positive case at once —
         // `Port=Mismatch @ offset 12`, the COFF header's `NumberOfSymbols`.
-        let fp = crate::func::IlFunction {
-            call_seq: Some(crate::func::CallSeq {
+        let fp = crate::func::IlFunction {            body: crate::func::BodyShape::Seq(crate::func::CallSeq {
                 early: Vec::new(),
                 guard: None,
                 calls: Vec::new(),
@@ -1746,8 +1745,7 @@ mod tests {
         assert!(fp.touches_floating_point(), "the FP value tail is a `_fltused` producer");
         // …and the integer sibling, which emits the identical instruction
         // stream, is not.
-        let int_tail = crate::func::IlFunction {
-            call_seq: Some(crate::func::CallSeq {
+        let int_tail = crate::func::IlFunction {            body: crate::func::BodyShape::Seq(crate::func::CallSeq {
                 early: Vec::new(),
                 guard: None,
                 calls: Vec::new(),

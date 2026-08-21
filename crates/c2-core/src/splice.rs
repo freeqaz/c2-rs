@@ -459,7 +459,7 @@ pub fn splice_callee_why<'a>(
     let callee: &str = match selected {
         // A tail call with a non-empty setup is SPLICE-P's `port_words > 1`
         // stratum: **0 of 953**, with 1,890 of them diverging at word 0.
-        Selected::Tail(setup) if setup.is_empty() => match f.tail_call.as_deref() {
+        Selected::Tail(setup) if setup.is_empty() => match f.tail_call() {
             Some(c) => c,
             None => return Err("S1-tail-without-callee"),
         },
@@ -510,7 +510,7 @@ pub fn splice_callee_why<'a>(
         Selected::MemcpyTail(_) => return Err("S3-memcpy-tail"),
         Selected::XteaEncryptLoop => return Err("S3-xtea-encrypt-loop"),
         Selected::Seq { setups, .. } => {
-            let Some(seq) = f.call_seq.as_ref() else {
+            let Some(seq) = f.call_seq() else {
                 return Err("S1-seq-without-call-seq");
             };
             // **S2.** One call site. SPLICE-N is 0 of 548.
@@ -633,18 +633,18 @@ pub fn splice_callee_why<'a>(
 /// emitter must not depend on the instrument that grades it.
 fn port_callees(f: &IlFunction) -> Vec<&str> {
     let mut v: Vec<&str> = Vec::new();
-    if let Some(c) = f.tail_call.as_deref() {
+    if let Some(c) = f.tail_call() {
         v.push(c);
     }
-    if let Some(fc) = f.framed_call.as_ref() {
+    if let Some(fc) = f.framed_call() {
         v.push(fc.callee.as_str());
     }
-    if let Some(cs) = f.call_seq.as_ref() {
+    if let Some(cs) = f.call_seq() {
         for c in &cs.calls {
             v.push(c.callee.as_str());
         }
     }
-    if let Some(cp) = f.cond_pair.as_ref() {
+    if let Some(cp) = f.cond_pair() {
         v.push(cp.then_arm.callee.as_str());
         v.push(cp.else_arm.callee.as_str());
     }
@@ -939,7 +939,7 @@ mod tests {
         let mut f = func_with(vec![0xE309], Vec::new());
         f.mangled_name = name.into();
         f.data_syms.clear();
-        f.tail_call = Some(callee.into());
+        f.body = c2_il::BodyShape::Tail(callee.into());
         f
     }
 
@@ -1036,7 +1036,7 @@ mod tests {
         let mut g = leaf("?g@@YAXXZ");
         g.ops = Vec::new();
         g.params = Vec::new();
-        g.empty_body = true;
+        g.body = c2_il::BodyShape::EmptyBody;
         let mut caller = tail("?f@@YAXXZ", "?g@@YAXXZ");
         caller.params = Vec::new();
         let funcs = vec![g, caller];
@@ -1118,7 +1118,7 @@ mod tests {
         let mut h = leaf("?h@@YAXXZ");
         h.ops = Vec::new();
         h.params = Vec::new();
-        h.empty_body = true;
+        h.body = c2_il::BodyShape::EmptyBody;
         let mut caller = tail("?f@@YAXXZ", "?g@@YAXXZ");
         caller.params = Vec::new();
         // `?g` is REFUSED by the parser — there is no `IlFunction` for it at
@@ -1179,7 +1179,7 @@ mod tests {
         let mut h = leaf("?h@@YAXXZ");
         h.ops = Vec::new();
         h.params = Vec::new();
-        h.empty_body = true;
+        h.body = c2_il::BodyShape::EmptyBody;
         let tu = TuContext::of_rows(vec![
             ("?h@@YAXXZ", Some(Reduction::Parsed(&h)), None),
             ("?g@@YAXXZ", None, None),
@@ -1212,7 +1212,7 @@ mod tests {
         let mut h = leaf("?h@@YAXXZ");
         h.ops = Vec::new();
         h.params = Vec::new();
-        h.empty_body = true;
+        h.body = c2_il::BodyShape::EmptyBody;
         let g = leaf("?g@@YAHH@Z"); // parses, non-empty: a row, never in E
         let tu = TuContext::of_rows(vec![
             ("?h@@YAXXZ", Some(Reduction::Parsed(&h)), None),
@@ -1237,7 +1237,7 @@ mod tests {
         let mut caller = func_with(Vec::new(), Vec::new());
         caller.mangled_name = "?f@@YAXXZ".into();
         caller.data_syms.clear();
-        caller.call_seq = Some(CallSeq {
+        caller.body = c2_il::BodyShape::Seq(CallSeq {
             calls: vec![
                 SeqCall {
                     callee: "?g@@YAXXZ".into(),
@@ -1261,8 +1261,7 @@ mod tests {
         let mut g = leaf("?g@@YAXXZ");
         g.params = Vec::new();
         g.ops = Vec::new();
-        g.empty_body = false;
-        g.compare = None;
+        g.body = c2_il::BodyShape::Plain;
         let funcs = vec![g, caller];
         let tu = ctx(&funcs);
         if let Ok(sel) = select_function(&funcs[1], OptMode::O1) {
@@ -1282,7 +1281,7 @@ mod tests {
         let mut caller = func_with(vec![0xE309], Vec::new());
         caller.mangled_name = "?f@@YAHH@Z".into();
         caller.data_syms.clear();
-        caller.call_seq = Some(CallSeq {
+        caller.body = c2_il::BodyShape::Seq(CallSeq {
             calls: vec![SeqCall {
                 callee: "?g@@YAHH@Z".into(),
                 arg_ops: Vec::new(),

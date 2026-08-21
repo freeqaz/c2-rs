@@ -558,14 +558,12 @@ pub(crate) fn body_of<'a>(
         // still be right.
         codegen::Selected::CtorForwardCall => {
             let c = f
-                .ctor_forward_call
-                .as_ref()
+                .ctor_forward_call()
                 .expect("CtorForwardCall implies ctor_forward_call");
             let footprint = tu
                 .definition(&c.callee)
                 .and_then(|(g, _)| {
-                    g.fp_store_diamond
-                        .as_ref()
+                    g.fp_store_diamond()
                         .map(|_| codegen::fp_store_diamond::GPR_FOOTPRINT)
                 })
                 .ok_or_else(|| {
@@ -595,7 +593,7 @@ pub(crate) fn body_of<'a>(
             )
         }
         codegen::Selected::Framed { setup } => {
-            let fc = f.framed_call.as_ref().expect("Framed implies framed_call");
+            let fc = f.framed_call().expect("Framed implies framed_call");
             let body =
                 codegen::framed_call_text(&setup, fc.add_k, 0, codegen::FrameLayout::default())
                     .map_err(ComdatDecline::Shape)?;
@@ -621,8 +619,7 @@ pub(crate) fn body_of<'a>(
         // `/Gy`, which is what its four `bl` displacements are relative to.
         codegen::Selected::GuardChainSharedTail => {
             let g = f
-                .guard_chain_shared_tail
-                .as_ref()
+                .guard_chain_shared_tail()
                 .expect("GuardChainSharedTail implies guard_chain_shared_tail");
             let body =
                 codegen::guard_chain_shared_tail::guard_chain_shared_tail_text(g, 0, mode)
@@ -653,8 +650,7 @@ pub(crate) fn body_of<'a>(
         // here — which is what lets the two hoist distances differ.
         codegen::Selected::AllocInitOrFail => {
             let a = f
-                .alloc_init_or_fail
-                .as_ref()
+                .alloc_init_or_fail()
                 .expect("AllocInitOrFail implies alloc_init_or_fail");
             let body = codegen::alloc_init_or_fail::alloc_init_or_fail_text(a, 0, mode)
                 .map_err(ComdatDecline::Shape)?;
@@ -674,8 +670,7 @@ pub(crate) fn body_of<'a>(
         // is what lets one of them be a `lwz` displacement.
         codegen::Selected::OsfHandleGuard => {
             let g = f
-                .osf_handle_guard
-                .as_ref()
+                .osf_handle_guard()
                 .expect("OsfHandleGuard implies osf_handle_guard");
             let body = codegen::osf_handle_guard::osf_handle_guard_text(g, 0, mode)
                 .map_err(ComdatDecline::Shape)?;
@@ -696,8 +691,7 @@ pub(crate) fn body_of<'a>(
         // only class in this match whose callee is not an `IlFunction` field.
         codegen::Selected::GuardRetChain => {
             let g = f
-                .guard_ret_chain
-                .as_ref()
+                .guard_ret_chain()
                 .expect("GuardRetChain implies guard_ret_chain");
             let body = codegen::guard_ret_chain::guard_ret_chain_text(g, 0, mode)
                 .map_err(ComdatDecline::Shape)?;
@@ -744,8 +738,7 @@ pub(crate) fn body_of<'a>(
         // fence here to see.
         codegen::Selected::CloseCallChain => {
             let c = f
-                .close_call_chain
-                .as_ref()
+                .close_call_chain()
                 .expect("CloseCallChain implies close_call_chain");
             let body = codegen::close_call_chain::close_call_chain_text(c, 0, mode)
                 .map_err(ComdatDecline::Shape)?;
@@ -768,8 +761,7 @@ pub(crate) fn body_of<'a>(
         // callee whose symbol the writer already has.
         codegen::Selected::XteaEncryptLoop => {
             let g = f
-                .xtea_encrypt_loop
-                .as_ref()
+                .xtea_encrypt_loop()
                 .expect("XteaEncryptLoop implies xtea_encrypt_loop");
             let body = codegen::xtea_encrypt_loop::xtea_encrypt_loop_text(g, 0, mode)
                 .map_err(ComdatDecline::Shape)?;
@@ -804,8 +796,7 @@ pub(crate) fn body_of<'a>(
         // after the `$T` label instead of in the callee region.
         codegen::Selected::XlrcCreateGuard => {
             let g = f
-                .xlrc_create_guard
-                .as_ref()
+                .xlrc_create_guard()
                 .expect("XlrcCreateGuard implies xlrc_create_guard");
             let body = codegen::xlrc_create_guard::xlrc_create_guard_text(g, 0, mode)
                 .map_err(ComdatDecline::Shape)?;
@@ -843,7 +834,7 @@ pub(crate) fn body_of<'a>(
         // callee region is EMPTY, which is a symbol-table cell W-XLR's
         // two-callee witness does not cover.
         codegen::Selected::JsonUtf8Copy => {
-            let g = f.json_utf8_copy.as_ref().expect("JsonUtf8Copy implies json_utf8_copy");
+            let g = f.json_utf8_copy().expect("JsonUtf8Copy implies json_utf8_copy");
             let body = codegen::json_utf8_copy::json_utf8_copy_text(g, 0, mode)
                 .map_err(ComdatDecline::Shape)?;
             frame = Some(coff::Frame {
@@ -869,7 +860,7 @@ pub(crate) fn body_of<'a>(
             (body.text, calls)
         }
         codegen::Selected::IfCallJoin => {
-            let j = f.if_call_join.as_ref().expect("IfCallJoin implies if_call_join");
+            let j = f.if_call_join().expect("IfCallJoin implies if_call_join");
             let body = codegen::if_call_join::if_call_join_text(j, 0, mode)
                 .map_err(ComdatDecline::Shape)?;
             frame = Some(coff::Frame {
@@ -883,7 +874,7 @@ pub(crate) fn body_of<'a>(
             (body.text, calls)
         }
         codegen::Selected::Seq { setups, tail, park } => {
-            let seq = f.call_seq.as_ref().expect("Seq implies call_seq");
+            let seq = f.call_seq().expect("Seq implies call_seq");
             // **W10** — the guard, when there is one. Resolved through
             // `seq_guard_emit` on both emission paths, so the packed and COMDAT
             // writers cannot disagree about a branch sense.
@@ -958,7 +949,7 @@ pub(crate) fn body_of<'a>(
         // `/Gy` the function starts at offset 0 of its own COMDAT, so each tail
         // branch's word is `-(its offset within this text)`.
         codegen::Selected::CondPair(parts) => {
-            let cp = f.cond_pair.as_ref().expect("CondPair implies cond_pair");
+            let cp = f.cond_pair().expect("CondPair implies cond_pair");
             let mut t = parts.text;
             let mut calls = Vec::with_capacity(2);
             for (off, callee) in parts
@@ -1001,7 +992,7 @@ pub(crate) fn body_of<'a>(
         codegen::Selected::Tail(mut t) => {
             let branch_off = t.len() as u32;
             t.extend_from_slice(&codegen::encode_tail_branch(branch_off));
-            let callee = f.tail_call.as_deref().expect("Tail implies tail_call");
+            let callee = f.tail_call().expect("Tail implies tail_call");
             (
                 t,
                 vec![coff::Call {
@@ -1282,7 +1273,7 @@ mod inlfence_tests {
         let mut f = func_with(vec![0xE309], vec![IlOp::Load(0xE309), IlOp::Lit(1), IlOp::Add]);
         f.mangled_name = name.into();
         f.data_syms.clear();
-        f.tail_call = Some(callee.into());
+        f.body = c2_il::BodyShape::Tail(callee.into());
         f
     }
 
@@ -1390,7 +1381,7 @@ mod inlfence_tests {
         let mut caller = func_with(vec![0xE309], Vec::new());
         caller.mangled_name = "?f@@YAHH@Z".into();
         caller.data_syms.clear();
-        caller.tail_call = Some("?g@@YAHH@Z".into());
+        caller.body = c2_il::BodyShape::Tail("?g@@YAHH@Z".into());
         let funcs = vec![leaf("?g@@YAHH@Z"), caller];
         let body = compose(&funcs, 1).expect("the splice fires and there is no call left");
         assert!(

@@ -177,7 +177,7 @@ pub(crate) fn cmd_census(rest: &[String]) -> ExitCode {
             if let Ok(func) = gate {
                 dtor_callees.push((
                     f.name.clone().unwrap_or_else(|| format!("#{}", f.index)),
-                    func.tail_call.clone().unwrap_or_default(),
+                    func.tail_call().unwrap_or_default().to_string(),
                 ));
             }
         }
@@ -230,10 +230,10 @@ pub(crate) fn cmd_census(rest: &[String]) -> ExitCode {
                 println!("          no_effect_nothing=true (SEEDS)");
             }
             if let Ok(func) = gate {
-                if let Some(t) = &func.tail_call {
+                if let Some(t) = func.tail_call() {
                     println!("          tail_call={t}");
                 }
-                if func.empty_body {
+                if func.empty_body() {
                     println!("          empty_body=true");
                 }
             }

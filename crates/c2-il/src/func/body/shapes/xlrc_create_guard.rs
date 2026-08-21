@@ -649,7 +649,7 @@ mod tests {
 
     fn xlrcimpl() -> IlFunction {
         IlFunction {
-            xlrc_create_guard: Some(XlrcCreateGuardFn {
+            params: vec![0x09fc, 0x09fd, 0x09fe, 0x09ff],            body: crate::func::BodyShape::XlrcCreateGuard(XlrcCreateGuardFn {
                 params: vec![0x09fc, 0x09fd, 0x09fe, 0x09ff],
                 create: "?CreateClient@CXLrcImpl@@YAPAVCXLrcClient@@PAI@Z".to_string(),
                 attach: "CXLrcClient_CreateTransport".to_string(),
@@ -659,7 +659,6 @@ mod tests {
                 k_hi: 0x8007_10DDu32 as i32,
                 k_fail: 0x8000_4005u32 as i32,
             }),
-            params: vec![0x09fc, 0x09fd, 0x09fe, 0x09ff],
             ..IlFunction::base("CXLrcImpl_CreateClientWithTransport", &None)
         }
     }

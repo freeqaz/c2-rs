@@ -162,8 +162,7 @@ fn base_diff(out: &mut Vec<u8>, rd: u8, other: u8, walker: u8) {
 /// the positional formal→register map lives in exactly one expression.
 pub(crate) fn float_walk_loop_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
     let l = func
-        .float_walk_loop
-        .as_ref()
+        .float_walk_loop()
         .ok_or(BackendError::NotImplemented("not a float array-walk loop".into()))?;
     let reg = |idx: usize| -> Result<u8, BackendError> {
         let r = ARG0 as usize + idx;
@@ -270,7 +269,7 @@ mod tests {
     fn f(shape: FloatWalkShape, op: FloatWalkOp, walker: usize, others: Vec<usize>) -> IlFunction {
         let n = if shape == FloatWalkShape::Binary { 4 } else { 3 };
         let mut fun = crate::codegen::testutil::func_with((0..n as u32).collect(), Vec::new());
-        fun.float_walk_loop = Some(FloatWalkLoop {
+        fun.body = c2_il::BodyShape::FloatWalkLoop(FloatWalkLoop {
             params: (0..n as u32).collect(),
             shape,
             op,

@@ -584,7 +584,7 @@ fn scan_one(
             //     to catch, because these bodies rarely reach an emitter.
             if f.verdict.key().starts_with("empty-dtor") {
                 if let Ok(func) = gate {
-                    let k = match &func.tail_call {
+                    let k = match func.tail_call() {
                         Some(c) => dtor_callee_class(c),
                         None => "none",
                     };

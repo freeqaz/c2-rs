@@ -762,16 +762,15 @@ mod tests {
             FloatWalkShape::Binary,
         ] {
             for op in [FloatWalkOp::Add, FloatWalkOp::Mul] {
-                let f = crate::func::IlFunction {
-                    float_walk_loop: Some(FloatWalkLoop {
+                let f = crate::func::IlFunction {            body: crate::func::BodyShape::FloatWalkLoop(FloatWalkLoop {
                         params: vec![0xE3, 0xE4, 0xE5],
                         shape,
                         op,
                         walker: 1,
                         others: vec![2],
                     }),
-                    ..crate::func::IlFunction::base("?Add_InPlace@IPP@@YAXIPBMPAM@Z", &None)
-                };
+            ..crate::func::IlFunction::base("?Add_InPlace@IPP@@YAXIPBMPAM@Z", &None)
+        };
                 assert_eq!(f.label_lead(), 2, "{shape:?}/{op:?}: the objs read a lead of 3 and one of those slots is the TU's _fltused");
                 assert_eq!(f.label_slots(false), Some(3), "{shape:?}/{op:?}");
                 assert_eq!(f.label_slots(true), Some(3), "{shape:?}/{op:?}");

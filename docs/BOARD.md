@@ -4300,10 +4300,31 @@ not re-minted. Numbers taken from the pointer below, which was correct at
 
 ### `#3342`–`#3344` are `w-refrev`'s and all three are spent above.
 
-### **THE NEXT FREE NUMBER IS `#3345`.**
+## `w-w8sum` — 2026-08-21, block **`#3345`**–**`#3346`**, both spent here
 
-`#3312`–`#3321` (`w-c2map3`, `w-cfgclass`), `#3337`–`#3341` (`w-warranty`) and
-`#3342`–`#3344` (`w-refrev`) are merged and spent above. The line at the `w-suitecost` block still reading
+Construct rung, rung
+[`rungs/2026-08-21-w8sum.md`](rungs/2026-08-21-w8sum.md). `Fixtures: none`.
+`Census: +0`. Required-zero byte delta, verified as a line-for-line identity diff
+of the 18-lane gate counts against base `c19d07357` (merge `w-ir0`).
+`docs/ARCHITECTURE_PROPOSAL_2026-08-20.md` §5 step 2. Numbers below are read from
+`work/gate_counts_base.txt`, `/tmp/w8_gate.log` and `/tmp/w8_partest.log`. Not
+on `#3337` (the block the coordinator named at dispatch): this lane's base sits
+on top of `w-warranty` (#3337-#3341) and `w-refrev` (#3342-#3344), which had
+already spent through #3344 — so the live next-free was #3345, flagged back at
+report.
+
+| row | claim | state | evidence | consequence |
+|---|---|---|---|---|
+| **3345**<sub>w-w8sum</sub> | **BOARD #844's "34 MUTUALLY-EXCLUSIVE `Option<Shape>` FIELDS DISPATCHED BY AN ORDERED `is_some` CHAIN" IS RETIRED INTO A SUM TYPE — AND THE "EXACTLY ONE IS `Some`" INVARIANT IS NOW THE `enum`, NOT A CONVENTION** | **BUILT at a required-zero byte delta.** The 34 `Option<Shape>` fields on `IlFunction` collapse to one `pub body: BodyShape` (**35 variants**, one per retired field plus `Plain`/`EmptyBody`); `select_function` is a **total `match &func.body`**, 35 arms, exhaustive, with the `store_run_call::gate_carrier` backstop retained; the ordered `if func.X.is_some()` chain is deleted and `cfg_class::lowering_of` (the mirror precedence helper) converted the same way. #844's defect was that a body setting two fields was half-emitted — a store run without its `bl`, or a `bl` without its run — and #232 is the 255-commit cost of exactly that reading `mismatch 0`. A value is now exactly one variant, so that half-emit is **unspellable by construction**, and the exhaustive `match` means a 36th shape cannot be silently unhandled the way a forgotten `is_some` branch could | 18-lane gate table **diff = 0 lines** over all 23 count-bearing rows, base `c19d07357` vs tip `840ceb1ed`: 18/18 PASS, 6,948 verdicts, sweep 19,460, cross 90,424, debug 2,423, `mismatch 0` everywhere, `hatch-red` REFUSED both ends (HATCH-STALE #1389); workload `match 26 / mismatch 0 / vocab-gap 844` unmoved; `GATE_EXIT=0`, graded tree `fbc1dbc92e5e` · partest **1,761 / 0 / 1 / 51 targets** under `C2RS_REQUIRE_TOOLCHAIN=1`, **0 `SKIP: toolchain absent`** · net **−438 lines / 35 files** · `git diff 840ceb1ed HEAD -- crates fixtures scripts` = 0 | rungs/2026-08-21-w8sum.md §1, §4 · `crates/c2-il/src/func/mod.rs` · `crates/c2-core/src/codegen/select.rs` · `crates/c2-core/src/codegen/cfg_class.rs` · **#844** · **#232** | **THE ONE SURVIVING PRECEDENCE IS `Plain`'s FOUR-MATCHER LEAF ORDER, AND IT IS THE ONLY ORDER THAT WAS EVER LOAD-BEARING.** The 34 fields were mutually exclusive at the parser, so the old chain's *order over them* was incidental — the enum makes that a type. What is real is the order **inside** `Plain` (`indirect_load_text` → `addr_leaf_text` → `store_leaf_text` → `select_text`), because all four read the same `func.ops` stream; that is transcribed verbatim. `Compare`/`CmpShiftOr`/`FloatLeaf`/`EmptyBody` became peer arms safely: each carries an empty-or-disjoint `ops` stream, which is why the old chain only reached their `is_some` checks after the `Plain` matchers declined |
+| **3346**<sub>w-w8sum</sub> | **UNLIKE #3336 (`ir0`), THIS CONSTRUCT RUNG'S RE-EXPRESSION IS ON THE LIVE PRODUCTION PATH — SO ITS BYTE DELTA IS A REAL RE-EXPRESSION CHECK, NOT A TAUTOLOGY ON AN ADDITIVE TREE** | **NAMED and satisfied.** #3336 found that `ir0`'s required-zero byte delta held *by construction* because it shipped a tree with **no production caller** (its switch was reverted), so the identity diff was a tautology and the construct-rung grading instrument — *"re-express already-byte-exact classes THROUGH it"* — was disarmed. This lane is the other case: `select_function` is the **live dispatcher** the port runs and `cfg_class::lowering_of` a live grading helper, and both are routed through `BodyShape` on the path that emits. The whole byte-exact class is re-expressed through the new type, so the zero delta is evidence the re-expression preserved output, exactly what the definition asks — not evidence that nothing was wired up | the byte-exact class routes through `select_function` on every emit; the gate re-grades all 386 fixtures × 18 lanes through it and the count table is unmoved (#3345's evidence). The reverted-switch failure mode #3336 documents **cannot** apply: the dispatcher has no incumbent left to fall back to — deleting the `is_some` chain means the `match` is the only path, and a missed re-expression would move a count, not hide behind an unused layer | rungs/2026-08-21-w8sum.md §3 · `docs/rungs/README.md` § Lane kinds · **#3336** | **A CONSTRUCT RUNG'S ZERO BYTE DELTA IS ONLY EVIDENCE WHEN THE RE-EXPRESSION IS ON A PATH THE GATE EXERCISES.** #3336's caution — an additive tree passes the criterion vacuously — is real and this lane is its complement: the check is meaningful here *because* there is no un-exercised layer and no incumbent fallback. The transferable rule is that a construct rung must land its re-expression on the live path in the SAME tree it is graded on, or the byte delta is silent about whether the machinery is used at all |
+
+### `#3345`–`#3346` are `w-w8sum`'s and both are spent above.
+
+### **THE NEXT FREE NUMBER IS `#3347`.**
+
+`#3312`–`#3321` (`w-c2map3`, `w-cfgclass`), `#3337`–`#3341` (`w-warranty`),
+`#3342`–`#3344` (`w-refrev`) and `#3345`–`#3346` (`w-w8sum`) are spent above. The
+line at the `w-suitecost` block still reading
 *"THE NEXT FREE NUMBER IS `#3312`"* is that lane's own end-of-block pointer,
 correct when written and superseded by this one — the pointer is per-block and
 the LAST one in the file is the live one.

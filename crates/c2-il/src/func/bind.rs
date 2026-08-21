@@ -2064,14 +2064,14 @@ mod tests {
         let defined: std::collections::BTreeSet<String> =
             ["?wif_local_leaf@@YAHH@Z".to_string()].into_iter().collect();
         let mut f = crate::func::IlFunction::base("?caller@@YAHH@Z", &None);
-        f.tail_call = Some("?wif_local_leaf_x@@YAHH@Z".to_string());
+        f.body = crate::func::BodyShape::Tail("?wif_local_leaf_x@@YAHH@Z".to_string());
         assert_eq!(
             callee_defined_here(&f, &defined),
             None,
             "a callee of which a defined name is a strict PREFIX is a different \
              symbol and c2 has no body for it"
         );
-        f.tail_call = Some("?wif_local_leaf@@YAHH@Z".to_string());
+        f.body = crate::func::BodyShape::Tail("?wif_local_leaf@@YAHH@Z".to_string());
         assert_eq!(
             callee_defined_here(&f, &defined),
             Some("?wif_local_leaf@@YAHH@Z"),
@@ -2091,7 +2091,7 @@ mod tests {
         let defined: std::collections::BTreeSet<String> =
             ["?g@@YAHH@Z".to_string()].into_iter().collect();
         let mut f = crate::func::IlFunction::base("?caller@@YAHH@Z", &None);
-        f.framed_call = Some(crate::func::FramedCall {
+        f.body = crate::func::BodyShape::Framed(crate::func::FramedCall {
             callee: "?g@@YAHH@Z".to_string(),
             add_k: 0,
         });
@@ -2106,7 +2106,7 @@ mod tests {
     fn an_empty_defined_set_fences_nothing_and_that_is_the_open_direction() {
         let none = std::collections::BTreeSet::new();
         let mut f = crate::func::IlFunction::base("?caller@@YAHH@Z", &None);
-        f.tail_call = Some("?g@@YAHH@Z".to_string());
+        f.body = crate::func::BodyShape::Tail("?g@@YAHH@Z".to_string());
         assert_eq!(callee_defined_here(&f, &none), None);
     }
 

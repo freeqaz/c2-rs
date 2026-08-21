@@ -1,4 +1,5 @@
 use super::body::{self, parse_segment, BodyShape};
+use super::BodyShape as IlBody;
 use super::bind::Bindings;
 use super::gl::drectve_is_boilerplate;
 use super::readers::{contains_subslice, find_subslice, memchr_byte};
@@ -852,7 +853,7 @@ pub(crate) fn shape_to_function(
                 let data_def = resolve_data_def(l.array_tok)?;
                 Some(IlFunction {
                     params: l.params.clone(),
-                    static_scan_loop: Some(l),
+                    body: IlBody::StaticScanLoop(l),
                     data_def: Some(data_def),
                     ..IlFunction::base(name, src)
                 })
@@ -872,7 +873,7 @@ pub(crate) fn shape_to_function(
                 let data_def = resolve_bss_def(dest_tok)?;
                 Some(IlFunction {
                     params,
-                    global_store_leaf: Some(crate::func::GlobalStoreLeaf { width }),
+                    body: IlBody::GlobalStoreLeaf(crate::func::GlobalStoreLeaf { width }),
                     data_def: Some(data_def),
                     ..IlFunction::base(name, src)
                 })
@@ -884,7 +885,7 @@ pub(crate) fn shape_to_function(
             // reason — the loop's only operands are its own two formals.
             BodyShape::CountedAccumLoop(l) => Some(IlFunction {
                 params: l.params.clone(),
-                counted_accum_loop: Some(l),
+                body: IlBody::CountedAccumLoop(l),
                 ..IlFunction::base(name, src)
             }),
             // **W-BLOCKIR — the float array-walk counted loop.** Nothing to
@@ -895,7 +896,7 @@ pub(crate) fn shape_to_function(
             // that statement checked against the oracle.
             BodyShape::FloatWalkLoop(l) => Some(IlFunction {
                 params: l.params.clone(),
-                float_walk_loop: Some(l),
+                body: IlBody::FloatWalkLoop(l),
                 ..IlFunction::base(name, src)
             }),
             // **W-XTEA2 — the whole-body `memcpy` tail branch.** Nothing to
@@ -907,7 +908,7 @@ pub(crate) fn shape_to_function(
             // no `.gl` run at all (`work/w-xtea2/ref/xtea.dump`).
             BodyShape::MemcpyTail { params, dst_off, len } => Some(IlFunction {
                 params,
-                memcpy_tail: Some(crate::func::MemcpyTail { dst_off, len }),
+                body: IlBody::MemcpyTail(crate::func::MemcpyTail { dst_off, len }),
                 ..IlFunction::base(name, src)
             }),
             // **W-XTEA3 — the two-element 64-bit member run.** Nothing to
@@ -917,7 +918,7 @@ pub(crate) fn shape_to_function(
             // against the oracle (`work/w-xtea3/ref/xtea.dump`, `.text #7`).
             BodyShape::NonceAddRun { params, dst_off, src_off } => Some(IlFunction {
                 params,
-                nonce_add_run: Some(crate::func::NonceAddRun { dst_off, src_off }),
+                body: IlBody::NonceAddRun(crate::func::NonceAddRun { dst_off, src_off }),
                 ..IlFunction::base(name, src)
             }),
             // **W-XTEA3 — the XTEA round loop.** Nothing to resolve: the class
@@ -927,7 +928,7 @@ pub(crate) fn shape_to_function(
             // (`work/w-xtea3/ref/xtea.dump`, `.text #8`).
             BodyShape::XteaRoundLoop { params, trips, delta, swapped } => Some(IlFunction {
                 params,
-                xtea_round_loop: Some(crate::func::XteaRoundLoop { trips, delta, swapped }),
+                body: IlBody::XteaRoundLoop(crate::func::XteaRoundLoop { trips, delta, swapped }),
                 ..IlFunction::base(name, src)
             }),
             // **W-XTEA3 — the framed XTEA block loop.** ONE name to resolve, and
@@ -939,7 +940,7 @@ pub(crate) fn shape_to_function(
                 let callee = resolve(callee_tok)?;
                 Some(IlFunction {
                     params,
-                    xtea_encrypt_loop: Some(crate::func::XteaEncryptLoop {
+                    body: IlBody::XteaEncryptLoop(crate::func::XteaEncryptLoop {
                         callee,
                         key_off,
                         nonce_off,
@@ -958,7 +959,7 @@ pub(crate) fn shape_to_function(
             // against an `.rdata` COMDAT this obj also defines.
             BodyShape::FpStoreDiamond(d) => Some(IlFunction {
                 params: d.params.clone(),
-                fp_store_diamond: Some(d),
+                body: IlBody::FpStoreDiamond(d),
                 ..IlFunction::base(name, src)
             }),
             // **W-BIQUAD — the forwarding constructor.** The one name it emits
@@ -970,7 +971,7 @@ pub(crate) fn shape_to_function(
                 let callee = resolve(callee_tok)?;
                 Some(IlFunction {
                     params: params.clone(),
-                    ctor_forward_call: Some(crate::func::CtorForwardCall {
+                    body: IlBody::CtorForwardCall(crate::func::CtorForwardCall {
                         params,
                         callee,
                         live_args,
@@ -1051,7 +1052,7 @@ pub(crate) fn shape_to_function(
                 }
                 Some(IlFunction {
                     params,
-                    call_seq: Some(CallSeq {
+                    body: IlBody::Seq(CallSeq {
                         calls: vec![SeqCall {
                             callee: resolve(callee_tok)?,
                             // **Empty by the production's own gate** (#1129):
@@ -1141,7 +1142,7 @@ pub(crate) fn shape_to_function(
                 match callee_tok {
                     Some(tok) => Some(IlFunction {
                         params,
-                        call_seq: Some(CallSeq {
+                        body: IlBody::Seq(CallSeq {
                             calls: vec![SeqCall {
                                 callee: resolve(tok)?,
                                 arg_ops: Vec::new(),
@@ -1191,7 +1192,7 @@ pub(crate) fn shape_to_function(
                 };
                 Some(IlFunction {
                     params: pair.params,
-                    cond_pair: Some(crate::func::CondTailPair {
+                    body: IlBody::CondPair(crate::func::CondTailPair {
                         cmp_param: pair.cmp_param,
                         rel: pair.rel,
                         signed: pair.signed,
@@ -1209,7 +1210,7 @@ pub(crate) fn shape_to_function(
             // a mis-emit, not a gap.
             BodyShape::VoidTailCall { callee_tok } => {
                 Some(IlFunction {
-                    tail_call: Some(resolve(callee_tok)?),
+                    body: IlBody::Tail(resolve(callee_tok)?),
                     ..IlFunction::base(name, src)
                 })
             }
@@ -1238,7 +1239,7 @@ pub(crate) fn shape_to_function(
                 Some(IlFunction {
                     params,
                     ops,
-                    tail_call: Some(resolve(callee_tok)?),
+                    body: IlBody::Tail(resolve(callee_tok)?),
                     // The `/EHsc` label surcharge. It changes no byte of this
                     // function's own `.text` — it changes every framed function
                     // BEHIND it in the same TU.
@@ -1263,7 +1264,7 @@ pub(crate) fn shape_to_function(
                 let this_index = params.iter().position(|&t| t == this_tok)?;
                 Some(IlFunction {
                     params,
-                    call_seq: Some(CallSeq {
+                    body: IlBody::Seq(CallSeq {
                         calls: vec![SeqCall {
                             callee: resolve(callee_tok)?,
                             arg_ops: Vec::new(),
@@ -1297,7 +1298,7 @@ pub(crate) fn shape_to_function(
                 Some(IlFunction {
                     params,
                     ops: arg_ops,
-                    tail_call: Some(resolve(callee_tok)?),
+                    body: IlBody::Tail(resolve(callee_tok)?),
                     ..IlFunction::base(name, src)
                 })
             }
@@ -1308,8 +1309,10 @@ pub(crate) fn shape_to_function(
             BodyShape::FpTailCall { params, arg_tok, narrowing, callee_tok } => {
                 Some(IlFunction {
                     params,
-                    tail_call: Some(resolve(callee_tok)?),
-                    fp_tail: Some(FpTail { arg: arg_tok, narrowing }),
+                    body: IlBody::FpTail {
+                        callee: resolve(callee_tok)?,
+                        fp: FpTail { arg: arg_tok, narrowing },
+                    },
                     ..IlFunction::base(name, src)
                 })
             }
@@ -1323,8 +1326,10 @@ pub(crate) fn shape_to_function(
             BodyShape::FpMultiArgTailCall { params, arg_sources, callee_tok } => {
                 Some(IlFunction {
                     params,
-                    tail_call: Some(resolve(callee_tok)?),
-                    fp_arg_sources: Some(arg_sources),
+                    body: IlBody::FpMultiTail {
+                        callee: resolve(callee_tok)?,
+                        sources: arg_sources,
+                    },
                     ..IlFunction::base(name, src)
                 })
             }
@@ -1337,8 +1342,10 @@ pub(crate) fn shape_to_function(
                 let (arg_sources, data_syms) = slot_args_resolved(arg_sources, resolve_data)?;
                 Some(IlFunction {
                     params,
-                    tail_call: Some(resolve(callee_tok)?),
-                    arg_sources: Some(arg_sources),
+                    body: IlBody::MultiTail {
+                        callee: resolve(callee_tok)?,
+                        slots: arg_sources,
+                    },
                     data_syms,
                     ..IlFunction::base(name, src)
                 })
@@ -1352,7 +1359,7 @@ pub(crate) fn shape_to_function(
                 Some(IlFunction {
                     params,
                     ops: arg_ops,
-                    framed_call: Some(FramedCall {
+                    body: IlBody::Framed(FramedCall {
                         callee: resolve(callee_tok)?,
                         add_k,
                     }),
@@ -1363,7 +1370,7 @@ pub(crate) fn shape_to_function(
             // spine from the decoded relation instead.
             BodyShape::EmptyBody => {
                 Some(IlFunction {
-                    empty_body: true,
+                    body: IlBody::EmptyBody,
                     ..IlFunction::base(name, src)
                 })
             }
@@ -1371,14 +1378,14 @@ pub(crate) fn shape_to_function(
                 Some(IlFunction {
                     params,
                     ops,
-                    float_leaf: Some(double),
+                    body: IlBody::FloatLeaf(double),
                     ..IlFunction::base(name, src)
                 })
             }
             BodyShape::Compare(cmp) => {
                 Some(IlFunction {
                     params: vec![cmp.param],
-                    compare: Some(cmp),
+                    body: IlBody::Compare(cmp),
                     ..IlFunction::base(name, src)
                 })
             }
@@ -1388,7 +1395,7 @@ pub(crate) fn shape_to_function(
             BodyShape::PtrWalkModLoop(l) => {
                 Some(IlFunction {
                     params: l.params.clone(),
-                    ptr_walk_loop: Some(l),
+                    body: IlBody::PtrWalkLoop(l),
                     ..IlFunction::base(name, src)
                 })
             }
@@ -1399,7 +1406,7 @@ pub(crate) fn shape_to_function(
             BodyShape::PoolFreeList(g) => {
                 Some(IlFunction {
                     params: g.params.clone(),
-                    pool_free_list: Some(g),
+                    body: IlBody::PoolFreeList(g),
                     ..IlFunction::base(name, src)
                 })
             }
@@ -1408,7 +1415,7 @@ pub(crate) fn shape_to_function(
             BodyShape::PoolCtorChain(c) => {
                 Some(IlFunction {
                     params: c.params.clone(),
-                    pool_ctor_chain: Some(c),
+                    body: IlBody::PoolCtorChain(c),
                     ..IlFunction::base(name, src)
                 })
             }
@@ -1422,7 +1429,7 @@ pub(crate) fn shape_to_function(
             BodyShape::IfCallJoin(c) => {
                 Some(IlFunction {
                     params: c.params.clone(),
-                    if_call_join: Some(crate::func::IfCallJoinFn {
+                    body: IlBody::IfCallJoin(crate::func::IfCallJoinFn {
                         params: c.params,
                         k1: c.k1,
                         k2: c.k2,
@@ -1447,7 +1454,7 @@ pub(crate) fn shape_to_function(
                     // than in `callees`, because the writer must not emit a
                     // REL24 for it — see `IlFunction::fn_addr_sym`.
                     fn_addr_sym: Some(fn_addr.clone()),
-                    guard_chain_shared_tail: Some(crate::func::GuardChainSharedTailFn {
+                    body: IlBody::GuardChainSharedTail(crate::func::GuardChainSharedTailFn {
                         params: c.params,
                         guard_ix: c.guard_ix,
                         helper: resolve(c.helper_tok)?,
@@ -1480,7 +1487,7 @@ pub(crate) fn shape_to_function(
                 Some(IlFunction {
                     params: a.params.clone(),
                     data_syms: vec![object.clone(), vtable.clone()],
-                    alloc_init_or_fail: Some(crate::func::AllocInitOrFailFn {
+                    body: IlBody::AllocInitOrFail(crate::func::AllocInitOrFailFn {
                         params: a.params,
                         alloc: resolve(a.alloc_tok)?,
                         object,
@@ -1511,7 +1518,7 @@ pub(crate) fn shape_to_function(
                 Some(IlFunction {
                     params: g.params.clone(),
                     data_syms: vec![limit.clone(), table.clone()],
-                    osf_handle_guard: Some(crate::func::OsfHandleGuardFn {
+                    body: IlBody::OsfHandleGuard(crate::func::OsfHandleGuardFn {
                         params: g.params,
                         limit,
                         table,
@@ -1544,7 +1551,7 @@ pub(crate) fn shape_to_function(
             // way — it would claim a `.gl` name that is not there.
             BodyShape::GuardRetChain(g) => Some(IlFunction {
                 params: g.params.clone(),
-                guard_ret_chain: Some(g),
+                body: IlBody::GuardRetChain(g),
                 ..IlFunction::base(name, src)
             }),
             // **W-MMIO3.** THREE callee tokens resolved and only TWO of them
@@ -1558,7 +1565,7 @@ pub(crate) fn shape_to_function(
             // empty.
             BodyShape::CloseCallChain(c) => Some(IlFunction {
                 params: c.params.clone(),
-                close_call_chain: Some(crate::func::CloseCallChain {
+                body: IlBody::CloseCallChain(crate::func::CloseCallChain {
                     params: c.params,
                     guard_ret: c.guard_ret,
                     call1: resolve(c.call1_tok)?,
@@ -1578,7 +1585,7 @@ pub(crate) fn shape_to_function(
             BodyShape::XlrcCreateGuard(g) => {
                 Some(IlFunction {
                     params: g.params.clone(),
-                    xlrc_create_guard: Some(crate::func::XlrcCreateGuardFn {
+                    body: IlBody::XlrcCreateGuard(crate::func::XlrcCreateGuardFn {
                         params: g.params,
                         create: resolve(g.create_tok)?,
                         attach: resolve(g.attach_tok)?,
@@ -1599,7 +1606,7 @@ pub(crate) fn shape_to_function(
             BodyShape::JsonUtf8Copy(g) => {
                 Some(IlFunction {
                     params: g.params.clone(),
-                    json_utf8_copy: Some(crate::func::JsonUtf8CopyFn {
+                    body: IlBody::JsonUtf8Copy(crate::func::JsonUtf8CopyFn {
                         params: g.params,
                         off_buffer: g.off_buffer,
                         off_size: g.off_size,
@@ -1612,7 +1619,7 @@ pub(crate) fn shape_to_function(
             BodyShape::PtrWalkChainLoop(l) => {
                 Some(IlFunction {
                     params: l.params.clone(),
-                    ptr_walk_chain_loop: Some(l),
+                    body: IlBody::PtrWalkChainLoop(l),
                     ..IlFunction::base(name, src)
                 })
             }
@@ -1622,14 +1629,14 @@ pub(crate) fn shape_to_function(
             BodyShape::DivModLeaf(d) => {
                 Some(IlFunction {
                     params: d.params.clone(),
-                    div_mod_leaf: Some(d),
+                    body: IlBody::DivModLeaf(d),
                     ..IlFunction::base(name, src)
                 })
             }
             BodyShape::CmpShiftOr(cso) => {
                 Some(IlFunction {
                     params: vec![cso.param],
-                    cmp_shift_or: Some(cso),
+                    body: IlBody::CmpShiftOr(cso),
                     ..IlFunction::base(name, src)
                 })
             }
@@ -1656,7 +1663,7 @@ pub(crate) fn shape_to_function(
                 }
                 Some(IlFunction {
                     params,
-                    call_seq: Some(CallSeq {
+                    body: IlBody::Seq(CallSeq {
                         calls: resolved,
                         saved,
                         // **The `CallSeq` production has no store run**, and
@@ -2304,7 +2311,7 @@ impl IlBundle {
         // function's only vocabulary and the right one: a body it cannot lower
         // must not become an obj at all.
         for f in &funcs {
-            let Some(c) = f.close_call_chain.as_ref() else {
+            let Some(c) = f.close_call_chain() else {
                 continue;
             };
             let sibling = |n: &str| {

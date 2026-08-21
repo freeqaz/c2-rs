@@ -250,7 +250,7 @@ pub enum Lowering {
     PtrWalkChainLoop,
     /// `func.div_mod_leaf` → `Selected::Plain`.
     DivModLeaf,
-    /// `func.empty_body` → `Selected::Plain`, a bare `blr`.
+    /// `func.empty_body()` → `Selected::Plain`, a bare `blr`.
     EmptyBody,
     /// `func.float_leaf` → `Selected::Float`.
     FloatLeaf,
@@ -489,88 +489,88 @@ pub fn lowering_of(func: &IlFunction, mode: OptMode) -> Option<Lowering> {
     if super::store_run_call::gate_carrier(func).is_err() {
         return None;
     }
-    if func.framed_call.is_some() {
+    if func.framed_call().is_some() {
         return Some(Lowering::FramedCall);
     }
-    if func.call_seq.is_some() {
+    if func.call_seq().is_some() {
         return Some(Lowering::CallSeq);
     }
-    if func.cond_pair.is_some() {
+    if func.cond_pair().is_some() {
         return Some(Lowering::CondPair);
     }
-    if func.ctor_forward_call.is_some() {
+    if func.ctor_forward_call().is_some() {
         return Some(Lowering::CtorForwardCall);
     }
-    if func.fp_store_diamond.is_some() {
+    if func.fp_store_diamond().is_some() {
         return Some(Lowering::FpStoreDiamond);
     }
-    if func.tail_call.is_some() {
+    if func.tail_call().is_some() {
         return Some(Lowering::TailCall);
     }
-    if func.guard_chain_shared_tail.is_some() {
+    if func.guard_chain_shared_tail().is_some() {
         return Some(Lowering::GuardChainSharedTail);
     }
-    if func.alloc_init_or_fail.is_some() {
+    if func.alloc_init_or_fail().is_some() {
         return Some(Lowering::AllocInitOrFail);
     }
-    if func.osf_handle_guard.is_some() {
+    if func.osf_handle_guard().is_some() {
         return Some(Lowering::OsfHandleGuard);
     }
-    if func.guard_ret_chain.is_some() {
+    if func.guard_ret_chain().is_some() {
         return Some(Lowering::GuardRetChain);
     }
-    if func.close_call_chain.is_some() {
+    if func.close_call_chain().is_some() {
         return Some(Lowering::CloseCallChain);
     }
-    if func.xlrc_create_guard.is_some() {
+    if func.xlrc_create_guard().is_some() {
         return Some(Lowering::XlrcCreateGuard);
     }
-    if func.json_utf8_copy.is_some() {
+    if func.json_utf8_copy().is_some() {
         return Some(Lowering::JsonUtf8Copy);
     }
-    if func.if_call_join.is_some() {
+    if func.if_call_join().is_some() {
         return Some(Lowering::IfCallJoin);
     }
-    if func.pool_free_list.is_some() {
+    if func.pool_free_list().is_some() {
         return Some(Lowering::PoolFreeList);
     }
-    if func.pool_ctor_chain.is_some() {
+    if func.pool_ctor_chain().is_some() {
         return Some(Lowering::PoolCtorChain);
     }
-    if func.memcpy_tail.is_some() {
+    if func.memcpy_tail().is_some() {
         return Some(Lowering::MemcpyTail);
     }
-    if func.nonce_add_run.is_some() {
+    if func.nonce_add_run().is_some() {
         return Some(Lowering::NonceAddRun);
     }
-    if func.xtea_round_loop.is_some() {
+    if func.xtea_round_loop().is_some() {
         return Some(Lowering::XteaRoundLoop);
     }
-    if func.xtea_encrypt_loop.is_some() {
+    if func.xtea_encrypt_loop().is_some() {
         return Some(Lowering::XteaEncryptLoop);
     }
-    if func.ptr_walk_loop.is_some() {
+    if func.ptr_walk_loop().is_some() {
         return Some(Lowering::PtrWalkLoop);
     }
-    if func.static_scan_loop.is_some() {
+    if func.static_scan_loop().is_some() {
         return Some(Lowering::StaticScanLoop);
     }
-    if func.global_store_leaf.is_some() {
+    if func.global_store_leaf().is_some() {
         return Some(Lowering::GlobalStoreLeaf);
     }
-    if func.counted_accum_loop.is_some() {
+    if func.counted_accum_loop().is_some() {
         return Some(Lowering::CountedAccumLoop);
     }
-    if func.float_walk_loop.is_some() {
+    if func.float_walk_loop().is_some() {
         return Some(Lowering::FloatWalkLoop);
     }
-    if func.ptr_walk_chain_loop.is_some() {
+    if func.ptr_walk_chain_loop().is_some() {
         return Some(Lowering::PtrWalkChainLoop);
     }
-    if func.div_mod_leaf.is_some() {
+    if func.div_mod_leaf().is_some() {
         return Some(Lowering::DivModLeaf);
     }
-    if func.empty_body {
+    if func.empty_body() {
         return Some(Lowering::EmptyBody);
     }
     // ---- the tail arms, whose emitters REFUSE without needing `base_off` ----
@@ -582,12 +582,12 @@ pub fn lowering_of(func: &IlFunction, mode: OptMode) -> Option<Lowering> {
     // `select_function` never reaches, which is the over-claiming direction.
     //
     // **This was found by measurement, not by reading.** The first version of
-    // this function returned `Some(FloatLeaf)` on `func.float_leaf.is_some()`
+    // this function returned `Some(FloatLeaf)` on `func.float_leaf().is_some()`
     // and the grading test reported exactly one over-claim,
     // `w13_fscratch.cpp :: ?fm13@@YAMMMMMMMMMMMMMM@Z`, whose thirteen float
     // formals `float_leaf_text` declines. One cell in 1,820, in the unsound
     // direction, at zero cost to every other number — board **#3270**'s shape.
-    if let Some(double) = func.float_leaf {
+    if let Some(double) = func.float_leaf() {
         return float_leaf_text(func, double).is_ok().then_some(Lowering::FloatLeaf);
     }
     // The three predicate-shaped leaves are CALLED, not re-implemented: they
@@ -603,10 +603,10 @@ pub fn lowering_of(func: &IlFunction, mode: OptMode) -> Option<Lowering> {
     if let Some(r) = store_leaf_text(func, mode) {
         return r.is_ok().then_some(Lowering::StoreLeaf);
     }
-    if let Some(cso) = &func.cmp_shift_or {
+    if let Some(cso) = func.cmp_shift_or() {
         return cmp_shift_or_text(cso, mode).is_ok().then_some(Lowering::CmpShiftOr);
     }
-    if let Some(cmp) = &func.compare {
+    if let Some(cmp) = func.compare() {
         return compare_leaf_text(cmp, mode).is_ok().then_some(Lowering::CompareLeaf);
     }
     // The fall-through arm.
