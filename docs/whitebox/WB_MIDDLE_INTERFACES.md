@@ -459,13 +459,20 @@ before CEILING §5's ~5:1 optimism calibration. This lane does not re-price the
 whole row; it moves specific parts from black box to documented, and the honest
 form of the update is a **lower bound**, per lane kind.
 
+**Attribution first, because two lanes landed on the same day.** Rows marked
+*(w-restim)* below are `w-restim`'s work, not this lane's; they are in the table
+because the integration row's price depends on the whole state of knowledge and
+not on who moved it. This lane's own contribution is the opcode numbering, the
+encoder and its two tables, the two arms, the reconciliation of the two register
+paths, and the interface-1 subset.
+
 | part of the row | before | after this lane | why |
 |---|---|---|---|
-| **the tuple record's shape** | unknown beyond 5 bytes | **documented**, 8 fields + 2 operand lists | §3.1, `W-STAGETAP-2/-4/-5` |
+| **the tuple record's shape** | unknown beyond 5 bytes | **documented**, 8 fields + 2 operand lists | §3.1, `W-STAGETAP-2`; the operand and function-record layouts are *(w-restim)*, `W-STAGETAP-4/-5` |
 | **the opcode numbering** | *"erased, the map is not a function"* | **one named table + one trap named** | §2 |
 | **which tuples are instructions** | unknown | **`+0x9` bit 0, 288 rows, 0 counterexamples** | §2.3 |
 | **tuple → PPC word** | black box | **`base_word[op] \| form-fields`, 2 tables, 1 function, 9 words graded** | §5 |
-| **the register fields** | *"not in the tuple"* | **two pointer hops, and the two paths reconciled** | §5.3 |
+| **the register fields** | *"not in the tuple"* | **two pointer hops** *(w-restim)*, **and the two paths reconciled** | §5.3 |
 | **IL token → tuple** | black box | **legible for a 7-token closed subset, on a shape with no calls, no branches, no memory, no constants** | §3 |
 | **relocations / labels at the emit seam** | black box | **still black box — 0 cells** | §5.6 |
 | **the other ~110 encode forms** | black box | **still black box — 2 of 111 arms read** | §5.2 |

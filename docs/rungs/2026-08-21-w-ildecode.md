@@ -177,16 +177,64 @@ construction (`0x0c` where the obj has `r11`).
 
 ---
 
-## 7. Gate
+## 7. Gate, suite, and the workload's required-zero metrics
 
-`crates/` delta is **one new test file**; no `crates/` source, no `c2host/`
-source and no shipped rule is touched, so the required-zero metrics cannot move
-and the gate is a no-regression control.
+### 7.1 The delta, stated first, because it bounds what the evidence has to do
 
-Counts as run on this branch:
+`git diff --stat master...HEAD` over `crates/`:
 
-    (filled in by §7.1 below from the run this lane actually did)
+```
+crates/c2-reference/tests/middle_interfaces.rs | 1011 ++++++++++++++++++++++++
+```
 
-### 7.1 Run
+**One file, and it is a test.** No `crates/` library or binary source, no
+`c2host/` source, no fixture, no `scripts/` change, no shipped rule, no refusal
+predicate. `c2host/stagetap.c`, `crates/c2-reference/src/stage.rs` and
+`crates/c2-harness/src/cli/stage.rs` are **byte-identical to master** — see §5.
+So the required-zero metrics are unmovable by construction, and the runs below
+are no-regression controls rather than the thing that makes the claim.
 
-See the transcript quoted at the end of this file.
+### 7.2 Suite
+
+`C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --no-fail-fast`:
+
+```
+TOTAL PASSED: 1769    TOTAL FAILED: 0
+"SKIP: toolchain absent" occurrences: 0
+```
+
+**The delta against `w-restim`'s 1,765 is exactly +4**, and all four are this
+lane's: `crates/c2-reference/tests/middle_interfaces.rs`, one target, four
+tests. `1765 + 4 = 1769`.
+
+One repair was needed on the way and is worth recording because it is a
+tripwire a docs-shaped lane will hit again:
+`crates/c2-harness/tests/rung_registry.rs::rung_index_is_generated_and_current`
+failed until `scripts/gen_rung_index.sh` was re-run. A new rung file is a code
+change as far as that test is concerned.
+
+### 7.3 The workload's required-zero metrics — UNMOVED
+
+878-TU scan at c2-rs tip **`c6bd560b8ff1` (clean)** and workload stamp
+**`2f666acc8aa2` (clean)** — the same workload stamp `w-restim` and `ir1`
+published against. Log: `work/w-ildecode/tip_scan.log` (gitignored).
+
+| metric | dispatched | this tip |
+|---|---:|---:|
+| `match` / `mismatch` | 26 / 0 | **26 / 0** |
+| `fnbyte-exact` | 35,894 | **35,894** |
+| `codegen-gap` / `vocab-gap` / `capture-fail` | 0 / 844 / 8 | **0 / 844 / 8** |
+| `factor-c` | 170 | **170** |
+| EMITTED CENSUS | 39,344 / 162,147 | **39,344 / 162,147** |
+
+### 7.4 Gate
+
+`C2RS_REQUIRE_TOOLCHAIN=1 scripts/gate.sh --jobs 4`. Verdict block quoted in
+§7.5. `hatch-red` reports `REFUSED HATCH-STALE` — a property of a fresh
+worktree's `work/w-hatch/` scratch and not of this lane; `gate.sh` §1273 exits 0
+on `REFUSED` and forfeits the unqualified headline, which is the designed
+behaviour.
+
+### 7.5 The verdict block, verbatim
+
+(quoted below from the run this lane actually did)
