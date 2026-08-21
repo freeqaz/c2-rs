@@ -9,7 +9,9 @@ acted on, from the roadmap round:
 > A single alignment nibble cost a lane; `dag.c`'s lowering order took two;
 > register allocation is priced at **13 raw / 65 calibrated lanes** if
 > recovered by probing. Meanwhile the encoder-table *read* took a lane two
-> days and produced 32-of-32-bit reproduction on its population (#3358).
+> days and produced 32-of-32-bit reproduction on its population (#3358 —
+> fenced at 3 functions / 9 words, all frameless leaf; the fence is the
+> lane's own and quoting the ratio without it repeats #1459's error).
 
 Whitebox reading was already authorized (`CLAUDE.md`, owner, 2026-08-17) and
 already promoted to product (goal (1)). What was missing is the **doctrine
@@ -72,11 +74,28 @@ reads are cheap where the mechanism is small, and reading does not make the
 *Grounded by the 2026-08-21 survey (coordinator-verified citations); prices
 assume the existing Ghidra project and the pinned `c2.dll` 16.00.11886.00.*
 
-**PENDING — this section is populated from the survey lane in the same
-commit or the immediately following one. If you are reading this sentence in
-a commit older than HEAD, check `git log --follow` for the fill; if it is
-still here at HEAD, the survey has not landed and the doctrine above binds
-without an enumerated target list.**
+**Landed: `docs/whitebox/READ_PLAN_2026-08-21.md`** — the full survey:
+inventory with denominators (10.8% of the image's 4,917 functions covered
+at all; `CEILING` phase 1 the one UNSERVED phase of seven), the fitted-
+constant index (§2 there), nine ranked reads (§3), spec-shapes for the top
+three (§4), and five live caveats (§5). The short version:
+
+| | read | days | replaces |
+|---|---|---:|---|
+| R1 | `DAT_10c400d4`'s scope (2 addresses) | 0.5 | a 1–2 wk black-box settle **and** the standing explanation for ten refuted allocation keys |
+| R2 | the encoder: 2 tables + **79 distinct arms** ✅ (not 111 — coordinator re-measured from the pinned image) | 2–4 | **I2**, priced 1.5–4.5 eng-mo raw black-box; also unlocks mismatch anatomy (§5 below) |
+| R3 | the label charge: 31+132 enumerable call sites, closed by construction | 2–4 | the fitted `LABEL_SEED_GAP = 9` / `/Gy +3`, and §2.3(b)'s "not derivable" premise |
+| R4 | `FUN_10b55732` — globregs promotion (item F1) | 3–5 | F1's 2-raw/10-calibrated lanes; may explain the 52,416-config null |
+| R5 | `FUN_10bc2d7a` — the 189-arm IL→tuple dispatch | 15–25 | **I1** (1.5–4.5 eng-mo raw) + the shared input to all ten Phase-1 slices |
+| R6–R9 | expansion switches · scheduler confirm · block order · `0x4F` | 13–23 | S1's instrument, item F0, `CEILING` phase 1, the last transcribed width |
+
+**Dispatch order R1 → R2 → R3** (≈5–9 days, three `DISCLOSURE.md` rows,
+each refuting or confirming a roadmap premise); R2 proves the arm-reading
+method on 79 bounded bodies before R5 spends 15–25 days on 189. The
+headline: **the two interfaces the 15–45 eng-mo estimate rests on (I1, I2)
+both have a named, sized, mechanical read** — R5 and R2 — and the sum of
+all nine reads is ≈6–10 engineer-weeks, against black-box prices for the
+same facts that run to lane-years.
 
 ## 4. The port as instrument — the decision surface
 

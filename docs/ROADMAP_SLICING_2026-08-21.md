@@ -111,6 +111,25 @@ would pay at TU granularity immediately. It cannot.
   class, so the port cannot number the labels of anything that follows it. A
   composed obj would have to take the whole label plan and symbol table from
   c2's obj — at which point it *is* c2's obj.
+
+  > **AMENDED 2026-08-21 (read-plan survey, caveat 5.1): this ground's
+  > evidence is struck; the refutation stands on the other three.** The
+  > strides quoted above are *counterfactual displacements*
+  > (`Δseed + Δcharge`), and `LABEL_COUNTER.md`'s own banner records that
+  > four lanes measured them with the wrong instrument (`w-bdnz`'s +7
+  > reproduces to the digit with a true charge of **+2**; eight unused
+  > declarations move the counterfactual by +16 while the true charge stays
+  > 1 — `WB_LABEL_FINDINGS.md:29-34,206-219`). Worse for the ground as
+  > stated: the label *mechanism* is read (`WB_LABEL_FINDINGS.md` §1 — one
+  > increment instruction, a TU-global counter, 31+132 enumerable call
+  > sites), so "not derivable" is actually **"unread, and enumerable —
+  > closed by construction"** (read-plan **R3**, 2–4 days). The composition
+  > refusal does not move: grounds (a) nothing left to buy, (c) anti-safe
+  > under `PROGRESS_METRIC.md`, and the open-source disqualifier are each
+  > independently sufficient, and (c) alone is decisive. What changes is
+  > the *lesson*: a four-ground refusal was one bad citation from being a
+  > three-ground refusal, and only the habit of stacking independent
+  > grounds kept the conclusion safe.
 - **It is anti-safe under `PROGRESS_METRIC.md`, and this is decisive.** There
   are **2,490 functions the port lowers completely and gets wrong** ✅
   (`fnbyte-differs 1960` + `fnbyte-reloc-differs 530`), held back *only*
@@ -297,7 +316,18 @@ literally "write more decoder," and it is 1.3% of the mass.**
 
   **This row is therefore scoped to (a) alone**, with (b) and (c) priced off
   the resulting histogram. Registered so it can be scored: the lane expects
-  **20–40 forms to cover ≥99% of emitted words**. Note also that the row's
+  **20–40 forms to cover ≥99% of emitted words**.
+
+  > **AMENDED 2026-08-21 (read-plan survey):** the arms live at
+  > **`0x10bfae2d`** (the jump table), not `0x10c39b18` (that is the form
+  > *table*), and the 111 entries collapse to **79 distinct arms** ✅ —
+  > coordinator re-measured from the pinned image (sha256-matched; all 79
+  > targets inside the encoder's 3,861 bytes; busiest arm shared by 12
+  > forms). The tail called "unbounded" in (b) is **bounded**: 3 call
+  > sites of `0x10bf983a`, 1 of `0x10bf98ec`, 12 references to
+  > `DAT_10c2e978` (survey-measured). (b) is ~29% smaller than written
+  > and has no unbounded component. Full plan:
+  > `whitebox/READ_PLAN_2026-08-21.md`. Note also that the row's
   subject **excludes relocations entirely** (§5.6, zero cells) — so it prices
   *part of* interface 2, not interface 2.
 - **Resolve the `DAT_10c400d4` contradiction.** The repo asserts both
