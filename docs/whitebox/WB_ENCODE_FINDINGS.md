@@ -219,14 +219,23 @@ unpriced *"until (a) runs"*. (a) has now run:
 
 ### 6.1 The arms-read denominator, and what "read" means here
 
-**73 of 79.** An arm counts as read when this lane can state its
-field-composition rule or its refusal, which is what `ref/P_ENCODE.md` §5 does.
-The 6 that do not are named in `P_ENCODE.md` §7 — all single-opcode VMX128
-arms of one already-read family. In opcode terms, **653 of 660 machine
-opcodes** reach an arm with a stated rule (98.9 %) — the 6 unread arms serve
-**7** opcodes (`vcfpsxws128`, `vcfpuxws128`, `vperm128`, `vpkd3d128`,
-`vrlimi128`, `vsldoi128`, `vupkd3d128`); in emitted-word terms they cover 0
-words of the 634,457 measured.
+**79 of 79, and the 73 it passed through is kept.** An arm counts as read when
+this lane can state its field-composition rule or its refusal, which is what
+`ref/P_ENCODE.md` §5 does. The lane reached **73/79** on its first pass and
+then read the last six — all single-opcode VMX128 arms serving 7 opcodes
+(`vcfpsxws128`, `vcfpuxws128`, `vperm128`, `vpkd3d128`, `vrlimi128`,
+`vsldoi128`, `vupkd3d128`) — while waiting on the gate. **The intermediate
+number is recorded rather than overwritten**, because the six were read
+*already knowing* the family's scatter idiom from six earlier arms of it, and
+a rule confirmed by "it looks like the others" is weaker evidence than one
+derived cold. In emitted-word terms all seven cover **0** of the 634,457 words
+measured in §5, so nothing in the obj test speaks to them either.
+
+Reading the last six did produce one thing worth having: three of them
+(`0x10bfaafc`, `0x10bfac7f`, `0x10bfad09`) **use `[ebp+0xc]` — the relocation
+sink argument — as a scratch register**, which is safe only because no VMX128
+opcode reaches §3's relocation paths. That is 3 of P3.1's 4 "store"
+impurities, and it is a hazard for anyone porting the structure.
 
 **The segmentation caveat, because the numbers above rest on it.** Arms were
 cut at *"start of this arm, to start of the next arm by address"*. That is an

@@ -24,9 +24,17 @@ trusting a number here.** Two arms (forms 49 and 55) and both table VAs are
 [`../WB_MIDDLE_INTERFACES.md`](../WB_MIDDLE_INTERFACES.md) §5; this lane
 re-derived them independently and they agree.
 
-**Coverage of this page, stated first.** **73 of the 79 distinct arms read**
-(92.4 %). The 6 unread are single-opcode VMX128 arms, named in §7. Of the 660
-machine opcodes, **653 reach an arm this page states a rule for** (98.9 %).
+**Coverage of this page, stated first.** **79 of the 79 distinct arms read**,
+covering **660 of 660** machine opcodes. The last six — all single-opcode
+VMX128 arms of the family §5.7 describes — were read after the first draft;
+`WB_ENCODE_FINDINGS.md` §6.1 records the intermediate 73/79 rather than
+overwriting it, because the six were read *knowing* the family's idiom and
+that is a weaker kind of reading than the first six of it.
+
+**Coverage is not confidence.** Every rule in §5 is `[R]` on the question
+*which operand did the arm read*, and §8.2's obj test cannot see that axis —
+§9(6) is explicit about it. 79/79 means every arm body was followed; it does
+not mean every rule is right.
 
 ---
 
@@ -421,12 +429,35 @@ and the encoder's response to a high register is not a wider field but a
 **different opcode**, re-entered at `0x10bf9f26` with the restored operand
 lists. **PREREG P4.1 named VMX128 as one of two candidates and is a HIT.**
 
-**The 6 unread arms**, all single-opcode VMX128, all in the family §5.7
-describes: `0x10bfaa42` (form 101, `vcfpsxws128`/`vcfpuxws128`), `0x10bfaadd`
-(103, `vperm128`), `0x10bfabf0` (97, `vrlimi128`), `0x10bfac63` (105,
-`vsldoi128`), `0x10bfaccd` (106, `vupkd3d128`), `0x10bfacee` (107,
-`vpkd3d128`). Their spans are in [`ENCODE_ARMS.txt`](ENCODE_ARMS.txt); a later
-session continues there.
+### 7.1 The VMX128 register split, worked once `[R]`
+
+A VMX128 register is 7 bits and no field holds 7 contiguous bits, so every arm
+of the family scatters it the same way: `r & 0x1f` goes in the classic 5-bit
+field and bits 5–6 are placed by fixed masks in the instruction's low bits.
+Form 86 (`vmr128`, `0x10bfa902`) in full — `VD = reg(S)`, `VB = reg(D0)`:
+
+```
+w = base | (VD & 0x1f) << 21 | (VB & 0x1f) << 16 | (VB & 0x1f) << 11
+         | (VB & 0x40) << 4                     ; VB bit 6
+         | ((VB >> 5) & 0x3)                    ; VB bits 5..6, low
+         | ((VD >> 3) & 0xc)                    ; VD bits 5..6, low
+         | (VB & 0x20)                          ; VB bit 5
+```
+
+The other nineteen arms of the family differ only in how many registers they
+carry and which of the four scatter masks each uses; the last six read —
+`0x10bfaa42` (form 101, `vcfpsxws128`/`vcfpuxws128`), `0x10bfaadd` (103,
+`vperm128`), `0x10bfabf0` (97, `vrlimi128`), `0x10bfac63` (105, `vsldoi128`),
+`0x10bfaccd` (106, `vupkd3d128`), `0x10bfacee` (107, `vpkd3d128`) — are all
+this shape with an extra immediate from `imm()` of a third or fourth operand.
+
+> **A hazard for a reimplementation, and the reason three arms score as
+> impure in `WB_ENCODE_FINDINGS.md` §1's P3.1.** Three of these arms —
+> `0x10bfaafc` (`vperm128`), `0x10bfac7f` (`vsldoi128`), `0x10bfad09`
+> (`vpkd3d128`) — **write to `[ebp+0xc]`**, the *relocation-sink argument
+> slot*, using it as a spare register. It is safe in c2 only because no VMX128
+> opcode reaches §6, so the sink is dead by then. A port that keeps the sink
+> live past the arm and copies this structure would corrupt it.
 
 ---
 
