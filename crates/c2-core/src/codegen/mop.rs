@@ -327,6 +327,31 @@ const fn row(op: C2Op, mnemonic: &'static str, base: u32, form: u16) -> OpRow {
     OpRow { op, mnemonic, base, form: Form(form) }
 }
 
+/// The largest c2 opcode number, `0x294` (`vmr128`) — the extent of the
+/// base-word table read at `0x10c3a578`.
+const MAX_C2_OPCODE: usize = 0x294;
+
+/// **`opcode -> 1 + index into [`OPCODES`]`, or 0 for an opcode this port does
+/// not emit.** Built at COMPILE TIME from `OPCODES`, so it cannot drift from
+/// it: there is no second list to keep in sync, only a derivation.
+static OPCODE_INDEX: [u8; MAX_C2_OPCODE + 1] = build_opcode_index();
+
+const fn build_opcode_index() -> [u8; MAX_C2_OPCODE + 1] {
+    let mut ix = [0u8; MAX_C2_OPCODE + 1];
+    let mut i = 0;
+    while i < OPCODES.len() {
+        let op = OPCODES[i].op.0 as usize;
+        // A `const` panic here is a compile error, which is the right place for
+        // "someone added a row whose opcode is out of the table's extent" and
+        // for "someone added an 86th row past what a u8 index can name".
+        assert!(op <= MAX_C2_OPCODE, "opcode past the base-word table's extent");
+        assert!(i < 255, "OPCODES outgrew a u8 index");
+        ix[op] = (i + 1) as u8;
+        i += 1;
+    }
+    ix
+}
+
 // ---- the per-op value ------------------------------------------------------
 
 /// **One machine instruction, as c2's encoder sees it**: an opcode number plus
@@ -552,7 +577,30 @@ impl EncodeParams {
         EncodeParams { drop_override: Some((form, index)), ..self }
     }
 
+    #[inline(always)]
     fn row(&self, op: C2Op) -> Option<&'static OpRow> {
+        // **O(1), because this runs once per emitted instruction.**
+        //
+        // It was `self.rows.iter().find(...)` — an 85-row linear scan — for
+        // exactly as long as it took to measure it: lane `w-s1`'s own
+        // pre-registered cost criterion (#3336) read **+10.67 % mean port time
+        // per obj and +19.04 % aggregate**, with two fixtures at **4.2x** and
+        // **3.9x** and no overlap at all between the arms' distributions. The
+        // byte delta was zero throughout; a required-zero byte delta is silent
+        // about cost, which is the whole content of #3336, and this is what it
+        // was silent about.
+        //
+        // The dual path is a PERFORMANCE path, never a semantic one: both
+        // branches return the same row, and `the_index_and_the_scan_agree_on_
+        // every_opcode` checks that over the entire opcode space including the
+        // 575 absent ones.
+        if std::ptr::eq(self.rows.as_ptr(), OPCODES.as_ptr()) && self.rows.len() == OPCODES.len() {
+            let i = *OPCODE_INDEX.get(op.0 as usize)?;
+            if i == 0 {
+                return None;
+            }
+            return Some(&OPCODES[i as usize - 1]);
+        }
         self.rows.iter().find(|r| r.op == op)
     }
 }
@@ -579,6 +627,7 @@ pub fn mnemonic_of(op: C2Op) -> Option<&'static str> {
 ///
 /// Returns `None` for a form this port does not emit; the port's 71 opcodes
 /// reach 24 of c2's 109 forms.
+#[inline(always)]
 pub fn plan(form: Form) -> Option<FieldPlan> {
     use Slot::*;
     // Every arm below cites the address of the c2 arm it was read from.
@@ -684,6 +733,7 @@ pub fn plan(form: Form) -> Option<FieldPlan> {
 /// This is `P_ENCODE.md`'s `encode(tuple) -> u32` restricted to the operand
 /// slots this port fills, and it is the only place in the crate that turns an
 /// instruction into a word.
+#[inline(always)]
 pub fn encode_op(m: &MachineOp, params: &EncodeParams) -> Result<u32, BackendError> {
     let row = params.row(m.op).ok_or_else(|| {
         BackendError::NotImplemented(format!(
@@ -716,6 +766,19 @@ pub fn encode_op(m: &MachineOp, params: &EncodeParams) -> Result<u32, BackendErr
     })?;
 
     let mut word = row.base | fp.fixed;
+
+    // **The default path carries no per-field branches.** `width_override` and
+    // `drop_override` are instrument states — a permuter's search surface, not
+    // something an emit ever sets — so testing them once per FIELD put two
+    // `Option` compares on the port's hottest loop to serve a configuration no
+    // emit uses. Hoisted, so the mutation machinery costs the default nothing.
+    if params.width_override.is_none() && params.drop_override.is_none() {
+        for field in fp.fields() {
+            word |= (slot_of(m, field.slot) & mask_of(field.width)) << field.shift;
+        }
+        return Ok(word);
+    }
+
     for (i, field) in fp.fields().iter().enumerate() {
         if params.drop_override == Some((row.form.0, i)) {
             continue;
@@ -724,19 +787,31 @@ pub fn encode_op(m: &MachineOp, params: &EncodeParams) -> Result<u32, BackendErr
             Some((form, idx, w)) if form == row.form.0 && idx == i => w,
             _ => field.width,
         };
-        let raw = match field.slot {
-            Slot::S => m.s,
-            Slot::D0 => m.d0,
-            Slot::D1 => m.d1,
-            Slot::D2 => m.d2,
-            Slot::D3 => m.d3,
-            Slot::Disp => m.disp as u32,
-            Slot::DispWord => (m.disp >> 2) as u32,
-        };
-        let mask = if width >= 32 { u32::MAX } else { (1u32 << width) - 1 };
-        word |= (raw & mask) << field.shift;
+        word |= (slot_of(m, field.slot) & mask_of(width)) << field.shift;
     }
     Ok(word)
+}
+
+#[inline(always)]
+fn slot_of(m: &MachineOp, slot: Slot) -> u32 {
+    match slot {
+        Slot::S => m.s,
+        Slot::D0 => m.d0,
+        Slot::D1 => m.d1,
+        Slot::D2 => m.d2,
+        Slot::D3 => m.d3,
+        Slot::Disp => m.disp as u32,
+        Slot::DispWord => (m.disp >> 2) as u32,
+    }
+}
+
+#[inline(always)]
+fn mask_of(width: u32) -> u32 {
+    if width >= 32 {
+        u32::MAX
+    } else {
+        (1u32 << width) - 1
+    }
 }
 
 // ---- the agreement instrument ----------------------------------------------
@@ -820,6 +895,28 @@ mod tests {
                 r.form.0
             );
         }
+    }
+
+    /// **The O(1) index and the linear scan agree on the WHOLE opcode space**,
+    /// including the 575 opcodes this port does not emit and the ones past the
+    /// table's extent.
+    ///
+    /// The fast path is guarded by a pointer comparison, so a future edit that
+    /// makes `rows` a different-but-equal slice would silently take the scan —
+    /// correct, and slow. This test pins the agreement; the cost criterion
+    /// pins that taking the scan is expensive.
+    #[test]
+    fn the_index_and_the_scan_agree_on_every_opcode() {
+        for n in 0..=(MAX_C2_OPCODE as u16 + 8) {
+            let op = C2Op(n);
+            let fast = EncodeParams::C2.row(op).map(|r| r.op);
+            let slow = OPCODES.iter().find(|r| r.op == op).map(|r| r.op);
+            assert_eq!(fast, slow, "index and scan disagree at opcode {n:#06x}");
+        }
+        let present = (0..=MAX_C2_OPCODE as u16)
+            .filter(|n| EncodeParams::C2.row(C2Op(*n)).is_some())
+            .count();
+        assert_eq!(present, OPCODES.len(), "the index does not reach every row");
     }
 
     /// An opcode the port does not emit is a clean refusal, never a panic and
