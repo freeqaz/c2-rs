@@ -25,8 +25,16 @@
 //! `charge(TU) = the number of objects c2 constructs itself` — data-dependent,
 //! not a constant to be substituted. Anything priced as *"replace the fitted
 //! +9/+3"* inherits *"reproduce c2's object population"* instead.
-//! See `docs/whitebox/ref/P_LABEL.md`; and note `LABEL_SEED_GAP` below is
-//! itself not compilation-independent.
+//! See `docs/whitebox/ref/P_LABEL.md`.
+//!
+//! **`LABEL_SEED_GAP` IS REPAIRED (2026-08-22, lane `w-seedgap`, board
+//! `#3402`–`#3405`) AND THE `/Gy` `+3` IS NOT.** The gap is no longer a literal:
+//! it is [`SeedGapModel::READ`] — R3's read formula, coefficients named —
+//! evaluated at [`SeedGapInputs::PORT_ADMITTED`], whose two fields cite the two
+//! upstream refusals that make `9` right today. The `+3` below is still fitted
+//! from 11 TUs and still has an unread identity; it is a **charge**, so it is
+//! exactly what R3 says is not a constant to be substituted, and this lane did
+//! not touch it.
 //!
 //! **Two honest limits.** R3 gives the *charge*, not the *order*; a charge
 //! rule without an order rule still cannot place a label, and the other half
@@ -42,7 +50,8 @@ use super::*;
 /// compiler label of a TU sits.
 ///
 /// **THIS IS NOT A COMPILATION-INDEPENDENT CONSTANT, AND `9` IS ONE CELL OF
-/// IT.** Read **R3** (2026-08-22, lane `w-read-r3`, board #3387–#3390;
+/// IT** — which is now expressed in the type rather than only in this comment.
+/// Read **R3** (2026-08-22, lane `w-read-r3`, board #3387–#3390;
 /// `docs/whitebox/ref/P_LABEL.md`, `docs/whitebox/WB_LABELCHARGE_FINDINGS.md`)
 /// measured it over 22 cells as
 ///
@@ -58,11 +67,182 @@ use super::*;
 /// replay byte-exact. What is live is the **licence** — this constant reads as
 /// compilation-independent, and every caller inherits that reading.
 ///
-/// Do **not** widen the emit set into a configuration where a framed function
-/// meets `/Od`, `/Og` or `/GF`-with-a-pooled-string without replacing this
-/// constant with the measured form; a wrong `$M` is six wrong bytes in an obj
-/// that still links, which is the whole reason `docs/LABEL_COUNTER.md` exists.
-pub const LABEL_SEED_GAP: u32 = 9;
+/// **This is no longer written as a literal.** It is [`SeedGapModel::READ`]
+/// evaluated at [`SeedGapInputs::PORT_ADMITTED`], and it is `9` because — and
+/// only because — of the two upstream refusals that constant names.
+///
+/// So the old warning here — *"do not widen the emit set into a configuration
+/// where a framed function meets `/Od`, `/Og` or `/GF`-with-a-pooled-string
+/// without replacing this constant"* — is **discharged for `/Od` and left
+/// standing for the string.** A widening that admits `/Od` now trips a
+/// `debug_assert` in [`crate::PortC2::build`] (and the gate's DEBUG-lane row runs
+/// every fixture through it) and has [`plan_labels_with_gap`] to call. A widening
+/// that admits a **data-phase pooled string literal** has neither: the second
+/// conjunct is not derivable from the port's inputs, so that caller must supply
+/// [`SeedGapInputs::pooled_data_phase_string`] itself and must not guess it. A
+/// wrong `$M` is six wrong bytes in an obj that still links, which is the whole
+/// reason `docs/LABEL_COUNTER.md` exists.
+pub const LABEL_SEED_GAP: u32 = SeedGapModel::READ.gap(&SeedGapInputs::PORT_ADMITTED);
+
+/// **The compilation facts the seed gap is a function of** — the settable half of
+/// a decision point that used to be a baked constant
+/// (`docs/GOAL_DECISION_2026-08-21.md` § AMENDED: general layers expose decision
+/// points as named, settable parameters).
+///
+/// Both fields are **read**, not fitted — R3 measured the gap over 22 cells and
+/// these are the two indicators the measurement resolved it into. Neither is a
+/// property of the IL alone: see each field for where it can and cannot be
+/// derived from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SeedGapInputs {
+    /// `[/Og]` — **the global optimizer runs.**
+    ///
+    /// `/Og`, `/Ox`, `/O1` and `/O2` all imply it and read **9**; `/Od`, `/Os`,
+    /// `/Ot`, `/Oy` and `/Ob2` do not and read **7**. **Derivable from the port's
+    /// own inputs** — the per-function optimization word is in the IL, and
+    /// [`global_optimizer_of_opt_word`] is the derivation.
+    pub global_optimizer: bool,
+    /// `[/GF ∧ a string literal is pooled in the data phase]` — **both**
+    /// conjuncts, and neither one alone.
+    ///
+    /// * `/Ox` with a file-scope `const char* g = "x";` reads **9** — no `/GF`,
+    ///   no pooling, no charge.
+    /// * `/Ox /GF` with the same line reads **10**, and so do `/O1` and `/O2`,
+    ///   which imply `/GF`.
+    /// * `/O1` **without** the line reads **9**: `/GF` alone charges nothing.
+    /// * `const char g[] = "x"` is an array *copy* with no separate string
+    ///   object and reads **9** even under `/GF`.
+    /// * A literal returned from a *function* is not in the data phase at all
+    ///   and costs **0** (`docs/LABEL_COUNTER.md` §8.1).
+    ///
+    /// **This is NOT derivable from the port's inputs today, and the obvious
+    /// detector is wrong.** `/GF` is an argv fact that appears nowhere in the IL
+    /// — not a bundle field, not a bit of the optimization word, and not a member
+    /// of [`crate::plan::PlanInputs`] — exactly as `/Gy` is. And the second
+    /// conjunct cannot be read off `c2_il`'s `??_C@…` record set, because that
+    /// set **over-approximates**: it also contains function-body literals, which
+    /// charge 0. A detector built on it would replace a fitted constant with a
+    /// fitted rule, which is strictly worse — the constant is at least visibly
+    /// wrong. So this stays an input, supplied by the caller.
+    pub pooled_data_phase_string: bool,
+}
+
+impl SeedGapInputs {
+    /// **The configuration every TU the port admits today is in — and the two
+    /// refusals that make that true.** `LABEL_SEED_GAP`'s `9` is this and nothing
+    /// else, which is the fact the shipped literal `9` concealed.
+    ///
+    /// * `global_optimizer: true` — [`crate::PortC2::build`] resolves a whole-TU
+    ///   mode through `codegen::opt_mode_of_word`, which admits exactly `/Ox`
+    ///   ([`c2_il::OPT_WORD_OX`]) and `/O1` ([`c2_il::OPT_WORD_O1`]) plus their
+    ///   `fp_contract`-off spellings. **Both imply `/Og`.**
+    ///   [`c2_il::OPT_WORD_OD`] and [`c2_il::OPT_WORD_PRAGMA_OFF`] are refused
+    ///   there, so no `/Od` TU with a function ever reaches [`plan_labels`].
+    ///   This is asserted, not just asserted-in-prose: `build` carries a
+    ///   `debug_assert` tying the resolved mode to this field, and the gate's
+    ///   DEBUG-profile row runs every lane through it.
+    /// * `pooled_data_phase_string: false` — a data-phase pooled literal needs a
+    ///   TU-scope object holding a relocation against a `??_C@…` COMDAT, and
+    ///   every path that reaches the two writers refuses that shape first:
+    ///   `c2_il::IlBundle::data_tu` refuses any TU whose `.gl` carries a `??_C@…`
+    ///   record at all, and `build`'s catch-all refuses "an initialized or
+    ///   uninitialized namespace-scope object, a `const` pool, a string literal,
+    ///   a thread-local, or a COMDAT". R3 checked it rather than argued it: a
+    ///   file-scope `const char* g3 = "x";` ahead of two framed functions returns
+    ///   `Port=NotImplemented` with the reference replay byte-exact.
+    ///
+    /// **Neither bullet is a promise about the future.** They are the reasons the
+    /// value is right *today*, written down so the rung that widens the emit set
+    /// past one of them finds the dependency instead of inheriting it.
+    pub const PORT_ADMITTED: SeedGapInputs = SeedGapInputs {
+        global_optimizer: true,
+        pooled_data_phase_string: false,
+    };
+}
+
+/// **The three coefficients of the seed-gap formula, as read.** Separated from
+/// [`SeedGapInputs`] so the *model* and the *compilation* are two things: a
+/// permuter searching this decision point moves the inputs, and a lane that
+/// re-measures the gap moves the coefficients.
+///
+/// ```text
+/// gap = 7 + 2·[/Og] + 1·[/GF ∧ a string literal pooled in the data phase]
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SeedGapModel {
+    /// The gap with neither term — `/Od`, `/Os`, `/Ot`, `/Oy`, `/Ob2`.
+    pub base: u32,
+    /// What the global optimizer adds.
+    pub global_optimizer: u32,
+    /// What a data-phase pooled string literal adds under `/GF`.
+    pub pooled_data_phase_string: u32,
+}
+
+impl SeedGapModel {
+    /// **The measured model**: `7 + 2·[/Og] + 1·[/GF ∧ pooled data-phase
+    /// string]`, over 22 cells, seed read straight out of the captured `.gl` as
+    /// `u32_le(.gl[7..11])` so it cannot hide inside the answer. Lane
+    /// `w-read-r3`, board **#3388**; `docs/whitebox/ref/P_LABEL.md` §4.1,
+    /// `docs/whitebox/WB_LABELCHARGE_FINDINGS.md` §5.1, `docs/LABEL_COUNTER.md`
+    /// §8.1. Instrument: `scripts/gt_label_seedgap.py`.
+    ///
+    /// **What is read here is the arithmetic, not the mechanism.** Which
+    /// allocations make the 7, the 9 or the 10 is still not enumerated —
+    /// `P_LABEL.md` §4 bounds the candidates to five once-per-TU sites and says
+    /// attributing each unit needs a live tap on `0x10b97de5`, which no lane has
+    /// built. A `SeedGapModel` is therefore a *fit to a read grid*, one level
+    /// better than the literal `9` and one level short of the mechanism.
+    pub const READ: SeedGapModel = SeedGapModel {
+        base: 7,
+        global_optimizer: 2,
+        pooled_data_phase_string: 1,
+    };
+
+    /// Evaluate the model. `const fn`, so [`LABEL_SEED_GAP`] stays a `const` and
+    /// nothing that used it pays for the change.
+    pub const fn gap(&self, inputs: &SeedGapInputs) -> u32 {
+        self.base
+            + if inputs.global_optimizer { self.global_optimizer } else { 0 }
+            + if inputs.pooled_data_phase_string { self.pooled_data_phase_string } else { 0 }
+    }
+}
+
+/// **`[/Og]` from one function's IL optimization word** — the derivation that
+/// makes the first term a read of the compilation rather than an assumption
+/// about it.
+///
+/// * `Some(true)` — `/Ox` and `/O1` (and their `fp_contract`-off spellings), the
+///   only words [`c2_il::opt_word_mode`] admits. **Both imply `/Og`**: `/Ox` is
+///   `/Og /Oi /Ot /Oy /Ob2` and `/O1` is `/Og /Os /Oy /Ob2 /GF /Gy`.
+/// * `Some(false)` — [`c2_il::OPT_WORD_OD`] and [`c2_il::OPT_WORD_PRAGMA_OFF`],
+///   both of which mean the global optimizer did not run. Their gap is **7**.
+/// * `None` — any other word, including one nobody has captured. **Fail-closed
+///   by construction**: a caller that cannot get a `bool` here must refuse, and
+///   `None` is not `Some(false)`.
+///
+/// [`c2_il::OPT_WORD_SPECIAL_MEMBER`] is masked off first, for the reason its own
+/// doc gives — the constructor/destructor bit is orthogonal to the mode, and not
+/// masking it is what once censused every ctor and dtor as a `codegen-gap`.
+///
+/// **`/Os`, `/Ot`, `/Oy` and `/Ob2` are `None`, not `Some(false)`**, even though
+/// R3 measured their gap at 7. Their words have never been captured, so mapping
+/// them would be inventing a reading of a word this project has not read; the
+/// gap they produce is known and the word that carries it is not.
+pub fn global_optimizer_of_opt_word(word: Option<u32>) -> Option<bool> {
+    // The accepted set first, through the one existing decoder, so this cannot
+    // drift from what `build` actually admits.
+    if c2_il::opt_word_mode(word).is_some() {
+        return Some(true);
+    }
+    match word.map(|v| v & !c2_il::OPT_WORD_SPECIAL_MEMBER) {
+        Some(c2_il::OPT_WORD_OD) | Some(c2_il::OPT_WORD_PRAGMA_OFF) => Some(false),
+        // The same pragma under `/O1` is the **short varint** `04` rather than an
+        // escaped word — `opt_word_at`'s `b < 0x80` branch, documented in its own
+        // doc as `4f 1f 04 …  = 0x00000004`. Same state, different spelling.
+        Some(0x0000_0004) => Some(false),
+        _ => None,
+    }
+}
 
 /// The `$M`/`$T` label numbers c2 gives each function, or `None` for a function
 /// that is not framed (it consumes counter slots but emits no label).
@@ -93,7 +273,29 @@ pub const LABEL_SEED_GAP: u32 = 9;
 /// `leaf-double-led` = 1. Charging it twice was what kept every (FP leaf, framed
 /// function) pair out of class.
 pub fn plan_labels(counter: u32, funcs: &[Function], comdat: bool) -> Vec<Option<[u32; 3]>> {
-    let mut cur = counter + LABEL_SEED_GAP;
+    plan_labels_with_gap(counter, funcs, comdat, LABEL_SEED_GAP)
+}
+
+/// [`plan_labels`] with the seed gap **supplied** instead of assumed — the
+/// settable form of the decision point.
+///
+/// [`plan_labels`] is this at [`LABEL_SEED_GAP`], i.e. at
+/// [`SeedGapInputs::PORT_ADMITTED`]. A caller in a different compilation —
+/// a widened emit set that admits `/Od`, or a permuter searching this decision
+/// point — computes its own with [`SeedGapModel::gap`] and passes it here rather
+/// than editing a constant.
+///
+/// The gap is the **only** thing this takes; everything after it (the `/Gy`
+/// pre-pass, the `_fltused` slot, the `memcpy` slot, the FP-pool surcharge, the
+/// per-function stride) is a charge measured **seed-free, in-TU**, so it is
+/// unaffected by the gap and is not a second parameter.
+pub fn plan_labels_with_gap(
+    counter: u32,
+    funcs: &[Function],
+    comdat: bool,
+    seed_gap: u32,
+) -> Vec<Option<[u32; 3]>> {
+    let mut cur = counter + seed_gap;
     if comdat {
         // Measured exactly, on 11 TUs of 2 to 5 functions: the `/Gy` pre-pass is
         // three slots per function, whatever kind, and it is **not** affected by

@@ -52,8 +52,8 @@ pub use self::bundle::{
     ProvideDataObject, ProvideDataTu,
     GlDataRow, InAliasReport,
     ex_segments_body, ex_segments_gate,
-    is_empty_module, opt_word_mode, OptWordMode, OPT_WORD_O1, OPT_WORD_OX,
-    OPT_WORD_SPECIAL_MEMBER,
+    is_empty_module, opt_word_mode, OptWordMode, OPT_WORD_O1, OPT_WORD_OD, OPT_WORD_OX,
+    OPT_WORD_PRAGMA_OFF, OPT_WORD_SPECIAL_MEMBER,
 };
 /// The body-start locator, crate-visible so `codec` calls the ONE rule instead
 /// of keeping a second copy of it (ROADMAP §10.12, §10.14).

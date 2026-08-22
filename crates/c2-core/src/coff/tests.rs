@@ -2378,3 +2378,297 @@ mod xlrc_helper_symbols {
         );
     }
 }
+
+/// **W-SEEDGAP — the label seed gap is a formula over the compilation, and this
+/// module is the portable pin on it** (board #3388, `#3402`–`#3405`).
+///
+/// `LABEL_SEED_GAP` shipped as a literal `9` fitted from 25 TUs. Read **R3**
+/// (lane `w-read-r3`; `docs/whitebox/ref/P_LABEL.md` §4.1,
+/// `docs/whitebox/WB_LABELCHARGE_FINDINGS.md` §5.1, `docs/LABEL_COUNTER.md`
+/// §8.1) measured it over **22 cells** as
+///
+/// ```text
+/// gap = 7 + 2·[/Og] + 1·[/GF ∧ a string literal pooled in the data phase]
+/// ```
+///
+/// Every assertion below is one of those cells or one of the derivations that
+/// feeds them. **No toolchain is required** — this is arithmetic over a read
+/// grid, so it runs in the portable lane.
+#[cfg(test)]
+mod seedgap_tests {
+    use super::*;
+
+    /// One row of R3's grid: the mode, whether the global optimizer runs, whether
+    /// `/GF` is in effect, and the two measured gaps — without and with a
+    /// file-scope `const char* g = "x";`.
+    struct Cell {
+        mode: &'static str,
+        og: bool,
+        gf: bool,
+        base: u32,
+        with_string: u32,
+    }
+
+    /// **R3's 11 modes × 2 = the 22 measured cells**, transcribed from
+    /// `docs/LABEL_COUNTER.md` §8.1's table. `/O1` and `/O2` carry `gf: true`
+    /// because they **imply `/GF`**; `/Ox` does not.
+    const GRID: &[Cell] = &[
+        Cell { mode: "/Od",     og: false, gf: false, base: 7, with_string: 7 },
+        Cell { mode: "/Os",     og: false, gf: false, base: 7, with_string: 7 },
+        Cell { mode: "/Ot",     og: false, gf: false, base: 7, with_string: 7 },
+        Cell { mode: "/Oy",     og: false, gf: false, base: 7, with_string: 7 },
+        Cell { mode: "/Ob2",    og: false, gf: false, base: 7, with_string: 7 },
+        Cell { mode: "/Og",     og: true,  gf: false, base: 9, with_string: 9 },
+        Cell { mode: "/Ox",     og: true,  gf: false, base: 9, with_string: 9 },
+        Cell { mode: "/Ox /Gy", og: true,  gf: false, base: 9, with_string: 9 },
+        Cell { mode: "/Ox /GF", og: true,  gf: true,  base: 9, with_string: 10 },
+        Cell { mode: "/O1",     og: true,  gf: true,  base: 9, with_string: 10 },
+        Cell { mode: "/O2",     og: true,  gf: true,  base: 9, with_string: 10 },
+    ];
+
+    /// **The model reproduces all 22 measured cells.**
+    ///
+    /// This is the grading criterion for the repair: if a cell disagreed, the
+    /// FILED FORMULA would be under test, not just the code.
+    #[test]
+    fn the_model_reproduces_all_22_measured_cells() {
+        let m = SeedGapModel::READ;
+        let mut n = 0;
+        for c in GRID {
+            // Without the file-scope string, the third term's second conjunct is
+            // false whatever `/GF` says — which is itself a measured cell: `/O1`
+            // alone reads 9, so `/GF` on its own charges nothing.
+            let no_str = SeedGapInputs { global_optimizer: c.og, pooled_data_phase_string: false };
+            assert_eq!(m.gap(&no_str), c.base, "cell `{}` base", c.mode);
+            // With it, the term is `gf && string`.
+            let with_str =
+                SeedGapInputs { global_optimizer: c.og, pooled_data_phase_string: c.gf };
+            assert_eq!(
+                m.gap(&with_str),
+                c.with_string,
+                "cell `{}` + a file-scope `const char* g = \"x\";`",
+                c.mode
+            );
+            n += 2;
+        }
+        assert_eq!(n, 22, "R3 measured 22 cells; this grid must carry all of them");
+    }
+
+    /// **`/GF` alone charges nothing, and a string alone charges nothing** — the
+    /// conjunction is the read, and either half on its own is a 9.
+    ///
+    /// Stated separately because it is the cell most easily lost: `/O1` implies
+    /// `/GF`, so 8 of `scripts/lanes.txt`'s 18 graded lanes have the first
+    /// conjunct ON, and the only thing keeping the term at 0 there is the second.
+    #[test]
+    fn the_third_term_needs_both_conjuncts() {
+        let m = SeedGapModel::READ;
+        // **Both half-cells collapse onto the SAME input**, which is the point:
+        // `/O1` with no file-scope string (`/GF` on, nothing pooled in the data
+        // phase) and `/Ox` with one (`/GF` off, so nothing is pooled) are
+        // different compilations that R3 measured separately and both read 9.
+        let o1_no_string =
+            SeedGapInputs { global_optimizer: true, pooled_data_phase_string: false };
+        let ox_with_string =
+            SeedGapInputs { global_optimizer: true, pooled_data_phase_string: false };
+        assert_eq!(o1_no_string, ox_with_string, "one conjunct each, same term value");
+        assert_eq!(m.gap(&o1_no_string), 9, "R3: `/O1` base reads 9");
+        assert_eq!(m.gap(&ox_with_string), 9, "R3: `/Ox` + the string reads 9");
+        // Both conjuncts: 10.
+        assert_eq!(
+            m.gap(&SeedGapInputs { global_optimizer: true, pooled_data_phase_string: true }),
+            10
+        );
+    }
+
+    /// **R3 §4.2's eleven zero-movers map to the SAME inputs, which is why they
+    /// read the same gap.** The model has no term for section needs — that is the
+    /// content of the finding, not an omission.
+    ///
+    /// An initialized global, an uninitialized global, an externally-visible
+    /// const, a 64-element array, a 4 KiB `.bss` array, three globals at once,
+    /// `/Gy`, `/GS` on, `/EHsc`, `/GR`, `/Oi` and the workload's whole
+    /// `/Oi /EHsc /GR` cluster: **all 9 at `/Ox`, all 9 at `/O1`.** None of them
+    /// changes `[/Og]` and none introduces a data-phase pooled string.
+    #[test]
+    fn section_needs_and_workload_flags_do_not_move_the_gap() {
+        let m = SeedGapModel::READ;
+        let ox = SeedGapInputs { global_optimizer: true, pooled_data_phase_string: false };
+        for what in [
+            "int gv = 7;",
+            "int gv;",
+            "extern const int gv = 7;",
+            "int gva[64] = {1,2,3};",
+            "char gvb[4096];",
+            "int g1 = 1; int g2; const char* g3 = \"x\";",
+            "/Gy",
+            "/GS on",
+            "/EHsc",
+            "/GR",
+            "/Oi",
+            "/Oi /EHsc /GR",
+        ] {
+            assert_eq!(m.gap(&ox), 9, "R3 4.2 zero-mover `{what}`");
+        }
+    }
+
+    /// **`LABEL_SEED_GAP` is still exactly 9 — the required-zero pin.**
+    ///
+    /// The repair replaces a literal with a derivation and must not move a byte.
+    /// This is the arithmetic half of that promise; the gate is the other half.
+    #[test]
+    fn the_shipped_constant_is_the_model_at_the_admitted_configuration() {
+        assert_eq!(LABEL_SEED_GAP, 9);
+        assert_eq!(SeedGapModel::READ.gap(&SeedGapInputs::PORT_ADMITTED), 9);
+        assert_eq!(
+            SeedGapInputs::PORT_ADMITTED,
+            SeedGapInputs { global_optimizer: true, pooled_data_phase_string: false }
+        );
+    }
+
+    /// **The one combination the model computes and R3 never measured**, named so
+    /// nobody reads it as a read.
+    ///
+    /// `[/Og]` false with the third term true — no global optimizer, but `/GF`
+    /// and a pooled data-phase string — would be `7 + 0 + 1 = 8`. **No cell in
+    /// R3's grid is at that corner** (`/Od /GF` with a file-scope string was not
+    /// compiled), so 8 is an EXTRAPOLATION of the formula's additive shape, not a
+    /// measurement. The additivity itself is read only where the grid crosses.
+    #[test]
+    fn the_unmeasured_corner_is_an_extrapolation_and_is_labelled_as_one() {
+        let extrapolated = SeedGapModel::READ
+            .gap(&SeedGapInputs { global_optimizer: false, pooled_data_phase_string: true });
+        assert_eq!(extrapolated, 8, "the formula's value at a corner no cell measured");
+    }
+
+    /// **The coefficients are settable** — a permuter moves the model, not a
+    /// constant. Nothing here is a claim about c2; it is a claim about the type.
+    #[test]
+    fn the_model_is_settable() {
+        let hypothetical = SeedGapModel { base: 5, global_optimizer: 3, pooled_data_phase_string: 2 };
+        assert_eq!(
+            hypothetical
+                .gap(&SeedGapInputs { global_optimizer: true, pooled_data_phase_string: true }),
+            10
+        );
+        assert_eq!(
+            hypothetical
+                .gap(&SeedGapInputs { global_optimizer: false, pooled_data_phase_string: false }),
+            5
+        );
+    }
+
+    /// **`[/Og]` derives from the IL's own optimization word**, so the first term
+    /// is a read of the compilation and not an assumption about it.
+    #[test]
+    fn global_optimizer_derives_from_the_optimization_word() {
+        // The accepted set — `/Ox` and `/O1`, both of which imply `/Og`.
+        assert_eq!(global_optimizer_of_opt_word(Some(c2_il::OPT_WORD_OX)), Some(true));
+        assert_eq!(global_optimizer_of_opt_word(Some(c2_il::OPT_WORD_O1)), Some(true));
+        // …and their `#pragma fp_contract(off)` spellings (bit 0x4 clear).
+        assert_eq!(global_optimizer_of_opt_word(Some(0x00a0_0001)), Some(true));
+        assert_eq!(global_optimizer_of_opt_word(Some(0x0020_0001)), Some(true));
+        // The ctor/dtor bit is orthogonal to the mode and is masked off, exactly
+        // as `opt_word_mode` masks it.
+        assert_eq!(
+            global_optimizer_of_opt_word(Some(c2_il::OPT_WORD_OX | c2_il::OPT_WORD_SPECIAL_MEMBER)),
+            Some(true)
+        );
+        assert_eq!(
+            global_optimizer_of_opt_word(Some(c2_il::OPT_WORD_OD | c2_il::OPT_WORD_SPECIAL_MEMBER)),
+            Some(false)
+        );
+
+        // The optimizer-off words: a KNOWN false, whose gap is 7.
+        assert_eq!(global_optimizer_of_opt_word(Some(c2_il::OPT_WORD_OD)), Some(false));
+        assert_eq!(global_optimizer_of_opt_word(Some(c2_il::OPT_WORD_PRAGMA_OFF)), Some(false));
+        // `#pragma optimize("",off)` under `/O1` is the short varint `04`.
+        assert_eq!(global_optimizer_of_opt_word(Some(0x0000_0004)), Some(false));
+
+        // **Fail-closed**: an unread word is `None`, never `Some(false)`. `/Os`,
+        // `/Ot`, `/Oy` and `/Ob2` all read gap 7, but their WORDS have never been
+        // captured, so mapping them would be inventing a reading.
+        assert_eq!(global_optimizer_of_opt_word(Some(0x1234_5678)), None);
+        assert_eq!(global_optimizer_of_opt_word(None), None);
+    }
+
+    /// **`/Od`'s gap really is 7, through the whole derivation** — the cell the
+    /// defect is about, walked end to end: word → `[/Og]` → gap.
+    ///
+    /// `/Od` is one of `scripts/lanes.txt`'s 18 graded lanes and it reads green
+    /// today only because all 21 of its matching TUs contain **zero function
+    /// definitions**, so `plan_labels` never runs there. That is a control that
+    /// is structurally incapable of exercising the constant, which is why this
+    /// pin is arithmetic and not a fixture.
+    #[test]
+    fn od_walks_the_whole_derivation_to_7() {
+        let og = global_optimizer_of_opt_word(Some(c2_il::OPT_WORD_OD))
+            .expect("`/Od`'s word is read, so its `[/Og]` is known");
+        assert!(!og);
+        let gap = SeedGapModel::READ
+            .gap(&SeedGapInputs { global_optimizer: og, pooled_data_phase_string: false });
+        assert_eq!(gap, 7, "board #3388: `/Od`'s true gap is 7 against the shipped 9");
+        assert_eq!(gap + 2, LABEL_SEED_GAP, "the shipped constant is two high at `/Od`");
+    }
+
+    /// **The settable planner agrees with the fixed one at the admitted gap**,
+    /// and moving the gap translates every label by exactly that much.
+    ///
+    /// A whole-block translation is the shape the finding predicts: the gap sits
+    /// before every charge, so it moves the first label and every later one
+    /// equally and cannot reorder anything.
+    #[test]
+    fn plan_labels_with_gap_translates_the_whole_block() {
+        // The `+k` frame class, as `tests::frame` spells it — repeated rather
+        // than re-scoped, so this module stays additive.
+        let framed = |name| Function {
+            frame: Some(Frame { prolog_len: 0x0C, func_len: 0x24 }),
+            ..Function::plain(name, 0)
+        };
+        let two = [framed("?F1@@YAHH@Z"), framed("?F2@@YAHH@Z")];
+
+        for &comdat in &[false, true] {
+            let fixed = plan_labels(2539, &two, comdat);
+            assert_eq!(
+                plan_labels_with_gap(2539, &two, comdat, LABEL_SEED_GAP),
+                fixed,
+                "the settable form at the admitted gap must be the fixed form"
+            );
+
+            // `/Od`'s gap is two lower, so every label is two lower.
+            let at_od = plan_labels_with_gap(2539, &two, comdat, 7);
+            let shifted: Vec<Option<[u32; 3]>> = fixed
+                .iter()
+                .map(|t| t.map(|[a, b, c]| [a - 2, b - 2, c - 2]))
+                .collect();
+            assert_eq!(at_od, shifted, "gap 7 vs 9 is a uniform -2 on every label");
+
+            // …and the `/O1`-plus-pooled-string gap is one higher.
+            let at_o1_str = plan_labels_with_gap(2539, &two, comdat, 10);
+            let shifted_up: Vec<Option<[u32; 3]>> = fixed
+                .iter()
+                .map(|t| t.map(|[a, b, c]| [a + 1, b + 1, c + 1]))
+                .collect();
+            assert_eq!(at_o1_str, shifted_up, "gap 10 vs 9 is a uniform +1");
+        }
+    }
+
+    /// The same, for the `/EHsc` scope-object block: `B = seed + gap + 3`, so the
+    /// gap translates all six of its numbers equally.
+    #[test]
+    fn eh_labels_with_gap_translates_the_whole_block() {
+        let fixed = EhLabels::of_single_function_tu(2536);
+        assert_eq!(EhLabels::of_single_function_tu_with_gap(2536, LABEL_SEED_GAP), fixed);
+
+        let at_od = EhLabels::of_single_function_tu_with_gap(2536, 7);
+        assert_eq!(at_od.funclet + 2, fixed.funclet);
+        assert_eq!(at_od.ip2state + 2, fixed.ip2state);
+        for i in 0..2 {
+            assert_eq!(at_od.state[i] + 2, fixed.state[i]);
+        }
+        for i in 0..3 {
+            assert_eq!(at_od.body[i] + 2, fixed.body[i]);
+            assert_eq!(at_od.funclet_triple[i] + 2, fixed.funclet_triple[i]);
+        }
+    }
+}
