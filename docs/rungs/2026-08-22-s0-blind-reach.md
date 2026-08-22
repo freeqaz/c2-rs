@@ -206,8 +206,17 @@ It adopts all five of `docs/FUNCTION_BYTE_MATCH.md` §0's properties verbatim �
 * **The identity control is the instrument itself.** At `C2RS_BLIND_LEVEL=0`
   the relaxed census *is* the strict census, so the required answer is
   `exact 0 · differs 0 · unlowerable == attempted`, all `no-decode`. Measured on
-  the full workload: **attempted 113,557 == `fnbyte-refused-parse` 113,557,
-  unlowerable 113,557 all `no-decode`, all three controls 0.**
+  the **full 878-TU workload** (`work/w-s0/tip_scan_L0.log`, a separate scan, not
+  a subset): **attempted 113,557 == `fnbyte-refused-parse` 113,557 · exact 0 ·
+  differs 0 · unlowerable 113,557, every one `no-decode` · partition 0 ·
+  population 0 · census-desync 0 · `match` 26 · `mismatch` 0.**
+
+  So the same instrument, on the same population, at the two ladder depths:
+
+  | depth | attempted | exact | differs | unlowerable |
+  |---|---:|---:|---:|---:|
+  | 0 `strict` (the control) | 113,557 | **0** | **0** | 113,557 |
+  | 1 `name-from-gl` | 113,557 | 15 | 373 | 113,169 |
 
   Both halves matter and the second is the one instruments here usually skip:
   `the_relaxation_is_actually_wired_to_something` asserts level 1 really flips
