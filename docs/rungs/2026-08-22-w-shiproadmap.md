@@ -191,7 +191,7 @@ Registered before the work, in the brief and this lane's own reading of it.
 |---|---|---|---|
 | E1 | the rewrite is a docs deliverable, `Census: +0`, zero `crates/` bytes | **exactly that** — `git diff --stat` over the lane touches `docs/` only, 5 files + 1 new + 1 new rung | **HIT** |
 | E2 | ~3–5 live sites cite the 08-19 roadmap and need amending | **3** live sites (`docs/README.md`, `ARCHITECTURE_PROPOSAL` Basis, `ARCHITECTURE_PROPOSAL` §7) + 1 banner on the dated record itself; 4 dated records deliberately left | **HIT**, low end |
-| E3 | the 08-19 page's measurements would need correcting against today's tree | **MISS, in the reassuring direction.** Its §3.2 table (878 / 870 / 8 / 26 / 0 / 844 / 0) is digit-identical to `STATUS.md`'s generated block at the reviewed tree. Nothing needed correcting; the numbers were right and only their *standing as arguments* changed | **MISS — pessimistic** |
+| E3 | the 08-19 page's measurements would need correcting against today's tree | **MISS, in the reassuring direction.** On the seven fields its §3.2 table shares with `STATUS.md`'s generated block — 878 TUs / 870 graded / 8 capture-fail / `match` 26 / `mismatch` 0 / `vocab-gap` 844 / `codegen-gap` 0 — every digit agrees, and the page says so itself. Nothing needed correcting; the numbers were right and only their *standing as arguments* changed | **MISS — pessimistic** |
 | E4 | *not registered* — nothing predicted that the review's own "immediate release-hygiene defect" would still be live | **93 diff lines, `C` vs `en_US`**, three days after it was filed (**#3381**) | **unregistered finding** |
 
 The E3 miss is worth naming because it is the *rare* direction (`CEILING` §5:
