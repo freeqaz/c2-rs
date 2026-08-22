@@ -74,6 +74,9 @@ pub mod div_mod_leaf;
 /// `codegen::fold::FoldShape`.
 pub mod fold;
 pub mod encode;
+/// S1's general layer: the per-op value carrying c2's opcode number, and the
+/// one composition every `encode_*` in [`encode`] now goes through.
+pub mod mop;
 pub mod frame;
 /// A MEASUREMENT, not an emitter — see the module header. `cfg(test)` only, so
 /// it cannot be reached from a release build even by accident.

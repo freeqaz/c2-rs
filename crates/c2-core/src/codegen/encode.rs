@@ -29,29 +29,48 @@
 //! `codegen.rs` and git flagged nothing (`docs/ARCHITECTURE_SEAMS.md` §1,
 //! class 4). In one file a duplicate encoder is a compile error, in the same
 //! file, immediately.
+//!
+//! ---
+//!
+//! # 2026-08-22, lane `w-s1` — **THE BLACK-BOX RE-DERIVATION IS RETIRED, AND
+//! THE READ TABLE IS THE PORT'S ONLY SOURCE OF A PRIMARY OPCODE.**
+//!
+//! Every function below used to carry its own copy of a primary opcode and an
+//! extended opcode as literals. Read **R2** dumped the two tables those
+//! literals were re-deriving, so they are gone: each function is now a
+//! **[`super::mop::MachineOp`] constructor** naming c2's own opcode number, and
+//! [`super::mop::encode_op`] is the one place a word is composed.
+//!
+//! **What that buys, concretely.** The bit layouts stopped being 85 independent
+//! facts. `xo31`, `fp_a_form`, `fp_primary` and `encode_logical_x`'s `xo`
+//! parameter are deleted: each was a *positional* helper whose argument order
+//! silently meant different fields for different callers — `xo31`'s first
+//! argument was the destination for `subfc` (form 49) and the **source** for
+//! `extsb` (form 38), which is precisely the class of confusion
+//! `encode_logical_x`'s own doc warns about, living inside the helper meant to
+//! prevent it.
+//!
+//! **What it does NOT change**: every signature, every returned word, and every
+//! per-function evidence note below. The originals are kept verbatim in
+//! `mod incumbent` at the bottom of this file and cross-checked against the
+//! general composition over each function's whole operand domain — that test,
+//! not the gate, is what makes the required-zero byte delta provable in the
+//! portable lane.
+
+use super::mop::{op, MachineOp};
 
 /// Encode `add rD, rA, rB` (rD = rA + rB): primary opcode 31, XO 266, OE=0,
 /// Rc=0. Returns the 4-byte big-endian instruction word.
 ///
 /// `word = (31<<26) | (rd<<21) | (ra<<16) | (rb<<11) | (266<<1)`.
 pub fn encode_add(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    let word: u32 = (31 << 26)
-        | ((rd as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((rb as u32 & 0x1F) << 11)
-        | (266 << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::ADD).s(rd).d0(ra).d1(rb).word()
 }
 
 /// Encode `mullw rD, rA, rB` (rD = rA * rB): primary opcode 31, XO 235, OE=0,
 /// Rc=0. Commutative in rA/rB (like `add`), so operand order is match-neutral.
 pub fn encode_mullw(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    let word: u32 = (31 << 26)
-        | ((rd as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((rb as u32 & 0x1F) << 11)
-        | (235 << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::MULLW).s(rd).d0(ra).d1(rb).word()
 }
 
 /// Encode `subf rD, rA, rB`: primary opcode 31, XO 40, OE=0, Rc=0.
@@ -65,12 +84,7 @@ pub fn encode_mullw(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
 /// This encoder is deliberately separate from `encode_add` and its single
 /// caller ([`select_text`]'s `Sub` arm) documents the mapping at the call site.
 pub fn encode_subf(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    let word: u32 = (31 << 26)
-        | ((rd as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((rb as u32 & 0x1F) << 11)
-        | (40 << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::SUBF).s(rd).d0(ra).d1(rb).word()
 }
 
 /// Encode an **X-form logical / shift** `op rA, rS, rB` — the register-register
@@ -103,28 +117,23 @@ pub fn encode_subf(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
 /// shifts are **non-commutative** in exactly the way [`encode_subf`] warns about
 /// — `rs` is the value shifted and `rb` the amount — so the three arguments are
 /// named for their roles rather than for their field letters.
-fn encode_logical_x(xo: u32, ra_dest: u8, rs_lhs: u8, rb_rhs: u8) -> [u8; 4] {
-    let word: u32 = (31 << 26)
-        | ((rs_lhs as u32 & 0x1F) << 21)
-        | ((ra_dest as u32 & 0x1F) << 16)
-        | ((rb_rhs as u32 & 0x1F) << 11)
-        | (xo << 1);
-    word.to_be_bytes()
+fn encode_logical_x(op: super::mop::C2Op, ra_dest: u8, rs_lhs: u8, rb_rhs: u8) -> [u8; 4] {
+    MachineOp::new(op).s(ra_dest).d0(rs_lhs).d1(rb_rhs).word()
 }
 
 /// `and rA, rS, rB` — XO 28. Commutative; captured `7c632038`.
 pub fn encode_and(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
-    encode_logical_x(28, dest, lhs, rhs)
+    encode_logical_x(op::AND, dest, lhs, rhs)
 }
 
 /// `or rA, rS, rB` — XO 444. Commutative; captured `7c632378`.
 pub fn encode_or(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
-    encode_logical_x(444, dest, lhs, rhs)
+    encode_logical_x(op::OR, dest, lhs, rhs)
 }
 
 /// `xor rA, rS, rB` — XO 316. Commutative; captured `7c632278`.
 pub fn encode_xor(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
-    encode_logical_x(316, dest, lhs, rhs)
+    encode_logical_x(op::XOR, dest, lhs, rhs)
 }
 
 /// `slw rA, rS, rB` — XO 24. **Non-commutative**: `lhs` is shifted by `rhs`.
@@ -133,12 +142,12 @@ pub fn encode_xor(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
 /// assumed: `int f(int a,int b){return a<<b;}` and the all-`unsigned` spelling
 /// both emit `7c632030`, as does the mixed `int f(int a,unsigned b)`.
 pub fn encode_slw(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
-    encode_logical_x(24, dest, lhs, rhs)
+    encode_logical_x(op::SLW, dest, lhs, rhs)
 }
 
 /// `srw rA, rS, rB` — XO 536, the **logical** right shift. Captured `7c632430`.
 pub fn encode_srw(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
-    encode_logical_x(536, dest, lhs, rhs)
+    encode_logical_x(op::SRW, dest, lhs, rhs)
 }
 
 /// `sraw rA, rS, rB` — XO 792, the **arithmetic** right shift. Captured
@@ -151,7 +160,7 @@ pub fn encode_srw(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
 /// `unsigned f(unsigned a, int b){return a>>b;}` is `srw` — **only the LEFT
 /// operand decides**, and both spellings carry the identical IL byte `0A`.
 pub fn encode_sraw(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
-    encode_logical_x(792, dest, lhs, rhs)
+    encode_logical_x(op::SRAW, dest, lhs, rhs)
 }
 
 /// Encode `addi rD, rA, SI` (rD = rA + sign-extended SI): primary opcode 14.
@@ -159,31 +168,25 @@ pub fn encode_sraw(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
 /// mean the literal 0 (not the contents of r0), so `addi rD, 0, k` is the
 /// canonical `li rD, k`. Used for `reg ± small-constant` and constant loads.
 pub fn encode_addi(rd: u8, ra: u8, si: i16) -> [u8; 4] {
-    let word: u32 =
-        (14 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::ADDI).s(rd).d0(ra).disp(si as i32).word()
 }
 
 /// Encode `addis rD, rA, SI` (rD = rA + (SI << 16)): primary opcode 15. The
 /// high half of a wide constant / immediate (with rA=0 for the `lis` idiom).
 pub fn encode_addis(rd: u8, ra: u8, si: i16) -> [u8; 4] {
-    let word: u32 =
-        (15 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::ADDIS).s(rd).d0(ra).disp(si as i32).word()
 }
 
 /// Encode `ori rA, rS, UI` (rA = rS | UI): primary opcode 24. The low half of
 /// a wide **constant load** (`lis`+`ori`); `UI` is a zero-extended 16-bit field.
 pub fn encode_ori(ra: u8, rs: u8, ui: u16) -> [u8; 4] {
-    let word: u32 =
-        (24 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (ui as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::ORI).s(ra).d0(rs).imm_d1(ui as u32).word()
 }
 
 /// `blr` — branch to link register (function return). `bclr` with BO=20
 /// ("always"), BI=0, LK=0 → the fixed word `0x4E800020`.
 pub fn encode_blr() -> [u8; 4] {
-    0x4E80_0020u32.to_be_bytes()
+    MachineOp::new(op::BLR).word()
 }
 
 /// `bclr BO,BI` — a **conditional return**: branch to the link register when the
@@ -201,9 +204,7 @@ pub fn encode_blr() -> [u8; 4] {
 /// at `BO = `[`BO_ALWAYS`]`, BI = 0`, and the two agree by construction — there
 /// is a test.
 pub fn encode_bclr(bo: u8, bi: u8) -> [u8; 4] {
-    let word: u32 =
-        (19 << 26) | ((bo as u32 & 0x1F) << 21) | ((bi as u32 & 0x1F) << 16) | (16 << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::BCLR).s(bo).d0(bi).word()
 }
 
 /// `mtctr rS` — `mtspr 9,rS`: opcode 31, XO 467, with the SPR number carried in
@@ -227,10 +228,11 @@ pub fn encode_bclr(bo: u8, bi: u8) -> [u8; 4] {
 /// here or anywhere in the class.
 pub fn encode_mtctr(rs: u8) -> [u8; 4] {
     const SPR_CTR: u32 = 9;
-    let spr_field = ((SPR_CTR & 0x1F) << 5) | ((SPR_CTR >> 5) & 0x1F);
-    let word: u32 =
-        (31 << 26) | ((rs as u32 & 0x1F) << 21) | (spr_field << 11) | (467 << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::MTSPR)
+        .s(rs)
+        .imm_d1(SPR_CTR & 0x1F)
+        .imm_d2(SPR_CTR >> 5)
+        .word()
 }
 
 /// **W-MMIO3 — `bctrl`**: branch to CTR, unconditional, and set LR.
@@ -252,10 +254,7 @@ pub fn encode_mtctr(rs: u8) -> [u8; 4] {
 /// caller framed: the callee's `blr` returns here, so LR must be saved, which
 /// is why every user of this word is a `.pdata`-bearing function.
 pub fn encode_bctrl() -> [u8; 4] {
-    const BO_ALWAYS: u32 = 20;
-    const XO_BCCTR: u32 = 528;
-    let word: u32 = (19 << 26) | (BO_ALWAYS << 21) | (XO_BCCTR << 1) | 1;
-    word.to_be_bytes()
+    MachineOp::new(op::BCTRL).word()
 }
 
 /// `BO` for **"decrement CTR, then branch if CTR is still non-zero"** — the
@@ -280,7 +279,10 @@ pub const BO_DNZ: u8 = 16;
 /// for the same reason: a truncated `BD` is a legal-looking branch to the wrong
 /// place.
 pub fn encode_bdnz(disp: i32) -> Option<[u8; 4]> {
-    encode_bc(BO_DNZ, 0, disp)
+    if disp % 4 != 0 || !(-BC_MAX_DISP - 4..=BC_MAX_DISP).contains(&disp) {
+        return None;
+    }
+    Some(MachineOp::new(op::BDNZ).disp(disp).word())
 }
 
 /// `lwz rD, D(rA)` — load a 32-bit word: primary opcode 32.
@@ -290,27 +292,21 @@ pub fn encode_bdnz(disp: i32) -> Option<[u8; 4]> {
 /// is `80640000`, `s->d` (offset 16) is `80630010`, `p[-1]` is `8063fffc` and
 /// `p[8000]` is `80637d00`. See `docs/IL_EXPR_LAYER.md` §3.
 pub fn encode_lwz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
-    let word: u32 =
-        (32 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::LWZ).s(rd).d0(ra).disp(d as i32).word()
 }
 
 /// `lbz rD, D(rA)` — load a zero-extended byte: primary opcode 34. Transcribed
 /// from captures: `char f(char* p){return *p;}` is `88630000`, `s->c` at offset 4
 /// is `88630004`, and the r11 target an `extsb` consumes is `89630000`.
 pub fn encode_lbz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
-    let word: u32 =
-        (34 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::LBZ).s(rd).d0(ra).disp(d as i32).word()
 }
 
 /// `lhz rD, D(rA)` — load a zero-extended halfword: primary opcode 40.
 /// Captured: `short f(short* p){return *p;}` is `a0630000` (**never `lha`** —
 /// see [`indirect_load_text`]), `s->h` at offset 6 is `a0630006`.
 pub fn encode_lhz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
-    let word: u32 =
-        (40 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::LHZ).s(rd).d0(ra).disp(d as i32).word()
 }
 
 /// `ld rD, DS(rA)` — load a doubleword: primary opcode 58, **DS-form**. The low
@@ -319,18 +315,14 @@ pub fn encode_lhz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
 /// that rather than letting it round. Captured: `long long f(long long* p)` is
 /// `e8630000`, `s->q` at offset 16 is `e8630010`.
 pub fn encode_ld(rd: u8, ra: u8, ds: i16) -> [u8; 4] {
-    let word: u32 = (58 << 26)
-        | ((rd as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((ds as u16 as u32) & 0xFFFC);
-    word.to_be_bytes()
+    MachineOp::new(op::LD).s(rd).d0(ra).disp(ds as i32).word()
 }
 
 /// `extsb rA, rS` — sign-extend byte: opcode 31, XO 954. Captured as
 /// `7d630774` = `extsb r3,r11` (the r11-then-r3 rule; see
 /// [`indirect_load_text`]).
 pub fn encode_extsb(ra: u8, rs: u8) -> [u8; 4] {
-    xo31(rs, ra, 0, 954)
+    MachineOp::new(op::EXTSB).s(ra).d0(rs).word()
 }
 
 /// `extsb. rA, rS` — the **record form** of the byte sign-extension, opcode 31
@@ -347,9 +339,7 @@ pub fn encode_extsb(ra: u8, rs: u8) -> [u8; 4] {
 /// two differ in whether a branch may read cr0 after them, and board #188 is
 /// what this project already paid for confusing that.
 pub fn encode_extsb_record(ra: u8, rs: u8) -> [u8; 4] {
-    let mut w = u32::from_be_bytes(xo31(rs, ra, 0, 954));
-    w |= 1;
-    w.to_be_bytes()
+    MachineOp::new(op::EXTSB_RC).s(ra).d0(rs).word()
 }
 
 /// `extsh rA, rS` — sign-extend halfword: opcode 31, XO 922. Captured as
@@ -359,7 +349,7 @@ pub fn encode_extsb_record(ra: u8, rs: u8) -> [u8; 4] {
 /// mode parameter. Kept, with its pinning test, because the *encoder* is measured
 /// and the missing piece is the mode plumbing, not the word.
 pub fn encode_extsh(ra: u8, rs: u8) -> [u8; 4] {
-    xo31(rs, ra, 0, 922)
+    MachineOp::new(op::EXTSH).s(ra).d0(rs).word()
 }
 
 /// `stw rS, D(rA)` — store a 32-bit word: primary opcode 36.
@@ -369,26 +359,20 @@ pub fn encode_extsh(ra: u8, rs: u8) -> [u8; 4] {
 /// `90830004`, `s->arr[2]` (offset 48) is `90830030`, and
 /// `void f(int x,S* s,int v){ s->b = v; }` is `90a40004` — value r5, base r4.
 pub fn encode_stw(rs: u8, ra: u8, d: i16) -> [u8; 4] {
-    let word: u32 =
-        (36 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::STW).d0(rs).s(ra).disp(d as i32).word()
 }
 
 /// `stb rS, D(rA)` — store a byte: primary opcode 38. Captured: a `char` member
 /// at offset 12 is `9883000c`, an `unsigned char` at 16 is `98830010`, a `bool`
 /// at 56 is `98830038`, and the literal form's `stb r11` is `99630000`.
 pub fn encode_stb(rs: u8, ra: u8, d: i16) -> [u8; 4] {
-    let word: u32 =
-        (38 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::STB).d0(rs).s(ra).disp(d as i32).word()
 }
 
 /// `sth rS, D(rA)` — store a halfword: primary opcode 44. Captured: a `short`
 /// member at offset 14 is `b083000e`.
 pub fn encode_sth(rs: u8, ra: u8, d: i16) -> [u8; 4] {
-    let word: u32 =
-        (44 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::STH).d0(rs).s(ra).disp(d as i32).word()
 }
 
 /// `sthu rS, D(rA)` — store a halfword **with update**: primary opcode 45, and
@@ -401,9 +385,7 @@ pub fn encode_sth(rs: u8, ra: u8, d: i16) -> [u8; 4] {
 /// caller then must not emit itself, which is why the two are separate
 /// functions and the test names both words.
 pub fn encode_sthu(rs: u8, ra: u8, d: i16) -> [u8; 4] {
-    let word: u32 =
-        (45 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::STHU).d0(rs).s(ra).disp(d as i32).word()
 }
 
 /// `lhzx rD, rA, rB` — indexed zero-extending halfword load: primary 31,
@@ -414,12 +396,7 @@ pub fn encode_sthu(rs: u8, ra: u8, d: i16) -> [u8; 4] {
 /// [`encode_lwzx`] is extended **23** and [`encode_lhz`] is a different form
 /// entirely, so this is a third cell and not a parameterization of either.
 pub fn encode_lhzx(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    let word: u32 = (31 << 26)
-        | ((rd as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((rb as u32 & 0x1F) << 11)
-        | (279 << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::LHZX).s(rd).d0(ra).d1(rb).word()
 }
 
 // ---- W6: comparison → boolean materialization encoders ---------------------
@@ -433,25 +410,21 @@ pub fn encode_lhzx(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
 /// `addic rD, rA, SIMM` (rD = rA + SIMM, **setting CA**): primary opcode 12.
 /// The carry-out is the point: `addic rD,rX,-1` sets CA iff `rX != 0`.
 pub fn encode_addic(rd: u8, ra: u8, si: i16) -> [u8; 4] {
-    let word: u32 =
-        (12 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::ADDIC).s(rd).d0(ra).disp(si as i32).word()
 }
 
 /// `subfic rD, rA, SIMM` (rD = SIMM − rA, setting CA): primary opcode 8.
 /// **Non-commutative**: the immediate is the minuend, the register the
 /// subtrahend. CA is set iff `rA <= SIMM` unsigned.
 pub fn encode_subfic(rd: u8, ra: u8, si: i16) -> [u8; 4] {
-    let word: u32 =
-        (8 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::SUBFIC).s(rd).d0(ra).disp(si as i32).word()
 }
 
 /// `subfc rD, rA, rB` (rD = rB − rA, setting CA): opcode 31, XO 8.
 /// **Non-commutative — same reversed mapping as [`encode_subf`]**: to realize
 /// `lhs − rhs` pass `ra = rhs`, `rb = lhs`.
 pub fn encode_subfc(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    xo31(rd, ra, rb, 8)
+    MachineOp::new(op::SUBFC).s(rd).d0(ra).d1(rb).word()
 }
 
 /// `subfe rD, rA, rB` (rD = ¬rA + rB + CA): opcode 31, XO 136.
@@ -459,26 +432,26 @@ pub fn encode_subfc(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
 /// result is `CA − 1` — the don't-care-source idiom (§3.5 of the W6 doc), where
 /// the source register number is still byte-visible and must be reproduced.
 pub fn encode_subfe(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    xo31(rd, ra, rb, 136)
+    MachineOp::new(op::SUBFE).s(rd).d0(ra).d1(rb).word()
 }
 
 /// `addze rD, rA` (rD = rA + CA): opcode 31, XO 202.
 pub fn encode_addze(rd: u8, ra: u8) -> [u8; 4] {
-    xo31(rd, ra, 0, 202)
+    MachineOp::new(op::ADDZE).s(rd).d0(ra).word()
 }
 
 /// `adde rD, rA, rB` (rD = rA + rB + CA): opcode 31, XO 138. The two-sided
 /// counterpart of [`encode_addze`], used by the signed `>=`/`<=` spines to add
 /// the two sign terms and the borrow in one instruction.
 pub fn encode_adde(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    xo31(rd, ra, rb, 138)
+    MachineOp::new(op::ADDE).s(rd).d0(ra).d1(rb).word()
 }
 
 /// `subfze rD, rA` (rD = ~rA + CA): opcode 31, XO 200. Against a preloaded
 /// `rA = -1` this is exactly "materialize CA", which is how the unsigned
 /// `>=`/`<=` spines turn a borrow into a 0/1 boolean.
 pub fn encode_subfze(rd: u8, ra: u8) -> [u8; 4] {
-    xo31(rd, ra, 0, 200)
+    MachineOp::new(op::SUBFZE).s(rd).d0(ra).word()
 }
 
 /// `srawi rA, rS, SH` (arithmetic shift right immediate, setting CA): opcode 31,
@@ -487,59 +460,46 @@ pub fn encode_subfze(rd: u8, ra: u8) -> [u8; 4] {
 /// [`encode_srwi31`], which yields 0 or 1 via `rlwinm`; the signed `>=`/`<=`
 /// spines use one of each and the pair is not interchangeable.
 pub fn encode_srawi(ra: u8, rs: u8, sh: u8) -> [u8; 4] {
-    let word: u32 = (31 << 26)
-        | ((rs as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((sh as u32 & 0x1F) << 11)
-        | (824 << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::SRAWI).s(ra).d0(rs).d1(sh).word()
 }
 
 /// `neg rD, rA` (rD = −rA): opcode 31, XO 104.
 pub fn encode_neg(rd: u8, ra: u8) -> [u8; 4] {
-    xo31(rd, ra, 0, 104)
+    MachineOp::new(op::NEG).s(rd).d0(ra).word()
 }
 
 /// `andc rA, rS, rB` (rA = rS & ¬rB): opcode 31, XO 60. Not symmetric in
 /// rS/rB — the complement applies to rB only.
 pub fn encode_andc(ra: u8, rs: u8, rb: u8) -> [u8; 4] {
-    xo31(rs, ra, rb, 60)
+    MachineOp::new(op::ANDC).s(ra).d0(rs).d1(rb).word()
 }
 
 /// `orc rA, rS, rB` (rA = rS | ¬rB): opcode 31, XO 412. Not symmetric.
 pub fn encode_orc(ra: u8, rs: u8, rb: u8) -> [u8; 4] {
-    xo31(rs, ra, rb, 412)
+    MachineOp::new(op::ORC).s(ra).d0(rs).d1(rb).word()
 }
 
 /// `eqv rA, rS, rB` (rA = ¬(rS ^ rB)): opcode 31, XO 284. Logically symmetric,
 /// but c2's emitted rS/rB order is reproduced rather than chosen.
 pub fn encode_eqv(ra: u8, rs: u8, rb: u8) -> [u8; 4] {
-    xo31(rs, ra, rb, 284)
+    MachineOp::new(op::EQV).s(ra).d0(rs).d1(rb).word()
 }
 
 /// `cntlzw rA, rS` (count leading zero bits): opcode 31, XO 26. Yields exactly
 /// 32 iff rS is zero — the basis of the `== 0` idiom.
 pub fn encode_cntlzw(ra: u8, rs: u8) -> [u8; 4] {
-    xo31(rs, ra, 0, 26)
+    MachineOp::new(op::CNTLZW).s(ra).d0(rs).word()
 }
 
 /// `xori rA, rS, UIMM` (rA = rS ^ UIMM): primary opcode 26.
 pub fn encode_xori(ra: u8, rs: u8, ui: u16) -> [u8; 4] {
-    let word: u32 =
-        (26 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (ui as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::XORI).s(ra).d0(rs).imm_d1(ui as u32).word()
 }
 
 /// `rlwinm rA, rS, SH, MB, ME` — rotate left word immediate then AND with mask:
 /// primary opcode 21, Rc=0. The workhorse of bit extraction here.
 pub fn encode_rlwinm(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> [u8; 4] {
-    let word: u32 = (21 << 26)
-        | ((rs as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((sh as u32 & 0x1F) << 11)
-        | ((mb as u32 & 0x1F) << 6)
-        | ((me as u32 & 0x1F) << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::RLWINM).s(ra).d0(rs).d1(sh).d2(mb).d3(me).word()
 }
 
 /// `rlwimi rA, rS, SH, MB, ME` — rotate left word immediate then mask
@@ -547,13 +507,7 @@ pub fn encode_rlwinm(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> [u8; 4] {
 /// `rA` as well as writing it — the bits outside `MB..ME` survive, which is the
 /// whole point and the reason W43 can fold a shift and an OR into one word.
 pub fn encode_rlwimi(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> [u8; 4] {
-    let word: u32 = (20 << 26)
-        | ((rs as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((sh as u32 & 0x1F) << 11)
-        | ((mb as u32 & 0x1F) << 6)
-        | ((me as u32 & 0x1F) << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::RLWIMI).s(ra).d0(rs).d1(sh).d2(mb).d3(me).word()
 }
 
 /// `rldicl rA, rS, SH, MB` — **rotate left DOUBLEWORD immediate then clear
@@ -575,15 +529,7 @@ pub fn encode_rlwimi(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> [u8; 4] {
 /// so the two cells separate the `SH[5]` bit from the `MB[5]` bit, which a
 /// single witness could not.
 pub fn encode_rldicl(ra: u8, rs: u8, sh: u8, mb: u8) -> [u8; 4] {
-    let sh = sh as u32 & 0x3F;
-    let mb = mb as u32 & 0x3F;
-    let word: u32 = (30 << 26)
-        | ((rs as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((sh & 0x1F) << 11)
-        | (((mb & 0x1F) << 1 | (mb >> 5)) << 5)
-        | ((sh >> 5) << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::RLDICL).s(ra).d0(rs).imm_d1(sh as u32).imm_d2(mb as u32).word()
 }
 
 /// `rldimi rA, rS, SH, MB` — **rotate left DOUBLEWORD immediate then mask
@@ -596,16 +542,7 @@ pub fn encode_rldicl(ra: u8, rs: u8, sh: u8, mb: u8) -> [u8; 4] {
 /// difference is the extended opcode. Read off `?Encipher@XTEABlockEncrypter`'s
 /// `7923000e`, which decodes as `rA=3, rS=9, SH=32, MB=0`.
 pub fn encode_rldimi(ra: u8, rs: u8, sh: u8, mb: u8) -> [u8; 4] {
-    let sh = sh as u32 & 0x3F;
-    let mb = mb as u32 & 0x3F;
-    let word: u32 = (30 << 26)
-        | ((rs as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((sh & 0x1F) << 11)
-        | (((mb & 0x1F) << 1 | (mb >> 5)) << 5)
-        | (3 << 2)
-        | ((sh >> 5) << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::RLDIMI).s(ra).d0(rs).imm_d1(sh as u32).imm_d2(mb as u32).word()
 }
 
 /// `stdu rS, DS(rA)` — **store doubleword with update**: primary opcode 62,
@@ -616,12 +553,7 @@ pub fn encode_rldimi(ra: u8, rs: u8, sh: u8, mb: u8) -> [u8; 4] {
 /// Read off `?Encrypt@XTEABlockEncrypter`'s `f97e0009`: `rS=11, rA=30, DS=8`.
 pub fn encode_stdu(rs: u8, ra: u8, ds: i16) -> [u8; 4] {
     debug_assert_eq!(ds & 3, 0, "a DS displacement's low two bits are implied zero");
-    let word: u32 = (62 << 26)
-        | ((rs as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((ds as u16 as u32) & 0xFFFC)
-        | 1;
-    word.to_be_bytes()
+    MachineOp::new(op::STDU).d0(rs).s(ra).disp(ds as i32).word()
 }
 
 /// `stdx rS, rA, rB` — **store doubleword indexed**: primary opcode 31,
@@ -629,12 +561,7 @@ pub fn encode_stdu(rs: u8, ra: u8, ds: i16) -> [u8; 4] {
 ///
 /// Read off `?Encrypt@XTEABlockEncrypter`'s `7d7af92a`: `rS=11, rA=26, rB=31`.
 pub fn encode_stdx(rs: u8, ra: u8, rb: u8) -> [u8; 4] {
-    let word: u32 = (31 << 26)
-        | ((rs as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((rb as u32 & 0x1F) << 11)
-        | (149 << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::STDX).d0(rs).s(ra).d1(rb).word()
 }
 
 /// `addic. rD, rA, SI` — **add immediate carrying, RECORD form**: primary
@@ -644,9 +571,7 @@ pub fn encode_stdx(rs: u8, ra: u8, rb: u8) -> [u8; 4] {
 ///
 /// Read off `?Encrypt@XTEABlockEncrypter`'s `37bdffff`: `rD=29, rA=29, SI=-1`.
 pub fn encode_addic_record(rd: u8, ra: u8, si: i16) -> [u8; 4] {
-    let word: u32 =
-        (13 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::ADDIC_RC).s(rd).d0(ra).disp(si as i32).word()
 }
 
 /// `srwi rA, rS, 31` — extract the sign bit. The `rlwinm rA,rS,1,31,31` form.
@@ -675,9 +600,7 @@ pub fn encode_clrlwi31(ra: u8, rs: u8) -> [u8; 4] {
 /// `/O1 /Oi /EHsc /GR`), and `codegen::osf_handle_guard` asserts that word in
 /// place against the whole 152-byte function.
 pub fn encode_rlwinm_record(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> [u8; 4] {
-    let mut w = encode_rlwinm(ra, rs, sh, mb, me);
-    w[3] |= 1;
-    w
+    MachineOp::new(op::RLWINM_RC).s(ra).d0(rs).d1(sh).d2(mb).d3(me).word()
 }
 
 /// `clrlwi. rA, rS, N` — keep the low `32 − N` bits **and set cr0**. The
@@ -691,58 +614,27 @@ pub fn encode_clrlwi_record(ra: u8, rs: u8, n: u8) -> [u8; 4] {
     encode_rlwinm_record(ra, rs, 0, n, 31)
 }
 
-// ---- W13a: floating-point leaf encoders ------------------------------------
-//
-// Single precision is primary opcode 59 (`0xEC…`) and double is 63 (`0xFC…`),
-// with *identical* XO and register fields — so one encoder parameterised by
-// precision covers both. Verified bit-exact against live captures
-// (docs/CODEGEN_W13_FLOAT.md §3).
-//
-// Two traps that the integer path would walk straight into:
-//   * `fmuls` puts the multiplier in the **C** field (bits 6..10), not B.
-//   * `fsubs fD,fA,fB` computes `fA − fB` — the **opposite** of [`encode_subf`]'s
-//     load-bearing reversal. Reusing the integer convention silently negates
-//     every FP subtraction.
 
-/// Primary opcode for the A-form FP ops: 59 single-precision, 63 double.
-fn fp_primary(double: bool) -> u32 {
-    if double {
-        63
-    } else {
-        59
-    }
-}
-
-/// A-form FP encode: `<op> fD, fA, fB, fC` with the given XO.
-fn fp_a_form(double: bool, fd: u8, fa: u8, fb: u8, fc: u8, xo: u32) -> [u8; 4] {
-    let word: u32 = (fp_primary(double) << 26)
-        | ((fd as u32 & 0x1F) << 21)
-        | ((fa as u32 & 0x1F) << 16)
-        | ((fb as u32 & 0x1F) << 11)
-        | ((fc as u32 & 0x1F) << 6)
-        | (xo << 1);
-    word.to_be_bytes()
-}
 
 /// `fadds`/`fadd` — XO 21. Commutative.
 pub fn encode_fadd(double: bool, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
-    fp_a_form(double, fd, fa, fb, 0, 21)
+    MachineOp::new(if double { op::FADD } else { op::FADDS }).s(fd).d0(fa).d1(fb).word()
 }
 
 /// `fsubs`/`fsub` — XO 20. **`fD = fA − fB`**, i.e. the operands are in source
 /// order, unlike the integer [`encode_subf`]. Swapping them negates the result.
 pub fn encode_fsub(double: bool, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
-    fp_a_form(double, fd, fa, fb, 0, 20)
+    MachineOp::new(if double { op::FSUB } else { op::FSUBS }).s(fd).d0(fa).d1(fb).word()
 }
 
 /// `fmuls`/`fmul` — XO 25, with the multiplier in the **C** field.
 pub fn encode_fmul(double: bool, fd: u8, fa: u8, fc: u8) -> [u8; 4] {
-    fp_a_form(double, fd, fa, 0, fc, 25)
+    MachineOp::new(if double { op::FMUL } else { op::FMULS }).s(fd).d0(fa).d1(fc).word()
 }
 
 /// `fdivs`/`fdiv` — XO 18.
 pub fn encode_fdiv(double: bool, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
-    fp_a_form(double, fd, fa, fb, 0, 18)
+    MachineOp::new(if double { op::FDIV } else { op::FDIVS }).s(fd).d0(fa).d1(fb).word()
 }
 
 /// `lfsx fD, rA, rB` — load float single, **X-form indexed**: primary 31,
@@ -759,7 +651,7 @@ pub fn encode_fdiv(double: bool, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
 /// Captured as `7c0a5c2e` = `lfsx f0, r10, r11`
 /// (`work/w-blockir/ref/ipp.dis.txt`, `?Add_InPlace@IPP@@YAXIPBMPAM@Z` +0x14).
 pub fn encode_lfsx(fd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    xo31(fd, ra, rb, 535)
+    MachineOp::new(op::LFSX).s(fd).d0(ra).d1(rb).word()
 }
 
 /// `stfsx fS, rA, rB` — store float single, X-form indexed: primary 31, XO 663.
@@ -768,7 +660,7 @@ pub fn encode_lfsx(fd: u8, ra: u8, rb: u8) -> [u8; 4] {
 /// `stfsx f0, r9, r11` (`work/w-blockir/ref/ipp.dis.txt`,
 /// `?Mul@IPP@@YAXIPBM0PAM@Z` +0x24).
 pub fn encode_stfsx(fs: u8, ra: u8, rb: u8) -> [u8; 4] {
-    xo31(fs, ra, rb, 663)
+    MachineOp::new(op::STFSX).d0(fs).s(ra).d1(rb).word()
 }
 
 /// `stfsu fS, d(rA)` — store float single **with update**: primary **53**,
@@ -791,11 +683,7 @@ pub fn encode_stfsx(fs: u8, ra: u8, rb: u8) -> [u8; 4] {
 /// Captured as `d40b0004` = `stfsu f0, 4(r11)`
 /// (`work/w-blockir/ref/ipp.dis.txt`, `?MulConstant_InPlace` +0x18).
 pub fn encode_stfsu(fs: u8, ra: u8, d: i16) -> [u8; 4] {
-    let word: u32 = (53u32 << 26)
-        | ((fs as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | (d as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::STFSU).d0(fs).s(ra).disp(d as i32).word()
 }
 
 /// `stfs fS, d(rA)` / `stfd fS, d(rA)` — store a floating-point register.
@@ -808,12 +696,7 @@ pub fn encode_stfsu(fs: u8, ra: u8, d: i16) -> [u8; 4] {
 /// `stfs f1,4(r3)` and `d8230008` is `stfd f1,8(r3)`
 /// (`docs/CODEGEN_FP_ARGS.md` §3).
 pub fn encode_stfs(double: bool, fs: u8, ra: u8, d: i16) -> [u8; 4] {
-    let primary: u32 = if double { 54 } else { 52 };
-    let word: u32 = (primary << 26)
-        | ((fs as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | (d as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(if double { op::STFD } else { op::STFS }).d0(fs).s(ra).disp(d as i32).word()
 }
 
 /// `fmr fD, fB` — the FP register move: X-form, primary **63**, XO 72.
@@ -826,9 +709,7 @@ pub fn encode_stfs(double: bool, fs: u8, ra: u8, d: i16) -> [u8; 4] {
 /// (`docs/CODEGEN_FP_ARGS.md` §1) — which is why this takes no `double` flag and
 /// the A-form encoders above do.
 pub fn encode_fmr(fd: u8, fb: u8) -> [u8; 4] {
-    let word: u32 =
-        (63u32 << 26) | ((fd as u32 & 0x1F) << 21) | ((fb as u32 & 0x1F) << 11) | (72u32 << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::FMR).s(fd).d0(fb).word()
 }
 
 /// `frsp fD, fB` — round to single precision: X-form, primary 63, XO 12.
@@ -840,42 +721,22 @@ pub fn encode_fmr(fd: u8, fb: u8) -> [u8; 4] {
 /// `float nar(double a){ return gf1(a); }` is `fc200818 ; b` —
 /// `frsp f1,f1` (`docs/CODEGEN_FP_ARGS.md` §2).
 pub fn encode_frsp(fd: u8, fb: u8) -> [u8; 4] {
-    let word: u32 =
-        (63u32 << 26) | ((fd as u32 & 0x1F) << 21) | ((fb as u32 & 0x1F) << 11) | (12u32 << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::FRSP).s(fd).d0(fb).word()
 }
 
 /// `lfs fD, d(rA)` — load float single: primary opcode 48. The `lfd` (double)
 /// form is primary 50. Both are D-form with a signed 16-bit displacement, which
 /// the REFLO relocation rewrites, so `d` is emitted as 0.
 pub fn encode_lfs(double: bool, fd: u8, ra: u8, d: i16) -> [u8; 4] {
-    let primary: u32 = if double { 50 } else { 48 };
-    let word: u32 = (primary << 26)
-        | ((fd as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | (d as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(if double { op::LFD } else { op::LFS }).s(fd).d0(ra).disp(d as i32).word()
 }
 
-/// Shared encoder for the opcode-31 X-form used above: the first register field
-/// (bits 6..11) is rD for arithmetic forms and rS for logical ones — callers
-/// pass them in that slot accordingly.
-fn xo31(first: u8, second: u8, rb: u8, xo: u32) -> [u8; 4] {
-    let word: u32 = (31 << 26)
-        | ((first as u32 & 0x1F) << 21)
-        | ((second as u32 & 0x1F) << 16)
-        | ((rb as u32 & 0x1F) << 11)
-        | (xo << 1);
-    word.to_be_bytes()
-}
 
 /// `std rS, DS(rA)` — store doubleword, primary opcode 62, DS-form (the low two
 /// bits select the form, so the displacement must be a multiple of 4). Captured
 /// as `fbe1fff0` = `std r31,-16(r1)` in every callee-saved GPR prologue.
 pub fn encode_std(rs: u8, ra: u8, ds: i16) -> [u8; 4] {
-    let word: u32 =
-        (62 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | ((ds as u16 as u32) & 0xFFFC);
-    word.to_be_bytes()
+    MachineOp::new(op::STD).d0(rs).s(ra).disp(ds as i32).word()
 }
 
 /// `ld rD, DS(rA)` with a **GPR** destination — the epilogue's reload. Same
@@ -888,31 +749,25 @@ pub(crate) fn encode_ldr(rd: u8, ra: u8, ds: i16) -> [u8; 4] {
 /// `stfd frS, d(rA)` — store float double, primary opcode 54 (D-form, so any
 /// 16-bit displacement). Captured as `dbe1fff0` = `stfd f31,-16(r1)`.
 pub fn encode_stfd(frs: u8, ra: u8, d: i16) -> [u8; 4] {
-    let word: u32 =
-        (54 << 26) | ((frs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::STFD).d0(frs).s(ra).disp(d as i32).word()
 }
 
 /// `lfd frD, d(rA)` — load float double, primary opcode 50. Captured as
 /// `cbe1fff0` = `lfd f31,-16(r1)`.
 pub fn encode_lfd(frd: u8, ra: u8, d: i16) -> [u8; 4] {
-    let word: u32 =
-        (50 << 26) | ((frd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::LFD).s(frd).d0(ra).disp(d as i32).word()
 }
 
 /// `stwu rS, d(rA)` — store word with update, primary opcode 37: the frame
 /// allocation. Captured as `9421ffa0` = `stwu r1,-96(r1)`.
 pub fn encode_stwu(rs: u8, ra: u8, d: i16) -> [u8; 4] {
-    let word: u32 =
-        (37 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::STWU).d0(rs).s(ra).disp(d as i32).word()
 }
 
 /// `mr rA, rS` — the `or rA, rS, rS` idiom c2 uses for a register-to-register
 /// move (opcode 31, XO 444).
 pub fn encode_mr(ra: u8, rs: u8) -> [u8; 4] {
-    xo31(rs, ra, rs, 444)
+    MachineOp::new(op::MR).s(ra).d0(rs).word()
 }
 
 /// `mr. rA, rS` — the **record form** of the `or` move, opcode 31 XO 444 with
@@ -927,9 +782,7 @@ pub fn encode_mr(ra: u8, rs: u8) -> [u8; 4] {
 /// here against [`CR_COMPARE`]'s cr6 — and that is board #188's defect, which
 /// this port has already paid for once.
 pub fn encode_mr_record(ra: u8, rs: u8) -> [u8; 4] {
-    let mut w = u32::from_be_bytes(xo31(rs, ra, rs, 444));
-    w |= 1;
-    w.to_be_bytes()
+    MachineOp::new(op::OR_RC).s(ra).d0(rs).d1(rs).word()
 }
 
 /// `mulli rD, rA, SIMM` — primary opcode 7. The whole of `a * k` for the
@@ -939,9 +792,7 @@ pub fn encode_mr_record(ra: u8, rs: u8) -> [u8; 4] {
 ///
 /// Captured: `1d0a007f` = `mulli r8,r10,127`.
 pub fn encode_mulli(rd: u8, ra: u8, simm: i16) -> [u8; 4] {
-    let word: u32 =
-        (7 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (simm as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::MULLI).s(rd).d0(ra).disp(simm as i32).word()
 }
 
 /// `lbzu rD, d(rA)` — load byte and zero with **update**, primary opcode 35.
@@ -951,22 +802,20 @@ pub fn encode_mulli(rd: u8, ra: u8, simm: i16) -> [u8; 4] {
 ///
 /// Captured: `8d490001` = `lbzu r10,1(r9)`.
 pub fn encode_lbzu(rd: u8, ra: u8, d: i16) -> [u8; 4] {
-    let word: u32 =
-        (35 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::LBZU).s(rd).d0(ra).disp(d as i32).word()
 }
 
 /// `divw rD, rA, rB` — signed word divide, opcode 31 XO 491.
 /// Captured: `7ce823d6` = `divw r7,r8,r4`.
 pub fn encode_divw(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    xo31(rd, ra, rb, 491)
+    MachineOp::new(op::DIVW).s(rd).d0(ra).d1(rb).word()
 }
 
 /// `divwu rD, rA, rB` — **unsigned** word divide, opcode 31 XO 459.
 /// Captured: `7c632396` = `divwu r3,r3,r4` (`work/w-divmod/twigrid.py`, row
 /// `u-div-var`, byte-identical at `/O1` and `/Ox`).
 pub fn encode_divwu(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    xo31(rd, ra, rb, 459)
+    MachineOp::new(op::DIVWU).s(rd).d0(ra).d1(rb).word()
 }
 
 /// `twi TO, rA, SIMM` — **trap word immediate**, primary opcode 3. The
@@ -1013,9 +862,7 @@ pub fn encode_divwu(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
 /// `div_mod_leaf` refuses every constant divisor — but the `TO` axis is
 /// recorded here so a later rung does not rediscover it as an anomaly.
 pub fn encode_twi(to: u8, ra: u8, simm: i16) -> [u8; 4] {
-    let word: u32 =
-        (3 << 26) | ((to as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (simm as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::TWI).s(to).d0(ra).disp(simm as i32).word()
 }
 
 // ---- W8: the conditional-branch family ------------------------------------
@@ -1082,11 +929,7 @@ pub fn encode_bc(bo: u8, bi: u8, disp: i32) -> Option<[u8; 4]> {
     if disp % 4 != 0 || !(-BC_MAX_DISP - 4..=BC_MAX_DISP).contains(&disp) {
         return None;
     }
-    let word: u32 = 0x4000_0000
-        | ((bo as u32 & 0x1F) << 21)
-        | ((bi as u32 & 0x1F) << 16)
-        | (disp as u32 & 0xFFFC);
-    Some(word.to_be_bytes())
+    Some(MachineOp::new(op::BC).s(bo).d0(bi).disp(disp).word())
 }
 
 /// The largest displacement an unconditional `b` reaches: `LI` is a signed
@@ -1125,17 +968,12 @@ pub fn encode_b_intra(disp: i32) -> Option<[u8; 4]> {
     if disp % 4 != 0 || !(-B_MAX_DISP - 4..=B_MAX_DISP).contains(&disp) {
         return None;
     }
-    let word: u32 = 0x4800_0000 | (disp as u32 & 0x03FF_FFFC);
-    Some(word.to_be_bytes())
+    Some(MachineOp::new(op::B).disp(disp).word())
 }
 
 /// Encode `cmpwi crf,rA,SIMM` — the **signed** immediate compare, opcode 11.
 pub fn encode_cmpwi(crf: u8, ra: u8, simm: i16) -> [u8; 4] {
-    let word: u32 = (11 << 26)
-        | ((crf as u32 & 7) << 23)
-        | ((ra as u32 & 0x1F) << 16)
-        | (simm as u16 as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::CMPI).s(crf).d0(ra).disp(simm as i32).word()
 }
 
 /// Encode `cmplwi crf,rA,UIMM` — the **unsigned** immediate compare, opcode 10.
@@ -1146,11 +984,7 @@ pub fn encode_cmpwi(crf: u8, ra: u8, simm: i16) -> [u8; 4] {
 /// (`docs/CFG_SHAPE.md` §3.2 — `?MemFree` and both `Pool.cpp` functions emit
 /// `cmplwi`).
 pub fn encode_cmplwi(crf: u8, ra: u8, uimm: u16) -> [u8; 4] {
-    let word: u32 = (10 << 26)
-        | ((crf as u32 & 7) << 23)
-        | ((ra as u32 & 0x1F) << 16)
-        | (uimm as u32);
-    word.to_be_bytes()
+    MachineOp::new(op::CMPLI).s(crf).d0(ra).disp(uimm as i32).word()
 }
 
 /// Encode `cmpw crf,rA,rB` — the **signed register-register** word compare,
@@ -1176,11 +1010,7 @@ pub fn encode_cmplwi(crf: u8, ra: u8, uimm: u16) -> [u8; 4] {
 /// asserted a **layout rule** that had been superseded, where these assert a
 /// **fixed instruction encoding** that cannot be.
 pub fn encode_cmpw(crf: u8, ra: u8, rb: u8) -> [u8; 4] {
-    let word: u32 = (31 << 26)
-        | ((crf as u32 & 7) << 23)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((rb as u32 & 0x1F) << 11);
-    word.to_be_bytes()
+    MachineOp::new(op::CMP).s(crf).d0(ra).d1(rb).word()
 }
 
 /// Encode `cmplw crf,rA,rB` — the **unsigned** register-register compare:
@@ -1208,12 +1038,7 @@ pub fn encode_cmpw(crf: u8, ra: u8, rb: u8) -> [u8; 4] {
 /// class that used one form for both emits the right program with one wrong
 /// word and every branch still resolving — `docs/GAPS.md` §6.
 pub fn encode_cmplw(crf: u8, ra: u8, rb: u8) -> [u8; 4] {
-    let word: u32 = (31 << 26)
-        | ((crf as u32 & 7) << 23)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((rb as u32 & 0x1F) << 11)
-        | (32 << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::CMPL).s(crf).d0(ra).d1(rb).word()
 }
 
 /// Encode `lwzx rD,rA,rB` — load word, **indexed**: X-form, primary opcode 31,
@@ -1231,12 +1056,7 @@ pub fn encode_cmplw(crf: u8, ra: u8, rb: u8) -> [u8; 4] {
 ///
 /// Same accept-path caveat as [`encode_cmpw`], for the same reason.
 pub fn encode_lwzx(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    let word: u32 = (31 << 26)
-        | ((rd as u32 & 0x1F) << 21)
-        | ((ra as u32 & 0x1F) << 16)
-        | ((rb as u32 & 0x1F) << 11)
-        | (23 << 1);
-    word.to_be_bytes()
+    MachineOp::new(op::LWZX).s(rd).d0(ra).d1(rb).word()
 }
 
 #[cfg(test)]
@@ -1583,5 +1403,830 @@ mod tests {
         assert_ne!(encode_sraw(3, 3, 4), encode_srw(3, 3, 4));
         assert_eq!(u32::from_be_bytes(encode_sraw(3, 3, 4)), 0x7c63_2630); // int
         assert_eq!(u32::from_be_bytes(encode_srw(3, 3, 4)), 0x7c63_2430); // unsigned
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S1's `#[cfg(test)]` cross-check: the incumbent encoders, kept VERBATIM.
+// ---------------------------------------------------------------------------
+
+/// **The 81 hand-written encoders this file shipped until 2026-08-22, byte for
+/// byte, as a test-only oracle.**
+///
+/// Lane `w-s1` (Phase 0 slice **S1**) re-expressed the live path through
+/// [`super::super::mop`]'s general composition. The construct-rung criterion is
+/// a **required-zero byte delta**, and board **#3346** is the condition that
+/// makes such a delta *evidence* rather than a tautology: the re-expression has
+/// to be on a path the gate exercises, with no incumbent left to fall back to.
+/// It is — [`select_function`](super::super::select::select_function) reaches
+/// every one of these through the new composition and there is no second route.
+///
+/// So the incumbent survives **only here**, and only as the thing the new path
+/// is graded against. Nothing outside `#[cfg(test)]` can call it, which is the
+/// half board #3336 found missing on `ir0`: a re-expression whose old path is
+/// still reachable has not been graded, it has been *duplicated*.
+///
+/// **Why verbatim and not "cleaned up".** These bodies are the accumulated
+/// black-box record — every primary opcode and every XO in them was transcribed
+/// from a captured obj one fact at a time, and the per-function evidence notes
+/// above cite the captures. Re-deriving them from the same read table the new
+/// path uses would make the cross-check compare c2's table to itself and pass
+/// by construction. The whole value of this module is that it is an
+/// **independent** derivation.
+#[cfg(test)]
+#[allow(clippy::identity_op, clippy::erasing_op)]
+mod incumbent {
+    use super::{B_MAX_DISP, BC_MAX_DISP, BO_DNZ};
+
+    pub(super) fn inc_add(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+        let word: u32 = (31 << 26)
+            | ((rd as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((rb as u32 & 0x1F) << 11)
+            | (266 << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_mullw(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+        let word: u32 = (31 << 26)
+            | ((rd as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((rb as u32 & 0x1F) << 11)
+            | (235 << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_subf(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+        let word: u32 = (31 << 26)
+            | ((rd as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((rb as u32 & 0x1F) << 11)
+            | (40 << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_logical_x(xo: u32, ra_dest: u8, rs_lhs: u8, rb_rhs: u8) -> [u8; 4] {
+        let word: u32 = (31 << 26)
+            | ((rs_lhs as u32 & 0x1F) << 21)
+            | ((ra_dest as u32 & 0x1F) << 16)
+            | ((rb_rhs as u32 & 0x1F) << 11)
+            | (xo << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_and(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
+        inc_logical_x(28, dest, lhs, rhs)
+    }
+
+    pub(super) fn inc_or(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
+        inc_logical_x(444, dest, lhs, rhs)
+    }
+
+    pub(super) fn inc_xor(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
+        inc_logical_x(316, dest, lhs, rhs)
+    }
+
+    pub(super) fn inc_slw(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
+        inc_logical_x(24, dest, lhs, rhs)
+    }
+
+    pub(super) fn inc_srw(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
+        inc_logical_x(536, dest, lhs, rhs)
+    }
+
+    pub(super) fn inc_sraw(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
+        inc_logical_x(792, dest, lhs, rhs)
+    }
+
+    pub(super) fn inc_addi(rd: u8, ra: u8, si: i16) -> [u8; 4] {
+        let word: u32 =
+            (14 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_addis(rd: u8, ra: u8, si: i16) -> [u8; 4] {
+        let word: u32 =
+            (15 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_ori(ra: u8, rs: u8, ui: u16) -> [u8; 4] {
+        let word: u32 =
+            (24 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (ui as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_blr() -> [u8; 4] {
+        0x4E80_0020u32.to_be_bytes()
+    }
+
+    pub(super) fn inc_bclr(bo: u8, bi: u8) -> [u8; 4] {
+        let word: u32 =
+            (19 << 26) | ((bo as u32 & 0x1F) << 21) | ((bi as u32 & 0x1F) << 16) | (16 << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_mtctr(rs: u8) -> [u8; 4] {
+        const SPR_CTR: u32 = 9;
+        let spr_field = ((SPR_CTR & 0x1F) << 5) | ((SPR_CTR >> 5) & 0x1F);
+        let word: u32 =
+            (31 << 26) | ((rs as u32 & 0x1F) << 21) | (spr_field << 11) | (467 << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_bctrl() -> [u8; 4] {
+        const BO_ALWAYS: u32 = 20;
+        const XO_BCCTR: u32 = 528;
+        let word: u32 = (19 << 26) | (BO_ALWAYS << 21) | (XO_BCCTR << 1) | 1;
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_bdnz(disp: i32) -> Option<[u8; 4]> {
+        inc_bc(BO_DNZ, 0, disp)
+    }
+
+    pub(super) fn inc_lwz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
+        let word: u32 =
+            (32 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_lbz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
+        let word: u32 =
+            (34 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_lhz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
+        let word: u32 =
+            (40 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_ld(rd: u8, ra: u8, ds: i16) -> [u8; 4] {
+        let word: u32 = (58 << 26)
+            | ((rd as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((ds as u16 as u32) & 0xFFFC);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_extsb(ra: u8, rs: u8) -> [u8; 4] {
+        xo31(rs, ra, 0, 954)
+    }
+
+    pub(super) fn inc_extsb_record(ra: u8, rs: u8) -> [u8; 4] {
+        let mut w = u32::from_be_bytes(xo31(rs, ra, 0, 954));
+        w |= 1;
+        w.to_be_bytes()
+    }
+
+    pub(super) fn inc_extsh(ra: u8, rs: u8) -> [u8; 4] {
+        xo31(rs, ra, 0, 922)
+    }
+
+    pub(super) fn inc_stw(rs: u8, ra: u8, d: i16) -> [u8; 4] {
+        let word: u32 =
+            (36 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_stb(rs: u8, ra: u8, d: i16) -> [u8; 4] {
+        let word: u32 =
+            (38 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_sth(rs: u8, ra: u8, d: i16) -> [u8; 4] {
+        let word: u32 =
+            (44 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_sthu(rs: u8, ra: u8, d: i16) -> [u8; 4] {
+        let word: u32 =
+            (45 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_lhzx(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+        let word: u32 = (31 << 26)
+            | ((rd as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((rb as u32 & 0x1F) << 11)
+            | (279 << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_addic(rd: u8, ra: u8, si: i16) -> [u8; 4] {
+        let word: u32 =
+            (12 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_subfic(rd: u8, ra: u8, si: i16) -> [u8; 4] {
+        let word: u32 =
+            (8 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_subfc(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+        xo31(rd, ra, rb, 8)
+    }
+
+    pub(super) fn inc_subfe(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+        xo31(rd, ra, rb, 136)
+    }
+
+    pub(super) fn inc_addze(rd: u8, ra: u8) -> [u8; 4] {
+        xo31(rd, ra, 0, 202)
+    }
+
+    pub(super) fn inc_adde(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+        xo31(rd, ra, rb, 138)
+    }
+
+    pub(super) fn inc_subfze(rd: u8, ra: u8) -> [u8; 4] {
+        xo31(rd, ra, 0, 200)
+    }
+
+    pub(super) fn inc_srawi(ra: u8, rs: u8, sh: u8) -> [u8; 4] {
+        let word: u32 = (31 << 26)
+            | ((rs as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((sh as u32 & 0x1F) << 11)
+            | (824 << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_neg(rd: u8, ra: u8) -> [u8; 4] {
+        xo31(rd, ra, 0, 104)
+    }
+
+    pub(super) fn inc_andc(ra: u8, rs: u8, rb: u8) -> [u8; 4] {
+        xo31(rs, ra, rb, 60)
+    }
+
+    pub(super) fn inc_orc(ra: u8, rs: u8, rb: u8) -> [u8; 4] {
+        xo31(rs, ra, rb, 412)
+    }
+
+    pub(super) fn inc_eqv(ra: u8, rs: u8, rb: u8) -> [u8; 4] {
+        xo31(rs, ra, rb, 284)
+    }
+
+    pub(super) fn inc_cntlzw(ra: u8, rs: u8) -> [u8; 4] {
+        xo31(rs, ra, 0, 26)
+    }
+
+    pub(super) fn inc_xori(ra: u8, rs: u8, ui: u16) -> [u8; 4] {
+        let word: u32 =
+            (26 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (ui as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_rlwinm(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> [u8; 4] {
+        let word: u32 = (21 << 26)
+            | ((rs as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((sh as u32 & 0x1F) << 11)
+            | ((mb as u32 & 0x1F) << 6)
+            | ((me as u32 & 0x1F) << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_rlwimi(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> [u8; 4] {
+        let word: u32 = (20 << 26)
+            | ((rs as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((sh as u32 & 0x1F) << 11)
+            | ((mb as u32 & 0x1F) << 6)
+            | ((me as u32 & 0x1F) << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_rldicl(ra: u8, rs: u8, sh: u8, mb: u8) -> [u8; 4] {
+        let sh = sh as u32 & 0x3F;
+        let mb = mb as u32 & 0x3F;
+        let word: u32 = (30 << 26)
+            | ((rs as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((sh & 0x1F) << 11)
+            | (((mb & 0x1F) << 1 | (mb >> 5)) << 5)
+            | ((sh >> 5) << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_rldimi(ra: u8, rs: u8, sh: u8, mb: u8) -> [u8; 4] {
+        let sh = sh as u32 & 0x3F;
+        let mb = mb as u32 & 0x3F;
+        let word: u32 = (30 << 26)
+            | ((rs as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((sh & 0x1F) << 11)
+            | (((mb & 0x1F) << 1 | (mb >> 5)) << 5)
+            | (3 << 2)
+            | ((sh >> 5) << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_stdu(rs: u8, ra: u8, ds: i16) -> [u8; 4] {
+        debug_assert_eq!(ds & 3, 0, "a DS displacement's low two bits are implied zero");
+        let word: u32 = (62 << 26)
+            | ((rs as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((ds as u16 as u32) & 0xFFFC)
+            | 1;
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_stdx(rs: u8, ra: u8, rb: u8) -> [u8; 4] {
+        let word: u32 = (31 << 26)
+            | ((rs as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((rb as u32 & 0x1F) << 11)
+            | (149 << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_addic_record(rd: u8, ra: u8, si: i16) -> [u8; 4] {
+        let word: u32 =
+            (13 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (si as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_rlwinm_record(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> [u8; 4] {
+        let mut w = inc_rlwinm(ra, rs, sh, mb, me);
+        w[3] |= 1;
+        w
+    }
+
+    pub(super) fn fp_primary(double: bool) -> u32 {
+        if double {
+            63
+        } else {
+            59
+        }
+    }
+
+    pub(super) fn fp_a_form(double: bool, fd: u8, fa: u8, fb: u8, fc: u8, xo: u32) -> [u8; 4] {
+        let word: u32 = (fp_primary(double) << 26)
+            | ((fd as u32 & 0x1F) << 21)
+            | ((fa as u32 & 0x1F) << 16)
+            | ((fb as u32 & 0x1F) << 11)
+            | ((fc as u32 & 0x1F) << 6)
+            | (xo << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_fadd(double: bool, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
+        fp_a_form(double, fd, fa, fb, 0, 21)
+    }
+
+    pub(super) fn inc_fsub(double: bool, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
+        fp_a_form(double, fd, fa, fb, 0, 20)
+    }
+
+    pub(super) fn inc_fmul(double: bool, fd: u8, fa: u8, fc: u8) -> [u8; 4] {
+        fp_a_form(double, fd, fa, 0, fc, 25)
+    }
+
+    pub(super) fn inc_fdiv(double: bool, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
+        fp_a_form(double, fd, fa, fb, 0, 18)
+    }
+
+    pub(super) fn inc_lfsx(fd: u8, ra: u8, rb: u8) -> [u8; 4] {
+        xo31(fd, ra, rb, 535)
+    }
+
+    pub(super) fn inc_stfsx(fs: u8, ra: u8, rb: u8) -> [u8; 4] {
+        xo31(fs, ra, rb, 663)
+    }
+
+    pub(super) fn inc_stfsu(fs: u8, ra: u8, d: i16) -> [u8; 4] {
+        let word: u32 = (53u32 << 26)
+            | ((fs as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | (d as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_stfs(double: bool, fs: u8, ra: u8, d: i16) -> [u8; 4] {
+        let primary: u32 = if double { 54 } else { 52 };
+        let word: u32 = (primary << 26)
+            | ((fs as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | (d as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_fmr(fd: u8, fb: u8) -> [u8; 4] {
+        let word: u32 =
+            (63u32 << 26) | ((fd as u32 & 0x1F) << 21) | ((fb as u32 & 0x1F) << 11) | (72u32 << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_frsp(fd: u8, fb: u8) -> [u8; 4] {
+        let word: u32 =
+            (63u32 << 26) | ((fd as u32 & 0x1F) << 21) | ((fb as u32 & 0x1F) << 11) | (12u32 << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_lfs(double: bool, fd: u8, ra: u8, d: i16) -> [u8; 4] {
+        let primary: u32 = if double { 50 } else { 48 };
+        let word: u32 = (primary << 26)
+            | ((fd as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | (d as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn xo31(first: u8, second: u8, rb: u8, xo: u32) -> [u8; 4] {
+        let word: u32 = (31 << 26)
+            | ((first as u32 & 0x1F) << 21)
+            | ((second as u32 & 0x1F) << 16)
+            | ((rb as u32 & 0x1F) << 11)
+            | (xo << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_std(rs: u8, ra: u8, ds: i16) -> [u8; 4] {
+        let word: u32 =
+            (62 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | ((ds as u16 as u32) & 0xFFFC);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_stfd(frs: u8, ra: u8, d: i16) -> [u8; 4] {
+        let word: u32 =
+            (54 << 26) | ((frs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_lfd(frd: u8, ra: u8, d: i16) -> [u8; 4] {
+        let word: u32 =
+            (50 << 26) | ((frd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_stwu(rs: u8, ra: u8, d: i16) -> [u8; 4] {
+        let word: u32 =
+            (37 << 26) | ((rs as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_mr(ra: u8, rs: u8) -> [u8; 4] {
+        xo31(rs, ra, rs, 444)
+    }
+
+    pub(super) fn inc_mr_record(ra: u8, rs: u8) -> [u8; 4] {
+        let mut w = u32::from_be_bytes(xo31(rs, ra, rs, 444));
+        w |= 1;
+        w.to_be_bytes()
+    }
+
+    pub(super) fn inc_mulli(rd: u8, ra: u8, simm: i16) -> [u8; 4] {
+        let word: u32 =
+            (7 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (simm as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_lbzu(rd: u8, ra: u8, d: i16) -> [u8; 4] {
+        let word: u32 =
+            (35 << 26) | ((rd as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (d as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_divw(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+        xo31(rd, ra, rb, 491)
+    }
+
+    pub(super) fn inc_divwu(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+        xo31(rd, ra, rb, 459)
+    }
+
+    pub(super) fn inc_twi(to: u8, ra: u8, simm: i16) -> [u8; 4] {
+        let word: u32 =
+            (3 << 26) | ((to as u32 & 0x1F) << 21) | ((ra as u32 & 0x1F) << 16) | (simm as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_bc(bo: u8, bi: u8, disp: i32) -> Option<[u8; 4]> {
+        if disp % 4 != 0 || !(-BC_MAX_DISP - 4..=BC_MAX_DISP).contains(&disp) {
+            return None;
+        }
+        let word: u32 = 0x4000_0000
+            | ((bo as u32 & 0x1F) << 21)
+            | ((bi as u32 & 0x1F) << 16)
+            | (disp as u32 & 0xFFFC);
+        Some(word.to_be_bytes())
+    }
+
+    pub(super) fn inc_b_intra(disp: i32) -> Option<[u8; 4]> {
+        if disp % 4 != 0 || !(-B_MAX_DISP - 4..=B_MAX_DISP).contains(&disp) {
+            return None;
+        }
+        let word: u32 = 0x4800_0000 | (disp as u32 & 0x03FF_FFFC);
+        Some(word.to_be_bytes())
+    }
+
+    pub(super) fn inc_cmpwi(crf: u8, ra: u8, simm: i16) -> [u8; 4] {
+        let word: u32 = (11 << 26)
+            | ((crf as u32 & 7) << 23)
+            | ((ra as u32 & 0x1F) << 16)
+            | (simm as u16 as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_cmplwi(crf: u8, ra: u8, uimm: u16) -> [u8; 4] {
+        let word: u32 = (10 << 26)
+            | ((crf as u32 & 7) << 23)
+            | ((ra as u32 & 0x1F) << 16)
+            | (uimm as u32);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_cmpw(crf: u8, ra: u8, rb: u8) -> [u8; 4] {
+        let word: u32 = (31 << 26)
+            | ((crf as u32 & 7) << 23)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((rb as u32 & 0x1F) << 11);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_cmplw(crf: u8, ra: u8, rb: u8) -> [u8; 4] {
+        let word: u32 = (31 << 26)
+            | ((crf as u32 & 7) << 23)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((rb as u32 & 0x1F) << 11)
+            | (32 << 1);
+        word.to_be_bytes()
+    }
+
+    pub(super) fn inc_lwzx(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
+        let word: u32 = (31 << 26)
+            | ((rd as u32 & 0x1F) << 21)
+            | ((ra as u32 & 0x1F) << 16)
+            | ((rb as u32 & 0x1F) << 11)
+            | (23 << 1);
+        word.to_be_bytes()
+    }
+}
+
+#[cfg(test)]
+mod cross_check {
+    use super::*;
+
+    /// The register numbers a 5-bit field must round-trip, plus the ones that
+    /// separate a 5-bit field from a 4-bit one.
+    ///
+    /// **Board #3379's own lesson, applied.** Its purpose-built 46-word probe
+    /// could not distinguish a 4-bit `RB` from a 5-bit one *because no word in
+    /// it used a register >= 16* — "a control is only capable of failing on the
+    /// population you ran it on." So this sweep is the whole 0..32, not a
+    /// sample, and the displacement list carries both signs and both boundary
+    /// magnitudes.
+    const REGS: [u8; 32] = [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+        24, 25, 26, 27, 28, 29, 30, 31,
+    ];
+    const DISPS: [i16; 12] = [
+        0, 1, 2, 4, -4, 8, -8, 0x7FFF, -0x8000, 0x7FFC, -0x7FFC, 0x1234,
+    ];
+
+    /// Every three-register encoder, over the **whole** 32x32x32 domain.
+    ///
+    /// 32,768 cells each. This is the assertion that makes S1's required-zero
+    /// byte delta provable in the PORTABLE lane rather than merely observed by
+    /// a toolchain gate: a toolchain-gated fixture pins nothing where there is
+    /// no toolchain, and the gate only exercises the operand combinations its
+    /// fixtures happen to contain.
+    #[test]
+    fn every_three_register_encoder_reproduces_its_incumbent_word() {
+        for &a in REGS.iter() {
+            for &b in REGS.iter() {
+                for &c in REGS.iter() {
+                    assert_eq!(encode_add(a, b, c), incumbent::inc_add(a, b, c), "add {a} {b} {c}");
+                    assert_eq!(encode_mullw(a, b, c), incumbent::inc_mullw(a, b, c));
+                    assert_eq!(encode_subf(a, b, c), incumbent::inc_subf(a, b, c));
+                    assert_eq!(encode_subfc(a, b, c), incumbent::inc_subfc(a, b, c));
+                    assert_eq!(encode_subfe(a, b, c), incumbent::inc_subfe(a, b, c));
+                    assert_eq!(encode_adde(a, b, c), incumbent::inc_adde(a, b, c));
+                    assert_eq!(encode_divw(a, b, c), incumbent::inc_divw(a, b, c));
+                    assert_eq!(encode_divwu(a, b, c), incumbent::inc_divwu(a, b, c));
+                    assert_eq!(encode_and(a, b, c), incumbent::inc_and(a, b, c), "and {a} {b} {c}");
+                    assert_eq!(encode_or(a, b, c), incumbent::inc_or(a, b, c));
+                    assert_eq!(encode_xor(a, b, c), incumbent::inc_xor(a, b, c));
+                    assert_eq!(encode_slw(a, b, c), incumbent::inc_slw(a, b, c));
+                    assert_eq!(encode_srw(a, b, c), incumbent::inc_srw(a, b, c));
+                    assert_eq!(encode_sraw(a, b, c), incumbent::inc_sraw(a, b, c));
+                    assert_eq!(encode_andc(a, b, c), incumbent::inc_andc(a, b, c));
+                    assert_eq!(encode_orc(a, b, c), incumbent::inc_orc(a, b, c));
+                    assert_eq!(encode_eqv(a, b, c), incumbent::inc_eqv(a, b, c));
+                    assert_eq!(encode_lhzx(a, b, c), incumbent::inc_lhzx(a, b, c));
+                    assert_eq!(encode_lwzx(a, b, c), incumbent::inc_lwzx(a, b, c));
+                    assert_eq!(encode_lfsx(a, b, c), incumbent::inc_lfsx(a, b, c));
+                    assert_eq!(encode_stdx(a, b, c), incumbent::inc_stdx(a, b, c));
+                    assert_eq!(encode_stfsx(a, b, c), incumbent::inc_stfsx(a, b, c));
+                    assert_eq!(encode_srawi(a, b, c), incumbent::inc_srawi(a, b, c));
+                }
+            }
+        }
+    }
+
+    /// Every two-register encoder, whole 32x32 domain.
+    #[test]
+    fn every_two_register_encoder_reproduces_its_incumbent_word() {
+        for &a in REGS.iter() {
+            for &b in REGS.iter() {
+                assert_eq!(encode_addze(a, b), incumbent::inc_addze(a, b));
+                assert_eq!(encode_subfze(a, b), incumbent::inc_subfze(a, b));
+                assert_eq!(encode_neg(a, b), incumbent::inc_neg(a, b));
+                assert_eq!(encode_extsb(a, b), incumbent::inc_extsb(a, b));
+                assert_eq!(encode_extsb_record(a, b), incumbent::inc_extsb_record(a, b));
+                assert_eq!(encode_extsh(a, b), incumbent::inc_extsh(a, b));
+                assert_eq!(encode_cntlzw(a, b), incumbent::inc_cntlzw(a, b));
+                assert_eq!(encode_fmr(a, b), incumbent::inc_fmr(a, b));
+                assert_eq!(encode_frsp(a, b), incumbent::inc_frsp(a, b));
+                assert_eq!(encode_mr(a, b), incumbent::inc_mr(a, b), "mr {a} {b}");
+                assert_eq!(encode_mr_record(a, b), incumbent::inc_mr_record(a, b));
+                assert_eq!(encode_bclr(a, b), incumbent::inc_bclr(a, b));
+            }
+        }
+        for &r in REGS.iter() {
+            assert_eq!(encode_mtctr(r), incumbent::inc_mtctr(r), "mtctr {r}");
+        }
+        assert_eq!(encode_blr(), incumbent::inc_blr());
+        assert_eq!(encode_bctrl(), incumbent::inc_bctrl());
+    }
+
+    /// Every `(register, register, displacement)` encoder, over 32x32x12.
+    ///
+    /// The displacement list deliberately includes values that are **not**
+    /// multiples of 4, which the DS-form encoders (`ld`, `std`, `stdu`) round
+    /// down. The incumbent rounds by masking `& 0xFFFC` and the general layer
+    /// by an arithmetic `>> 2`; those two functions agree on every multiple of
+    /// 4 and this test is what says they also agree everywhere else, including
+    /// on negatives, where a logical and an arithmetic shift part company.
+    #[test]
+    fn every_displacement_encoder_reproduces_its_incumbent_word() {
+        for &a in REGS.iter() {
+            for &b in REGS.iter() {
+                for &d in DISPS.iter() {
+                    assert_eq!(encode_addi(a, b, d), incumbent::inc_addi(a, b, d));
+                    assert_eq!(encode_addis(a, b, d), incumbent::inc_addis(a, b, d));
+                    assert_eq!(encode_addic(a, b, d), incumbent::inc_addic(a, b, d));
+                    assert_eq!(encode_addic_record(a, b, d), incumbent::inc_addic_record(a, b, d));
+                    assert_eq!(encode_subfic(a, b, d), incumbent::inc_subfic(a, b, d));
+                    assert_eq!(encode_mulli(a, b, d), incumbent::inc_mulli(a, b, d));
+                    assert_eq!(encode_lwz(a, b, d), incumbent::inc_lwz(a, b, d));
+                    assert_eq!(encode_lbz(a, b, d), incumbent::inc_lbz(a, b, d));
+                    assert_eq!(encode_lbzu(a, b, d), incumbent::inc_lbzu(a, b, d));
+                    assert_eq!(encode_lhz(a, b, d), incumbent::inc_lhz(a, b, d));
+                    assert_eq!(encode_ld(a, b, d), incumbent::inc_ld(a, b, d), "ld {a} {b} {d}");
+                    assert_eq!(encode_ldr(a, b, d), incumbent::inc_ld(a, b, d));
+                    assert_eq!(encode_stw(a, b, d), incumbent::inc_stw(a, b, d));
+                    assert_eq!(encode_stwu(a, b, d), incumbent::inc_stwu(a, b, d));
+                    assert_eq!(encode_stb(a, b, d), incumbent::inc_stb(a, b, d));
+                    assert_eq!(encode_sth(a, b, d), incumbent::inc_sth(a, b, d));
+                    assert_eq!(encode_sthu(a, b, d), incumbent::inc_sthu(a, b, d));
+                    assert_eq!(encode_std(a, b, d), incumbent::inc_std(a, b, d), "std {a} {b} {d}");
+                    assert_eq!(encode_stfd(a, b, d), incumbent::inc_stfd(a, b, d));
+                    assert_eq!(encode_lfd(a, b, d), incumbent::inc_lfd(a, b, d));
+                    assert_eq!(encode_stfsu(a, b, d), incumbent::inc_stfsu(a, b, d));
+                    assert_eq!(encode_twi(a, b, d), incumbent::inc_twi(a, b, d));
+                    assert_eq!(encode_cmpwi(a, b, d), incumbent::inc_cmpwi(a, b, d));
+                    assert_eq!(
+                        encode_cmplwi(a, b, d as u16),
+                        incumbent::inc_cmplwi(a, b, d as u16)
+                    );
+                    assert_eq!(encode_ori(a, b, d as u16), incumbent::inc_ori(a, b, d as u16));
+                    assert_eq!(encode_xori(a, b, d as u16), incumbent::inc_xori(a, b, d as u16));
+                    assert_eq!(encode_cmpw(a, b, (d as u8) & 0x1F), incumbent::inc_cmpw(a, b, (d as u8) & 0x1F));
+                    assert_eq!(encode_cmplw(a, b, (d as u8) & 0x1F), incumbent::inc_cmplw(a, b, (d as u8) & 0x1F));
+                    for &dbl in [false, true].iter() {
+                        assert_eq!(encode_stfs(dbl, a, b, d), incumbent::inc_stfs(dbl, a, b, d));
+                        assert_eq!(encode_lfs(dbl, a, b, d), incumbent::inc_lfs(dbl, a, b, d));
+                    }
+                    // `stdu` debug-asserts an aligned DS field, so only feed it
+                    // aligned displacements — the assertion is part of the
+                    // incumbent contract and reproducing it is the point.
+                    if d % 4 == 0 {
+                        assert_eq!(encode_stdu(a, b, d), incumbent::inc_stdu(a, b, d));
+                    }
+                }
+            }
+        }
+    }
+
+    /// The rotate family, over the whole `SH x MB x ME` immediate domain for a
+    /// fixed register pair, and the whole register domain at a fixed mask.
+    #[test]
+    fn every_rotate_encoder_reproduces_its_incumbent_word() {
+        for sh in 0u8..32 {
+            for mb in 0u8..32 {
+                for me in 0u8..32 {
+                    assert_eq!(
+                        encode_rlwinm(3, 11, sh, mb, me),
+                        incumbent::inc_rlwinm(3, 11, sh, mb, me)
+                    );
+                    assert_eq!(
+                        encode_rlwimi(3, 11, sh, mb, me),
+                        incumbent::inc_rlwimi(3, 11, sh, mb, me)
+                    );
+                    assert_eq!(
+                        encode_rlwinm_record(3, 11, sh, mb, me),
+                        incumbent::inc_rlwinm_record(3, 11, sh, mb, me)
+                    );
+                }
+            }
+        }
+        for &a in REGS.iter() {
+            for &b in REGS.iter() {
+                assert_eq!(encode_rlwinm(a, b, 1, 31, 31), incumbent::inc_rlwinm(a, b, 1, 31, 31));
+                assert_eq!(encode_srwi31(a, b), incumbent::inc_rlwinm(a, b, 1, 31, 31));
+                assert_eq!(encode_clrlwi31(a, b), incumbent::inc_rlwinm(a, b, 0, 31, 31));
+                for n in 0u8..32 {
+                    assert_eq!(
+                        encode_clrlwi_record(a, b, n),
+                        incumbent::inc_rlwinm_record(a, b, 0, n, 31)
+                    );
+                }
+                // The 64-bit rotates: both immediate fields are SIX bits and
+                // are split in two DIFFERENT shapes, so the sweep has to reach
+                // 32..64 on each or the split bit is never exercised.
+                for sh in 0u8..64 {
+                    for mb in [0u8, 1, 31, 32, 33, 63].iter().copied() {
+                        assert_eq!(
+                            encode_rldicl(a, b, sh, mb),
+                            incumbent::inc_rldicl(a, b, sh, mb),
+                            "rldicl {a} {b} {sh} {mb}"
+                        );
+                        assert_eq!(
+                            encode_rldimi(a, b, sh, mb),
+                            incumbent::inc_rldimi(a, b, sh, mb)
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// The A-form floating-point encoders, whole register domain, both
+    /// precisions. `fmul`'s multiplier lives in the **C** field and the others'
+    /// second source in **B**; a general layer that placed them alike would
+    /// pass every single-precision test and multiply by the wrong register.
+    #[test]
+    fn every_fp_encoder_reproduces_its_incumbent_word() {
+        for &a in REGS.iter() {
+            for &b in REGS.iter() {
+                for &c in REGS.iter() {
+                    for &dbl in [false, true].iter() {
+                        assert_eq!(encode_fadd(dbl, a, b, c), incumbent::inc_fadd(dbl, a, b, c));
+                        assert_eq!(encode_fsub(dbl, a, b, c), incumbent::inc_fsub(dbl, a, b, c));
+                        assert_eq!(
+                            encode_fmul(dbl, a, b, c),
+                            incumbent::inc_fmul(dbl, a, b, c),
+                            "fmul dbl={dbl} {a} {b} {c}"
+                        );
+                        assert_eq!(encode_fdiv(dbl, a, b, c), incumbent::inc_fdiv(dbl, a, b, c));
+                    }
+                }
+            }
+        }
+    }
+
+    /// The branch encoders, over every legal displacement AND across both
+    /// range boundaries — the refusal is part of the contract and a general
+    /// layer that widened it would be a wrong emit, not a wider class.
+    #[test]
+    fn every_branch_encoder_reproduces_its_incumbent_word_and_its_refusal() {
+        let mut d = -BC_MAX_DISP - 8;
+        while d <= BC_MAX_DISP + 8 {
+            assert_eq!(encode_bc(12, 2, d), incumbent::inc_bc(12, 2, d), "bc {d}");
+            assert_eq!(encode_bdnz(d), incumbent::inc_bdnz(d), "bdnz {d}");
+            d += 4;
+        }
+        // …and the unaligned displacements, which must refuse on both sides.
+        for d in [-6i32, -2, 1, 2, 3, 6, 4097].iter().copied() {
+            assert_eq!(encode_bc(12, 2, d), incumbent::inc_bc(12, 2, d));
+            assert_eq!(encode_b_intra(d), incumbent::inc_b_intra(d));
+            assert!(encode_bc(12, 2, d).is_none());
+        }
+        for d in [
+            0i32, 4, -4, 0x1000, -0x1000, B_MAX_DISP, -B_MAX_DISP, B_MAX_DISP - 4,
+            -B_MAX_DISP - 4, B_MAX_DISP + 4, -B_MAX_DISP - 8,
+        ]
+        .iter()
+        .copied()
+        {
+            assert_eq!(encode_b_intra(d), incumbent::inc_b_intra(d), "b {d}");
+        }
+        for bo in 0u8..32 {
+            for bi in 0u8..32 {
+                for d in [0i32, 4, -4, 0x7FFC, -0x8000].iter().copied() {
+                    assert_eq!(encode_bc(bo, bi, d), incumbent::inc_bc(bo, bi, d));
+                }
+            }
+        }
     }
 }
