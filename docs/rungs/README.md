@@ -48,6 +48,23 @@ test already admits all three: kinds 2 and 3 use the `Fixtures: none — <reason
    per-lane gate counts before/after. A construct rung that changed any byte
    FAILED, whatever else it did.
 
+   > **THE DECISION-SURFACE CLAUSE (added 2026-08-22 from the owner's goal
+   > re-ranking — `GOAL_DECISION_2026-08-21.md` § "AMENDED",
+   > `ROADMAP_SLICING_2026-08-21.md` §6 rule 7).** A construct rung is the
+   > lane kind that builds **general layers**, so this rule lands here: from S1
+   > on, a general layer ships its arbitrary choices — allocation order,
+   > scheduling tie-breaks, label counters — as **named, enumerable parameters
+   > whose DEFAULT reproduces c2 byte-exactly**, not as baked constants.
+   > **This does not relax the required-zero criterion; it is graded at the
+   > default and nowhere else** — every non-default configuration is a legal
+   > *instrument* state and licenses no emit. The reason is that a baked
+   > constant serves goal (2) only, while a named decision point serves goal
+   > (2), the permuter and the training pipeline at the same correctness cost,
+   > and it is what turns a close-but-wrong mismatch from *opaque* into
+   > *searchable*. **A rung that bakes a fitted constant owes a pointer to the
+   > read that would replace it** (`whitebox/READ_PLAN_2026-08-21.md` §2 is the
+   > index).
+
    **THE COST CLAUSE (added 2026-08-21, board #3336).** A required-zero
    **byte** delta is silent about a required-zero **cost** delta, and the
    criterion above cannot express throughput at all: nothing in
@@ -118,6 +135,47 @@ test already admits all three: kinds 2 and 3 use the `Fixtures: none — <reason
    >   against real c2 remains the sole judge, and the stage oracle's standing
    >   bound (`docs/STEP5_PRICING_2026-08-21.md`, stageoracle §8) is what keeps
    >   snapshot equality out of it.
+
+   > **HOW THESE LANES ARE CHOSEN CHANGED 2026-08-22 — THE PROMOTION ABOVE SAYS
+   > A CHARACTERIZATION LANE IS WORTH RUNNING; THIS SAYS WHICH ONE TO RUN AND
+   > IN WHICH ORDER.** *`docs/WHITEBOX_LEVERAGE_2026-08-21.md` §1 and
+   > `docs/ROADMAP_SLICING_2026-08-21.md` §6 rule 6, with the owner's goal
+   > re-ranking; enumerated targets in
+   > `docs/whitebox/READ_PLAN_2026-08-21.md` §3. Propagated by lane
+   > `w-readdocs`.*
+   >
+   > * **READ BEFORE PROBE, and it is a dispatch precondition, not advice.**
+   >   Before a lane budgets a probe grid or a fitted-parameter search it must
+   >   price the binary read that would answer the same question — locate the
+   >   function, read it, confirm with a *small* probe — and prefer the read
+   >   unless the read is measurably more expensive. **A probe-grid lane on any
+   >   of R1–R9's nine subjects must say in its prereg why it is not the read.**
+   > * **The read-plan is the target list.** `READ_PLAN` §3 ranks nine reads by
+   >   *(priced black-box cost replaced) / (measured read price)* — explicitly
+   >   **not** by size or proximity, which is the family MEMORY records as
+   >   *"ranking instruments measure themselves"* at five instances. Dispatch
+   >   order is **R1 → R2 → R3**, with R5 gated on R2 proving the arm-reading
+   >   method on 79 bounded bodies before it bets on 189.
+   > * **The probe does not disappear; it changes ROLE.** It stops being the
+   >   *discovery* instrument and becomes the *confirmation* instrument: read
+   >   the mechanism, predict the observable, confirm with the smallest grid
+   >   that could refute the reading. This is why `[R]` is not a finding —
+   >   by `docs/whitebox/ref/README.md:49`'s own legend it says *"the
+   >   instructions were read correctly"*, not *"this is what c2 does"*, and
+   >   the `.bss` bump rule was read correctly and was wrong about c2. **Every
+   >   read lane still ends in a confirmation probe**, and `DISCLOSURE.md`'s
+   >   adoption rule is unchanged.
+   > * **A fitted constant is a debt with a named creditor.** `READ_PLAN` §2
+   >   indexes every fitted constant in `crates/` against the read that would
+   >   replace it. A lane that ships a new one owes that pointer.
+   > * **CHECK THE BOARD, AND CHECK THE TREE, BEFORE PRICING A NEW
+   >   INSTRUMENT.** Instance N of the standing pattern, 2026-08-22: a
+   >   2026-08-21 planning doc named "mismatch anatomy" as a missing instrument
+   >   and priced it at 1–2 wk; it had shipped on 2026-08-06 as
+   >   `crates/c2-harness/src/gap/fndiff.rs` / `docs/DIFF_STRUCTURE.md`, runs
+   >   unconditionally on every scan, and **its own output refutes the table the
+   >   doc proposed** (0 pure reorderings, 2 field-only words in 5,189). Board
+   >   **#3369**. The cost of the check is one grep.
 
 ## Outcome, one word
 
@@ -194,8 +252,12 @@ unmeasured).
 
 * **THE GOAL IS PERFECT REPRODUCTION, DECIDED BY THE OWNER 2026-08-21**
   (`docs/GOAL_DECISION_2026-08-21.md`; `CLAUDE.md` § "The goal"), for two ends
-  ranked equally — **(1) a clear understanding of MSVC's internals in service
-  of decomp** and **(2) parity, a 100 % open-source implementation.** The
+  ~~ranked equally~~ **RANKED, in that doc's § "AMENDED" the same day** —
+  **(1) a clear understanding of MSVC's internals in service of decomp**,
+  which is **PRIMARY**, and **(2) parity, a 100 % open-source implementation**,
+  which stays a real end and is **additionally instrumental to (1)**: the port
+  is an executable, tweakable model of c2 that emits signals about compiler
+  state the opaque binary cannot be made to emit. The
   **verifier-throughput thesis is RETIRED**; throughput is a property that may
   neither justify a lane nor forbid one, and the 2026-08-13 NO-GO's economics
   are **superseded, not satisfied**. Two things a brief must get right as a
@@ -203,6 +265,27 @@ unmeasured).
   not a mark against such a lane), and **`match` → 870/878 is the scoreboard**
   for goal (2), so partial coverage does not pay in proportion. A brief that
   ranks or declines a lane on throughput grounds is a **dispatch defect**.
+  **Copying the words "ranked equally" into a brief is now also one** — the
+  clause was live for a matter of hours and this bullet carried it for a day
+  (found by lane `w-readdocs`, 2026-08-22).
+* **TWO STANDING RULES FOLLOW FROM THE RANKING, AND A BRIEF THAT OMITS THEM IS
+  A DISPATCH DEFECT** (`docs/WHITEBOX_LEVERAGE_2026-08-21.md`;
+  `docs/ROADMAP_SLICING_2026-08-21.md` §6 rules 6 and 7; `CLAUDE.md`).
+  **(1) READ BEFORE PROBE** — before any lane budgets a probe grid or a
+  fitted-parameter search, price the whitebox read that answers the same
+  question and prefer it. The enumerated targets are
+  `docs/whitebox/READ_PLAN_2026-08-21.md` §3 (R1–R9); a probe-grid lane on any
+  of those nine subjects must say why it is not the read. **Item F's
+  13-raw/65-calibrated and STEP5's I1/I2 eng-month prices are BLACK-BOX
+  numbers** and may not be quoted as the cost of the facts.
+  **(2) EXPOSE THE DECISION SURFACE** — every general layer from S1 on ships
+  its arbitrary choices (allocation order, scheduling tie-breaks, label
+  counters) as **named, enumerable parameters whose DEFAULT reproduces c2
+  byte-exactly**, not as baked constants. A baked constant serves parity only;
+  a named decision point serves parity, the permuter and the training pipeline
+  at the same correctness cost. **The judge is untouched by both rules**: the
+  default configuration is what the byte compare grades, and reading c2's
+  internals is not a licence to grade the port against c2's internal state.
 * **Run the gate as `scripts/gate.sh --jobs 16 --require-graded` — ~80 s.**
   `--jobs 4` is ~153 s and is not the safer choice; the box was never
   CPU-starved. A lane's **first** gate in a fresh worktree still pays a
