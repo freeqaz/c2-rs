@@ -86,14 +86,26 @@ fn json_escape(s: &str) -> String {
     out
 }
 
-/// The `_CL_*gl` inside a capture-cache entry.
-fn gl_path(entry: &Path) -> Option<PathBuf> {
+/// The `.gl` stream of a capture-cache entry, from either container.
+///
+/// **v2 first**, because that is what a live cache writes: the five IL streams
+/// are folded into one `entry.bin` and there is no `_CL_*gl` file to find. The
+/// loose-file arm stays for **archived v1 corpora**, which are what an old
+/// `cacheidx.tsv` points at — this is a read-only research instrument over
+/// whatever corpus it is handed, not the correctness seam, where a dual reader
+/// would be a liability rather than a convenience.
+fn read_gl(entry: &Path) -> Option<Vec<u8>> {
+    if let Ok(raw) = std::fs::read(entry.join("entry.bin")) {
+        if let Ok(blob) = c2_il::decode_entry(&raw) {
+            return blob.il("gl").map(<[u8]>::to_vec);
+        }
+    }
     let rd = std::fs::read_dir(entry).ok()?;
     for e in rd.flatten() {
         let n = e.file_name();
         let n = n.to_string_lossy();
         if n.starts_with("_CL_") && n.ends_with("gl") {
-            return Some(e.path());
+            return std::fs::read(e.path()).ok();
         }
     }
     None
@@ -147,11 +159,7 @@ fn gl_alias_corpus_dump() {
                     break;
                 }
                 let (src, entry) = &work[i];
-                let Some(glp) = gl_path(entry) else {
-                    missing.fetch_add(1, Ordering::Relaxed);
-                    continue;
-                };
-                let Ok(gl) = std::fs::read(&glp) else {
+                let Some(gl) = read_gl(entry) else {
                     missing.fetch_add(1, Ordering::Relaxed);
                     continue;
                 };
@@ -174,6 +182,18 @@ fn gl_alias_corpus_dump() {
     });
 
     let mut rows = rows.into_inner().unwrap();
+    // **A corpus that yielded nothing is a failure, not a clean run of zero.**
+    // This test is env-gated, so it SKIPs when unset — which means a change that
+    // makes every entry unreadable (the v1→v2 fold was exactly that: no more
+    // `_CL_*gl` files to find) would otherwise show up as a pass on the boxes
+    // that skip and as an index panic on the ones that do not. Said here, once,
+    // with the reason.
+    assert!(
+        !rows.is_empty(),
+        "all {} indexed entries yielded no .gl — the index points at a corpus this \
+         build cannot read, not at a corpus with no aliases",
+        work.len()
+    );
     rows.sort_by(|a, b| a.src.cmp(&b.src));
 
     // The totals this lane registered against w-emitp's Python.

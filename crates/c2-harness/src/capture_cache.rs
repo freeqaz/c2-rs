@@ -108,8 +108,23 @@
 //! cache or a regression in the absolutisation above, and both want saying out
 //! loud rather than paying for silently in re-captures.
 //!
-//! Captured IL is **never** committed: the default root is `<repo>/work/`, which
-//! `.gitignore` covers, and the entries are `_CL_*` / `*.obj` besides.
+//! Captured IL is **never** committed, but the reason changed in v2 and the old
+//! one is now false. It used to be "the default root is `<repo>/work/`, which
+//! `.gitignore` covers". The default root is no longer inside any checkout —
+//! see [`default_cache_root`] — so the guarantee is now structural rather than
+//! rule-based: there is nothing to ignore because there is nothing in the tree.
+//! A root pointed back into a repo with `--cache` or `$C2RS_GAP_CACHE` is an
+//! operator choice and carries the operator's `.gitignore` obligation with it.
+//!
+//! # v2: one entry is three inodes, not nine
+//!
+//! An entry was `key.bin`, `meta.txt`, `out.obj` and five `_CL_*` IL streams —
+//! eight files plus the directory. It is now the directory, `out.obj`, and one
+//! [`c2_il::cachefmt`] `entry.bin` holding the other seven. `out.obj` cannot
+//! join them: it is the `-Fo` target and its own path is baked into it, which is
+//! the same fact that makes this cache directory the capture directory. The
+//! motivation, the format and why the fold is a strict strengthening of the old
+//! completion marker are in that module's docs.
 
 use std::io;
 use std::io::Write as _;
@@ -118,15 +133,38 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use c2_il::{IlBundle, IL_SUFFIXES};
+use c2_il::IL_SUFFIXES;
 use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::{CapturedReference, Toolchain};
 
 use crate::provenance::GitInfo;
 
-/// On-disk format version. Bump on any layout/key change — old entries then key
-/// differently and are simply never read again.
-const CACHE_FORMAT: &str = "c2rs-capture-cache/v1";
+/// On-disk format version, recorded in the `meta` text. Bump on any layout/key
+/// change — old entries then key differently and are simply never read again.
+///
+/// v2 is the fold: seven small files became one [`c2_il::cachefmt`] blob. There
+/// is no migration and cannot be, because a v1 `out.obj` has the *old root's*
+/// path baked into `S_OBJNAME`; rewriting the container cannot rewrite the obj
+/// bytes, so a "migrated" entry would be [`EntryRead::Foreign`] by construction
+/// and suppressing that check to make migration work re-creates board #1388
+/// exactly. v1 entries are invalidated, not converted — and since v2 also moved
+/// the root, they are invalidated by a `cache-root` change no predicate could
+/// have matched anyway.
+const CACHE_FORMAT: &str = "c2rs-capture-cache/v2";
+
+/// The one file a v2 entry's metadata, key and IL streams live in.
+///
+/// `pub` for the same reason [`LOCK_DIR`] is: consumers that must name it — the
+/// validator test, `c2rs cache show`, `scripts/gt_frame_class.py` — should test
+/// against one exported name rather than each hard-coding a string. Decode it
+/// with [`c2_il::decode_entry`]; do not parse it by hand.
+pub const ENTRY_BLOB: &str = "entry.bin";
+
+/// Prefix for the write-then-rename temporary. **Must not start with `_CL_`**:
+/// `capture_reference_with` sweeps `_CL_*` out of its work dir before compiling
+/// and `find_bundle_base` matches `_CL_*ex`, so such a name would be deleted
+/// mid-write or mistaken for an IL stream.
+const TMP_PREFIX: &str = ".entry.tmp.";
 
 /// `meta.txt` line recording the **absolute path this entry's `out.obj` was
 /// captured at**. Written since board #1388; absent on older entries, which are
@@ -139,28 +177,14 @@ const CACHE_FORMAT: &str = "c2rs-capture-cache/v1";
 /// — to re-derive bytes that are already correct.
 pub const CAPTURE_PATH_KEY: &str = "objpath ";
 
-/// FNV-1a 64, hand-rolled (the workspace is std-only by hard constraint).
-fn fnv1a64(seed: u64, bytes: &[u8]) -> u64 {
-    let mut h = seed;
-    for b in bytes {
-        h ^= *b as u64;
-        h = h.wrapping_mul(0x0000_0100_0000_01B3);
-    }
-    h
-}
-
-const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
-
-/// 128-bit content digest: FNV-1a-64 forward, and a second FNV-1a-64 over the
-/// reversed bytes seeded with the first. Two passes with different orders make
-/// the pair far harder to collide jointly than either alone; the entry's stored
-/// key material is what actually rules out a wrong hit (see the module docs).
-pub fn digest128(bytes: &[u8]) -> String {
-    let h1 = fnv1a64(FNV_OFFSET, bytes);
-    let rev: Vec<u8> = bytes.iter().rev().copied().collect();
-    let h2 = fnv1a64(h1 ^ 0x9E37_79B9_7F4A_7C15, &rev);
-    format!("{h1:016x}{h2:016x}")
-}
+/// 128-bit content digest — see [`c2_il::cachefmt::digest128`].
+///
+/// Re-exported rather than reimplemented: the blob header stores one of these
+/// and the cache key *is* one, so the two must be the same function or an entry
+/// keyed by the harness could be validated against a different digest by the
+/// codec. Kept as a re-export at this path because it is the spelling every
+/// caller here already uses, and moving it was not the point of the change.
+pub use c2_il::cachefmt::digest128;
 
 /// Hash a file's contents; `None` when it cannot be read.
 fn file_digest(p: &Path) -> Option<String> {
@@ -209,14 +233,62 @@ pub enum CacheOutcome {
 /// root is how a lane ends up grading against a cache nobody realised was
 /// separate.
 ///
-/// `main_repo_root`, not `repo_root`: the latter is `CARGO_MANIFEST_DIR` and so
-/// resolves to the *worktree* a lane's binary was built in, which is how 50
-/// separate caches came to exist. See its doc comment for why this is resolved
-/// in code rather than exported as an env var.
-pub fn default_cache_root() -> PathBuf {
-    std::env::var_os("C2RS_GAP_CACHE")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| crate::provenance::main_repo_root().join("work/capture-cache"))
+/// Resolution order, first hit wins:
+///
+/// 1. `--cache DIR` — applied by the caller before this is reached.
+/// 2. `$C2RS_GAP_CACHE`
+/// 3. `$XDG_CACHE_HOME/c2rs/capture` (ignored unless absolute, per the spec)
+/// 4. `$HOME/.cache/c2rs/capture`
+/// 5. **Error.** Never a silent fallback.
+///
+/// # Why this is no longer under the repo
+///
+/// It was `<main repo>/work/capture-cache`, and at 22.6 M entries × 9 inodes
+/// that put ~203 M inodes *inside the checkout*. Every `find`, `du`, `rg` or
+/// `**` glob rooted at the repo then walks them: twice an OOM kill of the whole
+/// machine, once an hour-long wedge at load 37.8. No amount of care in this
+/// codebase prevents that, because the traversals come from outside it — a
+/// shell, an editor's indexer, another agent's `du -sh .`. Moving the root out
+/// of the tree is the only change that makes the footgun structurally
+/// unreachable rather than merely discouraged.
+///
+/// Falling back to the repo when `$HOME` is unset would resurrect it silently
+/// and invisibly, which is why step 5 is an error. Callers on the capture path
+/// degrade to no-cache and say so; a cache is a speedup, never a grading input.
+///
+/// **Do not point this at `$TMPDIR`.** `/tmp` here is a 47 GB tmpfs that dies on
+/// reboot and competes with `scripts/gate.sh` for the same 1 M inodes its disk
+/// preflight guards — a cold cache is an hour of `cl.exe`, and losing it to a
+/// reboot is the cheap half of the problem.
+///
+/// `main_repo_root` is no longer consulted: `~/.cache/c2rs` collapses *clones*
+/// as well as worktrees, which is more sharing than before. That is the intent —
+/// the entries are keyed by toolchain digests, tree token and cache root, so a
+/// wrong hit is refused rather than served — but it does mean `rm -rf
+/// ~/.cache/c2rs` is now the blast radius for every clone on the box.
+pub fn default_cache_root() -> io::Result<PathBuf> {
+    // An env var set to the empty string is a broken export, not a request to
+    // cache at the process's cwd.
+    let from_env = |k: &str| {
+        std::env::var_os(k)
+            .map(PathBuf::from)
+            .filter(|p| !p.as_os_str().is_empty())
+    };
+    if let Some(p) = from_env("C2RS_GAP_CACHE") {
+        return Ok(p);
+    }
+    if let Some(p) = from_env("XDG_CACHE_HOME").filter(|p| p.is_absolute()) {
+        return Ok(p.join("c2rs/capture"));
+    }
+    if let Some(p) = from_env("HOME") {
+        return Ok(p.join(".cache/c2rs/capture"));
+    }
+    Err(io::Error::new(
+        io::ErrorKind::NotFound,
+        "no capture-cache root: set $C2RS_GAP_CACHE, $XDG_CACHE_HOME or $HOME, or pass \
+         --cache DIR. There is deliberately no fallback inside the repo — a cache root \
+         under the checkout is what put 203 M inodes in the path of every `find` and `du`",
+    ))
 }
 
 /// **The one place that decides "cache or straight to the toolchain".**
@@ -761,20 +833,21 @@ pub enum EntryRead {
 /// `material` byte-for-byte (so a hash collision is a miss, not a wrong hit) and
 /// its recorded capture path to be the path it is being served from.
 fn read_entry(dir: &Path, material: &[u8]) -> EntryRead {
-    let Ok(stored) = std::fs::read(dir.join("key.bin")) else {
+    // Absence of the blob is the completion marker: it appears by `rename(2)`,
+    // so there is no window in which a partial one is visible under this name.
+    let Ok(raw) = std::fs::read(dir.join(ENTRY_BLOB)) else {
         return EntryRead::Miss;
     };
-    if stored != material {
+    let Ok(blob) = c2_il::decode_entry(&raw) else {
+        return EntryRead::Miss;
+    };
+    if blob.key != material {
         return EntryRead::Miss;
     }
-    // `meta.txt` is written last, so its presence is the completion marker.
-    let Ok(meta) = std::fs::read_to_string(dir.join("meta.txt")) else {
-        return EntryRead::Miss;
-    };
     let mut base_name = String::new();
     let mut c2_argv: Vec<String> = Vec::new();
     let mut recorded_path: Option<&str> = None;
-    for line in meta.lines() {
+    for line in blob.meta.lines() {
         if let Some(v) = line.strip_prefix("base ") {
             base_name = v.to_string();
         } else if let Some(v) = line.strip_prefix("arg ") {
@@ -787,29 +860,30 @@ fn read_entry(dir: &Path, material: &[u8]) -> EntryRead {
         return EntryRead::Miss;
     }
     let ref_obj_path = dir.join("out.obj");
-    // The provenance check. Absent on entries written before board #1388 — those
-    // are served, because the cache root is in the key and the path is therefore
-    // derivable; the line exists so the derivation is CHECKED rather than
-    // assumed for everything written from now on.
-    if let Some(recorded) = recorded_path {
-        if Path::new(recorded) != ref_obj_path {
-            return EntryRead::Foreign(format!(
-                "entry records its capture at {recorded} but is being served from {} \
-                 — the obj embeds its own -Fo path, so those are not the bytes c2 \
-                 would emit here",
-                ref_obj_path.display()
-            ));
-        }
+    // The provenance check (board #1388). The pre-#1388 "line absent, serve
+    // anyway" arm is gone: every v2 entry carries the line, so that arm had
+    // provably zero members and was dead code that read as a tested branch. A
+    // format bump is the one moment retiring it is free.
+    let Some(recorded) = recorded_path else {
+        return EntryRead::Miss;
+    };
+    if Path::new(recorded) != ref_obj_path {
+        return EntryRead::Foreign(format!(
+            "entry records its capture at {recorded} but is being served from {} \
+             — the obj embeds its own -Fo path, so those are not the bytes c2 \
+             would emit here",
+            ref_obj_path.display()
+        ));
     }
+    // The obj stays a real file at this exact path: it is the `-Fo` target and
+    // the replay target, and its own path is inside its bytes.
     let Ok(obj) = std::fs::read(&ref_obj_path) else {
         return EntryRead::Miss;
     };
     if obj.is_empty() {
         return EntryRead::Miss;
     }
-    let Ok(bundle) = IlBundle::load_from_dir(dir, &base_name) else {
-        return EntryRead::Miss;
-    };
+    let bundle = blob.bundle(&base_name);
     if bundle.ex().map(<[u8]>::is_empty).unwrap_or(true) {
         return EntryRead::Miss;
     }
@@ -822,13 +896,63 @@ fn read_entry(dir: &Path, material: &[u8]) -> EntryRead {
     }))
 }
 
-/// Complete an entry: the bundle and `out.obj` are already on disk (the capture
-/// wrote them there), so this only records the key material and the metadata —
-/// `meta.txt` last, as the completion marker.
+/// Complete an entry: fold the key material, the metadata and the five IL
+/// streams into one `entry.bin`, then remove the IL files the capture left
+/// behind. `out.obj` is already on disk at the right path and stays there.
+///
+/// The streams are serialised from `cap`, which already holds them in memory
+/// (`capture_reference_with` loads them), so nothing is read back off disk.
+///
+/// No `sync_all`: the cache is an optimisation and correctness never depends on
+/// it, so a blob lost to a power cut is a miss and a re-capture. A blob that
+/// survives *torn* is caught by `TOTAL_LEN` and the digest — which is strictly
+/// stronger than the layout this replaces, where the completion marker was
+/// "`meta.txt` exists" and a half-written one parsed as a Hit with a truncated
+/// argv.
 fn write_entry(dir: &Path, material: &[u8], cap: &CapturedReference) -> io::Result<()> {
     std::fs::create_dir_all(dir)?;
-    std::fs::write(dir.join("key.bin"), material)?;
-    std::fs::write(dir.join("meta.txt"), encode_meta(cap))
+    let blob = c2_il::encode_entry(material, &encode_meta(cap), &cap.bundle);
+
+    // NOT a `_CL_` prefix: `capture_reference_with` sweeps `_CL_*` out of its
+    // work dir before compiling and `find_bundle_base` matches `_CL_*ex`, so a
+    // tmp file named that way would be deleted mid-write or mistaken for IL.
+    static SEQ: AtomicUsize = AtomicUsize::new(0);
+    let tmp = dir.join(format!(
+        "{TMP_PREFIX}{}.{}",
+        std::process::id(),
+        SEQ.fetch_add(1, Ordering::Relaxed)
+    ));
+    // Sweep any tmp a crash left between write and rename. Here rather than in
+    // `gc` because this is the only place that can look inside an entry without
+    // breaking the GC's "one open per entry, never recurse" bound — and the
+    // directory it reads has at most a handful of names. An entry never
+    // re-captured keeps its stray: one inode, against a re-scan of the root.
+    if let Ok(rd) = std::fs::read_dir(dir) {
+        for e in rd.flatten() {
+            if e.file_name().to_string_lossy().starts_with(TMP_PREFIX) {
+                let _ = std::fs::remove_file(e.path());
+            }
+        }
+    }
+    std::fs::write(&tmp, &blob)?;
+    // Atomic within the directory: the entry appears whole or not at all.
+    if let Err(e) = std::fs::rename(&tmp, dir.join(ENTRY_BLOB)) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+
+    // Best-effort: the blob is authoritative from the rename onward, so an
+    // orphaned `_CL_*` left by a crash here is ignored on read and swept by the
+    // next capture into this directory.
+    for suffix in IL_SUFFIXES {
+        let _ = std::fs::remove_file(dir.join(format!("{}{suffix}", cap.base_name)));
+    }
+    // v1 leftovers, for the case where a v1 root is reused via `--cache`. The
+    // key differs so they are never *read*, but they are two inodes each.
+    for stale in ["key.bin", "meta.txt"] {
+        let _ = std::fs::remove_file(dir.join(stale));
+    }
+    Ok(())
 }
 
 /// The `meta.txt` text, as a pure function of the capture.
@@ -1114,8 +1238,15 @@ fn is_entry_name(name: &str) -> bool {
 
 /// Read an entry's stored key material. **The one format-dependent read** in the
 /// reclamation path, so a container change is one function.
-fn entry_key_material(dir: &Path) -> Option<Vec<u8>> {
-    std::fs::read(dir.join("key.bin")).ok()
+///
+/// Deliberately not a v1/v2 dual reader: a v1 entry is unreachable at a v2 root
+/// (the root is in the key), so the only way to meet one here is `--cache` at an
+/// old root, where it reads as an entry the GC cannot establish anything about —
+/// `unknown`, and therefore kept. Retiring a v1 tree is one `rm -rf`, not a
+/// reclamation pass.
+pub(crate) fn entry_key_material(dir: &Path) -> Option<Vec<u8>> {
+    let raw = std::fs::read(dir.join(ENTRY_BLOB)).ok()?;
+    Some(c2_il::decode_entry(&raw).ok()?.key.to_vec())
 }
 
 /// Walk `root` one level and reclaim provably-unreachable entries.
@@ -1167,7 +1298,7 @@ pub fn gc(root: &Path, opts: &GcOptions, progress: &dyn Fn(usize)) -> io::Result
 
         let Some(material) = entry_key_material(&dir) else {
             rep.unknown += 1;
-            note(&mut rep.unknown_detail, "no readable key.bin");
+            note(&mut rep.unknown_detail, "no readable entry.bin");
             continue;
         };
 
@@ -1223,6 +1354,44 @@ fn note(detail: &mut Vec<String>, why: &str) {
     }
 }
 
+/// Stream `<src-arg>\t<entry dir>` for every entry, one line at a time.
+///
+/// **The supported bulk reader.** Consumers used to hand-roll this — three
+/// untracked `cacheindex.py`/`cachekey.py` copies in various worktrees, each
+/// with its own `digest128` and its own idea of the entry layout, and
+/// `scripts/gt_frame_class.py` with a `glob(<cache>/*/out.obj)` that materialises
+/// every path in one list. At 22.5 M entries that glob is the OOM this whole
+/// change exists to remove. One pass here, bounded exactly like [`gc`], is what
+/// they should all call instead.
+///
+/// `emit` is called per entry rather than returning a `Vec` for the same reason
+/// [`gc`] never collects: a `Vec` of 22.5 M paths is the failure mode, not an
+/// implementation detail. Returns the number emitted and the number whose blob
+/// could not be read.
+pub fn index(root: &Path, emit: &mut dyn FnMut(&str, &Path)) -> io::Result<(usize, usize)> {
+    let (mut n, mut unreadable) = (0usize, 0usize);
+    for ent in std::fs::read_dir(root)? {
+        let Ok(ent) = ent else { continue };
+        let name = ent.file_name().to_string_lossy().into_owned();
+        if name == LOCK_DIR || !is_entry_name(&name) {
+            continue;
+        }
+        let dir = ent.path();
+        let Some(material) = entry_key_material(&dir) else {
+            unreadable += 1;
+            continue;
+        };
+        match parse_key_material(&material) {
+            Some(k) => {
+                emit(k.src_arg, &dir);
+                n += 1;
+            }
+            None => unreadable += 1,
+        }
+    }
+    Ok((n, unreadable))
+}
+
 /// Histogram the root by generation: `(context digest, entries, decoded context)`.
 ///
 /// A shared root holds several live generations at once — fixture captures key
@@ -1268,6 +1437,7 @@ pub fn generations(root: &Path, every: usize) -> io::Result<(Vec<(String, usize,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use c2_il::IlBundle;
 
     #[test]
     fn argv_normalization_drops_only_the_il_nonce() {
@@ -1636,10 +1806,44 @@ mod tests {
         let key = digest128(&material);
         let dir = root.join(&key);
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("key.bin"), &material).unwrap();
-        std::fs::write(dir.join("meta.txt"), "base _CL_1\narg -il\n").unwrap();
+        put_blob(&dir, &material, "base _CL_1\narg -il\n", &IlBundle::default());
         // Older than any `min_age` this test uses.
         (root, dir, material)
+    }
+
+    /// Write an entry blob with **production's own encoder**. Tests that want a
+    /// broken entry mutate what this produced; hand-rolling a second
+    /// implementation of the container beside the first is how a format and its
+    /// tests drift apart.
+    fn put_blob(dir: &Path, material: &[u8], meta: &str, bundle: &IlBundle) {
+        std::fs::create_dir_all(dir).unwrap();
+        std::fs::write(
+            dir.join(ENTRY_BLOB),
+            c2_il::encode_entry(material, meta, bundle),
+        )
+        .unwrap();
+    }
+
+    /// A **complete, servable** entry: everything `read_entry` needs for a Hit.
+    /// Tests break exactly one thing against this, so a Miss is attributable.
+    fn hittable_entry(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("c2rs-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("out.obj"), b"OOOOOOOOOOOO").unwrap();
+        let mut b = IlBundle::new("_CL_1");
+        b.set("ex", b"EXEX".to_vec());
+        b.set("gl", b"GLGLGL".to_vec());
+        put_blob(&dir, b"material-A", &hit_meta(&dir), &b);
+        dir
+    }
+
+    /// The meta text of a `hittable_entry`, recording `dir` as its capture path.
+    fn hit_meta(dir: &Path) -> String {
+        format!(
+            "{CACHE_FORMAT}\nbase _CL_1\narg -il\n{CAPTURE_PATH_KEY}{}\n",
+            dir.join("out.obj").display()
+        )
     }
 
     /// `min_age` protects a recent entry; a pass that must act uses 0.
@@ -1780,12 +1984,10 @@ mod tests {
     #[test]
     fn a_hash_collision_would_read_as_a_miss() {
         // read_entry demands the stored material equal the requested material,
-        // so an entry written under other inputs is never served.
-        let dir = std::env::temp_dir().join(format!("c2rs-cachecol-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("key.bin"), b"material-A").unwrap();
-        std::fs::write(dir.join("meta.txt"), "base _CL_1\narg -il\n").unwrap();
+        // so an entry written under other inputs is never served. Built from a
+        // fully hittable entry so the ONLY reason it can miss is the material.
+        let dir = hittable_entry("cachecol");
+        assert!(matches!(read_entry(&dir, b"material-A"), EntryRead::Hit(_)));
         assert!(matches!(read_entry(&dir, b"material-B"), EntryRead::Miss));
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -1795,19 +1997,18 @@ mod tests {
     /// never served — because the reference obj embeds that path as
     /// `S_OBJNAME` and serving it fakes a `mismatch` on a byte-exact TU.
     ///
-    /// Toolchain-free: this is a property of `meta.txt`, not of `c2`.
+    /// Toolchain-free: this is a property of the `meta` section, not of `c2`.
     #[test]
     fn an_entry_recorded_at_another_path_is_refused_not_served() {
-        let dir = std::env::temp_dir().join(format!("c2rs-cacheprov-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("key.bin"), b"material-A").unwrap();
+        let dir = hittable_entry("cacheprov");
+        let mut b = IlBundle::new("_CL_1");
+        b.set("ex", b"EXEX".to_vec());
         let meta = |objpath: Option<&str>| {
             let mut m = format!("{CACHE_FORMAT}\nbase _CL_1\narg -il\n");
             if let Some(p) = objpath {
                 m.push_str(&format!("{CAPTURE_PATH_KEY}{p}\n"));
             }
-            std::fs::write(dir.join("meta.txt"), m).unwrap();
+            put_blob(&dir, b"material-A", &m, &b);
         };
 
         // Recorded somewhere else -> Foreign, and the message NAMES both paths.
@@ -1819,31 +2020,32 @@ mod tests {
         assert!(what.contains("/somewhere/else/out.obj"), "{what}");
         assert!(what.contains(&dir.join("out.obj").display().to_string()), "{what}");
 
-        // Recorded HERE -> the provenance check passes and the read continues
-        // (and then misses on the absent obj/bundle). Miss, never Foreign: this
-        // is the arm that would catch the check refusing everything, which would
-        // turn the cache into a permanent cold start rather than a wrong answer.
+        // Recorded HERE -> served. This is the arm that would catch the check
+        // refusing everything, which would turn the cache into a permanent cold
+        // start rather than a wrong answer.
         meta(Some(&dir.join("out.obj").display().to_string()));
         assert!(
-            matches!(read_entry(&dir, b"material-A"), EntryRead::Miss),
-            "an entry recorded at its own path must not be refused on provenance"
+            matches!(read_entry(&dir, b"material-A"), EntryRead::Hit(_)),
+            "an entry recorded at its own path must be served"
         );
 
-        // No line at all -> a pre-#1388 entry. Also not Foreign: the cache root
-        // is in the key, so those entries' paths are already pinned, and
-        // refusing them would cold-start every cache on this box at once.
+        // **Inverted at v2.** A missing line used to mean "pre-#1388 entry,
+        // serve it anyway". After the hard invalidation every entry carries the
+        // line, so that arm had provably zero members — dead code that read as a
+        // tested branch. A missing line is now a Miss, and this asserts it
+        // against an entry that is otherwise complete.
         meta(None);
         assert!(
             matches!(read_entry(&dir, b"material-A"), EntryRead::Miss),
-            "an entry written before the provenance line must not be refused"
+            "an entry with no provenance line must not be served"
         );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// A written entry records where it was captured, so the guard above has
     /// something to check. Without this, `write_entry` could stop emitting the
-    /// line and every `read_entry` would take the pre-#1388 compatibility arm —
-    /// green, and checking nothing.
+    /// line and every entry would read as a Miss — a permanently cold cache,
+    /// which is slow rather than wrong and so goes unnoticed.
     #[test]
     fn a_written_entry_records_its_own_capture_path() {
         let dir = std::env::temp_dir().join(format!("c2rs-cachewrite-{}", std::process::id()));
@@ -1858,24 +2060,170 @@ mod tests {
             ref_obj: ObjImage::new(b"OOOOOOOOOOOO".to_vec()),
             ref_obj_path: dir.join("out.obj"),
         };
+        std::fs::write(dir.join("out.obj"), b"OOOOOOOOOOOO").unwrap();
         write_entry(&dir, b"material-A", &cap).unwrap();
-        let meta = std::fs::read_to_string(dir.join("meta.txt")).unwrap();
+        let raw = std::fs::read(dir.join(ENTRY_BLOB)).unwrap();
+        let meta = c2_il::decode_entry(&raw).expect("production wrote a decodable blob").meta;
         assert!(
             meta.lines().any(|l| l
                 == format!("{CAPTURE_PATH_KEY}{}", dir.join("out.obj").display())),
-            "write_entry did not record the capture path; meta.txt was:\n{meta}"
+            "write_entry did not record the capture path; meta was:\n{meta}"
+        );
+        // And it round-trips all the way back to a Hit.
+        assert!(matches!(read_entry(&dir, b"material-A"), EntryRead::Hit(_)));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// **The completion marker.** v1's was "`meta.txt` exists", written last —
+    /// and `fs::write` is create+truncate+write_all, not atomic, so a crash
+    /// after two lines landed left a parseable `base`+`arg` pair, i.e. a Hit
+    /// with a truncated argv. v2's marker is the blob's own `TOTAL_LEN` and
+    /// digest, so every one of these is a Miss rather than a partial answer.
+    #[test]
+    fn a_torn_blob_reads_as_a_miss() {
+        let dir = hittable_entry("cachetorn");
+        let good = std::fs::read(dir.join(ENTRY_BLOB)).unwrap();
+        assert!(
+            matches!(read_entry(&dir, b"material-A"), EntryRead::Hit(_)),
+            "the fixture must be servable, or these cases prove nothing"
+        );
+
+        let cases: Vec<(&str, Box<dyn Fn(&mut Vec<u8>)>)> = vec![
+            ("truncated to 60%", Box::new(|b: &mut Vec<u8>| b.truncate(b.len() * 3 / 5))),
+            ("truncated to the header", Box::new(|b: &mut Vec<u8>| b.truncate(20))),
+            ("flipped payload byte", Box::new(|b: &mut Vec<u8>| { let n = b.len() - 1; b[n] ^= 0xFF; })),
+            ("corrupt magic", Box::new(|b: &mut Vec<u8>| b[0] = b'X')),
+            ("version 1", Box::new(|b: &mut Vec<u8>| b[8..12].copy_from_slice(&1u32.to_le_bytes()))),
+            ("lying TOTAL_LEN", Box::new(|b: &mut Vec<u8>| {
+                let n = b.len() as u64 + 8;
+                b[16..24].copy_from_slice(&n.to_le_bytes());
+            })),
+            ("section offset past the end", Box::new(|b: &mut Vec<u8>| {
+                b[c2_il::cachefmt::HEADER_LEN + 8..c2_il::cachefmt::HEADER_LEN + 16]
+                    .copy_from_slice(&u64::MAX.to_le_bytes());
+            })),
+            ("appended slack", Box::new(|b: &mut Vec<u8>| b.push(0))),
+        ];
+        for (what, break_it) in cases {
+            let mut bytes = good.clone();
+            break_it(&mut bytes);
+            std::fs::write(dir.join(ENTRY_BLOB), &bytes).unwrap();
+            assert!(
+                matches!(read_entry(&dir, b"material-A"), EntryRead::Miss),
+                "a blob {what} must read as a Miss, not as a partial entry"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The obj is the one thing the fold cannot absorb — it is the `-Fo` target
+    /// and its own path is inside its bytes. An entry with a valid blob and no
+    /// obj is not servable.
+    #[test]
+    fn a_blob_without_its_obj_reads_as_a_miss() {
+        let dir = hittable_entry("cachenoobj");
+        std::fs::remove_file(dir.join("out.obj")).unwrap();
+        assert!(matches!(read_entry(&dir, b"material-A"), EntryRead::Miss));
+        std::fs::write(dir.join("out.obj"), b"").unwrap();
+        assert!(
+            matches!(read_entry(&dir, b"material-A"), EntryRead::Miss),
+            "an empty obj is not a capture"
         );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// After a crash between the rename and the IL deletes, an entry can carry
+    /// both a valid blob and the `_CL_*` files it superseded. The blob is
+    /// authoritative from the rename onward; the orphans must not change what is
+    /// served, or a stale stream could be read back in place of a fresh one.
     #[test]
-    fn an_incomplete_entry_reads_as_a_miss() {
-        // meta.txt is the completion marker: key material alone is not an entry.
-        let dir = std::env::temp_dir().join(format!("c2rs-cacheinc-{}", std::process::id()));
+    fn an_orphan_cl_file_beside_a_valid_blob_does_not_change_the_read() {
+        let dir = hittable_entry("cacheorphan");
+        let before = match read_entry(&dir, b"material-A") {
+            EntryRead::Hit(h) => h,
+            other => panic!("fixture must be a Hit, got {other:?}"),
+        };
+        std::fs::write(dir.join("_CL_1ex"), b"STALE-STALE").unwrap();
+        std::fs::write(dir.join("_CL_1gl"), b"STALE").unwrap();
+        let after = match read_entry(&dir, b"material-A") {
+            EntryRead::Hit(h) => h,
+            other => panic!("orphans turned a Hit into {other:?}"),
+        };
+        assert_eq!(before.bundle.files, after.bundle.files);
+        assert_eq!(after.bundle.get("ex"), Some(&b"EXEX"[..]));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The inode win, asserted rather than assumed: a completed entry is the
+    /// directory, `out.obj` and `entry.bin` — the five IL files the capture left
+    /// behind are gone.
+    #[test]
+    fn write_entry_folds_the_il_files_away() {
+        let dir = std::env::temp_dir().join(format!("c2rs-cachefold-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("key.bin"), b"material-A").unwrap();
-        assert!(matches!(read_entry(&dir, b"material-A"), EntryRead::Miss));
+        let mut b = IlBundle::new("_CL_test");
+        for s in IL_SUFFIXES {
+            b.set(s, format!("payload-{s}").into_bytes());
+            // What `cl.exe` left on disk, which `write_entry` must clear.
+            std::fs::write(dir.join(format!("_CL_test{s}")), format!("payload-{s}")).unwrap();
+        }
+        std::fs::write(dir.join("out.obj"), b"OOOOOOOOOOOO").unwrap();
+        let cap = CapturedReference {
+            bundle: b.clone(),
+            base_name: "_CL_test".to_string(),
+            c2_argv: vec!["-il".to_string()],
+            ref_obj: ObjImage::new(b"OOOOOOOOOOOO".to_vec()),
+            ref_obj_path: dir.join("out.obj"),
+        };
+        write_entry(&dir, b"material-A", &cap).unwrap();
+
+        let mut names: Vec<String> = std::fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        assert_eq!(names, vec![ENTRY_BLOB.to_string(), "out.obj".to_string()]);
+
+        // …and every stream survived the fold, byte for byte.
+        match read_entry(&dir, b"material-A") {
+            EntryRead::Hit(h) => assert_eq!(h.bundle.files, b.files),
+            other => panic!("a folded entry must still be servable, got {other:?}"),
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The validator compares two captures field by field, so if the fold lost
+    /// or reordered anything it consumes, `--validate-cache` would start
+    /// reporting poison on a healthy cache. Round-trip through the blob and
+    /// assert the verdict is still `Identical`.
+    #[test]
+    fn the_fold_preserves_compare_captures_semantics() {
+        let dir = std::env::temp_dir().join(format!("c2rs-cachecmp-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("out.obj"), b"OOOOOOOOOOOO").unwrap();
+        let mut b = IlBundle::new("_CL_1");
+        for s in IL_SUFFIXES {
+            b.set(s, format!("payload-{s}").into_bytes());
+        }
+        let original = CapturedReference {
+            bundle: b,
+            base_name: "_CL_1".to_string(),
+            c2_argv: vec!["-il".into(), "/t/_CL_1".into(), "-Ox".into()],
+            ref_obj: ObjImage::new(b"OOOOOOOOOOOO".to_vec()),
+            ref_obj_path: dir.join("out.obj"),
+        };
+        write_entry(&dir, b"material-A", &original).unwrap();
+        let round_tripped = match read_entry(&dir, b"material-A") {
+            EntryRead::Hit(h) => *h,
+            other => panic!("expected a Hit, got {other:?}"),
+        };
+        assert_eq!(
+            compare_captures(&original, &round_tripped),
+            CaptureDiff::Identical
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 

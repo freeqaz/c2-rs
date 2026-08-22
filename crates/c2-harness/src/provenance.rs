@@ -46,6 +46,17 @@ pub fn repo_root() -> PathBuf {
 
 /// The **main** repository root — the same directory from every linked worktree.
 ///
+/// **The capture cache is no longer a caller (2026-08-22).** Everything below
+/// about the 50 caches is why this function exists and is still the record of
+/// how it was reached; it just no longer describes where captures go. The cache
+/// root moved out of every checkout — `$XDG_CACHE_HOME/c2rs/capture` — which
+/// collapses *clones* as well as worktrees and, more to the point, keeps 22.6 M
+/// entries out of the path of every `find` and `du` rooted at the repo. The
+/// sharing property this function was built for is preserved and widened; the
+/// concurrency guard the section below worries about is unchanged, because
+/// `KeyLock` lives at the root wherever the root is. Remaining callers want the
+/// *repo*, not the cache.
+///
 /// # Why this exists
 ///
 /// `repo_root()` is `CARGO_MANIFEST_DIR`, which is resolved **at compile time**,

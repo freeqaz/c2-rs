@@ -107,13 +107,23 @@ pub(crate) fn cmd_gap(rest: &[String]) -> ExitCode {
         );
         return ExitCode::from(2);
     }
+    // An unresolvable root is a MISSING SPEEDUP, never a missing grading — the
+    // same rule `diff` applies. It became reachable in v2, where the root is
+    // under `$HOME` and so absent under `sudo`, in a container, or with a
+    // read-only home.
     let cache: Option<PathBuf> = if args.has("--no-cache") {
         None
     } else {
-        Some(
-            args.path("--cache")
-                .unwrap_or_else(c2_harness::capture_cache::default_cache_root),
-        )
+        match args.path("--cache") {
+            Some(p) => Some(p),
+            None => match c2_harness::capture_cache::default_cache_root() {
+                Ok(p) => Some(p),
+                Err(e) => {
+                    eprintln!("gap: no capture cache ({e}); capturing for real");
+                    None
+                }
+            },
+        }
     };
     let (Some(list_file), Some(flags_file)) = (list_file, flags_file) else {
         eprintln!(

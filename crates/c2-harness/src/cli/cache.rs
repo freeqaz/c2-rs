@@ -11,12 +11,13 @@
 //! globs.** A shell glob over a cache root has twice taken this machine down
 //! with the OOM killer. `gc` is a dry run unless `--apply` is given.
 
+use std::io::Write as _;
 use std::process::ExitCode;
 use std::time::Duration;
 
 use c2_harness::capture_cache::{
     self, classify_entry, default_cache_root, gc, generations, parse_key_material,
-    GcOptions, LOCK_DIR,
+    GcOptions, ENTRY_BLOB, LOCK_DIR,
 };
 
 use crate::{Args, Arity, Spec};
@@ -34,12 +35,25 @@ static CACHE_SPEC: Spec = Spec::new(
 )
 .positionals(2);
 
+const VERBS: &str = "stat | index | generations | show <key> | gc";
+
 pub(crate) fn cmd_cache(rest: &[String]) -> ExitCode {
     let args = match Args::parse(&CACHE_SPEC, rest) {
         Ok(a) => a,
         Err(c) => return c,
     };
-    let root = args.path("--cache").unwrap_or_else(default_cache_root);
+    // Unlike the capture path, this command has nothing to degrade *to*: every
+    // verb is about a root. So an unresolvable one is a hard refusal.
+    let root = match args.path("--cache") {
+        Some(p) => p,
+        None => match default_cache_root() {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("cache: {e}");
+                return ExitCode::from(2);
+            }
+        },
+    };
     let verb = args.positionals().first().map(String::as_str).unwrap_or("");
     if !root.is_dir() {
         eprintln!("cache: no cache root at {}", root.display());
@@ -51,14 +65,15 @@ pub(crate) fn cmd_cache(rest: &[String]) -> ExitCode {
             Ok(v) => cmd_generations(&root, v.unwrap_or(1)),
             Err(c) => c,
         },
+        "index" => cmd_index(&root),
         "show" => cmd_show(&root, args.positionals().get(1).map(String::as_str)),
         "gc" => cmd_gc(&args, &root),
         "" => {
-            eprintln!("cache: give a verb: stat | generations | show <key> | gc");
+            eprintln!("cache: give a verb: {VERBS}");
             ExitCode::from(2)
         }
         other => {
-            eprintln!("cache: unknown verb {other}; want stat | generations | show <key> | gc");
+            eprintln!("cache: unknown verb {other}; want {VERBS}");
             ExitCode::from(2)
         }
     }
@@ -124,32 +139,80 @@ fn cmd_generations(root: &std::path::Path, sample: usize) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// Decode one entry. The supported reader, so nothing else needs its own
-/// implementation of the key format.
+/// `<src-arg>\t<entry dir>` for every entry, on stdout.
+///
+/// The bulk half of the supported reader — `show` for one entry, this for all of
+/// them. Prints the counts to **stderr** so stdout stays a clean TSV and a
+/// truncated run is still visible; a consumer that redirects stdout to a file
+/// sees the tally on its terminal.
+fn cmd_index(root: &std::path::Path) -> ExitCode {
+    let out = std::io::stdout();
+    let mut w = std::io::BufWriter::new(out.lock());
+    let mut emit = |src: &str, dir: &std::path::Path| {
+        let _ = writeln!(w, "{src}\t{}", dir.display());
+    };
+    let r = capture_cache::index(root, &mut emit);
+    let _ = w.flush();
+    match r {
+        Ok((n, unreadable)) => {
+            eprintln!("indexed {n} entries, {unreadable} unreadable");
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("cache: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// Decode one entry. **The supported reader** — nothing else should carry its
+/// own implementation of the key format or the blob container, which is why the
+/// untracked `cacheindex.py`/`cachekey.py` scripts in various worktrees are
+/// superseded by this rather than ported.
 fn cmd_show(root: &std::path::Path, key: Option<&str>) -> ExitCode {
     let Some(key) = key else {
         eprintln!("cache show: give a 32-hex entry key");
         return ExitCode::from(2);
     };
     let dir = root.join(key);
-    let Ok(material) = std::fs::read(dir.join("key.bin")) else {
-        eprintln!("cache show: no readable key.bin under {}", dir.display());
-        return ExitCode::FAILURE;
+    let raw = match std::fs::read(dir.join(ENTRY_BLOB)) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("cache show: {}/{ENTRY_BLOB}: {e}", dir.display());
+            return ExitCode::FAILURE;
+        }
     };
-    let Some(k) = parse_key_material(&material) else {
+    let blob = match c2_il::decode_entry(&raw) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("cache show: {ENTRY_BLOB} did not decode: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let Some(k) = parse_key_material(blob.key) else {
         eprintln!("cache show: key material did not parse");
         return ExitCode::FAILURE;
     };
     println!("entry:      {}", dir.display());
+    println!("blob:       {} bytes", raw.len());
     println!("generation: {}", capture_cache::digest128(k.context));
     print!("{}", String::from_utf8_lossy(k.context));
     println!("src-arg:    {}", k.src_arg);
     println!("cwd:        {}", if k.cwd.is_empty() { "(none)" } else { k.cwd });
-    println!("verdict:    {:?}", classify_entry(&material));
-    if let Ok(meta) = std::fs::read_to_string(dir.join("meta.txt")) {
-        println!("--- meta.txt ---");
-        print!("{meta}");
+    println!("verdict:    {:?}", classify_entry(blob.key));
+    let obj = dir.join("out.obj");
+    match std::fs::metadata(&obj) {
+        Ok(m) => println!("out.obj:    {} bytes", m.len()),
+        Err(e) => println!("out.obj:    MISSING ({e}) — this entry cannot be served"),
     }
+    for suffix in c2_il::IL_SUFFIXES {
+        match blob.il(suffix) {
+            Some(b) => println!("  .{suffix:<3}     {} bytes", b.len()),
+            None => println!("  .{suffix:<3}     absent"),
+        }
+    }
+    println!("--- meta ---");
+    print!("{}", blob.meta);
     ExitCode::SUCCESS
 }
 

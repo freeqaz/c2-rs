@@ -14,7 +14,7 @@
 use std::path::{Path, PathBuf};
 
 use c2_harness::capture_cache::{
-    compare_captures, CacheOutcome, CaptureCache, CaptureDiff, LOCK_DIR,
+    compare_captures, CacheOutcome, CaptureCache, CaptureDiff, ENTRY_BLOB, LOCK_DIR,
 };
 use c2_reference::Toolchain;
 
@@ -50,6 +50,35 @@ fn poison_file(path: &Path) {
     let i = bytes.len() / 2;
     bytes[i] ^= 0xff;
     std::fs::write(path, bytes).unwrap();
+}
+
+/// Flip one byte of the cached `.ex` **inside** the entry blob: decode, mutate
+/// the payload, re-encode with a correct digest.
+///
+/// **Do not "simplify" this to `poison_file(entry.join(ENTRY_BLOB))`.** A raw
+/// byte flip fails the blob's own digest, so `read_entry` returns `Miss`, the
+/// cache re-captures, and the outcome is `Miss` — not `Poisoned`. The test would
+/// then fail for the wrong reason, and relaxing the assertion to accept `Miss`
+/// would silently convert this project's only validator proof into a checksum
+/// test. What is being proven here is that a *well-formed* entry carrying wrong
+/// IL is caught by bypass-and-compare, which is the only check that can see it.
+fn poison_cached_ex(entry: &Path) {
+    let raw = std::fs::read(entry.join(ENTRY_BLOB)).unwrap();
+    let blob = c2_il::decode_entry(&raw).expect("the entry blob must decode");
+    let key = blob.key.to_vec();
+    let meta = blob.meta.to_string();
+    // The base name is metadata, not a section tag, so any name round-trips the
+    // payloads unchanged; `read_entry` takes the real one from `meta`.
+    let mut bundle = blob.bundle("_CL_poison");
+    let mut ex = bundle.get("ex").expect("cached .ex").to_vec();
+    assert!(ex.len() > 16, "cached .ex too small to poison");
+    let i = ex.len() / 2;
+    ex[i] ^= 0xff;
+    bundle.set("ex", ex);
+    let poisoned = c2_il::encode_entry(&key, &meta, &bundle);
+    // The poisoned blob must still be *valid*, or the validator never runs.
+    assert!(c2_il::decode_entry(&poisoned).is_ok());
+    std::fs::write(entry.join(ENTRY_BLOB), poisoned).unwrap();
 }
 
 #[test]
@@ -109,22 +138,25 @@ fn a_hit_is_byte_identical_and_a_poisoned_entry_is_caught() {
     );
     assert_eq!(cache.stats().poisoned, 0);
 
-    // 4. Poison the cached `.ex` — the file a corrupt cache would silently move
-    //    every census number with, while the differential stayed green.
+    // 4. The inode claim, proven against the real toolchain rather than
+    //    asserted: a completed entry is `out.obj` and one blob. Everything else
+    //    the capture wrote has been folded away.
     let entry = only_entry(&root);
-    let ex = std::fs::read_dir(&entry)
+    let mut names: Vec<String> = std::fs::read_dir(&entry)
         .unwrap()
-        .filter_map(|e| e.ok().map(|e| e.path()))
-        .find(|p| {
-            p.file_name()
-                .map(|n| {
-                    let n = n.to_string_lossy();
-                    n.starts_with("_CL_") && n.ends_with("ex")
-                })
-                .unwrap_or(false)
-        })
-        .expect("cached .ex");
-    poison_file(&ex);
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert_eq!(
+        names,
+        vec![ENTRY_BLOB.to_string(), "out.obj".to_string()],
+        "a real capture left files behind the fold did not absorb"
+    );
+
+    // 5. Poison the cached `.ex` — the stream a corrupt cache would silently
+    //    move every census number with, while the differential stayed green.
+    poison_cached_ex(&entry);
 
     let cache = CaptureCache::new(root.clone(), &tc, None, 1).unwrap();
     let (_, outcome) = cache.capture(&tc, &src_arg, &flags, None, &fallback);
@@ -141,13 +173,15 @@ fn a_hit_is_byte_identical_and_a_poisoned_entry_is_caught() {
         st.poison_detail
     );
 
-    // 5. …and the validator self-heals: the re-capture overwrote the entry, so
+    // 6. …and the validator self-heals: the re-capture overwrote the entry, so
     //    the next validation is clean again.
     let cache = CaptureCache::new(root.clone(), &tc, None, 1).unwrap();
     let (_, outcome) = cache.capture(&tc, &src_arg, &flags, None, &fallback);
     assert_eq!(outcome, CacheOutcome::Validated);
 
-    // 6. Poison the cached obj instead — the other half of the entry.
+    // 7. Poison the cached obj instead — the other half of the entry. Still a
+    //    plain byte flip: the obj is a real file outside the blob, which is the
+    //    fold's one exception and worth having a test that depends on it.
     poison_file(&entry.join("out.obj"));
     let cache = CaptureCache::new(root.clone(), &tc, None, 1).unwrap();
     let (_, outcome) = cache.capture(&tc, &src_arg, &flags, None, &fallback);
