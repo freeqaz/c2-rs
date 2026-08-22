@@ -29,13 +29,20 @@
 //! recorded in this file's own tests, and ten further fitted-then-refuted keys
 //! are catalogued below). The reads:
 //!
-//! * **R1** (0.5 d) — `DAT_10c400d4`'s scope: `0x10b54d32` (mint),
-//!   `0x10b2c1f1` (table clear), `0x10b2c21d` (hash). The repo asserts both
-//!   *function-scoped* and *compilation-global* for the same counter, and
-//!   `P_REGALLOC.md:160-166`'s consequence 3 — the most direct available
-//!   explanation for **why source-level fitted sorts keep being refuted** —
-//!   holds only on the global side. R1 decides whether the ten refuted keys
-//!   have an explanation at all.
+//! * **R1** — **DONE, 2026-08-22** (lane `w-read-r1`, board #3372–#3375;
+//!   `docs/whitebox/WB_CANDID_FINDINGS.md`). `DAT_10c400d4` is **FUNCTION-SCOPED**:
+//!   set to `1` at `0x10b57676` in `FUN_10b57633` (globregs), which the
+//!   per-function driver `FUN_10b7dc51` calls at `0x10b7dcb7`; the counter has
+//!   **exactly four references in the image**, and every mint site sits inside
+//!   that driver's subtrees, so nothing is minted without a preceding reset
+//!   (with the free-list reset at `0x10b5767c` supplying the density).
+//!   **The answer SUBTRACTS**: `P_REGALLOC.md`'s consequence 3 loses its
+//!   premise — a per-function counter dense from 1 makes a candidate's bucket
+//!   its mint index, which *can* track source order — so **the ten refuted
+//!   keys below are back to UNEXPLAINED**, and the question passes whole to R4.
+//!   (This note previously cited `0x10b2c1f1`/`0x10b2c21d` as the scope sites;
+//!   they are the hash table's clear and lookup and do not touch the counter.
+//!   The coordinator's brief carried that error — see the merge commit.)
 //! * **R4** (3–5 d) — `FUN_10b55732` (1,676 B), the globregs candidate
 //!   mint/merge order: the missing *input* to the priority comparator
 //!   `0x10b2b82d`, which is already read.
