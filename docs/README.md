@@ -188,8 +188,8 @@ down.
   [`DOC_CONVENTIONS.md`](DOC_CONVENTIONS.md) §3. Of the 70 top-level documents
   here on 2026-08-22, exactly **two** had zero inbound references.
 * **Just edited a doc?** `scripts/doc_cite_audit.sh --self-test` (watch it go
-  red on planted defects), then `scripts/doc_cite_audit.sh` — ~2 s over 525
-  files.
+  red on planted defects), then `scripts/doc_cite_audit.sh` — ~2 s over the
+  whole `docs/` tree.
 * **Scratch artifacts** referenced throughout these docs — `work/…` grids,
   captured bundles, `/tmp` fixture objs — are session-local and
   **regenerable**: `c2rs capture <fixture.cpp>` re-captures a bundle, and

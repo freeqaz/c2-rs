@@ -98,7 +98,7 @@ writing the broken path literally.)
 
   ```sh
   scripts/doc_cite_audit.sh --self-test   # POSITIVE CONTROL — watch it go red first
-  scripts/doc_cite_audit.sh               # 525 files, ~2 s
+  scripts/doc_cite_audit.sh               # the whole docs/ tree, ~2 s
   ```
 
   **It is not wired into `scripts/gate.sh`, deliberately.** On arrival
