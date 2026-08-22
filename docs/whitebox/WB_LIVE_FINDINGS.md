@@ -259,6 +259,19 @@ for blk from cand->first_block to cand->last_block:
   `DAT_10c400d4` at `0x10b54d32`. Ids are **dense and function-scoped** — the
   hash `id & 0x3ff` at `0x10b2c21d` and the table clear at `0x10b2c1f1` are
   per-function.
+
+  > **REVISION 2026-08-22 — CONFIRMED, and here is the address this bullet was
+  > missing.** `ref/P_REGALLOC.md` contradicted this line three times
+  > (*"compilation-global"*), and `READ_PLAN_2026-08-21.md` §5.2 fairly noted
+  > that the evidence as stated did not settle it: a **global** counter with a
+  > **per-function table clear** would also produce the clear at `0x10b2c1f1`,
+  > and would make ids *sparse* within a function. Read **R1** closes it in
+  > this bullet's favour by naming the reset itself — **`DAT_10c400d4 = 1` at
+  > `0x10b57676`**, in the same straight-line run of `FUN_10b57633` as the
+  > table memset (`0x10b5769c`) and the **free-list** reset (`0x10b5767c`),
+  > which is the piece that makes *dense* true. See
+  > [`WB_CANDID_FINDINGS.md`](WB_CANDID_FINDINGS.md); board **#3373**. This
+  > bullet stays as written — it was right.
 * **Candidates are not IL tokens and not `.sy` locals.** They are created in
   `globregs.c` (`FUN_10b55dbe`, `FUN_10b5673e` → `0x10b54d32`) by the
   global-register-promotion renamer `FUN_10b55732` @ `0x10b55732`, which walks
