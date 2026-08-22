@@ -595,6 +595,34 @@ impl PortC2 {
         }
         let mode = mode.unwrap_or(codegen::OptMode::Ox);
 
+        // **W-SEEDGAP — the label seed gap's first term, asserted here rather
+        // than assumed in `coff::label`.**
+        //
+        // `LABEL_SEED_GAP` is `7 + 2·[/Og] + 1·[/GF ∧ a pooled data-phase
+        // string]` (board #3388), and it ships as `9` because
+        // `SeedGapInputs::PORT_ADMITTED` sets `global_optimizer: true`. That is
+        // sound only while the loop above admits nothing but `/Ox` and `/O1`,
+        // both of which imply `/Og` — and `/Od` reads **7**, so the day the loop
+        // admits `c2_il::OPT_WORD_OD` the seed silently moves by two on every
+        // function in the TU.
+        //
+        // A `debug_assert` and not a refusal, deliberately: it can only fire on a
+        // word `opt_mode_of_word` already accepted, so in release it is exactly
+        // the check the loop above has already made, and adding a second refusal
+        // for an unreachable state would be a fence that costs a branch and buys
+        // nothing. It is not decoration either — `scripts/gate.sh`'s DEBUG-lane
+        // row runs all 18 lanes through a debug-profile `c2rs` (6948 verdicts),
+        // so this executes on every graded fixture in the gate.
+        debug_assert!(
+            words
+                .iter()
+                .all(|w| coff::global_optimizer_of_opt_word(*w) == Some(true)),
+            "a TU reached the label planner whose optimization word does not imply \
+             /Og, but LABEL_SEED_GAP is SeedGapInputs::PORT_ADMITTED, which asserts \
+             it does — the seed gap is 7 without the global optimizer, not 9 \
+             (board #3388, docs/LABEL_COUNTER.md 8.1)"
+        );
+
         // W-UNW-1: any framed function in the TU makes the obj carry `.pdata`
         // unwind records and the `$M…`/`$T…` compiler labels, whose numbers come
         // from a counter seeded in `.gl` and advanced once per function. Both

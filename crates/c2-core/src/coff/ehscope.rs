@@ -176,7 +176,18 @@ pub struct EhLabels {
 impl EhLabels {
     /// The allocation for a TU whose **only** function is this one.
     pub fn of_single_function_tu(seed: u32) -> EhLabels {
-        let b = seed + LABEL_SEED_GAP + 3;
+        Self::of_single_function_tu_with_gap(seed, LABEL_SEED_GAP)
+    }
+
+    /// [`EhLabels::of_single_function_tu`] with the seed gap **supplied** rather
+    /// than assumed — the settable form, matching [`plan_labels_with_gap`].
+    ///
+    /// `B` here is `seed + gap + 3·nfuncs` with `nfuncs = 1`, so the gap moves
+    /// every one of the six numbers below **equally**: this is a whole-block
+    /// translation, not a reshuffle. The offsets against `B` are measured
+    /// seed-free and are not a function of the gap.
+    pub fn of_single_function_tu_with_gap(seed: u32, seed_gap: u32) -> EhLabels {
+        let b = seed + seed_gap + 3;
         EhLabels {
             funclet: b - 2,
             state: [b + 3, b + 4],

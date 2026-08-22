@@ -720,6 +720,33 @@ pub const OPT_WORD_O1_NO_FP_CONTRACT: u32 = 0x0020_0001;
 /// decoration `docs/GAPS.md` §6 records `w13_fabi.cpp` as having been for months.
 pub const OPT_WORD_OX_NO_FP_CONTRACT: u32 = 0x00a0_0001;
 
+/// **`/Od` — no optimization.** Named here because [`OPT_WORD_OX`]'s own doc has
+/// recorded the value since the word table was read, but nothing could *refer* to
+/// it: [`opt_word_mode`] refuses `/Od` by falling off the end of its match, which
+/// is the correct behaviour and also indistinguishable from refusing a word
+/// nobody has ever seen.
+///
+/// A caller that needs to tell **"`/Od`, which we have read and which the port
+/// declines to emit"** apart from **"a word this port has never been verified
+/// against"** needs the two spelled separately. `w-seedgap` is the first such
+/// caller: the label seed gap is `7` without the global optimizer and `9` with
+/// it (`docs/LABEL_COUNTER.md` §8.1, board #3388), so `/Od` has a *known* gap,
+/// not an unknown one, and saying so is different from saying nothing.
+///
+/// **This adds no acceptance.** `opt_word_mode` is untouched and still returns
+/// `None` here; naming the word does not admit it.
+pub const OPT_WORD_OD: u32 = 0x0080_0005;
+
+/// **`#pragma optimize("", off)`** under `/Ox` — the same "no optimization"
+/// state as [`OPT_WORD_OD`] reached per function instead of per TU, with bit
+/// `0x4` (fp_contract) clear.
+///
+/// Documented alongside `/Od` in [`OPT_WORD_OX`]'s table and named for the same
+/// reason. Note the word is also reachable in the **short varint form** `04`
+/// (`opt_word_at`'s `b < 0x80` branch), which is how a capture actually spells
+/// it; both forms mean the global optimizer did not run.
+pub const OPT_WORD_PRAGMA_OFF: u32 = 0x0080_0004;
+
 /// Bit `0x0000_0100` of the per-function optimization word: **this function is a
 /// constructor or a destructor.** Orthogonal to the mode bits, so it is masked off
 /// before the whole-word compare rather than being enumerated into four words.
