@@ -885,6 +885,118 @@ mod tests {
         assert_eq!(encode_op(&m, &dropped).unwrap(), 0x8060_1234);
     }
 
+    /// **THE `after0` OPCODE-AGREEMENT RATIO — an INSTRUMENT, never a gate.**
+    ///
+    /// Slice S1's third graded-by (`ROADMAP_SLICING_2026-08-21.md` §5, row S1;
+    /// `DECISIONS_2026-08-22.md` decision 5). It asserts the **shape of the
+    /// residual**, not a ratio floor, because a ratio floor on a
+    /// characterization number is a gate wearing an instrument's clothes: it
+    /// would go red the day someone adds an opcode whose arm supplies a field,
+    /// which is a fact about c2 and not a regression in the port.
+    ///
+    /// Run it for the numbers:
+    /// `cargo test -p c2-core --lib after0 -- --nocapture`.
+    ///
+    /// **READ THE DENOMINATOR** (standing rule 4 / board #3356). It is **85
+    /// distinct c2 opcodes**, and that is *not* board #3379's **89**, which
+    /// counted **encoder functions**. The two populations differ by the
+    /// convenience wrappers — `encode_srwi31` and `encode_clrlwi31` are
+    /// `rlwinm` with the mask baked, not opcodes — and by the `double` flag,
+    /// where one function reaches two rows (`fadd`/`fadds`). Neither number is
+    /// wrong; they answer different questions, and the ratio is meaningless
+    /// without saying which.
+    ///
+    /// **The ratio reads `82 / 85`, and #3379's read `82 / 89`. The equal
+    /// numerators are a COINCIDENCE and must not be reported as agreement.**
+    /// The seven residuals #3379 named went to three, for two different
+    /// reasons that a single count would have blurred:
+    ///
+    /// * `BO = 20` ×2 (`blr`, `bctrl`) and `BO = 16` (`bdnz`) **survive** —
+    ///   they are genuinely fields c2's arm supplies (form 55's
+    ///   `or ebx,0x2800000`, form 1's `or 0x2000000`) and the port must
+    ///   reproduce them.
+    /// * The **split `SPR`** dissolved for a real reason: `encode_mtctr` used
+    ///   to bake `0x120` into its word and now passes SPR 9 through form 62's
+    ///   split placement, so `mtspr`'s `after0` **is** its base word. One
+    ///   fitted field became a read one.
+    /// * `SH`/`MB`/`ME` ×3 dissolved for a **definitional** reason and bought
+    ///   nothing: they were `encode_srwi31`, `encode_clrlwi31` and
+    ///   `encode_clrlwi_record`, three convenience wrappers over one opcode.
+    ///   `rlwinm` itself always agreed. Counting them as three residuals was
+    ///   an artifact of counting functions.
+    #[test]
+    fn after0_agreement_with_c2s_base_word_table() {
+        let rows = agreement(&EncodeParams::C2);
+        let (agree, differ): (Vec<&AgreementRow>, Vec<&AgreementRow>) =
+            rows.iter().partition(|r| r.agrees());
+        println!(
+            "\nafter0 opcode agreement: {} of {} distinct c2 opcodes the port emits",
+            agree.len(),
+            rows.len()
+        );
+        println!("the shape of M - N ({} rows):", differ.len());
+        for r in &differ {
+            println!(
+                "  {:<8} op {:#06x} form {:<3} base {:08x}  after0 {:08x}  delta {:08x}",
+                r.mnemonic,
+                r.op.0,
+                form_of(r.op).unwrap().0,
+                r.base,
+                r.after0,
+                r.delta
+            );
+        }
+
+        // Every residual is a `fixed` — a field c2's ARM supplies with no
+        // operand read — and never a disagreement in a primary or extended
+        // opcode. That is the claim worth pinning, and it is #3379's finding
+        // stated as a property instead of as a count.
+        for r in &differ {
+            let fp = plan(form_of(r.op).unwrap()).unwrap();
+            assert_ne!(fp.fixed, 0, "{} differs but its form ORs no constant", r.mnemonic);
+            assert_eq!(
+                r.delta, fp.fixed,
+                "{}'s after0 delta is not exactly its form's fixed constant",
+                r.mnemonic
+            );
+        }
+        // …and symmetrically: an opcode whose form ORs nothing MUST agree, or
+        // the transcription of its base word is wrong.
+        for r in &agree {
+            assert_eq!(plan(form_of(r.op).unwrap()).unwrap().fixed, 0);
+        }
+
+        // The residual set, named in advance rather than read off the run.
+        let mut names: Vec<&str> = differ.iter().map(|r| r.mnemonic).collect();
+        names.sort_unstable();
+        assert_eq!(
+            names,
+            vec!["bctrl", "bdnz", "blr"],
+            "the after0 residual set changed; that is a finding, not a failure \
+             — re-derive it before adjusting this list"
+        );
+    }
+
+    /// The mnemonics in [`OPCODES`] are c2's, so they can be checked against
+    /// the committed dump rather than trusted.
+    ///
+    /// A transcription test, and the only thing standing between this table and
+    /// a typo that would be invisible everywhere else: a wrong base word whose
+    /// primary opcode happens to be right still assembles, still disassembles,
+    /// and is caught by nothing above except the incumbent cross-check — which
+    /// is exactly why that cross-check is kept as an INDEPENDENT derivation.
+    #[test]
+    fn every_transcribed_row_is_internally_consistent() {
+        for r in OPCODES {
+            assert!(!r.mnemonic.is_empty());
+            // c2's table has no base word with bits below the primary opcode
+            // set for an operand field this port fills — checked as: composing
+            // at all-zero operands never loses a bit of the base.
+            let after0 = encode_op(&MachineOp::new(r.op), &EncodeParams::C2).unwrap();
+            assert_eq!(after0 & r.base, r.base, "{} loses base bits at after0", r.mnemonic);
+        }
+    }
+
     /// The `mtspr` split, which is the one place a plain `(slot, shift, width)`
     /// triple would have been wrong in a way that still assembles: SPR 9
     /// written unsplit names SPR 288.
