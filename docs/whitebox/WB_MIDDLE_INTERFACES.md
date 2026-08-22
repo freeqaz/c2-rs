@@ -468,6 +468,19 @@ about the emitted order.
 
 ### 5.6 What is NOT in §5
 
+> **SUPERSEDED 2026-08-22 by read R2 — [`ref/P_ENCODE.md`](ref/P_ENCODE.md)
+> §6, board #3377.** This section's *"zero cells"* is correct about what this
+> lane observed and **wrong about the compiler**: `FUN_10bf9f15` takes a
+> fourth argument, a **relocation sink** at `[ebp+0xc]`, and seven helper
+> paths inside the encoder issue `REL24`, `IFGLUE`, `REFHI`+`PAIR`,
+> `REFLO`+`PAIR`, `SECREL16` and `ADDR32` through `ds:0x10c433f8`. Every one
+> is behind a non-NULL sink **and** an external symbol, which is exactly why
+> the two fixtures named below could not reach any of them. **The section is
+> kept verbatim**: it is the clearest statement in this tree of an absence
+> that is a property of the fixture set, and it named its own bound honestly
+> a day before the read found the answer inside the function it describes.
+
+
 Relocations. `mvp_add3` and `mvp_two` have **zero** `.text` relocations, so this
 lane observed the relocation/label half of the emit seam **not at all**. The
 brief asked for it; it is **not delivered**, and §8 prices it. Everything known
@@ -592,8 +605,8 @@ paths, and the interface-1 subset.
 | **tuple → PPC word** | black box | **`base_word[op] \| form-fields`, 2 tables, 1 function, 9 words graded** | §5 |
 | **the register fields** | *"not in the tuple"* | **two pointer hops** *(w-restim)*, **and the two paths reconciled** | §5.3 |
 | **IL token → tuple** | black box | **legible for a 7-token closed subset, on a shape with no calls, no branches, no memory, no constants — and over a REGION view that omits the parameter home-slot stores entirely** | §3, §3.5 |
-| **relocations / labels at the emit seam** | black box | **still black box — 0 cells** | §5.6 |
-| **the other ~110 encode forms** | black box | **still black box — 2 of 111 arms read** | §5.2 |
+| **relocations / labels at the emit seam** | black box | ~~still black box — 0 cells~~ **the RELOCATION half is read 2026-08-22 (7 paths, 6 type codes, `ref/P_ENCODE.md` §6); labels are still black box** | §5.6; #3377 |
+| **the other ~110 encode forms** | black box | ~~still black box — 2 of 111 arms read~~ **READ 2026-08-22: all 79 distinct arms, `ref/P_ENCODE.md` §5** | §5.2; #3376 |
 | **selection and the lowering band** | black box | **still black box** — one pseudo-op watched turn into one machine opcode | §4 |
 
 **The estimate does not move down by much, and the reason is worth stating

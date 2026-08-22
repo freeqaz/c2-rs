@@ -277,4 +277,5 @@ the header block this table is read from.
 | 2026-08-22 | w-docmap | [w-docmap](2026-08-22-w-docmap.md) | 10 | +0 — no emit rule, no refusal predicate, no fixture, no byte. |
 | 2026-08-22 | w-readdocs | [w-readdocs](2026-08-22-w-readdocs.md) | 10 | +0 — no crates/ emit rule, no refusal predicate, no fixture, no |
 | 2026-08-22 | w-read-r1 | [w-read-r1](2026-08-22-w-read-r1.md) | 10 | +0 — no `crates/` or `fixtures/` file is touched |
+| 2026-08-22 | w-read-r2 | [w-read-r2](2026-08-22-w-read-r2.md) | 9 | +0 — no `crates/` change of any kind, no emit rule, no refusal |
 | 2026-08-22 | w-shiproadmap | [w-shiproadmap](2026-08-22-w-shiproadmap.md) | 10 | +0 — no crates/ edit of any kind, no emit rule, no refusal |
