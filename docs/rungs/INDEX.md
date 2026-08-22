@@ -274,3 +274,4 @@ the header block this table is read from.
 | 2026-08-21 | restim | [restim](2026-08-21-restim.md) | 9 | +0 — no crates/ emit rule, no refusal predicate, no fixture |
 | 2026-08-21 | w8sum | [w8sum](2026-08-21-w8sum.md) | 11 | +0 — a re-expression, not a widening; required-zero byte delta |
 | 2026-08-21 | w-ildecode | [w-ildecode](2026-08-21-w-ildecode.md) | 11 | +0 — no crates/ emit rule, no refusal predicate, no fixture |
+| 2026-08-22 | w-readdocs | [w-readdocs](2026-08-22-w-readdocs.md) | 10 | +0 — no crates/ emit rule, no refusal predicate, no fixture, no |

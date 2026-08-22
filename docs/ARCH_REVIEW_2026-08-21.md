@@ -223,10 +223,22 @@ required-zero criterion.
 > § "The goal". Annotated in place by lane `w-goaldocs`; **no measurement below
 > is withdrawn or edited**.*
 >
-> The goal is **perfect reproduction**, for two ends ranked equally — (1) a
+> The goal is **perfect reproduction**, for two ends ~~ranked equally~~ — (1) a
 > clear understanding of MSVC's internals in service of decomp, and (2) parity,
 > a 100 % open-source implementation. The **verifier-throughput thesis is
 > retired**, demoted to a property of a native port.
+>
+> > **↳ THE RANKING, added 2026-08-22 by lane `w-readdocs`; this page is a
+> > DATED RECORD and nothing in it is rewritten.** *The owner amended the goal
+> > statement later on 2026-08-21 (`GOAL_DECISION_2026-08-21.md` §
+> > "AMENDED"): **goal (1) is primary**; goal (2) remains a real end and is
+> > **additionally instrumental to (1)**, the port being an executable,
+> > tweakable model of c2 that emits signals about compiler state the opaque
+> > binary cannot. **The annotation above is unaffected in every particular** —
+> > it turns on the throughput thesis being retired, which is unchanged. The
+> > ranking only makes this section's collapse-onto-the-second-bullet reading
+> > *more* secure, since the surviving branch is the one the primary goal is
+> > read off.*
 >
 > **So the split this section diagnoses collapses onto its second bullet.**
 > Step 5 is priced against Option A / 870, and against Option A it is *"the

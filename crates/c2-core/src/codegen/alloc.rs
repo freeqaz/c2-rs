@@ -12,6 +12,40 @@
 //! by `B4`/`B7`). All four killer cells are derived consequences of the single
 //! rule below and are reproduced in the tests.
 //!
+//! # The read that would replace this module's fit
+//!
+//! **Comment only — no rule, constant or behaviour here changes.** Added
+//! 2026-08-22 under the standing **read-before-probe** doctrine
+//! (`docs/WHITEBOX_LEVERAGE_2026-08-21.md` §1; `docs/ROADMAP_SLICING_2026-08-21.md`
+//! §6 rule 6), which asks that *every fitted constant in `crates/` carry a
+//! pointer to the read that would replace it*. This module is the index's
+//! first entry (`docs/whitebox/READ_PLAN_2026-08-21.md` §2).
+//!
+//! The rule below is a **fitted stand-in** for c2's unread worklist order at
+//! `0x10b31c9a` — `docs/CEILING.md` §6.1's phrase, not an outside reading —
+//! and the fit's own preregistered 52,416-configuration search returned a
+//! *negative* result (179/236, residual exactly the tie tier), with **clause 2
+//! refuted on 7 of 56 fresh-holdout cells** (board #836; the refutation is
+//! recorded in this file's own tests, and ten further fitted-then-refuted keys
+//! are catalogued below). The reads:
+//!
+//! * **R1** (0.5 d) — `DAT_10c400d4`'s scope: `0x10b54d32` (mint),
+//!   `0x10b2c1f1` (table clear), `0x10b2c21d` (hash). The repo asserts both
+//!   *function-scoped* and *compilation-global* for the same counter, and
+//!   `P_REGALLOC.md:160-166`'s consequence 3 — the most direct available
+//!   explanation for **why source-level fitted sorts keep being refuted** —
+//!   holds only on the global side. R1 decides whether the ten refuted keys
+//!   have an explanation at all.
+//! * **R4** (3–5 d) — `FUN_10b55732` (1,676 B), the globregs candidate
+//!   mint/merge order: the missing *input* to the priority comparator
+//!   `0x10b2b82d`, which is already read.
+//!
+//! Two things this note does not claim. The comparator and selector are
+//! `[R]` — *"the instructions were read correctly"*, not *"this is what c2
+//! does"* (`docs/whitebox/ref/README.md:49`), so a read still ends in a
+//! confirmation probe. And the byte judge is untouched: real c2 under wibo
+//! plus a byte-exact obj compare grades this module either way.
+//!
 //! # The rule
 //!
 //! Enumerate the run's distinct producers. Order them by

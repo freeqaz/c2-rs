@@ -5,6 +5,25 @@
 //! policy. That is why they live together in one alphabetizable file rather
 //! than beside the lowerings that call them.
 //!
+//! **This file is a black-box re-derivation of two tables c2 states plainly,
+//! and the read is priced — comment only, nothing here changes.** Added
+//! 2026-08-22 under read-before-probe (`docs/WHITEBOX_LEVERAGE_2026-08-21.md`
+//! §1; `docs/whitebox/READ_PLAN_2026-08-21.md` §2/§3). Every word below was
+//! recovered from captured objs; c2 composes the same words from a base-word
+//! table at `0x10c3a578` and an encode-form table at `0x10c39b18`, dispatched
+//! through a 111-entry jump table at `0x10bfae2d` with **79 distinct arm
+//! targets**, all inside `FUN_10bf9f15`'s 3,861 bytes. Read **R2** (2–4 d)
+//! dumps both tables and reads the 79 arms, yielding `encode(tuple) → u32` as
+//! a **total function** — the same content this file accumulates one captured
+//! fact at a time. R2 is also the read that specs **I2**, the general-lowering
+//! row priced at 1.5–4.5 engineer-months
+//! (`docs/STEP5_PRICING_2026-08-21.md` §2).
+//!
+//! **The bound, so this is not overread**: a complete encoder is not a
+//! complete emit seam — relocations are **not** in R2's scope (0 cells read at
+//! that seam), and 2 of the 111 entries are read today. The per-function
+//! evidence notes below stay as written; they are what the port is graded on.
+//!
 //! The file also exists to make one specific defect impossible. Two branches
 //! once landed two `encode_std`s 2,000 lines apart in the old single-file
 //! `codegen.rs` and git flagged nothing (`docs/ARCHITECTURE_SEAMS.md` §1,

@@ -42,6 +42,24 @@ phase gates in §7.
 >   whitebox record are **the deliverable**, not the gate in front of it. It
 >   has since been built and graded (`docs/rungs/2026-08-20-stageoracle.md`,
 >   board #3322) and re-priced (`docs/STEP5_PRICING_2026-08-21.md`).
+>
+> > **↳ THE RANKING, propagated 2026-08-22 by lane `w-readdocs`.** *The owner
+> > amended the goal statement later on 2026-08-21 (`GOAL_DECISION` §
+> > "AMENDED"): **goal (1) is primary**, and goal (2) is a real end **and
+> > instrumental to (1)** — the port is an executable, tweakable model of c2
+> > that emits signals about compiler state the opaque binary cannot.*
+> >
+> > **Every bullet above holds, and two of them get sharper.** The M2 promotion
+> > is now a promotion against the **primary** goal, not a co-equal one. And
+> > track 1 acquires a **second** disqualification independent of the
+> > throughput one already stated: a vendor-backed service is the **opaque
+> > binary**, so it cannot emit the signals goal (2) is now valued for
+> > supplying to goal (1). It moves the parity scoreboard by zero *and* the
+> > instrument story by zero.
+> >
+> > **What this does NOT do:** it does not decline track 1, which is a product
+> > decision and this page's own request for review. §4's three meanings of
+> > 100 % are untouched and remain the most durable thing here.
 
 ## 1. Executive decision
 

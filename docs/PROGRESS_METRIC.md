@@ -33,6 +33,31 @@ The separation is structural, not editorial:
 * **It is unrepresentable over an empty scan** (§5.3) — `NO-RESULT`, no key,
   never 100 % over zero comparisons.
 
+> ### ✔ 2026-08-22 — **THE OWNER ASKED WHETHER THE JUDGE CAN CARRY A SLIDING SCORE. IT CANNOT, AND §5.2 IS THE LOAD-BEARING REASON.**
+> *`docs/WHITEBOX_LEVERAGE_2026-08-21.md` §5(a), on the owner's question, the
+> same day as the goal re-ranking (`GOAL_DECISION_2026-08-21.md` § "AMENDED").
+> Propagated by lane `w-readdocs`; **nothing on this page is edited, re-scored
+> or withdrawn**.*
+>
+> **The gate stays binary.** A 90 %-matching obj *shipped* is a wrong emit, and
+> **§5.2's rule — a wrong emit scores strictly below the refusal it replaced —
+> is what the answer rests on.** The scale of what it protects against was
+> measured after this page was written: **2,490 wrong functions** (board
+> **#3363**, which turns on this page's rule and calls the alternative
+> *anti-safe*). Nothing in the goal decision or its re-ranking relaxes it, and
+> the re-ranking's new consumers do not either — a permuter and a training
+> pipeline consume **instruments**, and an instrument that could license an
+> emit would stop being one.
+>
+> **Gradients are welcome and go beside the judge, never inside it.** There are
+> three: this page's progress mass, [`FUNCTION_BYTE_MATCH.md`](FUNCTION_BYTE_MATCH.md)
+> (whose §0 is the standing **template** for any gradient added after it), and
+> [`DIFF_STRUCTURE.md`](DIFF_STRUCTURE.md) / `gap/fndiff.rs`, which classifies
+> the disagreement *inside* each differing body and is printed on every scan.
+> All three carry §0's five properties. **A fourth would have to carry them
+> too**, which is the check a 2026-08-21 planning doc skipped when it proposed
+> re-building the third one (board **#3369**).
+
 ## 1. Diagnosis — why TU match is stuck at 8, measured
 
 A TU matches only if **every byte of the whole obj** matches: the verdict is a

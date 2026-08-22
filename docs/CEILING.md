@@ -51,11 +51,21 @@ equip it. Where the arithmetic reads badly it is published as arithmetic.
 > [`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md); annotated by
 > lane `w-goaldocs`. Option A is **re-confirmed**, not revisited.*
 >
-> The goal is **perfect reproduction**, for two ends ranked equally — (1) a
+> The goal is **perfect reproduction**, for two ends ~~ranked equally~~ — (1) a
 > clear understanding of MSVC's internals in service of decomp, and (2) parity,
 > a 100 % open-source implementation. The **verifier-throughput thesis is
 > retired**; throughput is a property that may neither justify a lane nor
 > forbid one.
+>
+> > **↳ RANKING AMENDED the same day, propagated here 2026-08-22 by lane
+> > `w-readdocs`.** *`GOAL_DECISION_2026-08-21.md` § "AMENDED"; owner.* **Goal
+> > (1) is primary.** Goal (2) remains a real end and is additionally
+> > **instrumental to (1)**: the port is a tweakable model of c2 that emits
+> > signals about compiler state the binary cannot. **This strengthens the
+> > paragraph below, it does not weaken it** — §6.1's phases are the deliverable
+> > under the *primary* goal now, not merely a co-equal one. What it does not
+> > change: coverage is still the scoreboard for (2), and nothing here is
+> > re-scored.
 >
 > **Point 2 above keeps its conclusion and loses one of its two supports.**
 > *"No intermediate match count pays (1.03× at match 25; value arrives near
@@ -896,6 +906,42 @@ rung.**
 > | **F6** arrival copy + save set | 1 |
 > | **F7** the fence that would ship F2/F4/F5/F6 without F0 | 1 |
 > | | **17** |
+>
+> > **⚠ ANNOTATED 2026-08-22 — THIS TABLE IS THE COST OF *PROBING* THESE FACTS,
+> > NOT THE COST OF THE FACTS.** *Lane `w-readdocs`, propagating
+> > `WHITEBOX_LEVERAGE_2026-08-21.md` §1's read-before-probe doctrine
+> > (`ROADMAP_SLICING_2026-08-21.md` §6 rule 6) and
+> > `whitebox/READ_PLAN_2026-08-21.md` §3. **Every number in the table stays as
+> > measured** — it is a correct black-box price and it is quotable as one.*
+> >
+> > The 17 above, and its re-pricing to **13 raw / 65 calibrated**
+> > (`STEP5_PRICING_2026-08-21.md` §3, `ROADMAP_SLICING` §5), are what these
+> > facts cost **recovered by probe grid and fitted search**. Two of the rows
+> > now have a named, addressed, *priced* read that answers the same question:
+> >
+> > | this table's row | the read that replaces it | days |
+> > |---|---|---:|
+> > | **F1** the candidate set — globregs `0x10b55732`, "promotion policy uncharacterized" — **2 lanes** | **R4**: read `FUN_10b55732` (1,676 B); yields the mint/merge order as an ordered algorithm — the missing input to the *already-read* comparator `0x10b2b82d` | **3–5** |
+> > | **F0**'s scheduler half — re-priced 8 → 4 raw on the live trace | **R7**: no new reading at all; confront `P_DAG.md`'s read priority formula and latency matrix against the tap, turning `[R]` → `[O]` | **3–5** |
+> >
+> > **And the paragraph below this table is exactly the case the doctrine was
+> > written for.** It says `codegen::alloc`'s clauses 1–4 *"are a fitted stand-in
+> > for that same unknown"* with clause 2 refuted under a 52,416-configuration
+> > search, and that the sort key and `0x10b31c9a`'s worklist order *"are the
+> > same unknown from two sides, one black-box and one whitebox."* Read-before-
+> > probe is the rule that says **take the whitebox side first**. `READ_PLAN`
+> > §2 indexes every such fitted constant against its replacing read; **R1**
+> > (0.5 d) additionally settles whether the ten refuted allocation keys have an
+> > explanation at all, by resolving the `DAT_10c400d4` function-scoped vs
+> > compilation-global contradiction that `P_REGALLOC.md:160-166`'s consequence
+> > 3 rests on.
+> >
+> > **What this annotation does NOT claim.** It does not re-price item F — the
+> > reads produce a *spec*, and building the pass from a spec is still lanes.
+> > It does not say a read is always cheaper: `READ_PLAN` §2's own bound is
+> > *"this arrow is a 30-line function; the other one is the whole compiler."*
+> > And `[R]` is a hypothesis, not a fact about c2 (`READ_PLAN` §5.3) — every
+> > read still ends in a confirmation probe.
 >
 > **F0 is 8 and everything else totals 9**, so the scheduler-plus-mergers half
 > this page has been re-pricing upward all week is **not** the larger one. The

@@ -12,14 +12,27 @@ cost this project real work more than once.
 
 **Read [`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md) before you
 read any number here as a target.** The owner decided on 2026-08-21 that the
-goal is **perfect reproduction**, for two ends ranked equally — (1) a clear
-understanding of MSVC's internals in service of decomp, and (2) parity, a 100 %
-open-source implementation. **`match` → 870/878 is the scoreboard for (2);
-characterization is the deliverable for (1).** That retired the
+goal is **perfect reproduction**, for two ends — (1) a clear understanding of
+MSVC's internals in service of decomp, and (2) parity, a 100 % open-source
+implementation — and **ranked them later the same day** (that doc's
+§ "AMENDED"): **(1) is primary**, and (2) is both a real end and **instrumental
+to (1)**, because an open port is a tweakable model of c2 that emits signals
+about compiler state the binary cannot. **`match` → 870/878 is the scoreboard
+for (2); characterization is the deliverable for (1).** That retired the
 **verifier-throughput thesis** this page's `perf geomean` row carried: the
 speedup is a *property* of a native port, and it may neither justify nor forbid
 a lane. Every number below stands exactly as measured — what changed is which
 of them a decision may rest on.
+
+**And the numbers here are not the only reason to read a page.** Under (1),
+[`WHITEBOX_LEVERAGE_2026-08-21.md`](WHITEBOX_LEVERAGE_2026-08-21.md)'s
+**read-before-probe** rule is standing doctrine: before a lane budgets a probe
+grid or a fitted-parameter search it prices the whitebox read that would answer
+the same question, and prefers it. The enumerated targets are
+[`whitebox/READ_PLAN_2026-08-21.md`](whitebox/READ_PLAN_2026-08-21.md) §3 (R1–R9),
+which also indexes every **fitted constant** in `crates/` against the read that
+would replace it. A number on this page that came out of a fit is a number with
+a read attached to it.
 
 ---
 
@@ -930,5 +943,5 @@ largest single file in the project is the member-call decode
 | **what the label counter charges, and the two channels it is NOT in** — `#286`/`#287` close "derive it from the blocks" | [`LABEL_COUNTER.md`](LABEL_COUNTER.md) §4.1 |
 | **why `/Ox` and `/O1` differ in more than a register field** — the refutation, and the three reasons the `else` arm is out of reach | [`OPT_MODE.md`](OPT_MODE.md) §3.0 |
 | the `.data`/`.bss` layout spec — allocator settled, walk order open | [`OBJ_DATA_BSS_SHAPE.md`](OBJ_DATA_BSS_SHAPE.md) |
-| **what is INSIDE the 3,195 `fnbyte-differs` bodies** — the cluster table, and the answer to "is this a register/schedule problem". It is not: **100 % of the port's differing bodies make a call and 78.9 % of c2's counterparts make none**, 5,173 of 5,189 substituted words differ in their *opcode*, **0** are pure reorderings, and **0** fail to decode. Two smaller targets fall out (370 bodies and 140) | [`DIFF_STRUCTURE.md`](DIFF_STRUCTURE.md) |
+| **what is INSIDE the ~~3,195~~ `fnbyte-differs` bodies** — the cluster table, and the answer to "is this a register/schedule problem". It is not: **100 % of the port's differing bodies make a call and 78.9 % of c2's counterparts make none**, 5,173 of 5,189 substituted words differ in their *opcode*, **0** are pure reorderings, and **0** fail to decode. Two smaller targets fall out (370 bodies and 140). **This is the project's third gradient and it is SHIPPED, unconditional and printed on every scan** (`gap/fndiff.rs` → `DIFF STRUCTURE`), under the same separation rule as FBM — a fact a 2026-08-21 planning doc got wrong in the direction of proposing to build it again (`WHITEBOX_LEVERAGE_2026-08-21.md` §5 ⚠, board **#3369**). **Two reader traps: the 3,195 population is at tree `0c8a185`** and the tree now reads `fnbyte-differs` **1,960** + `fnbyte-reloc-differs` **530**, so re-take the count from a scan; **and the page's own ⚠ banner marks §3.2 and one row of §4 REFUTED** by `w-drop3`'s relocation reading (#984–#989) | [`DIFF_STRUCTURE.md`](DIFF_STRUCTURE.md) |
 | **why c2 does not emit a call the IL contains — and why that is TWO mechanisms, only one of them a cost model.** **Mechanism E is SHIPPED, and so is its FIXPOINT** (`crates/c2-core/src/elide.rs`, 2026-08-07): 1,373 + **143** of the 4,711 closed, `fnbyte-differs 4,711 → 3,338 → 3,195`, zero regressions at either step. Mechanism I is not, and holds at **0.9716** on a 100-TU frozen workload hold-out. Read §1.2 before reusing E's rule — the page's own §1 is refuted there, and §1.2 now carries the **six places the chain stops**, three of which one cell could not have shown | [`INLINE_PREDICATE.md`](INLINE_PREDICATE.md) |

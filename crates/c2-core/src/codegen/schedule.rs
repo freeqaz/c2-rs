@@ -9,6 +9,24 @@
 //! It is two rules and one constant. See `docs/STORE_SCHEDULE.md` for the
 //! grid, the holdout protocol and the numbers.
 //!
+//! **The read that would replace this module's fit — comment only, nothing
+//! here changes.** Added 2026-08-22 under read-before-probe
+//! (`docs/WHITEBOX_LEVERAGE_2026-08-21.md` §1;
+//! `docs/whitebox/READ_PLAN_2026-08-21.md` §2, the fitted-constant index).
+//! The rules below came out of a preregistered **13,104-configuration** list-
+//! scheduler search that returned a *negative* result — 89/146, residual
+//! exactly the two-producer tier, no member of the family expressing the
+//! shipped rule. c2's actual scheduler has been read: driver `0x10be6382`
+//! (4 runs/function at `/O1`), region finder `0x10be5d4b`, ready-list compare
+//! `0x10be5cea` (priority DESC then `node+0x44` ASC), priority formula
+//! `(height<<13)+(fanout<<8)+(symdest<<10)`, and the 11×11 latency matrix at
+//! `0x10c3c1a8` — **all `[R]`, none `[O]`**. Read **R7** (3–5 d) is exactly
+//! the promotion: *no new reading*, just confronting that read model against
+//! the live tap. Note the scope difference honestly — this module schedules a
+//! **store run**, c2's is a machine scheduler over tuple regions, and
+//! `schedule.rs:38` says so; R7 grades the latter, not this. `MAX_MODELLED_PRODUCERS`
+//! (board #541) is a shipped constant with unread provenance.
+//!
 //! 1. **Store order.** Walk the source statements in order and emit the
 //!    earliest store that is *allowed*. A store whose value needs a new
 //!    instruction to materialise it — a **produced** store — may not occupy

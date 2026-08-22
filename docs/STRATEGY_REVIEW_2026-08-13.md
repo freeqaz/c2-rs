@@ -597,9 +597,22 @@ words, quoted there verbatim. `CLAUDE.md` § "The goal" carries the operative
 version. **Nothing above this section is rewritten**; §2's arithmetic, §8's
 prices and §8.1's decision all stand exactly as written and as dated.*
 
-**The decision.** *Perfect reproduction*, for two ends that rank equally:
+**The decision.** *Perfect reproduction*, for two ends ~~that rank equally~~:
 **(1)** a clear understanding of MSVC's internals, to help with decomp;
 **(2)** parity — a 100 % open-source implementation.
+
+> **↳ RANKED later the same day; noted here 2026-08-22 by lane `w-readdocs`.**
+> *`GOAL_DECISION_2026-08-21.md` § "AMENDED", owner. This §9 is itself a dated
+> addendum and the page above it is a dated record; neither is rewritten.*
+> **Goal (1) is primary.** Goal (2) stays a real end and is additionally
+> **instrumental to (1)** — the port is an executable, tweakable model of c2
+> that emits signals about compiler state the opaque binary cannot be made to
+> emit, with two named consumers (training a reversing model to produce a
+> matching pretext; a permuter over the port's exposed decision points).
+> **Every row of the table below is unaffected**, including *"A, decisively"*
+> and *"`match` → 870/878 is the scoreboard"* — the ranking does not demote
+> goal (2)'s scoreboard, it adds a second reason to want the artifact that
+> scoreboard measures.
 
 **What that does to this page, precisely:**
 

@@ -41,7 +41,11 @@ registers does not appear in the obj"*).
 > this page is edited, re-priced or withdrawn**.*
 >
 > Goal (1) is *"the perfect reproduction that gives us a clear understanding of
-> the MSVC internals, to help us with decomp."* A mechanised, addressed account
+> the MSVC internals, to help us with decomp."* **And the owner ranked it
+> PRIMARY later the same day** (`GOAL_DECISION` § "AMENDED"; noted here
+> 2026-08-22 by lane `w-readdocs`), which **sharpens this annotation rather
+> than qualifying it**: the hit is on the *primary* goal, and the miss is on
+> the goal that is now both an end and a means to it. A mechanised, addressed account
 > of what c2's middle actually does **is the deliverable** — whether or not a
 > ported pass can be graded against it today. So *"buys characterization, not a
 > grade"* reports a **hit on goal (1)** and a **miss on goal (2)**, and
@@ -121,6 +125,42 @@ are on the critical path of **any byte-judged output** from a ported pass.
 | **I2** | **general lowering to `coff::Function`** | today a 35-arm per-shape dispatch (`comdat.rs`, 43 `Selected::` refs). Without it a ported pass's only progress signal is stage-parity — **#3336 at program scale**, an instrument with no emit-path consumer | 1.5–4.5 eng-months | **7.5–22.5 eng-months** |
 | | **I1 + I2** | | **3–9 eng-months** | **15–45 eng-months** |
 
+> ### ⚠ 2026-08-22 — **BOTH ROWS NOW HAVE A NAMED, SIZED, MECHANICAL READ, AND THE PRICES ABOVE ARE THE *BLACK-BOX* PRICES.**
+> *Lane `w-readdocs`, propagating `whitebox/READ_PLAN_2026-08-21.md` §3 and
+> `WHITEBOX_LEVERAGE_2026-08-21.md` §1 (read before probe;
+> `ROADMAP_SLICING_2026-08-21.md` §6 rule 6). Board **#3367**. **No number in
+> the table above is edited, re-priced or withdrawn** — this is the single most
+> consequential row of that propagation and it is stated as an annotation on
+> purpose.*
+>
+> | this row | the read | days | what the read produces |
+> |---|---|---:|---|
+> | **I2** general lowering to `coff::Function` — 1.5–4.5 eng-mo raw / 7.5–22.5 calibrated | **R2**: extend `dump_opcode_tables.py` to the base-word table `0x10c3a578` and the encode-form table `0x10c39b18`, then read the **79 distinct arms** of the jump table at `0x10bfae2d` (111 entries, 79 targets, **all inside `FUN_10bf9f15`'s 3,861 B** — coordinator-verified from the pinned image) plus 4 helper sites and `DAT_10c2e978` | **2–4** | `encode(tuple) → u32` as a **total function** — the opcode table `0x001..0x294` plus 79 field-composition rules, replacing `encode.rs:207`'s black-box re-derivation of exactly what those two tables state plainly |
+> | **I1** general op-level IL decode — 1.5–4.5 eng-mo raw / 7.5–22.5 calibrated | **R5**: read `FUN_10bc2d7a` (5,080 B), the **189-arm** IL-record→codegen-tuple dispatch, jump table `0x10bc4152`, ops `0x01..0xBD`, **zero arms read today** | **15–25** | the semantic map for the ten residue constructs, and the **shared input to all ten Phase-1 construct slices**. Also locates the *select*-vs-*decode* boundary per arm — which is the I1/I2 split the whole 15–45 eng-mo estimate rests on and has never been located |
+>
+> **The order is not free-choice.** `READ_PLAN` §3's dispatch order is
+> **R1 → R2 → R3**, with **R5 gated on R2** — R2 proves the arm-reading method
+> on 79 bounded bodies before R5 spends 15–25 days on 189.
+>
+> **Four things this annotation does NOT do, stated because a days-vs-months
+> comparison invites all four:**
+>
+> 1. **It does not re-price I1 or I2.** A read produces a **spec**; I1 and I2
+>    are *implementations* in `crates/`, which a spec makes tractable and does
+>    not make free. The honest claim is that the reads remove the *discovery*
+>    cost, which is the part these estimates were carrying implicitly.
+> 2. **It does not make step 5 GO.** §5 and
+>    `ARCHITECTURE_PROPOSAL_2026-08-20.md` §8 decision 0 are the owner's, and
+>    they stay open. The read-plan is new *information* bearing on that
+>    decision, not a decision.
+> 3. **R5's own price is uncertain in the direction that matters.** 15–25 days
+>    is the survey's estimate for a body with **zero arms read**; R2 exists in
+>    the order partly to test the method's per-arm rate before that bet is made.
+> 4. **`[R]` is a hypothesis** (`READ_PLAN` §5.3) — *"the instructions were read
+>    correctly"*, not *"this is what c2 does"*; the `.bss` bump rule was read
+>    correctly out of a clean function and was wrong about c2. Every read ends
+>    in a confirmation probe, and the byte judge is untouched by all of it.
+
 **Priced two-sided, per `CLAUDE.md`.** The cost of *not* doing them is not zero
 and is not "step 5 is slower": it is that every step-5 lane lands an
 unconsumable instrument, and the project has a measured precedent for exactly
@@ -169,6 +209,17 @@ Re-priced honestly: **F0 8 → 4 lanes raw (×5 = 20)**, and the 4 that leave ar
 search lanes, not construction lanes. Item F's total goes **17 → 13 lanes raw
 (×5 = 65)**.
 
+> **⚠ 2026-08-22 — 13/65 IS A BLACK-BOX NUMBER AND MUST NOT BE QUOTED AS THE
+> COST OF THE FACTS.** *`ROADMAP_SLICING_2026-08-21.md` §6 rule 6, verbatim:
+> "no slice may quote it as the cost of the fact when the cost of reading the
+> fact has not been priced." Propagated by lane `w-readdocs`; the number above
+> is correct as a black-box number and is unchanged.* **R7** re-does this
+> paragraph's own move without new reading (confront `P_DAG.md`'s priority
+> formula and latency matrix against the tap, `[R]` → `[O]`) at **3–5 days**,
+> and **R4** reads `FUN_10b55732` for item **F1** at **3–5 days** against F1's
+> 2 raw / 10 calibrated lanes. `CEILING.md` §6.1's 17-lane table carries the
+> matching annotation.
+
 ---
 
 ## 4. The whole curve
@@ -180,6 +231,7 @@ search lanes, not construction lanes. Item F's total goes **17 → 13 lanes raw
 | characterization, all stages (§3) | 5–6 lanes | **25–30 lanes** | no — it is the input to the construct rows |
 | item F construct, re-priced (§3) | 13 lanes | **65 lanes** | YES |
 | the lowering-band tap site | 1 lane | **5 lanes** | no |
+| **the READS that spec the rows above** *(added 2026-08-22, `whitebox/READ_PLAN_2026-08-21.md` §3)* — R5→I1, R2→I2, R4/R7→item F, and six more | **≈6–10 engineer-WEEKS for all nine** | not calibrated: `CEILING` §5's ~5:1 was fitted on lane-shaped construction work, and applying it to a read is a **units error**. Quote the raw days | **prerequisite in the sense that it produces the SPEC — never a substitute for the row it specs** |
 
 **The critical path is INTEGRATION, not any single pass** — registered as E2 at
 0.70 and it holds. I1+I2 alone are 15–45 engineer-months at the lower bound,

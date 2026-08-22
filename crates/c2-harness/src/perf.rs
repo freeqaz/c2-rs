@@ -9,7 +9,22 @@
 //! understanding MSVC's internals in service of decomp and (2) parity — a
 //! 100 % open-source implementation. This module's numbers may **neither
 //! justify a lane nor forbid one**; `c2rs perf` is reported, never gated
-//! (board #3336). What this module measures is the per-obj latency of the two
+//! (board #3336).
+//!
+//! **Ranking, added 2026-08-22** (that doc's § "AMENDED", the owner, later the
+//! same day): **goal (1) is primary**, and goal (2) is a real end *and*
+//! instrumental to (1) — an open port is a tweakable model of c2 that emits
+//! signals about compiler state the binary cannot. One of the two named
+//! consumers of those signals wants **volume**: generating aligned
+//! `(IL, internal state, bytes)` triples as training data for models that
+//! reverse the compiler. **That does not re-promote this module's numbers.**
+//! The rule above is unchanged and deliberately symmetric — throughput may
+//! neither justify a lane nor forbid one — and "a consumer would benefit"
+//! is a *justification*, which is exactly the move that is barred. Recorded
+//! here so a future reader does not rediscover the consumer and mistake it for
+//! a reinstated thesis.
+//!
+//! What this module measures is the per-obj latency of the two
 //! backends that produce the **same** obj from the **same** bundle:
 //!
 //! * the native port ([`c2_core::PortC2`]) — pure in-process Rust

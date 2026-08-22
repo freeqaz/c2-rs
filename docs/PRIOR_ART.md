@@ -19,6 +19,11 @@ complexity, or serve as a reference to port from?* The answer, stated once:
 >
 > The goal is **perfect reproduction**, for (1) understanding MSVC's internals
 > in service of decomp and (2) parity — a 100 % open-source implementation.
+> **Ranked the same day** (`GOAL_DECISION` § "AMENDED"; propagated 2026-08-22
+> by lane `w-readdocs`): **(1) is primary**, and (2) is also **instrumental to
+> (1)**. **The axis this page should be re-read on, then, is what a piece of
+> prior art teaches about c2's internals or supplies as an open replacement** —
+> a survey ranked by speed is ranked on the one axis that now ranks nothing.
 > Applied to this page:
 >
 > * **"One thing reduces cost by ~an order of magnitude"** — the wibo

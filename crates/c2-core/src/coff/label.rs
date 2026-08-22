@@ -1,6 +1,30 @@
 //! The compiler-label counter — the `$M`/`$T` numbers c2 stamps into the symbol
 //! table. A wrong `$M` is six wrong bytes in an obj that still links, which is
 //! why `docs/LABEL_COUNTER.md` exists.
+//!
+//! **The read that would replace the fitted constants below — comment only,
+//! nothing here changes.** Added 2026-08-22 under read-before-probe
+//! (`docs/WHITEBOX_LEVERAGE_2026-08-21.md` §1;
+//! `docs/whitebox/READ_PLAN_2026-08-21.md` §2/§3). `LABEL_SEED_GAP = 9` and
+//! the `/Gy` `+3` are fitted from objs and their *identities* are unread —
+//! which nine allocations make the nine, which three slots the `/Gy` three.
+//! **c2's mechanism is fully read**: TU-global counter `DAT_10c2edd0` with a
+//! **sole increment instruction at `0x10b97de5`**, allocator `FUN_10b97dd0`
+//! (28 B, **31** call sites), generic constructor `FUN_10b9a455` (54 B, **132**
+//! sites / 86 functions), name formatter `FUN_10b99dfe`, and a second
+//! per-function counter `DAT_10c2e918` reset in `FUN_10b7e113`. Read **R3**
+//! (2–4 d) enumerates those 31 + 132 sites, which makes the charge rule
+//! **closed by construction** — one increment instruction means the
+//! enumeration is exhaustive, not a sample — and replaces both fitted numbers
+//! with named identities.
+//!
+//! **Two honest limits.** R3 gives the *charge*, not the *order*; a charge
+//! rule without an order rule still cannot place a label, and the other half
+//! is **R8** (block emission order, 5–10 d and the only read with no known
+//! address for its rule — `CEILING` §6.1 phase 1, the one UNSERVED phase).
+//! And `docs/LABEL_COUNTER.md:3-18`'s own banner says four lanes measured
+//! label strides wrong by reading counterfactual displacements as charges
+//! (board #3368) — read the banner before reusing any stride from that page.
 
 use super::*;
 
