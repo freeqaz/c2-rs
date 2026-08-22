@@ -402,9 +402,24 @@ it** — and it is the read `alloc.rs:40-43` already points at.
 
 ### 5.3 `select_function`'s no-TU-context signature is SOUND on this axis
 
-Nothing about a function's register allocation can depend on how many
-candidates its predecessors minted. §4's 400-position ladder is the behavioural
-form of the same statement. This does **not** revive per-function composition:
+`crates/c2-core/src/codegen/select.rs:275` is
+
+```rust
+pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, BackendError>
+```
+
+— the function and the mode, no TU. `READ_PLAN` §3 row R1 lists "soundness of
+`select_function`'s no-TU-context signature" as one of the three things R1
+de-risks, and it is de-risked: nothing about a function's register allocation
+can depend on how many candidates its predecessors minted, and §4's
+400-position ladder is the behavioural form of the same statement.
+
+**The fence on that**: R1 licenses the signature only against the *candidate-id*
+channel. Other compilation-global state exists and reaches emitted output — the
+label counter `DAT_10c2edd0` is the standing example (`LABEL_COUNTER.md`) — so
+"sound on this axis" is the whole claim and not shorthand for "sound".
+
+This does **not** revive per-function composition:
 board **#3363** refuted it on three *other* grounds (nothing left to buy; the
 label plan is not derivable; anti-safe under `PROGRESS_METRIC.md`), and #3363's
 own framing already assumed per-function independence held.
