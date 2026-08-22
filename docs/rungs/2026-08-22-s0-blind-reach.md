@@ -298,11 +298,23 @@ move.
 
 ## 6. Gate evidence
 
+All at branch tip, toolchain provisioned. Logs under `work/w-s0/`.
+
 | lane | result |
 |---|---|
-| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | see §6.1 |
-| `scripts/gate.sh --jobs 4` | see §6.1 |
-| 878-TU workload scan | `match` 26 · `mismatch` 0 · identity 0 of 482 lines |
-| `#[test]` count, merge-base → tip | see §6.1 |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,778 passed, 0 failed, 1 ignored, 53 targets**, exit 0 (`suite.log`) |
+| **environment asserted BY DURATION** | `census_gate` **166.07 s** — the toolchain was live. Never by "0 SKIP lines": that check is vacuous (#3341, libtest swallows the stdout of passing tests) |
+| `scripts/gate.sh --jobs 4` | **GATE: PASS** — 18 in the registry, **18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT**; **6,948** fixture-verdicts; `expr-sweep` 19,460 graded of 19,556 selected; `mode-cross` 90,424 graded of 90,812, **0 mismatch**; `debug-lane` 18/18, 0 panic (`gate_tip.log`) |
+| **18-lane gate identity diff** | **0 lines.** The gate was re-run at base `9b9530791` (`gate_base.log`) and the verdict block — all 18 lane rows plus `lanes:`/`graded:`/`sweep:`/`cross:`/`debug:`/`GATE:` — is **line-for-line identical** |
+| 878-TU workload scan, depth 1 | `match` **26** · `mismatch` **0** · **identity 0 of 482 `gap-metric` lines** vs base; 16 lines added, all `fnbyte-blind-*` (`tip_scan.log` vs `base_scan.log`) |
+| 878-TU workload scan, depth 0 | the identity control: `attempted` 113,557 · `exact` **0** · `differs` **0** · `unlowerable` 113,557 all `no-decode` · controls 0/0/0 (`tip_scan_L0.log`) |
+| `git grep -c '#[test]'`, base → tip | **1,780 → 1,788 (+8)** — 6 in `gap::blind`, 2 pinning the census seam from both sides |
 
-*(filled from the tip run; see §6.1)*
+**A note on what the gate diff does and does not prove.** It is the right
+control for *this* lane — the deliverable is an instrument, and the requirement
+was that it move no byte — and 0 lines is the answer. It is **not** evidence
+that the blind numbers are right; nothing in `scripts/gate.sh` grades them, and
+by FBM §0 nothing there ever may. What grades them is the byte compare against
+real c2 (§1) and the two controls (§4.3), and their warrant is that the same
+instrument reads `exact 0 · differs 0` at ladder depth 0 and `exact 15 ·
+differs 373` at depth 1 on the identical 113,557 functions.
