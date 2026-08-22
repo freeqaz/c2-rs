@@ -26,7 +26,7 @@ re-derived them independently and they agree.
 
 **Coverage of this page, stated first.** **73 of the 79 distinct arms read**
 (92.4 %). The 6 unread are single-opcode VMX128 arms, named in §7. Of the 660
-machine opcodes, **654 reach an arm this page states a rule for** (99.1 %).
+machine opcodes, **653 reach an arm this page states a rule for** (98.9 %).
 
 ---
 

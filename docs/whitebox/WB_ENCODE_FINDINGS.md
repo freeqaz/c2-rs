@@ -222,9 +222,11 @@ unpriced *"until (a) runs"*. (a) has now run:
 **73 of 79.** An arm counts as read when this lane can state its
 field-composition rule or its refusal, which is what `ref/P_ENCODE.md` §5 does.
 The 6 that do not are named in `P_ENCODE.md` §7 — all single-opcode VMX128
-arms of one already-read family. In opcode terms, **654 of 660 machine
-opcodes** reach an arm with a stated rule (99.1 %); in emitted-word terms the
-6 unread arms cover 0 words of the 634,457 measured.
+arms of one already-read family. In opcode terms, **653 of 660 machine
+opcodes** reach an arm with a stated rule (98.9 %) — the 6 unread arms serve
+**7** opcodes (`vcfpsxws128`, `vcfpuxws128`, `vperm128`, `vpkd3d128`,
+`vrlimi128`, `vsldoi128`, `vupkd3d128`); in emitted-word terms they cover 0
+words of the 634,457 measured.
 
 **The segmentation caveat, because the numbers above rest on it.** Arms were
 cut at *"start of this arm, to start of the next arm by address"*. That is an
