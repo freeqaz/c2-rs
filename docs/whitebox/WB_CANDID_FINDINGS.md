@@ -157,11 +157,22 @@ in the same breath as the counter and the hash. `[R]`
 
 Two independent lines, one static and one behavioural.
 
+> **This half was already established, 18 days before this lane, and R1 did
+> not need to re-derive it.** `rungs/_2026-08-04-w-mark-findings.md` §1c names
+> `0x10b7f022` **"the p2 driver"** and transcribes the same loop, including the
+> restart. Board **#3256** (`w-c2map2`) is the row establishing that
+> `0x10b7f022` is a real function Ghidra never created — reached by tail jump
+> `jmp 0x10b7f022` at `0x10b7f362`, `functions.tsv` carrying no entry in
+> `0x10b7f022`–`0x10b7f1fe` — which this lane re-confirmed (`grep -c
+> '^10b7f022' functions.tsv` → **0**). `READ_PLAN` §5.4's structural trap is
+> exactly this address. **The reading below is a re-derivation that agrees, not
+> a new claim**, and it is recorded because #3256's row is about Ghidra's
+> coverage while what R1 needs is the loop's *granularity*.
+
 **Static.** `FUN_10b7dc51`'s sole caller is `0x10b7e6ce` in `FUN_10b7e6af`;
 `FUN_10b7e6af`'s sole call site is `0x10b7f1c5`, which is inside the routine at
-**`0x10b7f022`** — the real entry Ghidra never created
-(`README.md:252-280`; `READ_PLAN` §5.4 flags exactly this). That routine's tail
-is a work-list loop over the linked list at `DAT_10c4630c`:
+**`0x10b7f022`**. That routine's tail is a work-list loop over the linked list
+at `DAT_10c4630c`:
 
 ```
 0x10b7f15f:  eax = DAT_10c4630c;  ecx = &DAT_10c4630c
@@ -181,6 +192,16 @@ Each pass claims one unprocessed entry, runs the phases on it, and rescans.
 `FUN_10b7ef55` stores the picked record to `DAT_10c2e2f4` (via `FUN_10b7e719`
 at `0x10b7e750`) and the driver publishes `entry->[0x4]` to `DAT_10c2e2f8`,
 which is the current-function name the timing and dump hooks read. `[R]`
+
+`w-mark` §1c reads the same loop as *"`compile s`"* at `0x10b7f199 … 0x10b7f1c5`
+with a **`RESTART`** at `0x10b7f1e5` — a second back-edge to `0x10b7f15f`
+beside the `jmp` at `0x10b7f1f0`. Two independent readings, same granularity:
+**one iteration per function body compiled.** That lane's own emphasis is worth
+carrying, because it is the reason the loop is a `goto` and not a `for`: the
+emit set is a **worklist run to a fixpoint during codegen** — compiling one
+function can mark another, which is then compiled. It does not disturb R1
+(each admitted body still gets exactly one `FUN_10b7e6af`), but it means "once
+per function" here is *per compiled body*, not per source declaration.
 
 **Behavioural.** §4.
 
