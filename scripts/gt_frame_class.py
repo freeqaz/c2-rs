@@ -21,7 +21,12 @@ by every tool in the repo, so a run of `scripts/expr_sweep.sh` or
 synthetic single-function objs to it — 871 entries became 39,364 while this file
 was being written, and the unfiltered class shares moved by five points. Pass
 `--sources` with the workload's `files.txt` and each cache entry is kept only if
-its `meta.txt` names one of those sources.
+the cache index names it as one of those sources.
+
+The cache root is **not** under the repo any more and this script no longer
+guesses one: with no argument it asks `c2rs cache stat`, which owns the
+resolution order. Everything here reads the cache through `c2rs cache index` and
+a bounded `os.scandir` — never a glob, for the reason in `iter_objs`.
 
 **The two numbers are not comparable and must never be quoted as a ratio.** The
 census denominator is *IL* functions across 878 TUs (~2.46 M, header bodies
@@ -46,9 +51,9 @@ Classification, and why each signal is the one used:
   it was handled.
 """
 import collections
-import glob
 import os
 import struct
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -104,20 +109,54 @@ def classify(o, sec):
     return ("A  nothing saved", ng, nf)
 
 
-def cache_source(entry):
-    """The source file a cache entry was captured from, per its meta.txt."""
+def cache_index(cache):
+    """`{src_arg: entry_dir}` for a cache root, via `c2rs cache index`.
+
+    The **supported reader**, not a local reimplementation. An entry's metadata
+    now lives inside a binary `entry.bin` whose format is defined once, in
+    `c2_il::cachefmt`; a Python copy of that decoder here would be the second
+    implementation of one rule, which is this project's recurring defect. It also
+    walks the root with a bounded `read_dir` instead of a glob — see `iter_objs`.
+    """
     try:
-        lines = open(os.path.join(entry, "meta.txt")).read().splitlines()
-    except OSError:
+        p = subprocess.run(
+            ["c2rs", "cache", "index", "--cache", cache],
+            capture_output=True, text=True, check=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as e:
+        print(f"could not read the cache index ({e}); is `c2rs` on PATH?", file=sys.stderr)
         return None
-    for i, ln in enumerate(lines):
-        if ln == "arg -f" and i + 1 < len(lines) and lines[i + 1].startswith("arg "):
-            return lines[i + 1][4:]
-    return None
+    out = {}
+    for ln in p.stdout.splitlines():
+        src, _, entry = ln.partition("\t")
+        if entry:
+            out[src] = entry
+    return out
+
+
+def iter_objs(cache):
+    """Yield every `<entry>/out.obj` under `cache`, one at a time.
+
+    **Never a glob and never a list.** `glob.glob(<cache>/*/out.obj)` was what
+    this did, and it materialises one string per entry: at 22.5 M entries that is
+    the OOM that twice took this machine down. `os.scandir` is a lazy
+    `getdents64` iterator, so it holds one name at a time. Do not `sorted()` this
+    — the census is order-independent and sorting would rebuild the list.
+    """
+    try:
+        it = os.scandir(cache)
+    except OSError:
+        return
+    with it:
+        for e in it:
+            if e.name.startswith("."):
+                continue  # `.locks`, and the write-then-rename temporaries
+            p = os.path.join(e.path, "out.obj")
+            if os.path.exists(p):
+                yield p
 
 
 def main(argv):
-    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     cache = None
     sources = None
     i = 1
@@ -128,22 +167,40 @@ def main(argv):
         else:
             cache = argv[i]
             i += 1
-    cache = cache or os.path.join(root, "work", "capture-cache")
-    objs = sorted(glob.glob(os.path.join(cache, "*", "out.obj")))
+    # No repo-relative default any more: the cache root moved out of the
+    # checkout (that is what removed the traversal footgun), and guessing a path
+    # here would be a fourth implementation of the resolution order that
+    # `capture_cache::default_cache_root` owns. `c2rs` resolves it.
+    if cache is None:
+        p = subprocess.run(["c2rs", "cache", "stat"], capture_output=True, text=True)
+        for ln in p.stdout.splitlines():
+            if ln.startswith("cache root: "):
+                cache = ln[len("cache root: "):].strip()
+        if cache is None:
+            print("could not resolve a cache root; pass one explicitly or set "
+                  "$C2RS_GAP_CACHE", file=sys.stderr)
+            return 2
+        print(f"cache root (from `c2rs cache stat`): {cache}")
+
     if sources:
         want = {
             ln.strip()
             for ln in open(sources)
             if ln.strip() and not ln.startswith("#")
         }
-        objs = [p for p in objs if cache_source(os.path.dirname(p)) in want]
+        idx = cache_index(cache)
+        if idx is None:
+            return 2
+        objs = [
+            os.path.join(entry, "out.obj")
+            for src, entry in idx.items()
+            if src in want
+        ]
+        objs = [p for p in objs if os.path.exists(p)]
         print(f"corpus: {len(want)} sources from {sources}")
     else:
+        objs = iter_objs(cache)
         print(f"corpus: EVERY entry in {cache} — unfiltered, see the module docstring")
-    if not objs:
-        print(f"SKIP: no cached objs under {cache}")
-        print("(populate it with: c2rs gap --list … --flags-file … --cwd …)")
-        return 0
 
     cls = collections.Counter()
     gpr_widths = collections.Counter()
@@ -175,7 +232,15 @@ def main(argv):
                 elif sym["name"].startswith("__savefpr_"):
                     fpr_widths[32 - int(sym["name"].rsplit("_", 1)[1])] += 1
 
+    # Moved here from before the loop, where it read `if not objs`. `objs` is now
+    # a lazy iterator in the unfiltered case, and an iterator is always truthy —
+    # so the emptiness check has to come after the walk or it silently stops
+    # checking. A census that graded 0 says so; it does not print 0.00% rows.
     tot = sum(cls.values())
+    if not tot:
+        print(f"SKIP: no cached objs under {cache}")
+        print("(populate it with: c2rs gap --list … --flags-file … --cwd …)")
+        return 0
     print(f"objs {n_obj}   emitted /Gy functions {tot}\n")
     for k, v in sorted(cls.items(), key=lambda kv: -kv[1]):
         print(f"  {v:8d}  {100 * v / tot:5.2f}%   {k}")

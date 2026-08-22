@@ -241,6 +241,16 @@ fn differential_tail(
         Ok(o) => o,
         Err(e) => return DiffReport::ReferenceError(format!("replay failed: {e}")),
     };
+    // `replay` OVERWRITES `ref_obj_path`, and under a cache that path IS the
+    // cache entry — so put the captured bytes back before anything can return.
+    // Restoring here rather than at the end is the whole point: the leak is on
+    // the mismatch path below, where a DIVERGING replay would otherwise be left
+    // behind as the "cached capture" and served as a hit next run, faking a
+    // `mismatch` on a byte-exact TU (board #1388's shape, new cause).
+    // Unconditional because the uncached `ref_obj_path` is scratch, where
+    // rewriting the bytes that were already there is a no-op — one rule, one
+    // implementation. `gap/scan.rs` carries the same restore for its own replay.
+    let _ = std::fs::write(&ref_obj_path, captured.ref_obj.as_bytes());
     let ref_len = captured.ref_obj.len();
     let replay_len = replay_obj.len();
     if let ObjDiff::Differs { first_offset, .. } = ObjImage::diff(&captured.ref_obj, &replay_obj) {

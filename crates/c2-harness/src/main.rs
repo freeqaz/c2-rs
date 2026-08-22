@@ -26,6 +26,7 @@ use c2_reference::Toolchain;
 
 mod cli;
 
+use cli::cache::cmd_cache;
 use cli::census::cmd_census;
 use cli::corpus::{cmd_corpus_gen, cmd_corpus_sample, cmd_corpus_stats};
 use cli::factors::cmd_factors;
@@ -54,6 +55,7 @@ fn main() -> ExitCode {
         "replay" => cmd_replay(rest),
         "replay-c1" => cmd_replay_c1(rest),
         "diff" => cmd_diff(rest),
+        "cache" => cmd_cache(rest),
         "census" => cmd_census(rest),
         "bench" => cmd_bench(rest),
         "perf" => cmd_perf(rest),
@@ -107,6 +109,8 @@ fn print_usage() {
          \x20 c2rs corpus sample [dir]  write the portable synthetic sample corpus\n\
          \x20 c2rs corpus stats <dir>   summarize a corpus manifest\n\
          \x20 c2rs gap [opts]           real-workload gap scan: classify every TU, rank the blockers\n\
+         \x20 c2rs cache <verb>         capture cache: stat | index | generations | show <key> | gc\n\
+         \x20                           (gc is a DRY RUN unless --apply; board #3265)\n\
          \x20 c2rs factors [opts]       the Phase-7 A/B/C/D/E sets as SETS: re-derive every published\n\
          \x20                           count from `gap --factors-tsv`, and intersect that listing\n\
          \x20                           with another lane's per-TU set (offline, no toolchain)\n\
@@ -131,9 +135,11 @@ fn print_usage() {
          \x20            [--cache DIR | --no-cache] [--validate-cache N]\n\
          \x20            captures are cached content-addressed (source bytes + flags +\n\
          \x20            toolchain + workload git identity, never mtimes) under\n\
-         \x20            <main-repo>/work/capture-cache (shared by every worktree)\n\
-         \x20            or C2RS_GAP_CACHE; --validate-cache N\n\
-         \x20            re-captures every Nth hit and byte-compares it.\n\
+         \x20            C2RS_GAP_CACHE, else XDG_CACHE_HOME/c2rs/capture, else\n\
+         \x20            ~/.cache/c2rs/capture. NOT under the repo, deliberately:\n\
+         \x20            22.6M entries in the tree is what every find/du walks.\n\
+         \x20            --validate-cache N re-captures every Nth hit and\n\
+         \x20            byte-compares it; inspect and reclaim with `c2rs cache`.\n\
          listing options: [--qxstalls] [--out PATH] [--flag F ...]  (default flags /O1 /Oi /EHsc /GS- /c)\n\
          listing-scan options: --list FILE --flags-file FILE [--cwd DIR] [--limit N] [--jobs N]\n\
          \x20                    [--qxstalls] [--jsonl PATH] [--work DIR]\n\

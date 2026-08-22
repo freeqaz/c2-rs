@@ -27,14 +27,23 @@
 //! [`CodecError`]. Still opaque, hence the remaining K2 backlog: the `.ex`
 //! header/index, the FnHeader interior, the rest of `.gl`, and all of
 //! `.sy`/`.in`/`.db` (coverage map in `docs/IL_BUNDLE_MVP.md`).
+//!
+//! # `entry.bin` ([`mod@cachefmt`])
+//!
+//! The capture cache's on-disk container, here rather than in `c2-harness`
+//! because this crate is the zero-dep leaf both the harness and
+//! `tests/gl_alias_corpus.rs` can reach — see its module docs for why that test
+//! is the reason.
 
 use std::collections::BTreeMap;
 use std::io;
 use std::path::Path;
 
+pub mod cachefmt;
 pub mod codec;
 pub mod func;
 pub mod stream;
+pub use cachefmt::{decode_entry, digest128, encode_entry, BlobError, EntryBlob};
 pub use codec::{CodecError, EditError, EditReport, ExToken, FileModel, IlModel, Span};
 pub use stream::{Extent, Ir0, Ir0Broken, Ir0Framing, Record, RecordKind};
 pub use func::{

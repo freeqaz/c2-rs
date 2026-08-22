@@ -459,10 +459,12 @@ pub(crate) fn cmd_replay_c1(rest: &[String]) -> ExitCode {
 /// # The capture cache on `diff` (lane `w-gateperf`, 2026-08-18)
 ///
 /// `--cache DIR` / `--no-cache` / `--validate-cache N`, spelled exactly as
-/// `c2rs gap` spells them and defaulting the same way (`C2RS_GAP_CACHE`, else
-/// `<main-repo>/work/capture-cache`) — one vocabulary for one cache, because
-/// two spellings of one knob is how a gate row ends up with a cache nobody
-/// realised was on.
+/// `c2rs gap` spells them and defaulting the same way — one vocabulary for one
+/// cache, because two spellings of one knob is how a gate row ends up with a
+/// cache nobody realised was on. Both now resolve through the single
+/// [`c2_harness::capture_cache::default_cache_root`], which since 2026-08-22
+/// resolves **outside any checkout**; this doc used to name
+/// `<main-repo>/work/capture-cache` and that is no longer where it lives.
 ///
 /// **Why it is ON by default here.** `scripts/expr_sweep.sh` spawns one of
 /// these per generated case, 19,556 of them per merge gate, and 75 % of each
@@ -519,11 +521,16 @@ pub(crate) fn cmd_diff(rest: &[String]) -> ExitCode {
     let cache_root: Option<std::path::PathBuf> = if args.has("--no-cache") {
         None
     } else {
-        Some(args.path("--cache").unwrap_or_else(|| {
-            std::env::var_os("C2RS_GAP_CACHE").map(std::path::PathBuf::from).unwrap_or_else(
-                || c2_harness::provenance::main_repo_root().join("work/capture-cache"),
-            )
-        }))
+        match args.path("--cache") {
+            Some(p) => Some(p),
+            None => match c2_harness::capture_cache::default_cache_root() {
+                Ok(p) => Some(p),
+                Err(e) => {
+                    eprintln!("diff: no capture cache ({e}); capturing for real");
+                    None
+                }
+            },
+        }
     };
     let cache = match &cache_root {
         None => None,

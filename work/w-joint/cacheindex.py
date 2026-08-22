@@ -1,6 +1,19 @@
 #!/usr/bin/env python3
 """cacheindex.py — map workload TU -> `work/capture-cache` entry, from meta.txt.
 
+**DEAD as of 2026-08-22 — superseded by `c2rs cache index`.** Kept as the record
+of what this lane did, not as a tool to run. An entry no longer has a `meta.txt`
+or a `key.bin`: the key, the metadata and the five IL streams were folded into
+one binary `entry.bin` (`c2_il::cachefmt`), taking an entry from nine inodes to
+three, and the cache root moved out of the repo entirely. Run
+
+    c2rs cache index [--cache DIR]
+
+which emits the same `<src>\t<entry>` TSV from one bounded `read_dir`, is the
+**supported** reader of the container, and cannot drift from the format the way
+a second implementation here did. The scandir-not-glob discipline below was
+right and is now enforced in that command.
+
 The harness's capture cache stores, per key, the WHOLE `_CL_*` quintet
 (`gl ex in db sy`) **and `out.obj`**.  Every lane so far re-ran `cl` to get IL
 (w-emit, w-mark) or truth (w-emit), while 871 of the 878 workload TUs were

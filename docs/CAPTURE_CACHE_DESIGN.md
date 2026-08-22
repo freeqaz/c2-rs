@@ -99,6 +99,72 @@ recording accurately in both directions.
 
 ---
 
+## SECOND CORRECTION NOTE (added 2026-08-22 by lane **w-cacheinode**)
+
+Eighteen days later the count was back: **22,576,454 entries**, past the 21.5 M
+this document measured, and the footgun fired twice more — an hour-long wedge of
+the whole box at load 37.8 with IO pressure at 23 % *full* stall, from two
+independent sessions tripping it inside the same hour. Three findings, one of
+which reverses a conclusion above.
+
+### [C4] "Just a delete" was right about the *storage engine* and wrong about the *container*
+
+The pack-file (§4.2) and SQLite (§4.3) rejections **hold in full** and were
+re-checked before anything was built: `cl.exe` writes to a *path*, that path is
+baked into the obj as `S_OBJNAME` where even its length shifts bytes, so the
+payload cannot leave the filesystem — *"a pack does not remove the directory; it
+adds a second copy of it."*
+
+But that argument constrains **`out.obj` only**. The other seven files —
+`key.bin`, `meta.txt` and the five `_CL_*` IL streams — are under no such
+constraint: `IlBundle` is fully in-memory and replay materialises IL to a scratch
+directory, never to the cache. They are now **one `entry.bin` blob**
+(`c2_il::cachefmt`), taking an entry from **nine inodes to three**. §4.2's
+reasoning was correct and its scope was too wide.
+
+The fold is also a **strict strengthening**, not a neutral trade. This document's
+completion marker was "`meta.txt` exists", written last — and `fs::write` is
+create+truncate+write_all, not atomic, so a crash after two lines landed left a
+*parseable* `base`+`arg` pair: a Hit with a truncated argv. `entry.bin` carries
+`TOTAL_LEN` and a digest and appears by `rename(2)`.
+
+### [C5] The GC's own predicate reclaims ~nothing — the *root* was the lever
+
+§4.1 recommended a GC and the 08-04 cleanup applied "the source file is gone"
+by hand. Built as code and measured over the live 22.58 M-entry tree
+(`c2rs cache gc`, 50 k sample): **47,423 live, 0 unreachable, 2,577 unknown.**
+The sources are tracked fixtures and workload TUs — they still exist. The
+predicate was aimed at a population that is not there.
+
+What the churn actually is, from a 1-in-400 generation histogram
+(`c2rs cache generations`): **107 generations, of which the top four hold 99.6 %
+and differ ONLY in the wibo version string** — identical `cl.exe`/`c1xx`/`c2`
+digests, identical tree token, identical root. ~16.5 % is keyed on wibo builds
+that no longer exist. The driver is **wibo rebuilds**, not workload commits as
+§0 assumed.
+
+So the reclamation is the **relocation**, not the predicate: `cache-root` is in
+the key, so moving the root makes 100 % of the old tree unreachable at once,
+retired with one `rm -rf` and no predicate to get wrong. The GC's value is
+**preventing recurrence** at the new root, plus `--drop-generation`, which makes
+the 08-04 manual cleanup scriptable and counted.
+
+### [C6] The root is out of the repo, so the appendix's rule is no longer load-bearing
+
+The appendix below ("how to touch this directory without taking the box down")
+is correct and stays. But it is a **rule**, and rules do not bind the traversals
+that actually cause this: a shell glob, an editor's indexer, another agent's
+`du -sh .`. The default root is now `$XDG_CACHE_HOME/c2rs/capture` (then
+`$HOME/.cache/…`, then a **loud error** — never a silent fallback into the tree).
+A `find` rooted at the checkout no longer reaches it at all. Treat the appendix
+as advice for anyone who points a root back into a repo on purpose.
+
+The scale claim in the appendix is now measured rather than asserted: a bounded
+`read_dir` walked all 22,576,454 entries in **6.2 MB RSS, flat**, in ~110 s. The
+OOM is a property of *globbing*, not of the entry count.
+
+---
+
 ## 0. The headline numbers
 
 | | main cache | the 50 sibling caches | total |

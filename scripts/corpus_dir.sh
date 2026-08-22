@@ -164,9 +164,17 @@ resolve_corpus() {
 
     # The MAIN repository root, the same directory from every linked worktree —
     # the shell counterpart of `provenance::main_repo_root()`, resolved through
-    # git's own back-pointer rather than by string surgery on the path. That is
-    # the same resolution `work/capture-cache` already uses, so the corpus and
-    # the cache that keys on it cannot end up rooted in different repositories.
+    # git's own back-pointer rather than by string surgery on the path.
+    #
+    # This USED to be the same resolution the capture cache applied, which is why
+    # the two could not end up rooted in different repositories. Since 2026-08-22
+    # it is not: the cache root moved out of the checkout entirely
+    # (`$XDG_CACHE_HOME/c2rs/capture`), because 22.6 M entries inside the tree is
+    # what every `find` and `du` walks. The corpus stays here — it is 19,556
+    # bounded files that a human is meant to find, not an unbounded cache — so
+    # the two now resolve independently. That is fine and is not an oversight:
+    # the cache KEYS on the corpus path, so a corpus rooted elsewhere is a
+    # different key and a miss, never a wrong hit.
     if [ -n "${C2RS_CORPUS_ROOT:-}" ]; then
         _root="$C2RS_CORPUS_ROOT"
     else
