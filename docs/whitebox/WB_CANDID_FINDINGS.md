@@ -220,11 +220,19 @@ every mint site is *downstream of the reset*. The counter simply retains a
 stale value across a function that never allocates. A stale value nobody reads
 is not a carried scope.
 
-> ⚠️ **What this guard *does* mean, and it is a separate finding: at `/Od`, and
-> on any function over the 40 000 bail-out, the global register allocator does
-> not run at all.** Anything in the port or the docs that models allocation as
-> unconditional is wrong for those functions. Not R1's question; recorded
-> because it was on the path. `[R]`
+> ⚠️ **What this guard *does* mean, and it corrects a published row.**
+> **#3067** records `DAT_10c2e2fc` as *"option-word bit 21, set at
+> `0x10b82429`: at `/Od` none of the four runs, at `/Og` all do"*, and
+> `DISCLOSURE.md` **W-STAGETAP-1** names it *"the optimizer-on flag the
+> scheduler sites are gated on"*. **Both read as static for the compiland, and
+> it is not** — `FUN_10b7e719` clears it **per function** at the three sites
+> above, so a `/Og` compiland can contain functions with no scheduling and no
+> global register allocation, including on a **size** threshold. None of
+> `0x10b7e776`, `0x10b7e867`, `0x10b7e89b`, `0x10c40f18` or `0x9c40` appears
+> anywhere under `docs/` at this lane's merge base (`git grep` at `master`:
+> 0 files each); `0x10b82429` does, which is why the correction is to the
+> *scope* of a known flag and not the discovery of an unknown one. Board
+> **#3375**. `[R]`
 
 ---
 
