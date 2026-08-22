@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """cachekey.py — recompute a c2rs capture-cache entry name from its material.
 
+**DEAD as of 2026-08-22 — superseded by `c2rs cache show`.** Kept as the record
+of what this lane did, not as a tool to run. `digest128` and the key material
+are unchanged, but an entry's `key.bin` is gone: it is now a section inside a
+binary `entry.bin` (`c2_il::cachefmt`), and the cache root moved out of the
+repo. Run `c2rs cache show <key>` — the supported reader — or `c2rs cache index`
+for the whole root.
+
 The harness's key is `digest128(material)` (crates/c2-harness/src/capture_cache.rs
 `key_material` + `digest128`), and the material is stored verbatim as the entry's
 `key.bin`.  So an entry can be LOCATED by construction instead of by scanning a
