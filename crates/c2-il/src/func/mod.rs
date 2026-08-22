@@ -59,7 +59,8 @@ pub use self::bundle::{
 /// of keeping a second copy of it (ROADMAP §10.12, §10.14).
 pub(crate) use self::bundle::{body_start, body_start_is_bare, ops_start};
 pub use self::census::{
-    cflow_residue_admit_set, FnCensus, FnVerdict, CENSUS_HEX_BACK, CENSUS_HEX_FWD,
+    cflow_residue_admit_set, FnCensus, FnVerdict, Relax, BLIND_PLACEHOLDER_CALLEE,
+    BLIND_PLACEHOLDER_DATA, CENSUS_HEX_BACK, CENSUS_HEX_FWD,
 };
 pub use self::diag::{cause, DecodeCauses};
 pub use self::ehscope::EhScopeTuIl;

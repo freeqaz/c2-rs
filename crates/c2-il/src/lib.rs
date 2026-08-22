@@ -46,7 +46,7 @@ pub use func::{
     gl_symbol_index, GlAliasStats, GlAliasTable, is_empty_module, label_counter,
     mangled_name, mangled_names, opt_word_mode, source_path, Block, FnCensus, OptWordMode,
     OPT_WORD_O1, OPT_WORD_OD, OPT_WORD_OX, OPT_WORD_PRAGMA_OFF, OPT_WORD_SPECIAL_MEMBER,
-    FnVerdict,
+    FnVerdict, Relax, BLIND_PLACEHOLDER_CALLEE, BLIND_PLACEHOLDER_DATA,
     InInitReport, InInitResidue, InSymbolRef,
     CallSeq, CmpShiftOr, CompareLeaf, DataObject, DataTu, DynInitTu, ProvideDataObject, ProvideDataTu, EhScopeTuIl, FpTail, FramedCall, GlDataRow, InAliasReport,
     IlFunction, IlOp,
