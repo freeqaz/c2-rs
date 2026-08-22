@@ -70,8 +70,12 @@ claim. **Do not quote the opening without the AMENDED section** — copying
 - **Coverage is goal (2)'s scoreboard and it is the hard one.** `match` →
   870/878. Partial coverage does not pay in proportion, and a wrong emit
   scores strictly below the refusal it replaced
-  ([`PROGRESS_METRIC.md`](PROGRESS_METRIC.md) §5.2 — unchanged, and the reason
-  the judge cannot carry a sliding score).
+  ([`PROGRESS_METRIC.md`](PROGRESS_METRIC.md) §0 bullet 4 and §4.2 — unchanged,
+  and the reason the judge cannot carry a sliding score. **Cited as "§5.2" in
+  three places in this tree, including that page's own §0 and its 2026-08-22
+  banner; there is no §5.2 — the rule is §0's fourth bullet and §4.2's
+  mismatch-zeroing guard. Not amended by this lane; reported as a dangling
+  citation, and it is the class `board_audit.sh` cannot see, board #3367.**)
 - **The verifier-throughput thesis is retired.** Throughput is a property. It
   may not justify a lane and — symmetrically, and this half is the one that
   gets forgotten — **it may not forbid one either.** Every throughput figure
