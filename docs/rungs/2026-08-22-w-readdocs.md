@@ -310,18 +310,72 @@ cargo test --workspace > work/w-readdocs/suite.log 2>&1
 echo "CARGO_EXIT=$?" > work/w-readdocs/suite.exit
 ```
 
-See §5.4 for the counts and the exit code as measured.
+### 5.4 THE FIRST RUN FAILED, AND IT FAILED CORRECTLY
 
-### 5.4 Suite result
+There are **two** suite runs of record and the first one is the interesting
+one.
 
-*(filled from `work/w-readdocs/suite.exit` and `suite.log`; see the merge
-note.)*
+**Run 1 — `CARGO_EXIT=101`.** Not a flake and not pre-existing:
 
-**Read the skip count correctly** (#3341): a skipping test **passes**, and
-libtest swallows stdout for a passing test, so *"0 occurrences of `SKIP:
-toolchain absent`"* is **vacuous** — it is satisfied by the failure it claims
-to detect. This lane does not assert on it. The environment, not the exit
-code, is the thing to state.
+```
+test rung_index_is_generated_and_current ... FAILED
+  panicked at crates/c2-harness/tests/rung_registry.rs:291:5:
+  docs/rungs/INDEX.md is stale — it is GENERATED. Run `scripts/gen_rung_index.sh`.
+```
+
+**This lane added a rung doc and did not regenerate the index.** The test is
+the enforcement `CLAUDE.md`'s formatter rule asks for — a documented
+"regenerate, do not hand-edit" convention that is actually *enforced* by
+something that can refuse, rather than being another advisory paragraph. It
+caught the omission on the first run, named the fix in the failure message, and
+the fix was `bash scripts/gen_rung_index.sh` (exit 0, **one line added**).
+
+The counts for run 1 are `34` binaries / `991` passed / **`1` failed** — short
+of run 2's totals because plain `cargo test` is **fail-fast** and stopped at
+the failing target. Recorded so the two runs' numbers are not read as a
+regression in either direction.
+
+*(One property of the generator, noted and not "fixed": this lane's row reads
+`10` in the **fixtures** column because the generator counts **words** on the
+`Fixtures:` line. `2026-08-21-goaldocs.md`'s row reads `10` for the same reason.
+The file is generated; the column is not a fixture count for any
+`Fixtures: none — …` rung.)*
+
+### 5.5 Suite result — run 2, after the regeneration
+
+```
+CARGO_EXIT=0
+```
+
+Counted from `work/w-readdocs/suite2.log` by summing every `test result:` line:
+
+| | |
+|---|---:|
+| test binaries | **53** |
+| **passed** | **1,770** |
+| **failed** | **0** |
+| ignored | **1** |
+| measured | 0 |
+| occurrences of `FAILED` anywhere in the log | **0** |
+
+**The environment, asserted — not the exit code** (#3341). *"0 occurrences of
+`SKIP: toolchain absent`"* is a **vacuous** check: libtest swallows stdout for a
+**passing** test and a skipping test *passes*, so the check is satisfied by the
+very failure it claims to detect. This log does contain **0** such lines, and
+that number is reported as **worthless on its own**. What says the toolchain
+was present is the **duration**:
+
+```
+Running tests/census_gate.rs
+test result: ok. 4 passed; 0 failed; ... finished in 70.35s
+```
+
+`census_gate` reads **0.00 s** without a toolchain and tens of seconds with
+one. **70.35 s** — one of its four tests logged *"has been running for over 60
+seconds"* — so the capture-based tests ran rather than skipped, and the 0 SKIP
+lines are 0 because **nothing skipped**. No duration *band* is asserted: the
+signal is `0.00` vs `not 0.00`, and a band tight enough to look rigorous reds a
+quiet box.
 
 ---
 
