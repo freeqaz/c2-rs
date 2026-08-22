@@ -513,6 +513,19 @@ trace still has to be implemented in a port that has no tuple, no category and
 no region, so the implementation lands in `4a`/`4b`'s coordinate system, not in
 this one.
 
+> **↳ 2026-08-22 — 13 raw / 65 calibrated is the BLACK-BOX price and may not be
+> quoted as the cost of the facts** (`ROADMAP_SLICING_2026-08-21.md` §6 rule 6;
+> `CEILING.md` §6.1 and `STEP5_PRICING_2026-08-21.md` §3 carry the matching
+> annotations). Two of item F's rows have a priced read:
+> **R7** (`[R]` → `[O]` on the scheduler, no new reading, 3–5 d) and **R4**
+> (`FUN_10b55732`, item F1, 3–5 d) — `whitebox/READ_PLAN_2026-08-21.md` §3.
+> **This paragraph is already reasoning the right way** — it is the one that
+> reclassifies F0 from black-box search to differential read — so the pointer
+> is a *cross-reference*, not a correction; both its reasons why the cost does
+> not go to zero survive intact, and the second one (`4a`/`4b`'s coordinate
+> system) is exactly why the reads do not re-price `4a`. Propagated by lane
+> `w-readdocs`.
+
 Step 0 bought the input half of the most expensive item on the ceiling page,
 and `w-restim` bought the output half of it too. That is the claim to make for
 this section. It is not the claim §4 made.
@@ -838,7 +851,10 @@ engineering one**, and no amendment to this document can supply it.~~
 > `CLAUDE.md` § "The goal". Annotated by lane `w-goaldocs`; the two bullets
 > above are left exactly as written.*
 >
-> The goal is **perfect reproduction**, for two ends ranked equally — (1) a
+> The goal is **perfect reproduction**, for two ends ~~ranked equally~~
+> **RANKED — (1) primary, (2) a real end AND instrumental to (1); amended by
+> the owner the same day, propagated here 2026-08-22 by lane `w-readdocs`
+> (`GOAL_DECISION_2026-08-21.md` § "AMENDED")** — (1) a
 > clear understanding of MSVC's internals in service of decomp, and (2) parity,
 > a 100 % open-source implementation. **The verifier-throughput thesis is
 > retired**, so the first bullet's branch is dead: its measurements stand, its
@@ -903,3 +919,59 @@ engineering one**, and no amendment to this document can supply it.~~
 > **What this does NOT do:** it does not un-gate step 5 either. Clauses (a),
 > (b) and (c) of row 5's NO-GO stand exactly as the block above leaves them.
 > Phase 0 is a way to price 4a, not a substitute for approving it.
+
+> **✔ NEW INFORMATION FOR DECISION 0, added 2026-08-22 by lane `w-readdocs`.
+> THE DECISION IS STILL THE OWNER'S AND IS STILL OPEN — this block states what
+> changed and deliberately does not choose.** *`docs/whitebox/READ_PLAN_2026-08-21.md`;
+> `docs/WHITEBOX_LEVERAGE_2026-08-21.md` §1/§3; board **#3367**–**#3368**. The
+> three blocks above are left exactly as written.*
+>
+> Decision 0 asks the owner to approve rows **4a** and **4b**, or declare step 5
+> characterization-only. **4a's 15–45 engineer-month price rests entirely on two
+> rows — I1 and I2 — and as of 2026-08-21 each has a named, addressed, sized,
+> mechanical READ:**
+>
+> * **I2** ← **R2**, the encoder: two tables (`0x10c3a578` base word,
+>   `0x10c39b18` encode form) plus **79 distinct arms** off the jump table at
+>   `0x10bfae2d` — 111 entries, 79 targets, **all inside `FUN_10bf9f15`'s
+>   3,861 B**, coordinator-verified against the pinned image. **2–4 days.**
+> * **I1** ← **R5**, `FUN_10bc2d7a` (5,080 B), the **189-arm** IL-record →
+>   codegen-tuple dispatch, **zero arms read today**. **15–25 days**, and it is
+>   also the shared input to all ten Phase-1 construct slices.
+>
+> The sum of all nine ranked reads is **≈6–10 engineer-weeks**.
+>
+> **Three ways this bears on the choice, and none of them settles it:**
+>
+> 1. **The third option's framing may be understated in one direction.** The
+>    block above frames the choice as *"fund 4a now, or bank understanding
+>    first,"* with an 8-week Phase 0 to decide on evidence. R1→R2→R3 is
+>    **≈5–9 days** and is squarely "bank understanding" — but unlike
+>    characterization generally, its output is **the spec 4a would be built
+>    from**, so it is not obviously the *other* branch. Whether that makes it a
+>    cheaper Phase 0, a prerequisite *to* Phase 0, or an orthogonal third thing
+>    is a scheduling judgement this lane does not make.
+> 2. **It does not lower 4a's price, and saying otherwise would be the units
+>    error the read-plan itself warns about.** A read produces a spec; I1 and I2
+>    are implementations in `crates/`. What the reads remove is the *discovery*
+>    cost these estimates carried implicitly — and `CEILING` §5's ~5:1
+>    calibration was fitted on lane-shaped construction work, so it must not be
+>    applied to a read.
+> 3. **It sharpens Phase 0's stop condition rather than replacing it.** Phase 0
+>    exists to test whether the port's byte-exactness is *a model or a fit*.
+>    `READ_PLAN` §2 is the first enumeration of every fitted constant in
+>    `crates/` beside the read that would replace it — three preregistered
+>    searches (52,416 / 13,104 / 1,048,576 configurations, each a negative
+>    result), ten refuted allocation keys, and seven shipped constants with
+>    unread provenance. **That is evidence about the same question, from the
+>    other side**, and it arrived after the block above was written. Note
+>    `READ_PLAN` §2's own scope bound (#3366): every production caller of
+>    `codegen::{alloc, order, schedule}` is inside `leaf/store.rs`, so those
+>    constants fence store runs only — they are the **template** Phase 1's
+>    general layers would be written in, not a load-bearing surface today.
+>
+> **And the caveat that keeps this honest:** `[R]` means *"the instructions were
+> read correctly,"* not *"this is what c2 does"* (`READ_PLAN` §5.3 — the `.bss`
+> bump rule was read correctly out of a clean function and was wrong about c2).
+> Every read ends in a confirmation probe, and the byte judge is untouched by
+> all of it. **Clauses (a), (b) and (c) of row 5's NO-GO still stand.**
