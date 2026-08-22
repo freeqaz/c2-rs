@@ -108,7 +108,7 @@ reference page here; `findings` means a dated `WB_*_FINDINGS.md`.
 
 | # | phase | `ref` page | findings | verdict |
 |---:|---|---|---|---|
-| 1 | **Emitter CFG classes** (`cflow-loop`, `cflow-if-n`, `cflow-if-2`) | **[`P_LABEL.md`](P_LABEL.md)** (the *charge* half only) | the **label counter** (`WB_LABEL_FINDINGS.md`, `WB_LABELCHARGE_FINDINGS.md`) | **STILL UNSERVED, and R3 sharpened why.** The label *charge* is now read to 163 enumerated sites; **block order and branch selection are still not read anywhere**, and a charge rule without an order rule cannot place a label. §4.1's own first target, `fg.c` `0x10b36133`, is where **eight** of the 132 label-constructor call sites live — the concrete overlap R3 hands R8 |
+| 1 | **Emitter CFG classes** (`cflow-loop`, `cflow-if-n`, `cflow-if-2`) | **[`P_LABEL.md`](P_LABEL.md)** (the *charge* half only) | the **label counter** (`WB_LABEL_FINDINGS.md`, `WB_LABELCHARGE_FINDINGS.md`) | **STILL UNSERVED, and R3 sharpened why.** The label *charge* is now read to 163 enumerated sites; **block order and branch selection are still not read anywhere**, and a charge rule without an order rule cannot place a label. §4.1's own first target, `fg.c` `0x10b36133`, is where **ten** of the 132 label-constructor call sites live, across eight functions — the concrete overlap R3 hands R8 |
 | 2 | **An inliner** | [`P_INLINE.md`](P_INLINE.md) | `WB_INLINE_FINDINGS.md` | served |
 | 3 | **`memset` / selector lowering** | — | `WB_SELECT_RECONCILED.md`, `WB_TABLES_FINDINGS.md`, `WB_MEMCPY_FINDINGS.md` | served by findings; §2's row is the entry |
 | 4 | **Exception handling** | [`P_EH.md`](P_EH.md) | `WB_EH_FINDINGS.md` | served |

@@ -43,8 +43,10 @@ Read **R3** of [`READ_PLAN_2026-08-21.md`](READ_PLAN_2026-08-21.md) §3, priced
 
 ## 1. The prereg, scored
 
-**17 graded predictions, 12 HIT, 4 MISS, 1 UNGRADED.** Misses are the content
-and are not smoothed.
+**24 registered predictions; 22 graded: 17 HIT, 5 MISS, 2 UNGRADED.** Misses
+are the content and are not smoothed, and an UNGRADED row is named rather
+than dropped — a prediction that cannot be scored earns nothing and must not
+inflate a denominator (`PREREG.md`'s own rule).
 
 | # | prediction | outcome |
 |---|---|---|
@@ -120,8 +122,8 @@ to each record it minted itself.
 | 1 | **`$M` is minted at `0x10c21992`** — a 20-byte function in `vlines.c` that calls `FUN_10b9a455`, sets `+0x43 \|= 1`, stamps `+0x31 = 'W'`, and attaches the label to a tuple via `FUN_10c21df3` → `FUN_10bd3824`. **One charge per `$M`, one address.** | `P_LABEL.md` §5.1 |
 | 2 | **`$T` is minted at `0x10b9b701`** (`FUN_10b9b6a4`, anonymous kind-1, `+0x31 = 0x26`), reached from the `.pdata` record writer `FUN_10c217fd` through `FUN_10b9c655('\6',8,4,0,'\4',0x80)` | ibid. |
 | 3 | **A reserved low-id region.** Six of the 31 sites charge **only** when the section is not the default segment; for the default they use hardcoded ids `0x0d`, `0x0f`, `0x16`, `0x17`, `0x19`, `0x1a`, and `FUN_10c1252c` uses `0x1b`. All far below any seed. **This is why a `.data`/`.bss`/`.rdata` global moves the seed gap by zero** — measured | `P_LABEL.md` §3.1, §4.2 |
-| 4 | **`lur.c` holds six label constructors and is unread** — a mechanism for `LABEL_COUNTER.md` §7.7 open #3, the `/Ox` loop charge with four magnitudes and no rule | `P_LABEL.md` §7 |
-| 5 | **`fg.c` holds eight** — and `fg.c` `0x10b36133` is where R8 starts. The plan's *"R8 waits for R3 — they are the same deliverable from opposite ends"* now has a concrete overlap | ibid. |
+| 4 | **`lur.c` holds seven label-constructor call sites in six functions and is unread** — a mechanism for `LABEL_COUNTER.md` §7.7 open #3, the `/Ox` loop charge with four magnitudes and no rule | `P_LABEL.md` §7 |
+| 5 | **`fg.c` holds ten sites in eight functions** — and `fg.c` `0x10b36133` is where R8 starts. The plan's *"R8 waits for R3 — they are the same deliverable from opposite ends"* now has a concrete overlap | ibid. |
 | 6 | **The formatter's kind-1 named arm is linkage-gated** on `((sym[+0x37] >> 0x15) & 7) ∈ {1,3}` — the same field `P_SYMBOL.md` §3 found suppressing COFF records | `P_LABEL.md` §6 |
 
 ---

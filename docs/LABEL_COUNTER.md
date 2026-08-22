@@ -5547,7 +5547,8 @@ increment instruction"*. Two of the three claims inside that hold:
 ## 8.3 §7.7 open #3 gets a mechanism (not a rule)
 
 The `/Ox` loop charge's four magnitudes have a named source: **`lur.c`, the
-loop unroller, holds six of the 132 label-constructor call sites**, and
+loop unroller, holds seven of the 132 label-constructor call sites, in six
+functions**, and
 `lur.c` is 15,115 lines and **unread** (`READ_PLAN` §1). At `/Ox` a loop's
 charge is a property of what the unroller did, and the unroller invents labels
 from six places nobody has read. **No rule is proposed here either.**
@@ -5565,8 +5566,8 @@ from six places nobody has read. **No rule is proposed here either.**
 **This is the CHARGE, not the ORDER.** A charge rule without an order rule
 still cannot place a label; the other half is **R8** (block emission order,
 `CEILING` §6.1 phase 1, the one UNSERVED phase). The concrete overlap: `fg.c`
-holds **eight** of the 132 constructor sites, and `fg.c` `0x10b36133` is where
-R8 starts.
+holds **ten** of the 132 constructor sites, across **eight** functions, and
+`fg.c` `0x10b36133` is where R8 starts.
 
 ## 8.6 Reproduction
 

@@ -405,20 +405,36 @@ Two things this adds to `../WB_LABEL_FINDINGS.md` §1.2 `[R]`:
 `0x10b9a455` is likewise **never taken as data**. **39 of the 132 are
 loop-resident.** Attributed through `ref/FUNCS.tsv` (tier 2 `mech`):
 
-| c2 source file | callers | what it says |
-|---|---:|---|
-| `mod.c` | 9 | the largest single source of invented labels |
-| `fg.c` | 8 | **the flow graph — this is R8's own file** |
-| `lowersmd.c` | 8 | machine-dependent lowering |
-| **`lur.c`** | 6 | **loop unrolling** |
-| `tuple.c` | 6 | |
-| `cgintrin.c` | 6 | intrinsic expansion |
-| `code.c` | 5 | |
-| `pogoopt.c` | 5 | |
-| `p2symtab.c`, `ptinl.c`, `inline.c`, `vlines.c` | 4 each | |
-| `ehexcept.c` | 3 | |
-| `regasg.c`, `dag.c`, `except.c`, `globopt.c` | 2 each | |
-| `optimize.c`, `mdmisc.c`, `pogoinline.c`, `lower.c`, `mdlist.c`, `globregs.c` | 1 each | |
+| c2 source file | sites | callers | what it says |
+|---|---:|---:|---|
+| `mod.c` | 19 | 9 | the largest single source of invented labels |
+| `lowersmd.c` | 16 | 8 | machine-dependent lowering |
+| `cgintrin.c` | 10 | 6 | intrinsic expansion |
+| **`fg.c`** | **10** | **8** | **the flow graph — this is R8's own file** |
+| `except.c` | 9 | 2 | and 8 of the 9 are in one function, `FUN_10be4f28`, all loop-resident |
+| `tuple.c` | 8 | 6 | |
+| `code.c` | 7 | 5 | the encoder's file (R2's) |
+| **`lur.c`** | **7** | **6** | **loop unrolling** |
+| `pogoopt.c` | 7 | 5 | |
+| `ehexcept.c` | 5 | 3 | |
+| `inline.c` | 5 | 4 | |
+| `p2symtab.c` | 4 | 4 | |
+| `ptinl.c` | 4 | 4 | |
+| `regasg.c` | 4 | 2 | |
+| `vlines.c` | 4 | 4 | the `$M` minter's file |
+| `lower.c` | 3 | 1 | |
+| `dag.c` | 2 | 2 | |
+| `globopt.c` | 2 | 2 | |
+| `mdmisc.c` | 2 | 1 | |
+| `globregs.c`, `mdlist.c`, `optimize.c`, `pogoinline.c` | 1 each | 1 each | |
+| **total** | **132** | **86** | over **23** named files |
+
+> **THE TWO COLUMNS ARE DIFFERENT NUMBERS AND THIS LANE MISCOUNTED THEM ONCE.**
+> A first pass histogrammed *callers* and reported them as *sites* — `fg.c`
+> "eight sites" when it is eight callers and **ten** sites, `lur.c` "six" when
+> it is six callers and **seven** sites. Corrected here and in every document
+> that quoted it. Both columns are given because both are used: **callers**
+> bounds how many bodies a reader must open, **sites** bounds the charge.
 
 Busiest individual callers: `FUN_10be4f28` (`except.c`, **8 sites, all
 loop-resident**), `FUN_10b8d6d7` (`mod.c`, 4), then `FUN_10c25fb4`,
@@ -428,13 +444,14 @@ loop-resident**), `FUN_10b8d6d7` (`mod.c`, 4), then `FUN_10c25fb4`,
 
 Two consequences worth stating `[I]`:
 
-* **`lur.c` holds six label constructors, and `lur.c` is 15,115 lines and
+* **`lur.c` holds seven label-constructor call sites in six functions, and
+  `lur.c` is 15,115 lines and
   UNREAD** (`READ_PLAN` §1's last row). That is a mechanism for
   `LABEL_COUNTER.md` §7.7 open #3 — *"the `/Ox` loop charge: four magnitudes
   (10, 3, 7, 10), no rule, and none proposed"*. At `/Ox` a loop's charge is a
   property of what the unroller did, and the unroller invents labels from six
   places nobody has read.
-* **`fg.c` holds eight**, and `fg.c` `0x10b36133` is where `READ_PLAN` row
+* **`fg.c` holds ten sites in eight functions**, and `fg.c` `0x10b36133` is where `READ_PLAN` row
   **R8** starts. R3 and R8 are the same deliverable from opposite ends, as the
   plan says; this is the concrete overlap.
 
