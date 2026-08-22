@@ -1,5 +1,26 @@
 # Shipping roadmap — compatibility now, native parity deliberately
 
+> ### ⛔ SUPERSEDED 2026-08-22 — **THE OWNER ORDERED THIS PAGE REWRITTEN, AND THE SUPERSEDING ROADMAP IS [`SHIPPING_ROADMAP_2026-08-22.md`](SHIPPING_ROADMAP_2026-08-22.md).**
+> *[`DECISIONS_2026-08-22.md`](DECISIONS_2026-08-22.md) decision 2, owner
+> verbatim: "#2 rewrite the doc and get it aligned with our earlier goal
+> statement". Bannered by lane `w-shiproadmap`; **every word below is a dated
+> record and nothing in it — body, measurement, estimate, exit gate, or either
+> of the two annotation banners already on it — is edited or withdrawn.***
+>
+> **Read the 08-22 page for current advice.** In short: the two-track strategy
+> is not the strategy, and track 1 (the vendor-DLL-backed compatibility service)
+> is now an explicitly **subordinate option** with two disqualifications — it
+> moves the parity scoreboard by zero, and it is the opaque binary, so it emits
+> none of the signals goal (2) is valued for. This page's own §1 escape clause
+> came true and the successor is that clause written out: **a compiler-backend
+> reconstruction program.**
+>
+> **What the successor CARRIES FORWARD from here rather than rewriting**: §4's
+> three meanings of 100 % (goal (2) is stated in its terms), §6's
+> operating-model items 3–6, §6 item 1 as an **open** question, and **every
+> measurement on this page** — kept as measurements that neither justify nor
+> forbid a lane, because the verifier-throughput thesis is retired.
+
 **Status:** proposal for review  
 **Date:** 2026-08-19  
 **Reviewed tree:** `fd11ad526729b201f7a8f49b71e405c67d8aecb2`  

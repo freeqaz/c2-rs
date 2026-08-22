@@ -6,7 +6,12 @@
                (match 26 / mismatch 0 / vocab-gap 844), CEILING.md §6/§6.1,
                STRATEGY_REVIEW_2026-08-13.md (Option A decided §8.1),
                ARCHITECTURE_SEAMS.md, SHIPPING_ROADMAP_2026-08-19.md (peer,
-               uncommitted), and the code cited inline.
+               uncommitted — **SUPERSEDED 2026-08-22 by
+               SHIPPING_ROADMAP_2026-08-22.md** on the owner's order,
+               DECISIONS_2026-08-22.md decision 2; the peer's §2 judge
+               statement and §4 three-meanings-of-100 % are carried forward
+               there unchanged, its two-track product strategy is not), and
+               the code cited inline.
     Judge:     unchanged and untouchable — real c2.dll under wibo, byte-exact
                obj compare, timestamp zeroed. Nothing here proposes a second
                judge; the stage oracle in §4 is a development instrument in
@@ -752,6 +757,31 @@ before.
   for once already.
 
 ## 7. The vendor-backed service (peer proposal §5) — orthogonal, with one shared component
+
+> **⚠ 2026-08-22 — THE PEER PROPOSAL THIS SECTION RESPONDS TO IS SUPERSEDED,
+> AND THE SERVICE IS NOW AN EXPLICITLY SUBORDINATE OPTION.**
+> *[`SHIPPING_ROADMAP_2026-08-22.md`](SHIPPING_ROADMAP_2026-08-22.md) §7, on the
+> owner's rewrite order ([`DECISIONS_2026-08-22.md`](DECISIONS_2026-08-22.md)
+> decision 2). Annotated in place by lane `w-shiproadmap`; **nothing below is
+> edited or withdrawn** — this section's own reading (orthogonal, product
+> architecture not compiler architecture, ship on its own merits) is the one the
+> successor adopts.*
+>
+> What the successor adds are **two disqualifications** that bar it from being
+> ranked as the headline: it **moves the parity scoreboard by zero** (goal (2)
+> is a 100 % open-source implementation and the service depends on the binary
+> parity is defined as replacing), and it **is the opaque binary**, so it emits
+> none of the signals goal (2) is valued for supplying to goal (1)
+> ([`GOAL_DECISION_2026-08-21.md`](GOAL_DECISION_2026-08-21.md) § "AMENDED").
+> **Throughput may rank it in neither direction** — the verifier-throughput
+> thesis is retired, so §5's 2.76×/1.44×/1.01×, the `1/(1−p)` curve and #3262's
+> "under 2 %" are all carried as measurements that neither justify nor forbid.
+> Item 2 below (adopt the three definitions of 100 % as language) is unaffected
+> and is repeated in the successor. **§6's conditional clause above** — *"the
+> point at which the vendor-backed service … becomes the only shippable coverage
+> story"* — is left as written and is not current advice: what "shippable" means
+> for a reconstruction program is itself an open question, posed with three
+> alternatives at `SHIPPING_ROADMAP_2026-08-22.md` §5.1.
 
 The compatibility service is **product architecture, not compiler
 architecture**: it changes nothing in §3, and under Option A its performance
