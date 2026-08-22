@@ -1007,6 +1007,14 @@ work starts paying
 >
 > The goal is **perfect reproduction**, for (1) understanding MSVC's internals
 > in service of decomp and (2) parity — a 100 % open-source implementation.
+> **Ranked by the owner later the same day** (`GOAL_DECISION` § "AMENDED";
+> propagated here 2026-08-22 by lane `w-readdocs`): **(1) is primary**, and (2)
+> is a real end **and instrumental to (1)**, because an open port is a
+> tweakable model of c2 that emits signals about compiler state the binary
+> cannot. **That deepens this banner rather than qualifying it** — the consumer
+> §5 describes is a *throughput* consumer, and the consumers the goal now names
+> (a reversing model's training data, a permuter over exposed decision points)
+> are different consumers wanting a different property.
 > *"The port this project was built to accelerate"* describes how the work
 > **started**, not what it is **for** now. Three consequences for how to read
 > the rest of §5:
