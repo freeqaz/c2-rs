@@ -16,14 +16,37 @@ normalized).
 reference material you should arrive at with a question already in hand.
 
 - `GOAL_DECISION_2026-08-21.md` — **what this project is for, decided by the
-  owner**: perfect reproduction, for two ends ranked equally — (1) a clear
-  understanding of MSVC's internals, in service of decomp, and (2) parity, a
-  100 % open-source implementation. It **retires the verifier-throughput
-  thesis** (throughput is a property that may neither justify nor forbid a
-  lane) and **promotes characterization to a first-class deliverable**.
+  owner**: perfect reproduction, for two ends — (1) a clear understanding of
+  MSVC's internals, in service of decomp, and (2) parity, a 100 % open-source
+  implementation. **Read its "AMENDED" section, not just its opening**: the
+  owner returned the same day and **ranked** them. **Goal (1) is primary**;
+  goal (2) stays a real end and is additionally **instrumental to (1)** — the
+  port is an executable, tweakable model of c2 that emits signals about
+  compiler state the opaque binary cannot, for two named consumers (**training
+  models to reverse the compiler**, and **a permuter** over the port's exposed
+  decision points). The doc's own line 18 still reads *"ranked equally"* and is
+  superseded by its own §"AMENDED" — that is a deliberate strike-in-place, not
+  a live claim. It **retires the verifier-throughput thesis** (throughput is a
+  property that may neither justify nor forbid a lane) and **promotes
+  characterization to a first-class deliverable**.
   Read it before reading any other doc on this list as an argument for what
   to do next — several of them were written while the thesis still stood and
   carry dated annotations saying so.
+- `WHITEBOX_LEVERAGE_2026-08-21.md` — **read before probe**, the standing
+  doctrine that follows from the ranking: before any lane budgets a probe grid
+  or a fitted-parameter search, price the whitebox read that answers the same
+  question and prefer it. Also carries the design rule for general layers
+  (expose the decision surface) and the answer to *"can the judge carry a
+  sliding score"* — it cannot; the **gate stays binary** and the gradients live
+  beside it under FBM's separation rule. **§5(c) carries a dated ⚠ correction:
+  the coordinator proposed an instrument that was already shipped, and the
+  shipped instrument's output refutes the table §5(c) proposed** (board #3369).
+- `whitebox/READ_PLAN_2026-08-21.md` — the enumerated target list that doctrine
+  needs: an inventory of the whitebox record **with denominators**, an index of
+  every fitted constant in `crates/` against the read that would replace it,
+  and **nine ranked reads (R1–R9)** priced in days against the black-box lanes
+  they displace. A probe-grid lane on any of those nine subjects must first say
+  why it is not the read.
 - `SHIPPING_ROADMAP_2026-08-19.md` — **proposal for getting to a shippable
   product and then native parity**: separates vendor-backed compatibility from
   a vendor-free backend, defines three meanings of 100%, ranks the available

@@ -6,12 +6,27 @@ harness that keeps the port honest by diffing it against the real thing.
 
 ## The goal (decided 2026-08-21)
 
-Two ends, ranked equally:
+Two ends. **Goal 1 is the bigger one**, and goal 2 is both an end in its own
+right and a *means* to goal 1:
 
 1. **Perfect reproduction, to understand MSVC's internals** — the port and the
    whitebox record that comes with it are how we learn what the original
    compiler actually does, which is what makes decomp tractable.
-2. **Parity: a 100% open-source implementation** of this back end.
+2. **Parity: a 100% open-source implementation** of this back end. Beyond being
+   worth having, it serves goal 1: an open port is an **executable, tweakable
+   model** of c2 that can be instrumented to emit signals about compiler state
+   the opaque binary cannot be made to emit. Two consumers are named —
+   **training models to reverse the compiler** (generating a matching pretext)
+   and **a better permuter**, searching the port's exposed decision points to
+   fix code that is close but wrong because of internal state you cannot see.
+
+Consequence for how the code is written: general layers expose their arbitrary
+choices — allocation order, scheduling tie-breaks, label counters — as **named,
+enumerable parameters whose default reproduces c2 byte-exactly**, not as baked
+constants. And the standing rule for finding things out is **read before
+probe**: before budgeting a probe grid or a fitted-parameter search, price the
+whitebox read that answers the same question and prefer it
+(`docs/WHITEBOX_LEVERAGE_2026-08-21.md`, `docs/whitebox/READ_PLAN_2026-08-21.md`).
 
 Speed is a *property* of a native port, not the reason for it. The throughput
 numbers below are real and still measured, but the section that follows was

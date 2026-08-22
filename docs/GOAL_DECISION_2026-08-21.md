@@ -15,9 +15,10 @@ carries the ranking:
 > of the MSVC internals, to help us with decomp, and also to get parity so
 > that we have a 100% open source implementation."*
 
-Two ends, ranked equally: **(1) perfect reproduction as a route to
-understanding MSVC's internals, in service of decomp; (2) parity — a 100%
-open-source implementation.**
+Two ends, ~~ranked equally~~ **RANKED — see § "AMENDED 2026-08-21" below, which
+supersedes this clause; do not quote this sentence without it**: **(1) perfect
+reproduction as a route to understanding MSVC's internals, in service of
+decomp; (2) parity — a 100% open-source implementation.**
 
 ## What this settles
 
