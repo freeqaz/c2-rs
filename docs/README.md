@@ -34,7 +34,7 @@ pairing, the citation chain, the naming patterns — are
 | **how far is it from done, in arithmetic?** | [`CEILING.md`](CEILING.md) *(live)* — the distance between the process and TU match 871, regenerated from the instruments rather than quoted from history, and published as arithmetic even where it reads badly |
 | **what is blocking, and what would each rung unlock?** | [`GAPS.md`](GAPS.md) *(live)* — the measured gap ledger: what each blocker holds hostage in the real 878-TU workload, per-rung acceptance gates, and the exact verification commands |
 | **how is work dispatched and recorded?** | [`rungs/README.md`](rungs/README.md) *(live)* — the three lane kinds, the one-word `Outcome:`, the rules a probe must satisfy, and the standing facts every brief must carry. Then [`BOARD.md`](BOARD.md) *(live)* for the numbered items `ROADMAP.md` cites everywhere and lists nowhere else |
-| **what does `c2.dll` actually do?** | [`whitebox/README.md`](whitebox/README.md) *(live)* — the index over the binary record: the map, the address reference, the disclosure ledger, and eighteen prereg/findings pairs |
+| **what does `c2.dll` actually do?** | [`whitebox/README.md`](whitebox/README.md) *(live)* — the index over the binary record: the map, the address reference, the disclosure ledger, and eighteen findings documents, most with the prereg they were scored against |
 | **I am about to budget a probe grid** | [`WHITEBOX_LEVERAGE_2026-08-21.md`](WHITEBOX_LEVERAGE_2026-08-21.md) *(live doctrine, one section struck)* — **read before probe**: price the whitebox read that answers the same question and prefer it. Its §5(c) carries a dated ⚠ correction, board #3369 |
 | **how do I write or move a doc here?** | [`DOC_CONVENTIONS.md`](DOC_CONVENTIONS.md) *(live)* — and the short version is: **do not move one.** Citations are load-bearing in five places and `board_audit.sh` cannot see them break |
 
@@ -144,10 +144,10 @@ internals, and that directory is where the understanding is kept.
 Go to [`whitebox/README.md`](whitebox/README.md) — it indexes the navigational
 map (`C2_MAP.md`), the reproduction method and pinned image sha256
 (`C2_MAP_METHOD.md`), the address-indexed reference (`ref/`), the
-engineering-provenance ledger (`DISCLOSURE.md`), and eighteen prereg/findings
-pairs covering the scheduler, the allocator, instruction selection, the
-inliner, the label counter, EH, the `.ex` reader and the opaque middle's two
-edges.
+engineering-provenance ledger (`DISCLOSURE.md`), and eighteen findings
+documents — most paired with the prereg frozen before the lane looked —
+covering the scheduler, the allocator, instruction selection, the inliner, the
+label counter, EH, the `.ex` reader and the opaque middle's two edges.
 
 Two pages at *this* level govern how that record is used:
 
@@ -175,7 +175,7 @@ down.
 | [`PRIOR_ART.md`](PRIOR_ART.md) | what exists outside this repo and what it is worth. Almost nothing reduces scope; one thing reduces cost by ~an order of magnitude and nobody had considered it; and static recompilation of `c2.dll` is a **category error**, not merely expensive | dated record |
 | [`PHASE6_RANKING.md`](PHASE6_RANKING.md) | "17 of 19 block on control flow" is **true and converts nothing**. Measurement only, prereg committed before the first measurement | dated record |
 | [`PHASE7_PLAN.md`](PHASE7_PLAN.md) | the emit set, the obj shape, and the route from 6 to 871. A **plan** — nothing in it is built, and every number is labelled measured / ceiling / estimate with its predicate named | dated record |
-| [`PHASE7_VALIDATION.md`](PHASE7_VALIDATION.md) | the out-of-sample gate for the fitted emit predicate (#161). Its §9.18.8 rule is quotable on its own: *absence reads as success unless forbidden* — so a PENDING section is explicitly not a result | dated record |
+| [`PHASE7_VALIDATION.md`](PHASE7_VALIDATION.md) | the out-of-sample gate for the fitted emit predicate (#161). It is the clearest worked application of `ROADMAP.md` §9.18.8 — *absence reads as success unless forbidden* — so its own header forbids it: a PENDING section is explicitly not a result | dated record |
 | [`ARCHITECTURE_SEAMS.md`](ARCHITECTURE_SEAMS.md) | restructuring c2-rs for concurrent agents — and the origin of the one-file-per-rung convention, after nine parallel rungs all conflicted on the same three files. **Steps 0–3 landed**; §0 records what was executed and what the plan got wrong. Steps 4 and 5 are still plan | part landed, part plan |
 | [`CAPTURE_CACHE_DESIGN.md`](CAPTURE_CACHE_DESIGN.md) | does `work/capture-cache` need a new storage structure, or just a delete? **Just a delete**, plus a retention policy and a one-line environment change; the database is a clear no. The alternatives are costed so the decision is reviewable rather than asserted | dated record |
 

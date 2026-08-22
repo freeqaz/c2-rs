@@ -8,10 +8,11 @@
 > obj compare is the sole judge of the port.** A whitebox reading is a
 > hypothesis; only the oracle settles anything.
 
-**This page routes; it does not restate.** It is an index over 53 documents,
-four TSV exports and four data directories that had none. Nothing was moved to
-build it — every file is where it always was, and every citation elsewhere in
-the tree still resolves.
+**This page routes; it does not restate.** It is an index over 53 documents at
+this level plus 11 in `ref/`, four TSV exports and four data directories — a
+set that had no index above `ref/`. Nothing was moved to build it: every file
+is where it always was, and every citation elsewhere in the tree still
+resolves.
 
 Whitebox analysis is **authorized, encouraged, and not a legal risk** (owner,
 2026-08-17 — `CLAUDE.md` § "Whitebox analysis is AUTHORIZED"). Writing Ghidra
@@ -37,7 +38,7 @@ kept.
 
 Every lane here is a **characterization lane** (`../rungs/README.md` § "Lane
 kinds"): predicted reach 0, deliverable is address-cited findings under
-pre-registration. The convention is a **pair** —
+pre-registration. The convention is a **pair**:
 
 * `WB_<SUBJECT>_PREREG.md` — frozen and committed as the lane's **first
   commit**, before the first grep of the flat export. Several subjects have a
@@ -45,6 +46,10 @@ pre-registration. The convention is a **pair** —
   `cl.exe`) and `wb-label` has an `_R3`.
 * `WB_<SUBJECT>_FINDINGS.md` — what was read, every claim carrying an absolute
   VA, and the prereg scored against the outcome.
+
+Three subjects break the pair and the tables below say which: `FRAME` and
+`MEMCPY` have no prereg of their own, and `WB_SELECT_FINDINGS_R2.md` is a
+second reading against the *first* lane's prereg rather than one of its own.
 
 **Read the findings, but score them against their prereg.** A findings document
 read on its own loses the only thing that makes it evidence rather than a story.

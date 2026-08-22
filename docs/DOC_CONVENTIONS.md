@@ -2,8 +2,8 @@
 
 **What this is.** The conventions this tree *already follows*, written down.
 Almost nothing here is new: it was recovered by reading the 70 top-level docs,
-the 64 under `docs/whitebox/` (11 of them in `ref/`), the 389 under `docs/rungs/` and the scripts that
-generate three of them. Where a rule is genuinely proposed rather than
+the 64 under `docs/whitebox/` (11 of them in `ref/`), the 389 under
+`docs/rungs/`, and the scripts that generate three of them. Where a rule is genuinely proposed rather than
 observed, the paragraph says **PROPOSED** and nothing downstream depends on it.
 
 **Why it is worth having.** Two of this project's recorded defects are
@@ -137,6 +137,23 @@ is no header block to generate it from, and its only protection is
 `scripts/board_audit.sh`. Adding a board item means adding its row in the
 **same commit** that mints the number.
 
+> **A generated file can drift by ENVIRONMENT, not only by content — board
+> #3381.** `scripts/gen_rung_index.sh` sets no collation, so its `for f in
+> "$rungs"/*.md` ordering is whatever the caller's locale says. The committed
+> `rungs/INDEX.md` matches `en_US.UTF-8` output; a contributor running under
+> `LC_ALL=C` regenerates a file that differs from it in scores of lines while
+> being equally "correct", and `rung_registry.rs` — which compares the file on
+> disk against the script's output **in the same environment** — cannot see the
+> discrepancy, because both sides move together. Measured in this worktree
+> 2026-08-22: adding one rung changed **1** line under `en_US.UTF-8`, and the
+> same tree regenerated under `LC_ALL=C` differs from it in **56** lines.
+> **Do not "fix" the churn by committing your own locale's output.** The
+> collation fix is deferred until the 2026-08-22 lane wave lands, precisely so
+> four concurrent lanes do not each regenerate the index a different way. Until
+> then: check `git diff docs/rungs/INDEX.md` shows only *your* rung's row, and
+> if it shows more, your locale differs from the file's and you should not
+> commit it.
+
 ## 5. Naming patterns
 
 | pattern | where | means |
@@ -145,7 +162,7 @@ is no header block to generate it from, and its only protection is
 | `SUBJECT_2026-MM-DD.md` | `docs/` top level | a **dated record**: a review, a decision, a pricing, a proposal made on that day |
 | `WB_<SUBJECT>_PREREG.md` / `_PREREG_R2` / `_R3` | `docs/whitebox/` | predictions frozen **before** the lane looked. R1 before the first grep of the export; R2 before the first `cl.exe`; R3 (once) mid-grid |
 | `WB_<SUBJECT>_FINDINGS.md` | `docs/whitebox/` | what was read, every claim carrying an absolute VA, prereg scored |
-| `P_<SUBSYS>.md` | `docs/whitebox/ref/` | the address-indexed reference page for one subsystem (`P_DAG`, `P_REGALLOC`, `P_COFF`, …). **Cited bare from six directories** — do not move one |
+| `P_<SUBSYS>.md` | `docs/whitebox/ref/` | the address-indexed reference page for one subsystem (`P_DAG`, `P_REGALLOC`, `P_COFF`, …). **cited bare from four different directories** (`docs/`, `docs/rungs/`, `docs/whitebox/`, `docs/whitebox/ref/`) — do not move one |
 | `YYYY-MM-DD-<slug>.md` | `docs/rungs/` | a rung. **The filename is the claim**; two rungs claiming one slug is an add/add conflict git flags loudly, which is the whole reason rungs are files and not `ROADMAP.md` sections |
 | `_<anything>.md` | `docs/rungs/` | not a rung: preregs, findings, drafts. Skipped by both `gen_rung_index.sh` and the registry test |
 
@@ -185,9 +202,10 @@ were examined and **declined** here, each for a stated reason:
   `BOARD.md` 568, `CFG_SHAPE.md` 357, `ALLOC.md` 349. **Routing is done with
   index pages instead** — `README.md` and `whitebox/README.md` — which cost
   nothing and break nothing.
-* **A `**Hub:**` breadcrumb on line 1 of every doc.** It would mean touching
-  all 523 markdown files under `docs/`, most of them dated records that §1 says stay as written.
-  The index pages carry the same routing at the index end.
+* **A breadcrumb header on line 1 of every doc** (decomp-synth's `**Hub:**`
+  line). It would mean touching all 523 markdown files under `docs/`, most of
+  them dated records that §1 says stay as written. The index pages carry the
+  same routing from the index end, at no cost to the records.
 * **A navigability metric (`docgraph.py`, sinks / hop-distance / gloss %).**
   Not priced. **PROPOSED at most**, and only if somebody names what decision it
   would change — this repo's standing rule is that an instrument is justified
