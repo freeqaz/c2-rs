@@ -120,7 +120,7 @@ and one does not.
 |---|---|---|
 | **(a) one increment instruction** | **TRUE** `[R]` | §1; 7 references, 3 writes, 1 of them arithmetic |
 | **(b) the charging call sites are an enumerable, complete population** | **TRUE** `[R]` | the allocator's VA `0x10b97dd0` occurs **0 times** as a 4-byte absolute anywhere in the image, so there is no function pointer to it in any table, vtable or callback slot; a direct `call` encodes a *relative* displacement and never the target, so the 31 `E8` sites are all of them. Independently derived twice — an `E8 rel32` scan over raw `.text` from the pinned image, and the Ghidra export's `xrefs.tsv` — **agreeing exactly at 31 and 132** |
-| **(c) therefore the CHARGE is a closed-form constant per construct** | **FALSE** `[R]` | **42 of the 163 sites are loop-resident** (§3.3, §4.3). A loop-resident site charges once per element of whatever the loop walks, so the charge is `Σ over a data-dependent population`. An enumeration of *sites* is not an enumeration of *charges* |
+| **(c) therefore the CHARGE is a closed-form constant per construct** | **FALSE** `[R]` | **42 of the 163 sites are loop-resident** — 3 of the 31 (§3.2) and 39 of the 132 (§7). A loop-resident site charges once per element of whatever the loop walks, so the charge is `Σ over a data-dependent population`. An enumeration of *sites* is not an enumeration of *charges* |
 
 > **THE CORRECTION, PLAINLY.** The site table is closed and finite. The charge
 > is a **sum over c2's own object population**, and that population is what a
@@ -147,13 +147,13 @@ Denominator **31/31 read** to *(caller, guard, object kind)*.
 | site | caller | tu | fires | what takes the number |
 |---|---|---|---|---|
 | `0x10b283c0` | `FUN_10b283b0` | *(gap)* | once/call | **COMDAT spin-off**: a child section built by `FUN_10be74cf` from a base section; stores `".data"` into the child when `base[+0x4d]==1` `[R]` |
-| `0x10b28734` | `FUN_10b28586` | `coff.c` | once/TU, guarded `DAT_10c45d6c == 0` | the **`.drectve`** section (`FUN_10be7473(…,"DRECTVE",id,10)`), created as the obj is opened `[R]` |
-| `0x10b5903a` | `FUN_10b5902e` | `globregs.c` | once/TU, guarded `DAT_10c2e460 == 0` | the **`.rtc$IMZ`** section, group `"CONST"`, kind 4 `[R]` |
-| `0x10b59068` | `FUN_10b5902e` | `globregs.c` | same guard, same call | the **`.rtc$TMZ`** section `[R]` |
+| `0x10b28734` | `FUN_10b28586` | `coff.c` | once/TU, guarded `DAT_10c45d6c == 0` | the **`.drectve`** section — `FUN_10be7473(0x10b01bc4 = `"`.drectve`"`, "DRECTVE", id, 10)`, created as the obj is opened `[R]` |
+| `0x10b5903a` | `FUN_10b5902e` | `globregs.c` | once/TU, guarded `DAT_10c2e460 == 0` | the **`.rtc$IMZ`** section (name string read at `0x10b023e0`), group `"CONST"`, kind 4 `[R]` |
+| `0x10b59068` | `FUN_10b5902e` | `globregs.c` | same guard, same call | the **`.rtc$TMZ`** section (`0x10b023d4`) `[R]` |
 | `0x10b590bc` | `FUN_10b59091` | `globregs.c` | once/call | a named **`"CONST"` COMDAT** for an RTC datum, plus a symbol and a tuple `[R]` |
 | **`0x10b5cee1`** | `FUN_10b5ceb5` | `hash.c` | **LOOP** — nested, `0x400` buckets × chain | **the bulk symbol-numbering pass.** `sym[+0x28] = FUN_10b97dd0()` for every symbol in the table **except** kind 1 with the 3-bit linkage field `(sym[+0x37] & 0xe00000) == 0x600000`. One charge **per symbol** `[R]` |
 | `0x10b72c35` | `FUN_10b72c0a` | `list.c` | once/call | the **`.cil$<suffix>`** section that carries a verbatim IL file into the obj `[R]` |
-| `0x10b72d39` | `FUN_10b72d14` | `list.c` | once/call | an **`"ILFILE"`** section for the command-line record `[R]` |
+| `0x10b72d39` | `FUN_10b72d14` | `list.c` | once/call | the **`.cil$fg`** section (name string `0x10b132f0`), group `"ILFILE"` — the flag/command-line record `[R]` |
 | `0x10b803a4` | `FUN_10b8034a` | `misc.c` | once/call, guarded by a **miss** in the `DAT_10c2ed14` cache **and** a miss in the name table | a **kind-1 symbol** with `+0x31 = 0x26`, `+0x8 |= 0x2000` — an interned synthetic datum `[R]` |
 | `0x10b828de` | `FUN_10b8289c` | `misc.c` | once/call | a **kind-0xe** object (`FUN_10b984c3(0xe,4,1)`), `+0x30 = 4` — the formatter's `$E` family `[R]` |
 | `0x10b85739` | `FUN_10b855b9` | `misc.c` | once/TU, guarded `DAT_10c46b5c == 0` | the **arena/pool head** kind-1 symbol, `+0x37` linkage 6, `+0x4e = 5` `[R]` |
@@ -167,7 +167,7 @@ Denominator **31/31 read** to *(caller, guard, object kind)*.
 | `0x10b9b5e1` | `FUN_10b9b5d2` | `p2symtab.c` | once/call | a **clone** of an existing symbol (`FUN_10b9853a`) — the clone gets a **fresh** number `[R]` |
 | **`0x10b9b701`** | `FUN_10b9b6a4` | `p2symtab.c` | once/call | an **anonymous kind-1 symbol**, `+0x31 = 0x26`, `+0x47 = 1`. **This is the `$T` minter** — see §5.1 `[R]` |
 | `0x10ba245f` | `FUN_10ba2422` | `p2symtab.c` | once/call | the **intermodule-call thunk's** symbol (a clone), `+0x37` linkage 3 `[R]` |
-| `0x10ba3588` | `FUN_10ba34e8` | `p2symtab.c` | once/call, guarded `(sym[+0x20] & 0x20) != 0` | the thunk's **section** `[R]` |
+| `0x10ba3588` | `FUN_10ba34e8` | `p2symtab.c` | once/call, guarded `(sym[+0x20] & 0x20) != 0` | the thunk's own **`.text`** section (`0x10b165f0`), group `"CODE"` (`0x10b162f0`) `[R]` |
 | **`0x10bdbb37`** | `FUN_10bdbaba` | `tuple.c` | **LOOP** over a tuple list, charge in the `piVar2[0xd] == 0` (first time) arm | a **kind-1 symbol per distinct switch/jump-table target group** `[R]` |
 | `0x10be7918` | `FUN_10be78a8` | `emit.cpp` | once/call, **`else` arm of** `param_1 == *(int*)(DAT_10c472e8+0x2cc)` | a section id for a **non-default segment**. For the default segment c2 uses the **reserved constant `0xd`** and charges nothing `[R]` |
 | `0x10be7927` | `FUN_10be78a8` | `emit.cpp` | same `else` arm | the paired id; the default-segment constant is **`0xf`** `[R]` |
@@ -175,7 +175,7 @@ Denominator **31/31 read** to *(caller, guard, object kind)*.
 | `0x10be79c3` | `FUN_10be794d` | `emit.cpp` | same shape | its pair; default constant **`0x1a`** `[R]` |
 | `0x10be7a3d` | `FUN_10be79fa` | `emit.cpp` | same shape | the **`<base>$zy`** COMDAT-ordering section (kind `0x20`); default constant **`0x16`** `[R]` |
 | `0x10be7a71` | `FUN_10be79fa` | `emit.cpp` | same shape | its pair; default constant **`0x17`** `[R]` |
-| `0x10c12552` | `FUN_10c1252c` | `mdmisc.c` | once/TU | the **`.XBLD$W`** COMDAT that carries the `__C2_11886` build stamp. Note its *first* section takes the **reserved id `0x1b`** and charges nothing; only the second is charged `[R]` |
+| `0x10c12552` | `FUN_10c1252c` | `mdmisc.c` | once/TU | the **`.XBLD$W`** COMDAT (`0x10b200d8`) that carries the `__C2_11886` build stamp (`0x10b200cc`). Note its *first* section takes the **reserved id `0x1b`** and charges nothing; only the second is charged `[R]` |
 | `0x10c21851` | `FUN_10c217fd` | `vlines.c` | once/call, guarded `sym[+0xc]==0 && sym[+0x30]=='\3' && DAT_10c701a4 && (DAT_10c701a4[+0x20]&0x20)` | a section for a `.pdata` record whose symbol has no section yet `[R]` |
 
 ### 3.1 The reserved low-id region — six sites charge **only off the default segment**
@@ -197,11 +197,12 @@ nothing** — measured, §4.2: adding an initialized global, an uninitialized
 global, a const global, a 4 KiB array, or all three at once leaves the gap at
 exactly 9. `[O]`
 
-### 3.2 The two sites that make the charge data-dependent
+### 3.2 The three sites that make the allocator's charge data-dependent
 
 `0x10b5cee1` (`hash.c`) is a **nested loop over a `0x400`-bucket table and each
 bucket's chain**, assigning `sym[+0x28]` to every symbol that is not
-`kind 1 ∧ linkage == 3`. `0x10b9a8d9` and `0x10bdbb37` are the other two.
+`kind 1 ∧ linkage == 3`. `0x10b9a8d9` (the intern probe) and `0x10bdbb37`
+(a tuple-list walk) are the other two; the constructor adds **39** more (§7).
 Together they mean the allocator's per-TU charge is `Σ over c2's symbol
 population`, and that is exactly what makes
 `LABEL_COUNTER.md` §1.1's `stride == minted` observation true rather than a
