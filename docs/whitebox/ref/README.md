@@ -91,6 +91,7 @@ Three of these are the usability test this lane registered in advance
 | **U4** | How does c2 realise a `.gl` alias in the obj, and in what order? | [`P_SYMBOL.md`](P_SYMBOL.md) **§2** | a **COFF weak external pair**: the target's own `EXTERNAL` record first, minted on demand at `0x10b28ce1` **because the emitter recurses into the target at `0x10b28cb9`**, then the alias at `StorageClass 0x69` with aux `{TagIndex = the default's index, Characteristics = 2}` (`0x10b28cfd`, `0x10b28cec`, `0x10b28cea`). There is a **second route** in that no alias-keyed grid can see: `[sym+0x3f] != 0` at storage kind 2 (`0x10b28c7d`) |
 | **U5** | What decides whether a symbol gets a section, a section number of 0, or no COFF record at all? | [`P_SYMBOL.md`](P_SYMBOL.md) **§3** | the storage-kind field `([sym+0x37]>>5)&0xF` at **`0x10b28be6`** — a four-way `dec`-chain. And **two suppressions**: `[sym+0x32]&1` (already written) and the 3-bit linkage field `([sym+0x37]>>0x15)&7 ∈ {1,3}` at `0x10b28bb4`/`0x10b28bbd`, which writes nothing at all |
 | **U6** | What `Type` does c2 put on a symbol? | [`P_SYMBOL.md`](P_SYMBOL.md) **§4** | `0x20` (`DTYPE_FUNCTION<<4`) iff `[sym+0x30]==3` with `+0x31 ∈ {0x54,0x55,0x56}`, or `[sym+0x30]==4` with `+0x37 & 0x400`; else `0`. `0x10b2823b`, 38 bytes, and it had **no row anywhere in the record** before 2026-08-19 |
+| **U7** | What charges c2's compiler-label counter, and is the fitted `LABEL_SEED_GAP = 9` right? | [`P_LABEL.md`](P_LABEL.md) **§2, §4** | **163 charging sites, and the population is closed** — the allocator `FUN_10b97dd0`'s VA is never taken, so its **31** direct calls plus the label constructor `FUN_10b9a455`'s **132** are all of them, and `0x10b97de5` is the sole `inc`. **But 42 of the 163 sit on loop back edges**, so `charge(TU)` is a sum over c2's object population, not a per-construct table. And **the 9 is not a constant**: `7 + 2·[/Og] + 1·[/GF ∧ a string pooled in the data phase]`, measured over 22 cells — `/Od` reads **7** and is one of the 18 graded lanes (latent, not live) |
 
 ---
 
@@ -129,6 +130,7 @@ Per-page coverage against its own band (Ghidra function entries in the span):
 | [`P_DAG.md`](P_DAG.md) | 24 + 8 tables | `dag.c` + the scheduler band | 61 |
 | [`P_INLINE.md`](P_INLINE.md) | 16 | `0x10b5b86d`–`0x10b62b00` | 93 |
 | [`P_ENCODE.md`](P_ENCODE.md) | 71 addresses / 79 arms | `0x10bf96d0`–`0x10bfae2a` (`code.c`) | 14 |
+| [`P_LABEL.md`](P_LABEL.md) | 31/31 allocator sites + 132 located | `0x10b97dd0` / `0x10b9a455` and their 163 call sites, image-wide | 163 |
 
 > **2026-08-18, lane `w-sizebracket`** — `P_INLINE.md` gained §2.1a/§2.1b/§2.1c
 > and a ⛔ correction box, and `ADDR.tsv` was regenerated: **1,209 rows, 1,141

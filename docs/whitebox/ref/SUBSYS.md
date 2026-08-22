@@ -42,6 +42,7 @@ white-box debt.** The *addresses* are Tier 2.
 | **inliner** | `inline.c` | `0x10b5b86d`–`0x10b62b00` | [`P_INLINE.md`](P_INLINE.md) | 16 / 93 |
 | **instruction encoder** (tuple → one PPC word, plus the `.text` relocation requests) | `code.c` | `0x10bf96d0`–`0x10bfae2a` | [`P_ENCODE.md`](P_ENCODE.md) | 14 / 14 |
 | **EH state synthesis** | `ehexcept.c`, `except.c` (+ the `.pdata` drivers) | `0x10be04e7`–`0x10be3800` | [`P_EH.md`](P_EH.md) | 19 / 47 |
+| **compiler-label numbering** (the `$M`/`$T`/`$L*` counter and its charges) | `p2symtab.c` (the allocator and ctor), `vlines.c` (the `$M` minter), plus 21 more files that invent labels | `0x10b97dd0`, `0x10b9a455`, `0x10b99dfe`, `0x10c21992` and 163 call sites spread image-wide | [`P_LABEL.md`](P_LABEL.md) | 163 sites / 86+25 callers |
 | **symbol records: storage class, section number, WEAK EXTERNALS** | `coff.c` (`FUN_10b28a9b`) + `coffemit.c`'s three appenders | `0x10b28a9b`–`0x10b28d6f`, `0x10b2a757` / `0x10b2a8da` / `0x10b2af4f`, `0x10b2823b` | [`P_SYMBOL.md`](P_SYMBOL.md) | 27 / 5 |
 
 ---
@@ -107,7 +108,7 @@ reference page here; `findings` means a dated `WB_*_FINDINGS.md`.
 
 | # | phase | `ref` page | findings | verdict |
 |---:|---|---|---|---|
-| 1 | **Emitter CFG classes** (`cflow-loop`, `cflow-if-n`, `cflow-if-2`) | — | the **label counter** only (`WB_LABEL_FINDINGS.md`) | **UNSERVED.** The label *numbering* is settled; **block order and branch selection are not read anywhere**. §4.1 names the next read |
+| 1 | **Emitter CFG classes** (`cflow-loop`, `cflow-if-n`, `cflow-if-2`) | **[`P_LABEL.md`](P_LABEL.md)** (the *charge* half only) | the **label counter** (`WB_LABEL_FINDINGS.md`, `WB_LABELCHARGE_FINDINGS.md`) | **STILL UNSERVED, and R3 sharpened why.** The label *charge* is now read to 163 enumerated sites; **block order and branch selection are still not read anywhere**, and a charge rule without an order rule cannot place a label. §4.1's own first target, `fg.c` `0x10b36133`, is where **eight** of the 132 label-constructor call sites live — the concrete overlap R3 hands R8 |
 | 2 | **An inliner** | [`P_INLINE.md`](P_INLINE.md) | `WB_INLINE_FINDINGS.md` | served |
 | 3 | **`memset` / selector lowering** | — | `WB_SELECT_RECONCILED.md`, `WB_TABLES_FINDINGS.md`, `WB_MEMCPY_FINDINGS.md` | served by findings; §2's row is the entry |
 | 4 | **Exception handling** | [`P_EH.md`](P_EH.md) | `WB_EH_FINDINGS.md` | served |
