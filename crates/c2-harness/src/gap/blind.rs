@@ -176,6 +176,29 @@ impl Why {
 
     /// Every value, so the report can print each one including as a zero.
     pub const ALL: [Why; 4] = [Why::NoDecode, Why::NoSelect, Why::NoCompose, Why::NoRefBytes];
+
+    /// **The per-TU `res.emit` key — ONE LOCATOR, and this exists because the
+    /// absence of it cost this lane a wrong report.**
+    ///
+    /// The bucket is filed under `fnbyte-blind-unlowerable|no-decode` (a PIPE,
+    /// like every other sharded key in this harness) and republished as the flat
+    /// metric `fnbyte-blind-unlowerable-no-decode` (a DASH, because the
+    /// `gap-metric` interface is flat). The first version of the printed block
+    /// looked the *metric* spelling up in the *per-TU* map, found nothing, and
+    /// printed `no-decode 0` on a scan whose own `gap-metric` line read 113,165.
+    ///
+    /// It failed in the direction this project fails most often — an absence
+    /// reading as a zero — and it was caught only because the two outputs of one
+    /// scan disagreed. `docs/GAPS.md` §6's rule: one fact, one locator. Both
+    /// spellings now come from here.
+    pub fn emit_key(self) -> String {
+        format!("fnbyte-blind-unlowerable|{}", self.key())
+    }
+
+    /// The flat `gap-metric` spelling of the same fact.
+    pub fn metric_key(self) -> String {
+        format!("fnbyte-blind-unlowerable-{}", self.key())
+    }
 }
 
 impl Blind {
@@ -329,9 +352,7 @@ pub(super) fn measure(
         match v {
             Blind::Unlowerable(w) => {
                 unlowerable += 1;
-                *res.emit
-                    .entry(format!("fnbyte-blind-unlowerable|{}", w.key()))
-                    .or_insert(0) += 1;
+                *res.emit.entry(w.emit_key()).or_insert(0) += 1;
             }
             Blind::Differs {
                 port_words,
@@ -491,6 +512,23 @@ mod tests {
             assert_ne!(k, "fnbyte-exact");
             assert_ne!(k, "fnbyte-differs");
             assert_ne!(k, "fnbyte-refused-parse");
+        }
+    }
+
+    /// **THE TWO SPELLINGS COME FROM ONE PLACE.** This test exists because they
+    /// did not: the printed block looked the flat `gap-metric` spelling up in
+    /// the per-TU map, found nothing, and printed `no-decode 0` on a scan whose
+    /// own machine line read 113,165 for the same fact. An absence read as a
+    /// zero, caught only because two outputs of one scan disagreed.
+    #[test]
+    fn the_per_tu_key_and_the_metric_key_agree_on_the_reason() {
+        for w in Why::ALL {
+            assert_eq!(w.emit_key(), format!("fnbyte-blind-unlowerable|{}", w.key()));
+            assert_eq!(w.metric_key(), format!("fnbyte-blind-unlowerable-{}", w.key()));
+            // The two spellings differ — that is the hazard — but they differ
+            // ONLY in the separator, so neither can drift into a new name.
+            assert_ne!(w.emit_key(), w.metric_key());
+            assert_eq!(w.emit_key().replace('|', "-"), w.metric_key());
         }
     }
 

@@ -2389,11 +2389,10 @@ impl GapReport {
             // reading of S0 turns on HOW FAR the relaxed decode got, and a lane
             // that could not tell `no-decode` from `no-select` could price
             // neither half of row 4a.
-            for w in ["no-decode", "no-select", "no-compose", "no-refbytes"] {
+            for w in super::blind::Why::ALL {
                 m.push((
-                    Box::leak(format!("fnbyte-blind-unlowerable-{w}").into_boxed_str()),
-                    self.emit_total(&format!("fnbyte-blind-unlowerable|{w}"))
-                        .to_string(),
+                    Box::leak(w.metric_key().into_boxed_str()),
+                    self.emit_total(&w.emit_key()).to_string(),
                 ));
             }
             // The forensic triple over the differing bodies. Never a credit.
