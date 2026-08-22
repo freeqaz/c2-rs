@@ -497,9 +497,37 @@ words 634,457   explained 630,548 (99.3839%)   unexplained 3,909
 relocation sites 124,700          unexplained AT a relocation site: 0
 ```
 
-The 3,909 residuals are **not disagreements**: they are words of forms this
-page did not write a mask for (primary 30 `rld*`, primary 2/3 `tdi`/`twi`,
+The 3,909 residuals are **not disagreements**: they are words of forms that
+pass did not write a mask for (primary 30 `rld*`, primary 2/3 `tdi`/`twi`,
 `mftb`). No word of a form stated above went unexplained.
+
+**Second pass, with every read form masked** — including the default arm at
+**mask 0**, which is the strongest claim available (the arm owns *no* bits):
+
+```
+words 634,457   explained 633,226 (99.8060%)   unexplained 1,231
+```
+
+**The second pass is weaker evidence than the first and must not be quoted as
+stronger.** Sixteen VMX128 forms are masked at `0x03FFFFFF` — everything below
+the primary opcode — because their scatter layout (§7.1) is per-form and this
+lane did not transcribe sixteen separate masks. A generous mask cannot fail,
+so those forms are *covered*, not *confirmed*. **The 99.38 % figure is the one
+with teeth**; 99.81 % is the coverage statement.
+
+**The residual is 1,231 words and it splits two ways:**
+
+* **1,214 of primary opcode 4** — VMX/VMX128 in DC3's Bink and audio code,
+  where even the generous mask does not reach. Unresolved, and named as such.
+* **17 × `7c2004ac` = `lwsync`** — and this one is a **finding**. c2's machine
+  table has **no `lwsync` opcode**: `sync` is `0x196` with base `7c0004ac` and
+  form 113, which routes to the default arm, and the default arm sets no
+  fields. **c2 cannot produce `7c2004ac` through this encoder at all.** The
+  only path in the table that can is `emit` (`0x290`, form 18), whose arm
+  copies an operand word verbatim (§5.6) — so `__lwsync()` reaches `.text` as
+  a **literal word**, not as an opcode. That is exactly why form 18 is
+  excluded from the mask set, and the exclusion turned a catch-all into a
+  detector.
 
 **The control was made capable of failing, and shown to be.** Four
 deliberately-broken masks:

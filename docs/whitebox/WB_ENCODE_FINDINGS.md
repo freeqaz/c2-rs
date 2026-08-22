@@ -180,6 +180,20 @@ matching any base word.
 The 3,909 residuals are all words of forms with no mask written (`rld*`,
 `tdi`/`twi`, `mftb`) — a coverage statement, not a disagreement.
 
+**A second pass with every read form masked reaches 633,226 / 634,457 =
+99.8060 %, and it is the WEAKER number.** Sixteen VMX128 forms are masked at
+`0x03FFFFFF` there because their scatter layout is per-form and this lane did
+not transcribe sixteen masks; a generous mask cannot fail, so those forms are
+covered rather than confirmed. **99.38 % is the figure with teeth.** The
+second pass is still worth having for one residual it isolates: **17 words of
+`7c2004ac` (`lwsync`), which c2's table cannot encode at all** — there is no
+`lwsync` opcode, `sync` (`0x196`) has base `7c0004ac` and routes to the
+field-less default — so `__lwsync()` must reach `.text` through `emit`
+(`0x290`), the arm that copies an operand word verbatim. Excluding `emit`
+from the mask set to stop it being a catch-all is what made it a detector.
+The other 1,214 residuals are primary-opcode-4 VMX/VMX128 words in DC3's Bink
+and audio code and are **unresolved**.
+
 **Four deliberately-broken readings, to show the test can fail:**
 `D` field 16→12 bits **91.40 %**; `RB` 5→4 bits **92.32 %**; drop the `RA`
 field **73.49 %**; `SPR` unsplit **95.66 %** — against 99.38 % as read.
