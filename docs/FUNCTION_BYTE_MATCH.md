@@ -30,6 +30,48 @@ Structurally, exactly as the progress mass is separated:
 * **It is unrepresentable over an empty scan** — `NO-RESULT`, no key, never
   100 % over zero functions.
 
+> ### ✔ 2026-08-22 — **THE OWNER ASKED WHETHER THE JUDGE CAN CARRY A SLIDING SCORE. THE ANSWER IS NO, AND THIS SECTION IS WHY — IT IS NOW THE STANDING TEMPLATE FOR EVERY GRADIENT.**
+> *`docs/WHITEBOX_LEVERAGE_2026-08-21.md` §5(a)/(b), on the owner's question,
+> the same day as the goal re-ranking (`GOAL_DECISION_2026-08-21.md` §
+> "AMENDED"). Propagated by lane `w-readdocs`; **nothing on this page is
+> edited, re-scored or withdrawn**.*
+>
+> The three layers have different rules and conflating them is the failure this
+> section exists to prevent:
+>
+> * **The GATE stays binary, and that is load-bearing.** A 90 %-matching obj
+>   *shipped* is a wrong emit, and a wrong emit scores strictly below the
+>   refusal it replaced ([`PROGRESS_METRIC.md`](PROGRESS_METRIC.md) §5.2). The
+>   2,490-wrong-function measurement (board **#3363**) is what that rule
+>   protects against. Nothing in the goal re-ranking relaxes it.
+> * **The sliding score already exists — as an instrument, on this page.** FBM
+>   is it, under §0's rule. The owner's question is answered by the wall, not
+>   by moving it.
+> * **§0 is the TEMPLATE.** Every gradient added after FBM adopts these five
+>   properties verbatim — never in `gate.sh`, its own block under its own
+>   disclaimer, namespaced keys, licenses no emit, `NO-RESULT` over an empty
+>   scan. Two extensions are on the books: **S0 (blind reach)**, which would
+>   extend the gradient to the 113,565 parse-refused functions this instrument
+>   cannot attempt (`ROADMAP_SLICING_2026-08-21.md` §5), and **the one below,
+>   which is not a plan but a shipped instrument.**
+>
+> **The third gradient already exists and this page never linked it.**
+> [`DIFF_STRUCTURE.md`](DIFF_STRUCTURE.md) / `crates/c2-harness/src/gap/fndiff.rs`
+> extends the gradient *inside* each `fnbyte-differs` body: word-granular LCS
+> alignment, per-substitution decoded-field classification under a
+> re-encode-or-refuse decode rule, a pure-reordering bit, and relocation-site
+> awareness. It runs unconditionally on the `differs` path
+> (`gap/fnbytes.rs:2569`) and prints on **every** scan (`gap/render.rs:1295+`),
+> and it obeys §0's rule in its own words: *"Nothing here reaches a numerator,
+> appears in an accept/refuse path, or grades the port."* **Read it with its
+> two traps**: its 3,195 population is at tree `0c8a185` where this tree reads
+> `fnbyte-differs` **1,960** + `fnbyte-reloc-differs` **530**, and its own ⚠
+> banner marks §3.2 and one row of §4 **REFUTED** by `w-drop3`'s relocation
+> reading (#984–#989). **A planning doc proposed building it from scratch on
+> 2026-08-21 at 1–2 wk** — board **#3369**, and the reason it is recorded here
+> is that the same doc's proposed classification is *refuted* by this
+> instrument's own output.
+
 ## 1. The question it answers
 
 `docs/STATUS.md`'s headline is **TU match**, currently **8 of 878**. A TU
