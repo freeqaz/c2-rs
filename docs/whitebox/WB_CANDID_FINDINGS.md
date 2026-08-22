@@ -317,7 +317,19 @@ DIFFERENT. Had it not, the green would have been discarded as an instrument
 failure, not published — `STATUS.md`'s standing trap that `mismatch 0` is not
 evidence of correctness.
 
-**C1b, the sharper half.** Fillers `F0 … F(N-1)` are **character-identical
+**C1b, the sharper half — and its tier is lower, which is said here rather than
+left to be noticed.** `WB_CANDID_PREREG.md` §6 registered C1 and C1-pos, and it
+registered the *reasoning* C1b rests on (§6.2: the discrimination only exists
+once `N` carries the ids across the 1024 boundary). It did **not** register the
+identical-filler comparison itself — that was designed **after** C1 came back
+green, because C1 alone was too weak to be worth publishing. So C1b is
+**IN-FLIGHT at best, not PREREG**: it is a real test that could have gone red,
+run on an instrument whose positive control was already live, but it was not
+committed before it was conceived. `PREREG.md`'s rule is that tiers are
+reported separately and never pooled; pooling C1b into C1's tier would inflate
+exactly the thing that scheme exists to protect.
+
+Fillers `F0 … F(N-1)` are **character-identical
 bodies** distinguished only by name, each carrying ten simultaneously-live
 values across a loop. Under function-scoping every `Fi` must equal `F0`; under
 a compilation-global counter `Fi`'s ids are shifted by ≈`i·k` and wrap the
