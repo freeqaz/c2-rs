@@ -128,6 +128,7 @@ Per-page coverage against its own band (Ghidra function entries in the span):
 | [`P_REGALLOC.md`](P_REGALLOC.md) | 18 + 15 data | `0x10b2c21d`–`0x10b3219f` | 70 |
 | [`P_DAG.md`](P_DAG.md) | 24 + 8 tables | `dag.c` + the scheduler band | 61 |
 | [`P_INLINE.md`](P_INLINE.md) | 16 | `0x10b5b86d`–`0x10b62b00` | 93 |
+| [`P_ENCODE.md`](P_ENCODE.md) | 71 addresses / 79 arms | `0x10bf96d0`–`0x10bfae2a` (`code.c`) | 14 |
 
 > **2026-08-18, lane `w-sizebracket`** — `P_INLINE.md` gained §2.1a/§2.1b/§2.1c
 > and a ⛔ correction box, and `ADDR.tsv` was regenerated: **1,209 rows, 1,141

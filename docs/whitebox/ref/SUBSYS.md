@@ -40,6 +40,7 @@ white-box debt.** The *addresses* are Tier 2.
 | **register allocator** | `color.c` (+ `globregs.c`, `regasg.c`) | `0x10b2c21d`–`0x10b3219f` | [`P_REGALLOC.md`](P_REGALLOC.md) | 33 / 70 |
 | **DAG build + scheduler** | `dag.c`, **and an unnamed TU with no ICE site** | `0x10b3219f`–`0x10b3433f`, `0x10be5cce`–`0x10be663f` | [`P_DAG.md`](P_DAG.md) | 32 / 61 |
 | **inliner** | `inline.c` | `0x10b5b86d`–`0x10b62b00` | [`P_INLINE.md`](P_INLINE.md) | 16 / 93 |
+| **instruction encoder** (tuple → one PPC word, plus the `.text` relocation requests) | `code.c` | `0x10bf96d0`–`0x10bfae2a` | [`P_ENCODE.md`](P_ENCODE.md) | 14 / 14 |
 | **EH state synthesis** | `ehexcept.c`, `except.c` (+ the `.pdata` drivers) | `0x10be04e7`–`0x10be3800` | [`P_EH.md`](P_EH.md) | 19 / 47 |
 | **symbol records: storage class, section number, WEAK EXTERNALS** | `coff.c` (`FUN_10b28a9b`) + `coffemit.c`'s three appenders | `0x10b28a9b`–`0x10b28d6f`, `0x10b2a757` / `0x10b2a8da` / `0x10b2af4f`, `0x10b2823b` | [`P_SYMBOL.md`](P_SYMBOL.md) | 27 / 5 |
 
