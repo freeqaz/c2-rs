@@ -122,7 +122,14 @@ design** — which is Phase 0's own purpose stated as a dispatch criterion.
 **What this does NOT decide.** Rows **4a**/**4b** are still not approved —
 Phase 0 exists to price them on evidence, and one of its registered outcomes
 (*S1's delta holds but workload `fnbyte-exact 35,894` moves*) voids the
-pricing basis and should stop the program. Step 5's NO-GO clauses (a)–(c)
+pricing basis and should stop the program.
+**Re-anchored at the w-s0 merge (#3396): the 35,894 was stale** — the
+workload tree moved to `e5aef017d456`, where the base reads
+**`fnbyte-exact 35,891`** (measured by w-s0 at `9b9530791`). The stop
+condition binds against **the S1 lane's own base-tree measurement with its
+workload stamp recorded beside it**, never against a filed snapshot — as
+written above it would have false-triggered a program stop on a
+workload-tree difference. Step 5's NO-GO clauses (a)–(c)
 stand. Nothing here re-prices anything, and the byte judge is untouched.
 
 **The evidence the choice was made on** (discharging the coordinator's

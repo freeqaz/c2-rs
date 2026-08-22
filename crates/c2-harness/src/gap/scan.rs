@@ -926,6 +926,38 @@ fn scan_one(
         //         does not match; `fnbyte-exact` is the oracle's own predicate,
         //         applied to a unit the port can actually answer for.
         super::fnbytes::measure(&mut res, &census, &captured.ref_obj);
+        // 1e'''''. **BLIND REACH (lane w-s0, `super::blind`) — S0 of
+        //          `ROADMAP_SLICING_2026-08-21.md` §5's Phase 0.** FBM grades the
+        //          functions the reader ACCEPTED; this grades the ones it
+        //          REFUSED, which `factors.rs:267` calls "the unmeasurable
+        //          half". It builds a candidate body from a relaxed decode, runs
+        //          the one composition, and byte-compares against real c2's own
+        //          COMDAT.
+        //
+        //          Additive only, `fnbyte-blind-` keys only, and it obeys FBM
+        //          §0's separation rule verbatim: never in `gate.sh`, its own
+        //          block, namespaced, **licenses no emit**, `NO-RESULT` over an
+        //          empty scan.
+        //
+        //          The relaxed census is a SECOND pass over the same bundle at
+        //          the same segmentation, so row `i` is the same function in
+        //          both — checked (`fnbyte-blind-census-desync`, known answer 0)
+        //          rather than assumed. At level 0 the two passes are pinned
+        //          equal by `c2_il`'s `strict_relax_is_the_incumbent_census`, so
+        //          the instrument is its own identity control.
+        let blind_level = super::blind::level_from_env();
+        if let Some(relaxed) = captured
+            .bundle
+            .census_functions_relaxed(c2_il::Relax::level(blind_level))
+        {
+            super::blind::measure(
+                &mut res,
+                &census,
+                &relaxed,
+                &captured.ref_obj,
+                blind_level,
+            );
+        }
         // 1e'. SCRATCH INSTRUMENT (W-ADJUST, boards #127/#128) — see [`row_dump`].
         //      Off unless `C2RS_ROW_DUMP` is set; changes no count either way.
         row_dump(

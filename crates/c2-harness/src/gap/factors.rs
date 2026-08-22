@@ -2351,6 +2351,91 @@ impl GapReport {
                 self.fn_byte_differ_witnesses().len().to_string(),
             ));
         }
+        // ---- BLIND REACH (S0, lane `w-s0`, `super::blind`) --------------------
+        //
+        // The gradient over the functions the READER refused — the population
+        // `fnbyte-refused-parse` counts and `Factors::reader`'s doc above calls
+        // "**The unmeasurable half**". It is measurable now.
+        //
+        // **Emitted UNCONDITIONALLY and OUTSIDE the `if` above**, unlike the FBM
+        // block, and the difference is deliberate: FBM's keys are conditional on
+        // its own factor being computable, and a blind block that inherited that
+        // condition could go silent for a reason that has nothing to do with
+        // blind. Every key below prints on every scan **including as a zero**,
+        // because an absent row reading as "nothing to see" is this project's
+        // most-repeated defect.
+        //
+        // **`fnbyte-blind-attempted` is the denominator of every one of them**
+        // and is printed first. A scan whose `attempted` is 0 graded NOTHING;
+        // that is a loud failure for any lane quoting these numbers, and it is
+        // never "`blind-differs` 0". No ratio is published here at all — the
+        // counts and their denominator are, so a reader cannot receive a
+        // percentage without the population that produced it.
+        //
+        // Nothing in this block reaches a numerator that grades the port, enters
+        // an accept/refuse path, or appears in `scripts/gate.sh`
+        // (`docs/FUNCTION_BYTE_MATCH.md` §0, the standing template for every
+        // gradient added after FBM).
+        {
+            let attempted = self.emit_total("fnbyte-blind-attempted");
+            let exact = self.emit_total("fnbyte-blind-exact");
+            let differs = self.emit_total("fnbyte-blind-differs");
+            let unlowerable = self.emit_total("fnbyte-blind-unlowerable");
+            m.push(("fnbyte-blind-attempted", attempted.to_string()));
+            m.push(("fnbyte-blind-exact", exact.to_string()));
+            m.push(("fnbyte-blind-differs", differs.to_string()));
+            m.push(("fnbyte-blind-unlowerable", unlowerable.to_string()));
+            // The stage that refused, every reason printed including zeros — the
+            // reading of S0 turns on HOW FAR the relaxed decode got, and a lane
+            // that could not tell `no-decode` from `no-select` could price
+            // neither half of row 4a.
+            for w in super::blind::Why::ALL {
+                m.push((
+                    Box::leak(w.metric_key().into_boxed_str()),
+                    self.emit_total(&w.emit_key()).to_string(),
+                ));
+            }
+            // The forensic triple over the differing bodies. Never a credit.
+            for k in [
+                "fnbyte-blind-differs-port-words",
+                "fnbyte-blind-differs-ref-words",
+                "fnbyte-blind-differs-equal-words",
+            ] {
+                m.push((k, self.emit_total(k).to_string()));
+            }
+            // **The three controls, each a DEFECT count with a known answer of
+            // 0.** They are recomputed here from the published totals as well as
+            // being filed per TU, so a control that stopped being written at the
+            // walk would still be visible as a missing row rather than as
+            // agreement.
+            m.push((
+                "fnbyte-blind-partition-broken",
+                ((exact + differs + unlowerable != attempted) as usize
+                    + self.emit_total("fnbyte-blind-partition-broken"))
+                .to_string(),
+            ));
+            let rparse = self.emit_total("fnbyte-refused-parse");
+            m.push((
+                "fnbyte-blind-population-broken",
+                ((attempted != rparse) as usize
+                    + self.emit_total("fnbyte-blind-population-broken"))
+                .to_string(),
+            ));
+            m.push((
+                "fnbyte-blind-census-desync",
+                self.emit_total("fnbyte-blind-census-desync").to_string(),
+            ));
+            // The ladder depth these numbers were taken at, so two scans at two
+            // depths cannot be summed without the sum being visible.
+            for lvl in 0..c2_il::Relax::LEVELS {
+                let name = c2_il::Relax::level(lvl).name();
+                m.push((
+                    Box::leak(format!("fnbyte-blind-level-{name}").into_boxed_str()),
+                    self.emit_total(&format!("fnbyte-blind-level|{name}"))
+                        .to_string(),
+                ));
+            }
+        }
         // **THE BYTE-FRACTION RANKER** (board #500) and its control (#501).
         //
         // The head is emitted as three keys — name, numerator, denominator —

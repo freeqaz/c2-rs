@@ -69,6 +69,71 @@ impl FnVerdict {
     }
 }
 
+/// The placeholder a relaxed callee resolution supplies. Deliberately not a
+/// valid MSVC mangled name: it must never bind to anything, in any obj, ever.
+pub const BLIND_PLACEHOLDER_CALLEE: &str = "$blind$callee";
+
+/// The placeholder a relaxed DATA resolution supplies. Same contract.
+pub const BLIND_PLACEHOLDER_DATA: &str = "$blind$data";
+
+/// **A named, enumerable relaxation level for [`IlBundle::census_functions_relaxed`].**
+///
+/// `docs/GOAL_DECISION_2026-08-21.md` § "AMENDED" and
+/// `docs/ROADMAP_SLICING_2026-08-21.md` §6 rule 7: a general layer ships its
+/// arbitrary choices as **named, settable parameters whose default reproduces
+/// c2 byte-exactly**, never as baked constants. The default here is
+/// [`Relax::STRICT`], which is the incumbent census exactly.
+///
+/// It is a struct of independent switches rather than an integer scale, because
+/// an integer scale cannot say *which* gate a measurement crossed — and the one
+/// thing the blind-reach instrument must be able to report is which refusal
+/// classes its reached sub-population contains. [`Relax::level`] names the
+/// ladder the instrument ships; the switches stay separable so a future reading
+/// can cross them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct Relax {
+    /// Supply a placeholder when a callee / data symbol does not resolve through
+    /// `.gl`, so a body blocked only on a NAME still reaches the composition.
+    /// **Bytes only** — see the seam comment in `census_functions_relaxed`.
+    pub sym_names: bool,
+}
+
+impl Relax {
+    /// The incumbent. `census_functions()` is `census_functions_relaxed(STRICT)`
+    /// and the two are pinned equal by a unit test.
+    pub const STRICT: Relax = Relax { sym_names: false };
+
+    /// The ladder the blind-reach instrument ships, by depth.
+    ///
+    /// | level | name | relaxes |
+    /// |---:|---|---|
+    /// | 0 | `strict` | nothing — the identity control |
+    /// | 1 | `name-from-gl` | the post-parse symbol-resolution gates |
+    ///
+    /// Any level above the last defined one saturates at the last, so a caller
+    /// cannot silently select a relaxation that does not exist.
+    pub fn level(n: u32) -> Relax {
+        match n {
+            0 => Relax::STRICT,
+            _ => Relax { sym_names: true },
+        }
+    }
+
+    /// The number of ladder levels, so a report can print every one of them
+    /// whether or not it fired. An absent row reading as "nothing to see" is
+    /// this project's most-repeated defect.
+    pub const LEVELS: u32 = 2;
+
+    /// This level's name, for the printed report and the metric key.
+    pub fn name(self) -> &'static str {
+        if self.sym_names {
+            "name-from-gl"
+        } else {
+            "strict"
+        }
+    }
+}
+
 /// One census row: a function segment and how it classified.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FnCensus {
@@ -660,6 +725,44 @@ impl IlBundle {
     /// Diagnostic only, exactly like the census: acceptance is unchanged and the
     /// emitter never consults it.
     pub fn census_functions(&self) -> Option<Vec<(FnCensus, Result<IlFunction, &'static str>)>> {
+        self.census_functions_relaxed(Relax::STRICT)
+    }
+
+    /// **[`Self::census_functions`] under a named RELAXATION LEVEL — the engine
+    /// of the blind-reach instrument (`docs/ROADMAP_SLICING_2026-08-21.md` §5
+    /// row S0).**
+    ///
+    /// `census_functions()` is exactly this at [`Relax::STRICT`], and that is
+    /// checked by a unit test rather than asserted here
+    /// ([`strict_relax_is_the_incumbent_census`]) — **the shared predicate is
+    /// WIDENED to serve a second consumer, never narrowed or redefined.** Every
+    /// existing reader keeps calling `census_functions()` and gets the identical
+    /// answer, byte for byte.
+    ///
+    /// # What a relaxation may and may not be
+    ///
+    /// `select_function` is **never called** for a parse-refused function, so
+    /// the port's apparent lowering success rate is measured against its own
+    /// admission gate (`ROADMAP_SLICING_2026-08-21.md` §4 — the riskiest
+    /// assumption nothing in the tree has ever measured). A relaxation exists to
+    /// ask *"what would the existing lowering do behind a wider decode"*, and it
+    /// is therefore allowed to drop an **admission** gate. It is **not** allowed
+    /// to invent a construct: no relaxation here widens the operand vocabulary,
+    /// and the ten constructs of §3 (`off-add`, `intrinsic`, `bind`,
+    /// `load-type`, …) are Phase-1 slices C1–C10 and are not reachable from this
+    /// parameter.
+    ///
+    /// # It licenses no emit, ever
+    ///
+    /// A relaxed row is an INSTRUMENT state. Nothing in `crates/c2-core`'s emit
+    /// path calls this, `IlBundle::functions` does not consult it, and a body
+    /// produced here has never been graded by the differential. `docs/
+    /// FUNCTION_BYTE_MATCH.md` §0's separation rule governs everything derived
+    /// from it.
+    pub fn census_functions_relaxed(
+        &self,
+        relax: Relax,
+    ) -> Option<Vec<(FnCensus, Result<IlFunction, &'static str>)>> {
         let gl = self.get("gl")?;
         let ex = self.ex()?;
         let (seg_starts, segs) = split_function_bodies_at(ex);
@@ -698,8 +801,46 @@ impl IlBundle {
             &segs,
             &seg_starts,
         );
-        let resolve = |tok: u32| -> Option<String> { bind.resolve(tok) };
-        let resolve_data = |tok: u32| -> Option<String> { bind.resolve_data(tok) };
+        // ---- THE RELAXATION SEAM, and the whole of it -----------------------
+        //
+        // `Relax::sym_names` supplies a PLACEHOLDER when a `.gl` lookup fails,
+        // so a body whose whole-segment grammar was accepted and which was
+        // blocked *only* because a callee or data symbol did not resolve still
+        // reaches `shape_to_function`, `select_function` and the one composition.
+        //
+        // **This changes no instruction byte, and that is why it is sound.**
+        // Under `/Gy` every function starts at offset 0 of its own section and a
+        // call word carries a placeholder displacement, so the callee's identity
+        // lives in the RELOCATION RECORD and not in the instruction word (lane
+        // `w-drop3`, boards #984-#989; `gap::fnbytes::port_call_targets`'s doc
+        // says the same thing from the other side). A data symbol's address is
+        // an `addis`/`addi` pair whose two immediates are 0 until the linker
+        // fills them, and the name likewise lives in the REFHI/REFLO records.
+        //
+        // The consequence is stated where it can be read rather than left to be
+        // inferred: **anything derived from a relaxed row grades BYTES ONLY and
+        // may not publish a relocation verdict**, because the relocation would
+        // be against a name this seam invented. `gap::blind` prints that
+        // disclaimer on every scan.
+        //
+        // The placeholders are deliberately not valid mangled names and are
+        // deliberately identical across all sites: they must never bind to
+        // anything, and two sites sharing one name cannot be told apart by a
+        // downstream reader that was only ever entitled to the byte compare.
+        let resolve = |tok: u32| -> Option<String> {
+            bind.resolve(tok).or_else(|| {
+                relax
+                    .sym_names
+                    .then(|| BLIND_PLACEHOLDER_CALLEE.to_string())
+            })
+        };
+        let resolve_data = |tok: u32| -> Option<String> {
+            bind.resolve_data(tok).or_else(|| {
+                relax
+                    .sym_names
+                    .then(|| BLIND_PLACEHOLDER_DATA.to_string())
+            })
+        };
         // **W-DATA** — the same DEFINED-object resolver `IlBundle::functions`
         // builds, from the same `Bindings`. The census and the gate must ask one
         // question about an object or the census over-claims (`docs/GAPS.md` §6).
@@ -1720,6 +1861,80 @@ mod tests {
             panic!("expected a block");
         };
         assert_eq!(census[1].hex[census[1].hex_mark], b.byte.unwrap());
+    }
+
+    /// **THE SHARED-PREDICATE PIN (lane `w-s0`).** `census_functions()` is
+    /// `census_functions_relaxed(Relax::STRICT)` and the two answers are equal,
+    /// row for row, field for field, `IlFunction` for `IlFunction`.
+    ///
+    /// This test is the whole warrant for having widened the census's signature
+    /// at all. `docs/GAPS.md` §6's rule and this repo's most expensive failure
+    /// family are the same thing: a shared predicate acquiring a second consumer
+    /// and quietly changing its answer for the first one. A clean textual merge
+    /// is not evidence of that not happening — an equality is.
+    ///
+    /// Asserted on a fixture that contains **both** an accepted row and a
+    /// refused one, because an equality over accepted rows alone would pass on a
+    /// relaxation that fires only on refusals, which is precisely the relaxation
+    /// this parameter adds.
+    #[test]
+    fn strict_relax_is_the_incumbent_census() {
+        let mut ex: Vec<u8> = Vec::new();
+        ex.extend_from_slice(&seg_head());
+        ex.extend_from_slice(MVP_CALL);
+        ex.extend_from_slice(&seg_head());
+        ex.extend_from_slice(CALL_THEN_STMT);
+        let bundle = crate::IlBundle {
+            base_name: "t".into(),
+            files: vec![("ex".to_string(), ex), ("gl".to_string(), gl_two_records())]
+                .into_iter()
+                .collect(),
+        };
+        let incumbent = bundle.census_functions().expect("census");
+        let strict = bundle
+            .census_functions_relaxed(Relax::STRICT)
+            .expect("census");
+        // A positive check, never an absence: the population must be non-empty
+        // and must contain one of each kind, or the equality below is vacuous.
+        assert_eq!(incumbent.len(), 2, "fixture must produce two rows");
+        assert!(
+            incumbent.iter().any(|(c, _)| c.verdict.in_class()),
+            "fixture must contain an ACCEPTED row"
+        );
+        assert!(
+            incumbent.iter().any(|(c, _)| !c.verdict.in_class()),
+            "fixture must contain a REFUSED row — the equality is vacuous without one"
+        );
+        assert_eq!(incumbent, strict, "STRICT must BE the incumbent census");
+        // …and `Relax::level(0)` is that same value, so the ladder's own zero
+        // rung cannot drift away from the constant the rest of the tree pins.
+        assert_eq!(Relax::level(0), Relax::STRICT);
+        assert_eq!(Relax::STRICT.name(), "strict");
+        // The ladder saturates rather than silently selecting nothing.
+        assert_eq!(Relax::level(1), Relax::level(99));
+        assert_eq!(Relax::level(1).name(), "name-from-gl");
+    }
+
+    /// **The relaxation must be able to CHANGE an answer, or it is not a
+    /// relaxation.** The pin above proves `STRICT` is inert; on its own that is
+    /// equally consistent with the parameter being wired to nothing at all —
+    /// which is the shape of eight instruments on this project that reported
+    /// green from an absence.
+    ///
+    /// So this is the *other* side: at level 1 the placeholder resolvers are
+    /// live, and their contract is asserted directly.
+    #[test]
+    fn the_relaxation_is_actually_wired_to_something() {
+        assert!(!Relax::STRICT.sym_names);
+        assert!(Relax::level(1).sym_names);
+        // The placeholders must never bind to anything in any obj. A valid MSVC
+        // mangled name starts with `?`; these deliberately do not, so a
+        // relocation against one could only ever fail loudly.
+        for p in [BLIND_PLACEHOLDER_CALLEE, BLIND_PLACEHOLDER_DATA] {
+            assert!(!p.starts_with('?'), "{p} must not be a valid mangled name");
+            assert!(p.starts_with("$blind$"), "{p} must be self-identifying");
+        }
+        assert_ne!(BLIND_PLACEHOLDER_CALLEE, BLIND_PLACEHOLDER_DATA);
     }
 
     /// **The control group for the control-flow axis.** Every shape the port

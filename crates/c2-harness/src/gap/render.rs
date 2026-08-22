@@ -1401,6 +1401,141 @@ pub(super) fn print_factorization(report: &GapReport) {
             );
         }
     }
+    // **BLIND REACH (S0) — the same judge again, on the half FBM cannot reach.**
+    //
+    // Printed in ITS OWN BLOCK under ITS OWN DISCLAIMER, apart from the class
+    // table that carries `match`/`mismatch`, because
+    // `docs/FUNCTION_BYTE_MATCH.md` §0 is the standing template for every
+    // gradient added after FBM and this is one. It is never in `scripts/gate.sh`
+    // and it licenses no emit.
+    {
+        let g = |k: &str| report.emit_total(k);
+        let attempted = g("fnbyte-blind-attempted");
+        if attempted == 0 {
+            // **NO-RESULT, never "0 differs".** A blind block that printed
+            // zeros over an empty population would read as "nothing wrong here",
+            // which is the exact shape of the twelve-plus absence-as-success
+            // defects in this tree's history.
+            println!(
+                "\n\x20 BLIND REACH (S0): NO-RESULT — the relaxed decode was offered NO \
+                 parse-refused function.\n\
+                 \x20   Nothing was graded. This is not `blind-differs 0`; a lane quoting a \
+                 blind number off this scan has no number."
+            );
+        } else {
+            let level = if g("fnbyte-blind-level|name-from-gl") > 0 {
+                "1 (name-from-gl)"
+            } else {
+                "0 (strict — THE IDENTITY CONTROL; the relaxed decode IS the strict decode here)"
+            };
+            let (exact, differs, unlow) = (
+                g("fnbyte-blind-exact"),
+                g("fnbyte-blind-differs"),
+                g("fnbyte-blind-unlowerable"),
+            );
+            let reached = exact + differs;
+            let pct = |n: usize| 100.0 * n as f64 / attempted as f64;
+            println!(
+                "\n\x20 BLIND REACH (S0) — a CHARACTERIZATION instrument, NEVER a gate, and it \
+                 LICENSES NO EMIT.\n\
+                 \x20   (docs/ROADMAP_SLICING_2026-08-21.md §5 row S0; separation rule \
+                 docs/FUNCTION_BYTE_MATCH.md §0.)\n\
+                 \x20   FBM grades the functions the reader ACCEPTED. This grades the ones it \
+                 REFUSED — `fnbyte-refused-parse`,\n\
+                 \x20   the population this harness's own factors doc calls \"the unmeasurable \
+                 half\". A candidate body from a\n\
+                 \x20   RELAXED DECODE, through the ONE composition, byte-compared against real \
+                 c2's own COMDAT bytes.\n\
+                 \x20   It answers: is the port's byte-exactness a MODEL, or a FIT? \
+                 (§4, the riskiest assumption in the program.)\n\
+                 \x20\n\
+                 \x20   ** BYTES ONLY. NO RELOCATION VERDICT IS PUBLISHED HERE. ** A relaxed \
+                 body may carry a placeholder\n\
+                 \x20   symbol, so its relocations would be against a name this instrument \
+                 invented. `fnbyte-blind-exact`\n\
+                 \x20   is therefore NOT `fnbyte-exact` (which requires byte AND relocation \
+                 identity) and the two MUST NOT be summed.\n\
+                 \x20\n\
+                 \x20   ladder depth: {level}\n\
+                 \x20   attempted   {attempted:>8}   THE DENOMINATOR of every line below — the \
+                 parse-refused functions offered to the relaxed decode\n\
+                 \x20     exact     {exact:>8}  ({:>5.2}%)   relaxed body composed and its bytes \
+                 are IDENTICAL to c2's — the catalogue reached past its own admission gate\n\
+                 \x20     differs   {differs:>8}  ({:>5.2}%)   complete bytes, and they differ — \
+                 A DIRECT PRICE on the wrong emits the next `functions()` widening would ship\n\
+                 \x20     unlower.  {unlow:>8}  ({:>5.2}%)   no bytes at all\n\
+                 \x20       no-decode   {:>8}   the relaxed decode produced nothing. The bucket \
+                 §3's ten constructs (C1-C10) would move; NOT a lowering result\n\
+                 \x20       no-select   {:>8}   decoded, and `select_function` declined — the \
+                 catalogue has no shape for it\n\
+                 \x20       no-compose  {:>8}   selected, and the /Gy composition declined\n\
+                 \x20       no-refbytes {:>8}   the REFERENCE COMDAT carried no readable bytes\n\
+                 \x20   REACH = {reached} of {attempted} ({:.3}%) — the sub-population the \
+                 relaxed decode actually delivered to the lowering.\n\
+                 \x20   Read `exact` and `differs` against REACH, never against `attempted`: \
+                 outside the reach the lowering was never asked.\n\
+                 \x20   differing bodies, word census: port {} · ref {} · EQUAL {} \
+                 (equal-words 0 over a nonzero differs means not one word agreed anywhere)\n\
+                 \x20   CONTROLS, each a DEFECT count with a known answer of 0 — partition \
+                 {} · population {} · census-desync {}\n\
+                 \x20     population compares `attempted` against the sibling FBM walk's \
+                 `fnbyte-refused-parse` ({}), in the same iteration that filed it.",
+                pct(exact),
+                pct(differs),
+                pct(unlow),
+                g("fnbyte-blind-unlowerable|no-decode"),
+                g("fnbyte-blind-unlowerable|no-select"),
+                g("fnbyte-blind-unlowerable|no-compose"),
+                g("fnbyte-blind-unlowerable|no-refbytes"),
+                100.0 * reached as f64 / attempted as f64,
+                g("fnbyte-blind-differs-port-words"),
+                g("fnbyte-blind-differs-ref-words"),
+                g("fnbyte-blind-differs-equal-words"),
+                g("fnbyte-blind-partition-broken"),
+                g("fnbyte-blind-population-broken"),
+                g("fnbyte-blind-census-desync"),
+                g("fnbyte-refused-parse"),
+            );
+            // **WHICH REFUSAL CLASSES THE REACHED SUB-POPULATION CONTAINS — and
+            // which it does not.** Without this the block above is exactly the
+            // artefact `ranking instruments measure themselves` warns about:
+            // "the lowering generalises" is unreadable unless you know which
+            // gate it generalised past, and a frozen holdout is only as good as
+            // the classes it happens to contain. Printed for BOTH sides, because
+            // the two-sided price is per-class or it is not actionable.
+            for (label, prefix) in [
+                ("exact", "fnbyte-blind-exact|"),
+                ("differs", "fnbyte-blind-differs|"),
+            ] {
+                let mut by_class: std::collections::BTreeMap<&str, usize> = Default::default();
+                for r in &report.results {
+                    for (k, n) in &r.emit {
+                        if let Some(cls) = k.strip_prefix(prefix) {
+                            *by_class.entry(cls).or_default() += n;
+                        }
+                    }
+                }
+                let mut rows: Vec<_> = by_class.into_iter().collect();
+                rows.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
+                let total: usize = rows.iter().map(|(_, n)| n).sum();
+                println!(
+                    "\x20   blind-{label} by the STRICT reader's refusal class \
+                     ({} distinct, {total} functions) — the reach is only as good as the \
+                     classes it contains:",
+                    rows.len()
+                );
+                if rows.is_empty() {
+                    println!("\x20     (none)");
+                }
+                for (cls, n) in rows.iter().take(12) {
+                    println!("\x20     {n:>6}  {cls}");
+                }
+                if rows.len() > 12 {
+                    println!("\x20     … and {} more distinct classes", rows.len() - 12);
+                }
+            }
+        }
+    }
     // ---- W-FENCECOUNT: the per-fence hold-out counter -----------------------
     //
     // The instrument the two-sided fence-pricing rule (CLAUDE.md) needs on the
