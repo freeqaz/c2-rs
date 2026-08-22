@@ -178,9 +178,44 @@ The pre-#1388 compat arm (`objpath` line absent ⇒ serve anyway) is **retired**
 after a hard invalidation it has provably zero members, so it was dead code that
 read as a tested branch. A format bump is the one moment retiring it is free.
 
-**No byte-win is claimed.** btrfs inlines sub-`max_inline` files, so five ~1 KB
-streams may be inlined today while one ~6 KB blob gets its own extent. The inode
-win is unambiguous; the byte effect wants measuring, not predicting.
+**No byte-win is claimed, and the attempt to measure one is recorded here
+because it nearly produced two contradictory published numbers.**
+
+The inode win is direct and unambiguous: sampled live at both roots, v1 entries
+hold 8 files (median) and v2 entries hold exactly `entry.bin` + `out.obj`, so
+9 inodes become 3. `c2rs cache stat` also reads `strays: 0` at the new root
+after a killed gate run, i.e. the write-then-rename left nothing behind.
+
+The byte question is **open, and not answerable with the tools available
+unprivileged.** Three readings, in the order they were taken:
+
+| metric, per entry | v1 legacy | v2 new |
+|---|---|---|
+| apparent (`st_size`) | 7,247 B | 9,021 B |
+| `st_blocks` × 512 | 33,636 B | 13,934 B |
+
+Read against `[C1]`'s ~3.7 KB/entry (17 GiB returned over ~4.87 M entries) the
+v2 figure looks like a **3.8× regression**; read against the v1 column measured
+the same way on the same filesystem it looks like a **2.4× win**. Both are
+artifacts:
+
+- **`/home` is `compress=zstd:3`.** `st_blocks` does not report post-compression
+  occupancy, which is why `st_blocks` × 4.87 M predicts ~164 GB where `[C1]`
+  measured ~17 GiB actually returned — the same order-of-magnitude
+  over-prediction `[C1]` exists to warn about, arrived at by a different route.
+- **The two samples are different populations.** The v2 root held only the sweep
+  corpus plus a partial cross when sampled; the v1 root is a 22.5 M mixed tree
+  of 107 generations. Nothing pairs an entry in one with an entry in the other,
+  because `cache-root` is in the key by construction.
+- `compsize` would answer it and needs `CAP_SYS_ADMIN`. Not taken for a
+  measurement.
+
+The one figure that is arithmetic rather than sampling: the container costs
+**224 B** of header and section table per entry, against a p50 `entry.bin` of
+6,058 B.
+
+So: quote the inode ratio, do not quote a byte ratio, and do not use `st_blocks`
+on this filesystem to argue either way.
 
 ## 7. Relocation
 
