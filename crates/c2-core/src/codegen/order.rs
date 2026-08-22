@@ -7,6 +7,17 @@
 //! write-up; the grid is `work/w-order2/` (gitignored — the generators are
 //! committed, the `.cod` and `.obj` are not).
 //!
+//! **The read that would replace this module's fit — comment only, nothing
+//! here changes.** Added 2026-08-22 under read-before-probe
+//! (`docs/WHITEBOX_LEVERAGE_2026-08-21.md` §1;
+//! `docs/whitebox/READ_PLAN_2026-08-21.md` §2). The rule below came out of a
+//! preregistered **1,048,576-configuration** release-time-scheduler search
+//! that returned a *negative* result — 196/250, with **50 of 54 misses in the
+//! single bucket `rank ≠ source order`**. It stands in for the same unknown
+//! `schedule` does, and **R7** is the same read (3–5 d, no new reading:
+//! confront `P_DAG.md`'s already-read priority formula and latency matrix
+//! against the live tap, `[R]` → `[O]`).
+//!
 //! # The rule
 //!
 //! > Rank the run's distinct value-producers by
