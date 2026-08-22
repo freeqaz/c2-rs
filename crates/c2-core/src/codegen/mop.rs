@@ -846,7 +846,7 @@ mod tests {
         assert_eq!(encode_op(&and, &EncodeParams::C2).unwrap(), 0x7d63_2838);
         // add r3, r11, r5  — dest 3, ra 11, rb 5
         let add = MachineOp::new(op::ADD).s(3).d0(11).d1(5);
-        assert_eq!(encode_op(&add, &EncodeParams::C2).unwrap(), 0x7d6b_2a14);
+        assert_eq!(encode_op(&add, &EncodeParams::C2).unwrap(), 0x7c6b_2a14);
     }
 
     /// The `fixed` constants are what three of board #3379's seven residuals
