@@ -822,7 +822,7 @@ sweep_verdict() {
     fi
     # ---- THE CACHE'S OWN ALARM (lane `w-gateperf`, 2026-08-18) -----------------
     #
-    # `expr_sweep.sh` is served from `work/capture-cache` since 2026-08-18, so
+    # `expr_sweep.sh` is served from the capture cache since 2026-08-18, so
     # some of the oracle bytes this row grades against came off a disk rather
     # than out of `cl.exe` this run. The whole argument for allowing that is
     # that the cache is CHECKED — every run bypass-and-compares a strided sample
@@ -3725,7 +3725,7 @@ checked=4000 mismatches=0 graded=3975 ungraded=25 unknown=0'
 
     # ---- the CAPTURE-CACHE row (lane `w-gateperf`, 2026-08-18) ----------------
     #
-    # The sweep's oracle side is served from `work/capture-cache` since
+    # The sweep's oracle side is served from the capture cache since
     # 2026-08-18, which is what took this row from 303 s to a fraction of it.
     # The entire argument for allowing that is that the cache is CHECKED — every
     # run bypass-and-compares a strided sample of its own hits through the real
