@@ -324,8 +324,11 @@ digit, on both wibo builds present on this box.
 
 ### 5.2 `stride == minted` is NOT a law — it fails in BOTH directions `[O]`
 
-`LABEL_COUNTER.md` §1's table holds `stride == minted` on all 28 rows, and
-that has been read as a rule. Re-measured here on the rows chosen to break it:
+`LABEL_COUNTER.md` §1's table holds `stride == minted` on all 28 rows, and its
+own §7 retraction **R2** already narrowed that to *"minting **causes** charge;
+charge is not **equal to** minting"* on the base rows. This read supplies the
+direction R2 did not have — **it fails both ways** — measured on rows chosen
+because they can break it:
 
 | probe | stride | minted | what it means |
 |---|---:|---:|---|

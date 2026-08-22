@@ -5578,3 +5578,37 @@ python3 scripts/gt_label_seedgap.py --selftest      # the banner's own cells
 python3 scripts/gt_label_seedgap.py                 # the grid, packed
 python3 scripts/gt_label_seedgap.py --mode '/O1 /GS- /c'
 ```
+
+## 8.7 `stride == minted` fails in BOTH directions — §7's retraction R2, with the direction it lacked
+
+§7's **R2** retracted *"every row of §1.1's surcharge table equals the number
+of COFF symbol records that surcharge causes c2 to mint"* on the base rows —
+*"minting causes charge; charge is not equal to minting."* Measured here on
+rows chosen because they can break it, `/O1 /GS- /c`, in-the-middle form,
+`scripts/gt_label_stride.py`:
+
+| probe | stride | minted | direction |
+|---|---:|---:|---|
+| `leaf-cmp-eq` (`a == 5`) | 1 | 1 | — |
+| `leaf-branch` (an `if`) | 1 | 1 | — |
+| **`leaf-cmp-lt5`** (signed `a < 5`) | **3** | **1** | charge **over** minting by 2 |
+| **`leaf-loop`** (a `for`) | **3** | **1** | charge **over** minting by 2 |
+| **`leaf-string`** (returns `"hello"`) | **1** | **3** | **minting over charge by 2** |
+
+`charge > minted` is c2 building **label** objects (§8.2's 132 constructor
+sites) that no symbol survives to represent, and `+2` is the signature two
+label objects would leave — which is what §1.1's signed-relational row and
+§2.1's loop row have always looked like from the outside.
+
+**`minted > charge` is the one nobody had.** A string literal creates an
+`.rdata` COMDAT **section symbol** and a `??_C@…` **symbol** and charges
+**nothing** (§2.1 measured the 0; this is why), while a **pooled FP constant**
+creates the same *shape* of COMDAT and charges **+2**. The two are built by
+**different constructors**, only one of which is on the charging list.
+
+> **And the string literal has two prices, not one.** In a *function body* it
+> costs **0** — `leaf-string` strides 1 at `/O1`, and one, two or three
+> literals all stride 1 (§2.1). In the *data phase* — a file-scope
+> `const char* g = "x";` — it costs **+1**, and that is exactly the `/GF` term
+> in §8.1's rule. Same literal, same COMDAT shape, different phase, different
+> charge.
