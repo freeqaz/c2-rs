@@ -6,6 +6,22 @@
 > here may enter `crates/` without a [`DISCLOSURE.md`](../DISCLOSURE.md) row.
 > Index: [`ADDR.tsv`](ADDR.tsv) · front door: [`README.md`](README.md)
 
+> ## ⛔ CORRECTED 2026-08-22 by read **R1** — `DAT_10c400d4` is FUNCTION-SCOPED
+>
+> This page said **"compilation-global"** of the candidate-id counter in three
+> places (`:62`, `:86`, `:188`) and built **consequence 3** (`:160-166`) on it.
+> Lane `w-read-r1` enumerated the counter's **complete** reference set — four
+> instructions — and found the **sole writer** at **`0x10b57676`**, storing the
+> constant **1**, inside `FUN_10b57633` (the `globregs.c` phase) which the
+> per-function driver `FUN_10b7dc51` calls at `0x10b7dcb7`. Every mint site is
+> downstream of it. Full read + the behavioural control:
+> [`../WB_CANDID_FINDINGS.md`](../WB_CANDID_FINDINGS.md).
+>
+> `WB_LIVE_FINDINGS.md:258-260`'s *"dense and function-scoped"* was right and
+> this page was wrong. **The three claims are struck in place below** (per
+> [`README.md`](README.md) §2.1 corrections are amended beside, never silently
+> rewritten), and consequence 3 carries its own revision box.
+
 **Coverage: 18 code entries + 15 data entries against a denominator of 70** —
 Ghidra functions whose entry lies in `color.c`'s span
 (`0x10b2c21d`–`0x10b3219f`, anchor plus its following gap). The register
@@ -59,7 +75,7 @@ also runs the instruction scheduler three times around it `[R]`.
 | `0x10b315df` | 210 | 1 | 8 | `color.c` gap | 2 | seed: mint / merge candidates `[R]` |
 | `0x10b2b82d` | 126 | 3 | 0 | *(gap after `coffemit.c`)* | 13 | **THE PRIORITY COMPARATOR** — a sorted insert into a doubly-linked list (`+0x14` next, `+0x18` prev). §4 `[R]` · order **`[O]`** on 20 cells at two profiles |
 | `0x10b2c21d` | — | — | — | **`color.c` anchor** | — | candidate lookup by id: 1024-bucket hash at `0x10c43b80`, chain `cand+0x30`, ICE if absent `[R]` |
-| `0x10b54d32` | 130 | 6 | 5 | *(gap after `globopt.c`)* | 17 | **the candidate constructor.** `alloc(0x48)`; `kind = 2`; `id = DAT_10c400d4++` (compilation-global monotonic); `allowed = copy(DAT_10c3d024[class])` — **every candidate starts with the whole class allowed**, and allocation only ever removes `[R]` |
+| `0x10b54d32` | 130 | 6 | 5 | *(gap after `globopt.c`)* | 17 | **the candidate constructor.** `alloc(0x48)`; `kind = 2`; `id = DAT_10c400d4++` (~~compilation-global monotonic~~ ⛔ **R1: FUNCTION-SCOPED** — reset to `1` at `0x10b57676`; and the id is stamped **only on a fresh `alloc`**, the free-list path at `0x10b54d48` jumps past both the read and the increment, so a recycled record keeps its old id); `allowed = copy(DAT_10c3d024[class])` — **every candidate starts with the whole class allowed**, and allocation only ever removes `[R]` |
 | `0x10b55732` | 1676 | 1 | 18 | *(gap after `globopt.c`)* | 16 | `globregs.c`'s mint/merge; **its promotion policy is item F1 and is unread** |
 | `0x10b55eae` | 1468 | 1 | 18 | **`globregs.c` anchor** | 5 | rebuilds the per-block bitsets `[R]` |
 | `0x10b54904` | — | — | — | *(gap)* | — | the backward liveness fixpoint `[R]` |
@@ -83,8 +99,9 @@ also runs the instruction scheduler three times around it `[R]`.
 | `0x10c435e8` | the selector's cost array, `0x594` bytes = **357 ints, one per register number** (`0…356`) — an independent confirmation of the register table's size `[R]` |
 | `0x10c43b7c` | **the priority worklist head** `[R]` |
 | `0x10c43b80` | the 1024-bucket candidate hash (`0x10c44b80 − 0x10c43b80 = 0x1000`) `[R]` |
-| `0x10c400d4` | the compilation-global monotonic candidate-id counter `[R]` |
-| `0x10c400d8` | per-class candidate id sets `[R]` |
+| `0x10c400d4` | ~~the compilation-global monotonic candidate-id counter~~ ⛔ **R1: the PER-FUNCTION monotonic candidate-id counter, dense from 1.** Sole write `0x10c400d4 = 1` at **`0x10b57676`**; sole increment `0x10b54d5f`; read at `0x10b54d57` (the stamp) and `0x10b54db5` (the partial clear's occupied-bucket bound). Four references in the image, no more `[R]` · `[O]` by control C1 |
+| `0x10c400d8` | per-class candidate id sets `[R]` — **rebuilt per function** at `0x10b57658` |
+| `0x10c2e3e0` | the candidate **free list** head — **emptied per function** at `0x10b5767c`, which is what makes ids dense (§4 note) `[R]` |
 | `0x10c6fd9c` | **the frame-pointer register number** — written only at `0x10c04fd1`: `2` (`sp`) when the function needs none, `0x20` (`r31`) when it does `[R]` |
 
 ---
@@ -157,13 +174,33 @@ Three consequences a port has to carry:
    calls the same comparator (`DAT_10c43b7c = FUN_10b2b82d(cand, DAT_10c43b7c)`).
    **A port modelling the worklist as a stack or a queue is wrong in both
    directions.**
-3. **On an exact tie the order is a hash-bucket walk over a compilation-global
-   counter, not a source property.** The finished list is the reverse of
+3. **On an exact tie the order is a hash-bucket walk over a ~~compilation-global~~
+   PER-FUNCTION counter, ~~not a source property~~.** The finished list is the reverse of
    `0x10b316b1`'s accumulation order, and that order is buckets `0…1023` of
-   `DAT_10c43b80` keyed on `cand+0x1c = DAT_10c400d4++` mod 1024. **This is the
+   `DAT_10c43b80` keyed on `cand+0x1c = DAT_10c400d4++` mod 1024. ~~**This is the
    most direct available explanation for why source-level fitted sorts keep
-   being refuted** (`codegen::alloc` clause 2, `#836`, 7 of 56 fresh-holdout
+   being refuted**~~ (`codegen::alloc` clause 2, `#836`, 7 of 56 fresh-holdout
    cells).
+
+   > ## ⛔ REVISION 2026-08-22 — the mechanism survives, the inference does not
+   >
+   > **Read R1** (`../WB_CANDID_FINDINGS.md`) settled the counter's scope
+   > against this row: `DAT_10c400d4` is reset to `1` at **`0x10b57676`** once
+   > per function, and every mint site is downstream of that reset. The bucket
+   > walk is real and unchanged; what is withdrawn is the **"so"**.
+   >
+   > A **per-function counter that is dense from 1** means a candidate's bucket
+   > *is* its mint index within the function — which is exactly the kind of
+   > quantity that **can** track source order. So this row no longer explains
+   > why source-level fitted sorts keep being refuted; it hands the whole
+   > question to the **mint order**, `FUN_10b55732` (item **F1**, read **R4**,
+   > 1,676 B, still unread). The `n=3` divergence the lane fenced itself with
+   > below is now the only live evidence on that axis, and it points at R4.
+   >
+   > **Consequence for `crates/c2-core/src/codegen/alloc.rs:103-539`: the ten
+   > refuted allocation keys are back to UNEXPLAINED.** `READ_PLAN` §3 row R1
+   > named that as the thing R1 decides, and this is the decision. Board
+   > **#3374**.
 
    > **The fence on that claim, from the lane that made it.** Pure descending id
    > predicts `n=2`'s `b a` and `n=8`'s leading `h g f`, but **`n=3` is `b a c`
@@ -185,7 +222,7 @@ Three consequences a port has to carry:
 | `+0x10` | assigned register descriptor | |
 | `+0x14` | live-list link | also the worklist **next** pointer |
 | `+0x18` | cost accumulator | ⛔ **CORRECTION 1 (`#3243`).** At worklist time it is the priority list's **`prev` pointer** (`0x10b2b82d` writes `n->[0x18] = new`), and `0x10b3032a` uses it as a **bitfield** (`&= 0xfffffffe`). The field is **phase-overloaded**: a weight during `0x10b2d630`, a back-pointer during `0x10b31c9a`'s loop. **A flat field table cannot express that, and a port reading it as one thing is wrong in one of the two phases.** |
-| `+0x1c` | id | `DAT_10c400d4++`, compilation-global |
+| `+0x1c` | id | `DAT_10c400d4++`, ~~compilation-global~~ ⛔ **R1: per-function, dense from 1** (`0x10b57676`) |
 | `+0x20` | allowed set | empty ⇒ spill |
 | `+0x24` | ref count | |
 | `+0x28`,`+0x2c` | first / last block | |
