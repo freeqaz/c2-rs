@@ -276,14 +276,35 @@ grades.
 
 | lane | result |
 |---|---|
-| `scripts/gen_rung_index.sh` | regenerated (never hand-edited); see the locale caveat in §7 item 2 — this lane's ambient locale is `en_US.UTF-8`, which is what the committed index encodes |
-| `scripts/board_audit.sh` | exit **0** |
-| `cargo test --workspace` | exit **0** — counts in the table below |
+| `scripts/gen_rung_index.sh` | regenerated (never hand-edited), exit **0**, `INDEX.md` **+1 line** — this rung's row. Locale caveat in §7 item 2: this lane's ambient locale is `en_US.UTF-8`, which is what the committed index encodes |
+| `scripts/board_audit.sh` | exit **0**. 1,984 distinct board rows · 259 distinct ROADMAP citations · **CITED BUT NOT ON THE BOARD 0** · unresolved section anchors **0** · raw line-number anchors **0** · rows behind the prose **0** · **DUPLICATE ROW NUMBERS 0** (the check that would catch a collision with a peer lane's block) |
+| `cargo test --workspace` | exit **0** — **1,770 passed, 0 failed, 1 ignored**, over **48 test targets** + 5 doc-test targets (53 `test result:` lines) |
 
-Exit codes captured directly (`$?` on the command, never through a pipe), per
-the standing rule.
+**Exit codes captured directly**, never through a pipe: each command was run as
+`cmd > log 2>&1; echo $?` and the code read off the echo. Both figures above are
+the echoed value, not an inference from the output text.
 
-<!-- GATE-EVIDENCE: filled in at §8.1 below -->
+**THE ENVIRONMENT IS ASSERTED, NOT THE EXIT CODE** (#3341, #3219, #3231).
+`census_gate` finished in **141.82 s**, not `0.00 s` — so the toolchain was
+present and the capture-based tests actually executed; `differential` ran its
+**31** cases in 2.31 s including `differential_reference_byte_exact_port_not_implemented`,
+which cannot pass without real `c2.dll` under wibo. This worktree is provisioned
+by symlink (`compilers -> ../c2-rs/compilers`) plus the sibling `../wibo` build,
+which is why a fresh-worktree skip did not occur. **The log contains 0
+occurrences of `SKIP: toolchain absent`, and that number is quoted here only to
+say it is NOT evidence** — libtest swallows stdout for a passing test and a
+skipping test passes, so a provisioned run and an unprovisioned run both print
+0 without `--nocapture`. The duration is the signal.
+
+**Not run, and why.** `scripts/gate.sh --jobs 16 --require-graded`,
+`scripts/expr_sweep.sh`, `c2rs bench` and an 878-TU scan were not run. This lane
+edits no `crates/` byte, no fixture, no lane list and no gate input, so every
+one of those would be a re-measurement of an unchanged tree at ~80 s plus a
+~1,261 s cold `mode_cross` leg in a fresh worktree (#3266) — and the criterion
+they grade cannot fail on a docs-only diff, which is abstention rather than
+evidence (#3336's rule). §6 names three axes that **can** fail on this rung and
+reports what was measured on each. The brief asked for `board_audit.sh` and
+`cargo test --workspace`; both are above.
 
 ## 9. What the next reader should do first
 
