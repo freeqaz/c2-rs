@@ -16,7 +16,8 @@ Funded by [`../DECISIONS_2026-08-22.md`](../DECISIONS_2026-08-22.md) decision 1.
 ## 0. The answer, in the one sentence R1 asked for
 
 > **Candidate ids are PER-FUNCTION.** `DAT_10c400d4` is set to **1** at
-> **`0x10b57676`**, the fourth store in `FUN_10b57633` — the global-register
+> **`0x10b57676`**, the third of four consecutive stores at
+> `0x10b5766a`–`0x10b5767c` near the top of `FUN_10b57633` — the global-register
 > allocation phase — which the per-function back-end driver `FUN_10b7dc51`
 > calls at `0x10b7dcb7`; **all four** of the counter's references in the image
 > execute inside a single invocation of that driver, and the write is the first
@@ -61,9 +62,11 @@ $ grep '10c400d4' objdump_intel.asm               # GNU binutils, independent
 **There is exactly one writer. It writes a constant. It is not an
 initialiser-once guard** — there is no `if (already_done)` around it; the
 guarded one-time init in the same routine is a *different* global
-(`DAT_10c2e450` at `0x10b57682`, which does carry a `cmp/jne` and gates
-`0x10bfb00d`). That contrast is on adjacent lines and is the cheapest available
-proof that the counter's reset is deliberate per-call state, not lazy init.
+(`DAT_10c2e450`, `cmp` at `0x10b57682`, twelve bytes later, which does carry a
+`cmp/jne` and gates `0x10bfb00d`). The two are in the same basic-block run and
+the compiler wrote one as a guarded init and the other as an unconditional
+store — the cheapest available evidence that the counter's reset is deliberate
+per-call state and not lazy init.
 
 ---
 
