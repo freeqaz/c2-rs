@@ -267,9 +267,10 @@ for blk from cand->first_block to cand->last_block:
   > **per-function table clear** would also produce the clear at `0x10b2c1f1`,
   > and would make ids *sparse* within a function. Read **R1** closes it in
   > this bullet's favour by naming the reset itself — **`DAT_10c400d4 = 1` at
-  > `0x10b57676`**, in the same straight-line run of `FUN_10b57633` as the
-  > table memset (`0x10b5769c`) and the **free-list** reset (`0x10b5767c`),
-  > which is the piece that makes *dense* true. See
+  > `0x10b57676`**, in `FUN_10b57633`, two stores before the **free-list**
+  > reset (`0x10b5767c`) in the same straight-line run and `0x20` bytes before
+  > the table memset (`0x10b5769c`). The free-list reset is the piece that
+  > makes *dense* true, and no doc had it. See
   > [`WB_CANDID_FINDINGS.md`](WB_CANDID_FINDINGS.md); board **#3373**. This
   > bullet stays as written — it was right.
 * **Candidates are not IL tokens and not `.sy` locals.** They are created in

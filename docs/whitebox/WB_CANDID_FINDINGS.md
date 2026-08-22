@@ -106,8 +106,21 @@ and the fourth reference, the partial-clear read at `0x10b54db5`, sits in
 `WB_CANDID_PREREG.md` §4 step 6 required checking the siblings, because a
 boundary that resets the counter but not the table (or vice versa) is a
 *different* answer — it is exactly `READ_PLAN` §5.2's reconciliation trap. All
-four are reset in the same straight-line run of `FUN_10b57633`, within 0x4A
-bytes of each other, with no conditional branch between them:
+of them are reset within `0x5C` bytes of each other near the top of
+`FUN_10b57633`, and **all are unconditionally reached**:
+
+* `0x10b57665`–`0x10b5767c` is **straight-line**: `xor edi,edi; xor ebx,ebx;
+  inc edi` then four stores, no branch. The counter reset and the free-list
+  reset are two of those four.
+* The only branch before the hash memset is the **diamond** at
+  `0x10b57688` (`jne 0x10b57695`), which guards the one-time init of
+  `DAT_10c2e450` and **reconverges at `0x10b57695`**. Both arms fall into
+  `0x10b5769c`. Stated precisely rather than as "no branch", because the
+  branch is there and it does not matter — the reason it does not matter is
+  the reconvergence, and a reader should be able to check that claim.
+* The per-class-set rebuild at `0x10b57658` sits in a bounded fill loop
+  (`0x10b57651`–`0x10b57663`, `jl`) that runs the fixed range
+  `0x10c400d8 … 0x10c400f7`.
 
 | VA | global | reset to | meaning |
 |---|---|---|---|
