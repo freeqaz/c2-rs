@@ -279,4 +279,5 @@ the header block this table is read from.
 | 2026-08-22 | w-read-r1 | [w-read-r1](2026-08-22-w-read-r1.md) | 10 | +0 — no `crates/` or `fixtures/` file is touched |
 | 2026-08-22 | w-read-r2 | [w-read-r2](2026-08-22-w-read-r2.md) | 9 | +0 — no `crates/` change of any kind, no emit rule, no refusal |
 | 2026-08-22 | w-read-r3 | [w-read-r3](2026-08-22-w-read-r3.md) | 9 | +0 — no `crates/`, `fixtures/` or `probes/` file is touched. |
+| 2026-08-22 | w-seedgap | [w-seedgap](2026-08-22-w-seedgap.md) | 11 | +0 — no fixture is added, converted or reclassified. The |
 | 2026-08-22 | w-shiproadmap | [w-shiproadmap](2026-08-22-w-shiproadmap.md) | 10 | +0 — no crates/ edit of any kind, no emit rule, no refusal |
