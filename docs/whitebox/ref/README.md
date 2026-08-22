@@ -141,6 +141,21 @@ Per-page coverage against its own band (Ghidra function entries in the span):
 > `w-c2map2`'s measurement and stays as it was taken.**
 | [`P_EH.md`](P_EH.md) | 19 | `0x10be04e7`–`0x10be3800` | 47 |
 
+> **2026-08-22, lane `w-read-r3`** — `ADDR.tsv` regenerated at this lane's
+> tip: **1,433 rows, 1,356 cited in `docs/`**, resolved to a containing
+> function **1,179/1,433 = 82.3 %**, hand-labelled 339. The jump from
+> 1,209 is three lanes' worth of new citations (`w-read-r1`, `w-read-r2`,
+> `w-read-r3`, plus `w-docmap`'s), and §4's self-referential drift note is
+> firing exactly as written — this page and `P_LABEL.md` are themselves
+> under `docs/`. **The C1a/C1b targets are not restated**: the row above is
+> `w-c2map2`'s measurement and stays as it was taken.
+>
+> **`P_LABEL.md` has no `page` column entry**, and that is correct rather
+> than an omission: `build_ref.py` assigns a page from an address **band**,
+> and this subsystem has no band — its 163 charging sites are spread over
+> 23 c2 source files from `coff.c` to `vlines.c`. It is the first page in
+> this directory whose subject is a *call graph* rather than a region.
+
 **Deliberately NOT covered, stated so absence does not read as coverage:**
 `globopt.c`, `globlopt.c`, `lur.c` (the loop rewriter — 15 115 lines), all four
 `pogo*` files and the 104-import `pgodb100.dll` client (dead on this workload),
