@@ -12,11 +12,21 @@
 //! **sole increment instruction at `0x10b97de5`**, allocator `FUN_10b97dd0`
 //! (28 B, **31** call sites), generic constructor `FUN_10b9a455` (54 B, **132**
 //! sites / 86 functions), name formatter `FUN_10b99dfe`, and a second
-//! per-function counter `DAT_10c2e918` reset in `FUN_10b7e113`. Read **R3**
-//! (2–4 d) enumerates those 31 + 132 sites, which makes the charge rule
-//! **closed by construction** — one increment instruction means the
-//! enumeration is exhaustive, not a sample — and replaces both fitted numbers
-//! with named identities.
+//! per-function counter `DAT_10c2e918` reset in `FUN_10b7e113`.
+//!
+//! **R3 IS DONE (2026-08-22, lane `w-read-r3`) AND IT SPLIT THE CLAIM ABOVE IN
+//! HALF.** The **site population** is closed by construction, with the argument
+//! the read-plan never supplied: a direct `call` encodes a *relative*
+//! displacement, and neither `FUN_10b97dd0` nor `FUN_10b9a455` has its absolute
+//! VA appear **anywhere** in the image as data, so no indirect call can reach
+//! them — the 31 + 132 enumeration is exhaustive, not a sample. **The CHARGE is
+//! not closed**: 42 of the 163 sites sit on **loop back edges** (decisively
+//! `0x10b5cee1`, a nested loop over a 1,024-bucket symbol table), so the rule is
+//! `charge(TU) = the number of objects c2 constructs itself` — data-dependent,
+//! not a constant to be substituted. Anything priced as *"replace the fitted
+//! +9/+3"* inherits *"reproduce c2's object population"* instead.
+//! See `docs/whitebox/ref/P_LABEL.md`; and note `LABEL_SEED_GAP` below is
+//! itself not compilation-independent.
 //!
 //! **Two honest limits.** R3 gives the *charge*, not the *order*; a charge
 //! rule without an order rule still cannot place a label, and the other half
@@ -30,6 +40,28 @@ use super::*;
 
 /// How far past the `.gl` label counter ([`c2_il::label_counter`]) the first
 /// compiler label of a TU sits.
+///
+/// **THIS IS NOT A COMPILATION-INDEPENDENT CONSTANT, AND `9` IS ONE CELL OF
+/// IT.** Read **R3** (2026-08-22, lane `w-read-r3`, board #3387–#3390;
+/// `docs/whitebox/ref/P_LABEL.md`, `docs/whitebox/WB_LABELCHARGE_FINDINGS.md`)
+/// measured it over 22 cells as
+///
+/// ```text
+/// gap = 7 + 2·[/Og] + 1·[/GF ∧ a string literal pooled in the data phase]
+/// ```
+///
+/// so `/Od` reads **7**, and `/Od` is one of `scripts/lanes.txt`'s 18 graded
+/// lanes. **The defect is LATENT, not live, and that was checked rather than
+/// argued**: `mode_lane.sh /Od` reads `match=21 mismatch=0` and all 21 matching
+/// TUs contain **zero function definitions**, so no `$M` is ever emitted there;
+/// the `/O1`+string shape returns `Port=NotImplemented` with the reference
+/// replay byte-exact. What is live is the **licence** — this constant reads as
+/// compilation-independent, and every caller inherits that reading.
+///
+/// Do **not** widen the emit set into a configuration where a framed function
+/// meets `/Od`, `/Og` or `/GF`-with-a-pooled-string without replacing this
+/// constant with the measured form; a wrong `$M` is six wrong bytes in an obj
+/// that still links, which is the whole reason `docs/LABEL_COUNTER.md` exists.
 pub const LABEL_SEED_GAP: u32 = 9;
 
 /// The `$M`/`$T` label numbers c2 gives each function, or `None` for a function
