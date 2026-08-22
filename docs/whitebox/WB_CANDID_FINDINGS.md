@@ -84,15 +84,38 @@ iteration granularity first. It is a containment fact:
 Every one of the mint routine's **seven** call sites is inside one of those two
 subtrees. Traced hop by hop from the flat export's `calls`/`xrefs`:
 
-| mint call site | containing routine | reached from |
-|---|---|---|
-| `0x10b55e66` | `FUN_10b55dbe` | ← `0x10b577f2` **in `FUN_10b57633`** |
-| `0x10b56839` | `FUN_10b5673e` | ← `0x10bfd827` in `FUN_10bfd665` ← `0x10b576b6` **in `FUN_10b57633`** |
-| (via `0x10b55732`) | `FUN_10b55732`, the renamer | ← `0x10b577cb` **in `FUN_10b57633`** |
-| `0x10bfd98b` | `FUN_10bfcf7c` / `FUN_10bfde2d` | ← `0x10b57802`, `0x10b57830` **in `FUN_10b57633`** |
-| `0x10b2e151` | `FUN_10b2dfe2` | ← `0x10b30483` in `FUN_10b3032a` ← `0x10b31e15` **in `FUN_10b31c9a`** |
-| `0x10b2e655`, `0x10b2e732` | `FUN_10b2e4ae` | ← `0x10b304e7` in `FUN_10b3032a` ← `0x10b31e15` **in `FUN_10b31c9a`** |
-| `0x10c2073c` | `FUN_10c205fd` | ← `0x10c207d1` in `FUN_10c2075d` ← `0x10c20f97` in `FUN_10c20f79` ← `0x10b31d22` **in `FUN_10b31c9a`** |
+| # | mint call site | containing routine | reached from |
+|---|---|---|---|
+| 1 | `0x10b55e66` | `FUN_10b55dbe` | ← `0x10b577f2` **in `FUN_10b57633`** |
+| 2 | `0x10b56839` | `FUN_10b5673e` | ← `0x10bfd827` in `FUN_10bfd665` ← `0x10b576b6` **in `FUN_10b57633`** |
+| 3 | `0x10bfd98b` | **`0x10bfd84a`** — a real entry Ghidra never created (§2.2a) | ← tail jump `0x10bfdf42` in `FUN_10bfde2d` ← `0x10b57830` **in `FUN_10b57633`** |
+| 4 | `0x10b2e151` | `FUN_10b2dfe2` | ← `0x10b30483` in `FUN_10b3032a` ← `0x10b31e15` **in `FUN_10b31c9a`** |
+| 5, 6 | `0x10b2e655`, `0x10b2e732` | `FUN_10b2e4ae` | ← `0x10b304e7` in `FUN_10b3032a` ← `0x10b31e15` **in `FUN_10b31c9a`** |
+| 7 | `0x10c2073c` | `FUN_10c205fd` | ← `0x10c207d1` in `FUN_10c2075d` ← `0x10c20f97` in `FUN_10c20f79` ← `0x10b31d22` **in `FUN_10b31c9a`** |
+
+> **`FUN_10b55732`, the renamer, is deliberately not a row here.** Board
+> **#3056** credits it with minting candidates, and it is called from
+> `0x10b577cb` **in `FUN_10b57633`** — but it holds **no direct call to
+> `0x10b54d32`** (`calls.tsv`), so it reaches the mint through one of the seven
+> above. Listing it as an eighth site would double-count. It is inside the
+> reset's extent either way, and its *order* is read **R4**.
+
+### 2.2a A second Ghidra-missed entry, on this read's own path
+
+Site 3's containing routine is **not** `FUN_10bfcf7c` (which ends at
+`0x10bfd665`) and **not** `FUN_10bfde2d` (which begins at `0x10bfde2d`, *after*
+the call site) — Ghidra's `from_func` column says the latter and **that
+attribution is wrong**, the same artifact `READ_PLAN` §5.4 and board **#3256**
+name at `0x10b7f022`. `0x10bfd84a` is a real function: `push ebp; mov ebp,esp;
+sub esp,0x10` with `functions.tsv` carrying no entry, reached by
+**unconditional tail jump** from `0x10bfdf42`.
+
+**This read hit the trap twice in one afternoon** (`0x10b7f022`, `0x10bfd84a`),
+which is a rate worth recording rather than a coincidence: tail-called routines
+are systematically missed by the auto-analysis, and `from_func` on a call
+*inside* one silently names the next real entry. **Any containment argument
+built on `from_func` alone is unsound in this image.** Both hops here were
+re-derived from the instruction stream and the jump xref, not from the column.
 
 and the fourth reference, the partial-clear read at `0x10b54db5`, sits in
 `FUN_10b54db4` ← `0x10c20fda` in `FUN_10c20f79` ← `0x10b31d22` **in
@@ -415,6 +438,9 @@ here; it will pick the label up when the reference is next regenerated.
   mean** — §2.3 names the guard's shape, not its source-language trigger.
 * **`DAT_10c40f18`** — the quantity compared against 40 000. Read as a size
   proxy from context only; not traced. `[I]`
+* **`FUN_10b55732`'s route to the mint.** §2's note establishes it is not a
+  direct caller and is inside the reset's extent; *which* of the seven sites it
+  reaches, and in what order, is read **R4**.
 * **Whether `0x10b57633` can run twice for one function.** No path was found,
   and none is needed for the result (a second run would reset again), but the
   negative was not exhaustively established.
