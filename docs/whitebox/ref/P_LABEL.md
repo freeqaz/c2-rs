@@ -165,7 +165,7 @@ Denominator **31/31 read** to *(caller, guard, object kind)*.
 | `0x10b9a4bc` | `FUN_10b9a4a7` | `p2symtab.c` | once/call | a **named kind-1 section-ish datum** (`FUN_10b984c3(1,4,1)`, `+0x37` linkage 7) — one of the callers is the `"__r12_indirect"` builder `[R]` |
 | **`0x10b9a8d9`** | `FUN_10b9a897` | `p2symtab.c` | **LOOP** — the intern probe — but the charge is in the **`bucket == 0` (not found)** arm | **the name→symbol intern.** `FUN_10b8a01b(name) & 0x7f` into the 128-slot open-address cache `DAT_10c67db8`, linear probe. **A name c2 has already interned charges nothing** — this is the dedup mechanism §5 needs `[R]` |
 | `0x10b9b5e1` | `FUN_10b9b5d2` | `p2symtab.c` | once/call | a **clone** of an existing symbol (`FUN_10b9853a`) — the clone gets a **fresh** number `[R]` |
-| **`0x10b9b701`** | `FUN_10b9b6a4` | `p2symtab.c` | once/call | an **anonymous kind-1 symbol**, `+0x31 = 0x26`, `+0x47 = 1`. **This is the `$T` minter** — see §5.1 `[R]` |
+| **`0x10b9b701`** | `FUN_10b9b6a4` | `p2symtab.c` | once/call | an **anonymous kind-1 symbol**, `+0x31 = 0x26`, `+0x47 = 1`. **This is the `$T` minter** — see §5.4 `[R]` |
 | `0x10ba245f` | `FUN_10ba2422` | `p2symtab.c` | once/call | the **intermodule-call thunk's** symbol (a clone), `+0x37` linkage 3 `[R]` |
 | `0x10ba3588` | `FUN_10ba34e8` | `p2symtab.c` | once/call, guarded `(sym[+0x20] & 0x20) != 0` | the thunk's own **`.text`** section (`0x10b165f0`), group `"CODE"` (`0x10b162f0`) `[R]` |
 | **`0x10bdbb37`** | `FUN_10bdbaba` | `tuple.c` | **LOOP** over a tuple list, charge in the `piVar2[0xd] == 0` (first time) arm | a **kind-1 symbol per distinct switch/jump-table target group** `[R]` |
@@ -296,6 +296,8 @@ a live tap on `0x10b97de5`, which this lane did not build.
 
 ## 5. The charge, expressed as a rule
 
+### 5.1 The rule, and the seven measured surcharge rows
+
 > `[R]` + `[O]` **charge(TU) = the number of objects c2 CONSTRUCTS ITSELF**,
 > one per constructor call listed in §3 and §7, and **zero** for anything that
 > arrives already numbered in the IL.
@@ -320,13 +322,48 @@ infer, and they were re-measured here: `gpr3` strides **7**, `gpr3-dup`
 `const1-dup-led` **5** — every row reproducing `LABEL_COUNTER.md` §1 to the
 digit, on both wibo builds present on this box.
 
-> **`stride == minted` is not a coincidence, and now it has a mechanism.** The
-> `minted` column counts symbol-table records c2 produced itself; §3.2's
-> bulk pass at `0x10b5cee1` gives **exactly one number to each such record**.
-> The rows where `stride > minted` are the ones where c2 also built **label**
-> objects (§7) that no symbol survives to represent.
+### 5.2 `stride == minted` is NOT a law — it fails in BOTH directions `[O]`
 
-### 5.1 The four label kinds, and which constructor mints each `[R]`
+`LABEL_COUNTER.md` §1's table holds `stride == minted` on all 28 rows, and
+that has been read as a rule. Re-measured here on the rows chosen to break it:
+
+| probe | stride | minted | what it means |
+|---|---:|---:|---|
+| `leaf-cmp-eq` (`a == 5`) | 1 | 1 | — |
+| `leaf-branch` (`if`) | 1 | 1 | — |
+| **`leaf-cmp-lt5`** (signed `a < 5`) | **3** | **1** | **charge exceeds minting by 2** |
+| **`leaf-loop`** (a `for`) | **3** | **1** | **charge exceeds minting by 2** |
+| **`leaf-string`** (returns `"hello"`) | **1** | **3** | **MINTING EXCEEDS CHARGE BY 2** |
+
+> **Both directions.** `charge > minted` is c2 building **label** objects
+> (§7's 132 sites) that no symbol survives to represent — and the `+2` on the
+> signed relational and on a loop is exactly *two* label objects, which is
+> what P3.3 predicted the mechanism to be even though this read did not
+> locate the two call sites. **`minted > charge` is the interesting one**: a
+> string literal creates an `.rdata` COMDAT **section symbol** and a
+> `??_C@…` **symbol** and charges **nothing**, while a pooled FP constant
+> creates the same *shape* of COMDAT and charges **+2**
+> (`LABEL_COUNTER.md` §1.1, §2.1). So the two are built by **different
+> constructors**, only one of which is on the charging list — a concrete,
+> checkable asymmetry, and the place a later read should start.
+
+### 5.3 A string literal costs 0 in a function body and **+1 in the data phase** `[O]`
+
+The two facts above look contradictory and are not, and reconciling them is
+what §4's `/GF` term is:
+
+* **in a function body** — `leaf-string` at `/O1` (which implies `/GF`):
+  stride **1**, i.e. surcharge **0**, on one, two or three literals
+  (`LABEL_COUNTER.md` §2.1's own measurement);
+* **in the data phase** — a file-scope `const char* g = "x";` at `/O1`,
+  `/O2` or `/Ox /GF`: the seed gap goes **9 → 10**, and a second literal
+  takes it to **11** (§4.1, and the narrowing grid behind it).
+
+**Same literal, same COMDAT shape, different phase, different charge.** The
+`+1` is exactly the `/GF` term in §4's rule, and it is why that term needs
+*both* `/GF` and a string reached before the first function.
+
+### 5.4 The four label kinds, and which constructor mints each `[R]`
 
 | printed | kind (`sym[+0x30]`) | `sym[+0x31]` | number from | minted at |
 |---|---|---|---|---|
@@ -465,7 +502,7 @@ Two consequences worth stating `[I]`:
 | 2 | **Which units make the gap** (7 / 9 / 10). The candidate set is bounded to §3's once-per-TU sites and the mode-dependence is measured; the per-unit attribution needs a live tap on `0x10b97de5`, unbuilt. |
 | 3 | **The `/Gy` `+3` per function.** Re-confirmed `[O]` here as an exact `3 × nfuncs` in every `/Gy` cell of §4.1's grid, but *what* the three are is still not read out of the binary — the same status `WB_LABEL_FINDINGS.md` §6 open #2 left it in. |
 | 4 | **§5's signed-relational `+2`.** The one surcharge row this read does not explain. |
-| 5 | **The 132 sites' individual guards.** They are located, attributed and loop-classified; only the handful in §5.1 are read to guard level. |
+| 5 | **The 132 sites' individual guards.** They are located, attributed and loop-classified; only the handful in §5.4 are read to guard level. |
 | 6 | **The `/Ox` loop charge.** §7 names a mechanism (`lur.c`); it does not model it, and this read proposes no rule. |
 | 7 | **The downward pool.** `DAT_10c2ed40`'s write at `0x10b8b5c7` and the crossing check are located; the interaction between the two ends is unmeasured, exactly as in 2026-08-09. |
 | 8 | **The mode-dependence's own boundary.** 22 cells over 11 flag sets and two source shapes is not the flag space. `/Oi`, `/EHsc`, `/GR`, `/GS`, `/GF`, `/Gy` were each varied; `/Zi`, `/GL`, `/arch`, PGO and `#pragma` families were not. |
