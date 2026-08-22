@@ -307,8 +307,8 @@ surcharge rows, six of them from named addresses:
 
 | §1.1 row | measured | the site that charges it |
 |---|---:|---|
-| `_fltused`, the TU's first FP function | **+1** | one new external interned at `0x10b9a8d9` (miss arm) `[I]` |
-| `__savegprlr_N` / `__restgprlr_N`, each distinct N | **+2** | **two** new externals, two misses at `0x10b9a8d9` `[I]` |
+| `_fltused`, the TU's first FP function | **+1** | **READ, not inferred**: `FUN_10c11397` (guarded on `DAT_10c2e295`) calls `FUN_10b9ae7e("_fltused")`, an 11-byte thunk that is exactly `FUN_10b9a897(name, 4, 0)` — so the charge is the intern's miss arm at `0x10b9a8d9`, once, and the guard is the hash hit `[R]` |
+| `__savegprlr_N` / `__restgprlr_N`, each distinct N | **+2** | **two** new externals, two misses at `0x10b9a8d9`. The general interning path is the same 11-byte wrapper `FUN_10b9ae7e` (20+ call sites); the specific site that names a helper width was not located `[I]` |
 | `__savefpr_M` / `__restfpr_M`, each distinct M | **+2** | same, two externals `[I]` |
 | a newly pooled FP constant, each distinct `(bits,width)` | **+2** | the `.rdata` **section** object *and* the `__real@…` **symbol** `[I]` |
 | a callee external **the IL names** | **0** | no constructor runs — `sym[+0x28]` comes from `FUN_10c1f91b` `[R]` |
