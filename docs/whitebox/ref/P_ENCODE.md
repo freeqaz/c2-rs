@@ -328,6 +328,18 @@ reg  = reg(t[0x2c])       (load)   /  reg(t[0x28])  (store)
 return (reg<<5 | RA)<<16 | (u16)disp
 ```
 
+> **A tooling trap at this exact address, recorded because it costs a reader
+> ten minutes.** `objdump -d -M intel` (`C2_MAP_METHOD.md` §4's independent
+> disassembly source) **mis-syncs at `0x10bf9e55`** and prints
+> `dec ebx / sub BYTE PTR [eax+0x56020879],al` for the load composer's
+> prologue. The raw bytes are
+> `53 8b d9 8b 4b 28 80 79 08 02 56 57` = `push ebx; mov ebx,ecx;
+> mov ecx,[ebx+0x28]; cmp BYTE PTR [ecx+0x8],0x2; push esi; push edi`, and the
+> store composer at `0x10bf9eb5` is the same twelve bytes with `2c` for `28` —
+> which is how the mirror-image reading above was confirmed. **Read the bytes
+> when a linear disassembler's output stops making sense**; the two sources
+> disagreeing is the point of having two.
+
 Indexed (`X`-form) memory is forms 26/50 (`0x10bf9788`) and 28/61
 (`0x10bf97c8`), same mirror-image pair: a memory operand whose own
 `[+0x4] == 0x29f` is base-only (index register 0), otherwise the index comes
