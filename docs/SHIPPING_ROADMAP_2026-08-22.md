@@ -316,6 +316,13 @@ c2. **Every read lane still ends in a confirmation probe**, and
 
 ### 4.2 OPEN — `ARCHITECTURE_PROPOSAL` §8 decision 0's branch choice
 
+> **DECIDED later the same day — branch (c).** After R1–R3 landed, the owner
+> chose the 8-week Phase 0, starting immediately, with concurrent
+> high-leverage building (`DECISIONS_2026-08-22.md` decision 5; board
+> **#3391**). The text below stays as the record of the choice as it was
+> posed. 4a/4b remain unapproved — Phase 0 prices them — and §9 open item 1
+> is closed by this decision.
+
 **Explicitly deferred until R1–R3 report.** The three branches, as that section
 poses them:
 
@@ -809,6 +816,10 @@ and release infrastructure.
    Deferred by the owner until R1–R3 report; §4.2 states what each branch
    claims and what goal (1) and goal (2) each need. **Nothing on this page
    recommends one.**
+   **→ DECIDED 2026-08-22, later the same day: (c)**, dispatched as lanes
+   (`DECISIONS_2026-08-22.md` decision 5). New open question in its place:
+   whether to fund **R4** (3–5 d) and **R5** (15–25 d), put to the owner in
+   the same turn.
 2. **Whether to spend one day measuring the permuter's real population before
    building a permuter.** §4.3. The coordinator recommends yes; it is not an
    owner decision yet. It carries a cheap prerequisite (`DIFF_STRUCTURE.md`
@@ -836,6 +847,12 @@ and release infrastructure.
 
 In dependency order, and each one is either already funded or is cheap enough
 that its cost is not the question:
+
+> **2026-08-22, later the same day:** item 1 is **done** (all three reads
+> landed, master `02f8a8af0`) and item 6 is **done** — the reads were
+> reported into decision 0 and the owner chose branch (c)
+> (`DECISIONS_2026-08-22.md` decision 5). Phase 0's S0 + S1 are dispatched,
+> plus the `LABEL_SEED_GAP` repair (#3388). Items 2–5 stand.
 
 1. **Run R1, R2, R3** and land their specs under `docs/whitebox/` with
    confirmation probes and `DISCLOSURE.md` rows (funded, §4.1).

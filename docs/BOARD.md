@@ -4518,4 +4518,12 @@ disk with every word intact and a SUPERSEDED banner; the successor is
 
 ### Reservation ledger, 2026-08-22 (second wave) — **`#3387`–`#3390` `w-read-r3`, spent. Nothing remains reserved.** The 2026-08-22 first wave's ledger above (`#3372`–`#3386`) is unchanged and stays as written.
 
-### **THE NEXT FREE NUMBER IS `#3391`.**
+## Owner decisions, 2026-08-22, later the same day — decision 0 resolved
+
+| row | claim | state | evidence | links | consequence |
+|---|---|---|---|---|---|
+| **3391**<sub>coordinator</sub> | **DECISION 0'S BRANCH IS CHOSEN: (c), THE 8-WEEK PHASE 0, STARTING NOW — PLUS A STANDING SELECTION RULE, "BUILD WHAT IS HIGH-LEVERAGE TOWARD RESULTS + VALIDATION OF THE DESIGN"** | **DECIDED by the owner** after R1–R3 landed (*"The 8 week experiment is reasonable to start work on now via opus subagents"*), recorded verbatim in `docs/DECISIONS_2026-08-22.md` decision 5. 4a/4b remain **unapproved** — Phase 0 exists to price them, and one registered outcome (S1's delta holds but workload `fnbyte-exact 35,894` moves) voids the pricing basis and should stop the program. Step 5's NO-GO clauses stand. R4/R5 are **not** funded by this; put back to the owner as the one open spend question | the evidence the choice was made on is the reads themselves: two of three were subtractions (#3372–#3375, #3387), R2 declined to re-price I2 (#3376), and R3 found the latent `LABEL_SEED_GAP` defect (#3388) — the model-or-fit failure mode Phase 0 tests, already in the tree in miniature | `docs/DECISIONS_2026-08-22.md` decision 5 · `ARCHITECTURE_PROPOSAL_2026-08-20.md` §8 decision 0 (✔✔✔ block) · `SHIPPING_ROADMAP_2026-08-22.md` §4.2/§9/§10 · `ROADMAP_SLICING_2026-08-21.md` §5 · **#3371** | **Dispatched: `w-s0`** (S0 blind-reach instrument, reservations **#3392–#3396**), **`w-s1`** (S1 general `Plain`+`Tail` lowering, **#3397–#3401**), **`w-seedgap`** (the #3388 repair, **#3402–#3405**) |
+
+### Reservation ledger, 2026-08-22 (third wave — Phase 0) — **`#3391` spent above. `#3392`–`#3396` reserved `w-s0` · `#3397`–`#3401` reserved `w-s1` · `#3402`–`#3405` reserved `w-seedgap`.** Lanes in flight; this ledger is live until they land.
+
+### **THE NEXT FREE NUMBER IS `#3406`.**

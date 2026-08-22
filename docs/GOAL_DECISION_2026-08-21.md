@@ -150,3 +150,9 @@ is worth doing — it is whether to fund 4a now or bank understanding first.
 `docs/whitebox/READ_PLAN_2026-08-21.md` run *before* the 4a-vs-Phase-0 choice
 is made. Decision 0's branch choice itself remains open, deferred until the
 reads report.
+
+**2026-08-22 update, later the same day** (`docs/DECISIONS_2026-08-22.md`
+decision 5, board **#3391**): the reads reported and the owner chose
+**branch (c), the 8-week Phase 0**, starting immediately — so this section's
+question is now **answered**, not open. 4a/4b remain unapproved; Phase 0
+prices them.

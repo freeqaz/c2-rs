@@ -96,3 +96,84 @@ than in a conversation:
   from tree `0c8a185` (3,195 wrong bodies against today's 1,960 + 530) and
   its own banner marks §3.2 refuted. Cheap, and load-bearing for the
   measurement above.
+
+---
+
+## Decision 5 — decision 0's branch is chosen: run Phase 0, and build while it runs (later the same day, after R1–R3 landed)
+
+The owner, verbatim, after the three funded reads were merged and pushed
+(`071864537` / `299aea369` / `3d507bc6e`, master `02f8a8af0`):
+
+> *"please review and let's switch to implementation now. update the docs
+> first. what do you need my answers for, if anything? We should build what
+> we can that is high leverage to get us results + validation of our design.
+> The 8 week experiment is reasonable to start work on now via opus
+> subagents."*
+
+**What this decides.** `ARCHITECTURE_PROPOSAL_2026-08-20.md` §8 decision 0's
+branch choice — deferred at decision 1 until the reads reported — is
+**branch (c): the 8-week Phase 0** (`ROADMAP_SLICING_2026-08-21.md` §5: S0,
+the blind-reach instrument, and S1, the general `Plain`+`Tail` lowering as a
+required-zero re-expression on the live dispatcher). It starts now, dispatched
+as lanes. The owner's framing adds a standing selection rule for concurrent
+work: **build what is high-leverage toward results plus validation of the
+design** — which is Phase 0's own purpose stated as a dispatch criterion.
+
+**What this does NOT decide.** Rows **4a**/**4b** are still not approved —
+Phase 0 exists to price them on evidence, and one of its registered outcomes
+(*S1's delta holds but workload `fnbyte-exact 35,894` moves*) voids the
+pricing basis and should stop the program. Step 5's NO-GO clauses (a)–(c)
+stand. Nothing here re-prices anything, and the byte judge is untouched.
+
+**The evidence the choice was made on** (discharging the coordinator's
+promised decision-0 synthesis; this section *is* that report):
+
+- **Two of the three funded reads were subtractions.** R1 removed
+  `P_REGALLOC.md` consequence 3's premise, so the ten refuted allocation keys
+  are back to UNEXPLAINED and the question passes whole to R4 (unfunded).
+  R3 struck `READ_PLAN` §3 row R3's *"closed by construction"* in half: the
+  site population is closed, the **charge is not** — 42 of 163 sites sit on
+  loop back edges, so `charge(TU) = the number of objects c2 constructs
+  itself`, and "replace two fitted constants" inherits "reproduce c2's object
+  population" (#3387).
+- **R2 succeeded totally and still declined to re-price I2** — 79/79 arms,
+  both tables, and `P_ENCODE.md` §9's six reasons the spec is not yet
+  buildable, first among them that it starts at a finished machine tuple and
+  building the tuple is R5 (189 arms, unstarted, 15–25 d).
+- **R3 found a latent defect in shipped code** (#3388):
+  `crates/c2-core/src/coff/label.rs`'s `LABEL_SEED_GAP = 9` is
+  `7 + 2·[/Og] + 1·[/GF ∧ string pooled in the data phase]`, and the `/Od`
+  lane is green only because its 21 matching TUs contain zero function
+  definitions. **That is the model-or-fit failure mode Phase 0 exists to
+  test, already present in miniature in the tree** — a fitted constant
+  passing because the control is structurally incapable of exercising it.
+  It is the single strongest piece of evidence that Phase 0's question is
+  live, which is why the reads strengthened the case for branch (c) rather
+  than for approving 4a blind.
+
+**Dispatched under this decision**, three lanes, all Opus:
+
+1. **S0** — the blind-reach instrument (`ROADMAP_SLICING` §5 row S0):
+   `fnbyte-blind-{exact,differs,unlowerable}` over the 113,565 parse-refused
+   functions, graded against real c2's COMDAT bytes, published beside FBM
+   under FBM's separation rule — never in `gate.sh`, licenses no emit —
+   with the required-zero identity (emit-path diff 0, 18-lane gate diff 0,
+   `match 26 / mismatch 0 / fnbyte-exact 35894` unmoved).
+2. **S1** — the general `Plain`+`Tail` lowering (row S1, with its 2026-08-21
+   amendment: the bijection promoted as a per-function **ratio**, never an
+   equality gate), required-zero byte delta on the live dispatcher (#3346),
+   pre-registered cost criterion (#3336), `after0` opcode agreement as a
+   ratio measurement.
+3. **The `LABEL_SEED_GAP` repair** — the first build selected under the
+   high-leverage rule: replace the fitted `9` with R3's read formula,
+   exposed as a named decision point per `GOAL_DECISION` § AMENDED, priced
+   two-sided, byte-judged against the reference on the very shapes that
+   today return `NotImplemented` where the grid can reach them, and with the
+   required-zero identity on everything currently matching.
+
+**What still needs the owner** (asked in the same turn, recorded here):
+whether to fund **R4** (globregs mint order, 3–5 d — now the destination of
+R1's unanswered question) and **R5** (the 189-arm IL→codegen dispatch,
+15–25 d — the shared input to all ten Phase-1 slices and the closure of
+R2's `[R]` bound). Decision 1 funded R1–R3 only; R5 is material spend and is
+**not** started under this decision. Nothing else blocks on an answer.

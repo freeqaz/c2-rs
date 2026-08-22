@@ -1014,3 +1014,15 @@ engineering one**, and no amendment to this document can supply it.~~
 > the reads' results will be read against.
 > Every read ends in a confirmation probe, and the byte judge is untouched by
 > all of it. **Clauses (a), (b) and (c) of row 5's NO-GO still stand.**
+
+> **✔✔✔ DECIDED BY THE OWNER, 2026-08-22, later the same day, after R1–R3
+> landed** (*"The 8 week experiment is reasonable to start work on now via
+> opus subagents"* — `docs/DECISIONS_2026-08-22.md` decision 5; board
+> **#3391**). **The branch is (c): the 8-week Phase 0** — S0 and S1 per
+> `ROADMAP_SLICING_2026-08-21.md` §5 — dispatched now, plus the
+> `LABEL_SEED_GAP` repair (#3388) as the first build under the owner's
+> high-leverage rule. **Rows 4a/4b are still not approved** — Phase 0 exists
+> to price them, one of its registered outcomes voids the pricing basis and
+> should stop the program, and row 5's NO-GO clauses stand exactly as above.
+> R4/R5 are not funded by this decision and were put back to the owner as
+> the one open spend question.
