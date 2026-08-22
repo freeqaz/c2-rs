@@ -5460,3 +5460,155 @@ work/wb-label/labgrid.py                 # the whole grid, both modes, in-the-mi
 work/wb-label/seedgrid.py                # the counterfactual beside the in-the-middle
 c2rs listing work/wb-label/probe/triple.cpp --flag /O1 --flag /GS- --flag /c
 ```
+
+---
+
+# 8. The seed is NOT a constant, and the 163 charging sites are enumerated (2026-08-22, lane `w-read-r3`, read R3)
+
+**Board #3387–#3390. Spec: `docs/whitebox/ref/P_LABEL.md`. Grade:
+`docs/whitebox/WB_LABELCHARGE_FINDINGS.md`. PREREG:
+`docs/whitebox/WB_LABELCHARGE_PREREG.md`, committed as the first commit on the
+lane's branch, before any site was read. Instrument:
+`scripts/gt_label_seedgap.py`.**
+
+This section is **appended**; §0–§7 are untouched. Read R3 of
+`docs/whitebox/READ_PLAN_2026-08-21.md` §3, funded by the owner
+(`docs/DECISIONS_2026-08-22.md` decision 1). **Nothing in `crates/` is
+changed by this lane.**
+
+## 8.1 §7.7 open #1 is ANSWERED, and the answer is not the one it expected
+
+> **`LABEL_SEED_GAP` = `7 + 2·[/Og runs] + 1·[/GF ∧ a string literal is pooled
+> in the data phase]`.** Measured over 22 cells, seed read directly out of the
+> captured `.gl` so it cannot hide inside the answer.
+
+| mode | base | + `const char* g = "x";` at file scope |
+|---|---:|---:|
+| `/Od`, `/Os`, `/Ot`, `/Oy`, `/Ob2` | **7** | **7** |
+| `/Og`, `/Ox`, `/Ox /Gy` | **9** | **9** |
+| `/Ox /GF` | **9** | **10** |
+| **`/O1`**, **`/O2`** | **9** | **10** |
+
+**It does NOT move with section needs**, which is what §7.7 open #1 asked
+about: an initialized global, an uninitialized global, an externally-visible
+const, a 64-element array, a 4 KiB `.bss` array, three globals at once, `/Gy`,
+`/GS` on, `/EHsc`, `/GR`, `/Oi` and the workload's whole `/Oi /EHsc /GR`
+cluster all leave it at exactly 9. The reason is read: c2 keeps a **reserved
+low-id region** for the standard sections of the default segment — six of the
+31 allocator sites charge *only* off the default segment and otherwise use the
+hardcoded ids `0x0d`, `0x0f`, `0x16`, `0x17`, `0x19`, `0x1a`, with `0x1b` at
+`FUN_10c1252c` (`P_LABEL.md` §3.1).
+
+**It is latent in the port, not live — checked rather than argued**, in this
+document's own §2.1 style. `/Od` is one of `scripts/lanes.txt`'s 18 graded
+lanes and its true gap is **7** against the shipped **9**; the lane reads
+`match=21 mismatch=0` and **all 21 matching TUs are data-only or empty**, so
+no `$M` is ever emitted there. The `/O1`+pooled-string shape returns
+`Port=NotImplemented` through `c2rs diff` with the reference replay
+byte-exact. What is live is the **licence**: the constant reads as
+compilation-independent, and the first rung to admit a framed function at
+`/Od`/`/Os`, or a `/O1` TU with a file-scope pointer-to-string initializer,
+inherits a wrong `$M` on **every function in the TU**.
+
+**Which units make the 7, the 9 or the 10 is still not enumerated.** The
+candidate population is now *bounded* to five named once-per-TU sites
+(`P_LABEL.md` §3), and the mode-dependence already refutes "nine fixed
+allocations"; attributing each unit needs a live tap on `0x10b97de5`.
+
+## 8.2 The site population is closed; the CHARGE is not
+
+`READ_PLAN` §3 row R3 called the mechanism *"closed by construction — one
+increment instruction"*. Two of the three claims inside that hold:
+
+* **one increment** — true, and stronger: `DAT_10c2edd0` has **7 references in
+  the whole image**, of which **3** are writes (two seed installs at
+  `0x10b97807` and `0x10b97ca1`, and the `+1` at `0x10b97de5`);
+* **the call sites are the whole population** — true, and here is the argument
+  that was missing: a direct `call` encodes a *relative* displacement, so a
+  function whose absolute VA never appears as data cannot be reached
+  indirectly, and `FUN_10b97dd0`'s VA occurs **zero times** as a 4-byte
+  absolute anywhere in the image. **31** allocator sites and **132**
+  constructor sites, re-derived from the pinned image by a raw `E8` scan
+  (`docs/whitebox/scripts/dump_label_sites.py`) and agreeing with the Ghidra
+  export exactly;
+* **therefore the charge is a per-construct constant** — **FALSE.** **42 of
+  the 163 sites sit on loop back edges.** The decisive one is `0x10b5cee1` in
+  `FUN_10b5ceb5` (`hash.c`): a nested loop over a `0x400`-bucket symbol table
+  that does `sym[+0x28] = FUN_10b97dd0()` for *every* symbol except kind 1
+  with linkage 3.
+
+> **charge(TU) = the number of objects c2 CONSTRUCTS ITSELF.** That is why
+> this document's `stride == minted` observation is a mechanism and not a
+> coincidence, and why §1.1's two zero rows are zero: an IL-named callee takes
+> `sym[+0x28]` from the stream with no constructor call, and a re-used helper
+> **hits** the 128-slot intern probe at `FUN_10b9a897` (`idx = hash & 0x7f`)
+> and never reaches the charging arm.
+
+## 8.3 §7.7 open #3 gets a mechanism (not a rule)
+
+The `/Ox` loop charge's four magnitudes have a named source: **`lur.c`, the
+loop unroller, holds seven of the 132 label-constructor call sites, in six
+functions**, and
+`lur.c` is 15,115 lines and **unread** (`READ_PLAN` §1). At `/Ox` a loop's
+charge is a property of what the unroller did, and the unroller invents labels
+from six places nobody has read. **No rule is proposed here either.**
+
+## 8.4 Two addresses a conversion lane wants
+
+* **`$M` is minted at `0x10c21992`** — a 20-byte function in `vlines.c`:
+  `FUN_10b9a455()` (one charge), `+0x43 |= 1`, `+0x31 = 'W'`, then attach to a
+  tuple. **One charge per `$M`.**
+* **`$T` is minted at `0x10b9b701`** (`FUN_10b9b6a4`, anonymous kind-1,
+  `+0x31 = 0x26`), reached from the `.pdata` record writer `FUN_10c217fd`.
+
+## 8.5 What R3 does NOT give, and it is the same caveat the plan wrote
+
+**This is the CHARGE, not the ORDER.** A charge rule without an order rule
+still cannot place a label; the other half is **R8** (block emission order,
+`CEILING` §6.1 phase 1, the one UNSERVED phase). The concrete overlap: `fg.c`
+holds **ten** of the 132 constructor sites, across **eight** functions, and
+`fg.c` `0x10b36133` is where R8 starts.
+
+## 8.6 Reproduction
+
+```sh
+python3 docs/whitebox/scripts/dump_label_sites.py \
+        compilers/X360/16.00.11886.00/c2.dll --closure
+python3 scripts/gt_label_seedgap.py --selftest      # the banner's own cells
+python3 scripts/gt_label_seedgap.py                 # the grid, packed
+python3 scripts/gt_label_seedgap.py --mode '/O1 /GS- /c'
+```
+
+## 8.7 `stride == minted` fails in BOTH directions — §7's retraction R2, with the direction it lacked
+
+§7's **R2** retracted *"every row of §1.1's surcharge table equals the number
+of COFF symbol records that surcharge causes c2 to mint"* on the base rows —
+*"minting causes charge; charge is not equal to minting."* Measured here on
+rows chosen because they can break it, `/O1 /GS- /c`, in-the-middle form,
+`scripts/gt_label_stride.py`:
+
+| probe | stride | minted | direction |
+|---|---:|---:|---|
+| `leaf-cmp-eq` (`a == 5`) | 1 | 1 | — |
+| `leaf-branch` (an `if`) | 1 | 1 | — |
+| **`leaf-cmp-lt5`** (signed `a < 5`) | **3** | **1** | charge **over** minting by 2 |
+| **`leaf-loop`** (a `for`) | **3** | **1** | charge **over** minting by 2 |
+| **`leaf-string`** (returns `"hello"`) | **1** | **3** | **minting over charge by 2** |
+
+`charge > minted` is c2 building **label** objects (§8.2's 132 constructor
+sites) that no symbol survives to represent, and `+2` is the signature two
+label objects would leave — which is what §1.1's signed-relational row and
+§2.1's loop row have always looked like from the outside.
+
+**`minted > charge` is the one nobody had.** A string literal creates an
+`.rdata` COMDAT **section symbol** and a `??_C@…` **symbol** and charges
+**nothing** (§2.1 measured the 0; this is why), while a **pooled FP constant**
+creates the same *shape* of COMDAT and charges **+2**. The two are built by
+**different constructors**, only one of which is on the charging list.
+
+> **And the string literal has two prices, not one.** In a *function body* it
+> costs **0** — `leaf-string` strides 1 at `/O1`, and one, two or three
+> literals all stride 1 (§2.1). In the *data phase* — a file-scope
+> `const char* g = "x";` — it costs **+1**, and that is exactly the `/GF` term
+> in §8.1's rule. Same literal, same COMDAT shape, different phase, different
+> charge.
