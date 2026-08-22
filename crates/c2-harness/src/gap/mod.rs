@@ -35,6 +35,10 @@ use std::path::PathBuf;
 use crate::provenance::Provenance;
 
 mod classify;
+/// **S0 — the blind-reach instrument.** Grades the parse-refused population
+/// against real c2's COMDAT bytes. A GRADIENT under `FUNCTION_BYTE_MATCH.md`
+/// §0's separation rule: never in `gate.sh`, licenses no emit.
+pub mod blind;
 mod factors;
 pub mod fnbytes;
 pub mod fndiff;
