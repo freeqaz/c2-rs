@@ -144,3 +144,9 @@ unreachable without 4a, since a ported pass with no route to `coff::Function`
 cannot move a single obj byte. Goal (1), by contrast, is served by
 characterization alone. So the live question is no longer *whether* the port
 is worth doing — it is whether to fund 4a now or bank understanding first.
+
+**2026-08-22 update** (`docs/DECISIONS_2026-08-22.md` decision 1, board
+**#3371**): the owner funded the **reads-first path** — R1→R2→R3 of
+`docs/whitebox/READ_PLAN_2026-08-21.md` run *before* the 4a-vs-Phase-0 choice
+is made. Decision 0's branch choice itself remains open, deferred until the
+reads report.

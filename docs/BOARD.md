@@ -4443,4 +4443,18 @@ lane's assignment.
 
 ### `#3369`–`#3370` are `w-readdocs`'s and both are spent above.
 
-### **THE NEXT FREE NUMBER IS `#3371`.**
+## The 2026-08-22 owner decisions — `#3371`, and four ranges reserved
+
+| row | claim | state | evidence | links | consequence |
+|---|---|---|---|---|---|
+| **3371**<sub>owner</sub> | **THE OWNER ANSWERED THE 2026-08-22 BRIEF'S THREE ASKS IN ONE MESSAGE — THE READS ARE FUNDED, THE SHIPPING ROADMAP IS ORDERED REWRITTEN AGAINST THE GOALS, AND PUSH IS AUTHORIZED — PLUS A FOURTH INSTRUCTION: A DOCS-STRUCTURE PASS** | **DECIDED 2026-08-22**, quoted verbatim in `docs/DECISIONS_2026-08-22.md`: *"#1 funded for option 4. #2 rewrite the doc and get it aligned with our earlier goal statement. #3 you have permission to push"*, then *"lay out the structure to make finding information easier. look at ../decomp-synth for inspiration… hand this an opus subagent."* "Option 4" = the reads-first path added to §8 decision 0 by #3367's survey: **R1→R2→R3 before the 4a/Phase-0 choice**. The branch choice itself stays **OPEN**, deferred until the reads report — the funding approves no row of 4a and re-prices nothing | four lanes dispatched same day: `w-r1` (R1, `DAT_10c400d4` scope, 0.5 d), `w-r2` (R2, encoder, 2–4 d), `w-shiproadmap` (the ordered rewrite; the 2026-08-19 text stays as a bannered dated record), `w-docmap` (structure; hard constraint in brief — `file.md:NNN` citations are load-bearing and `board_audit.sh` cannot see cross-doc breakage, so moves are priced before made). Push executed the same day — the 46-commit local/remote divergence closes and the standing memory claim ("this fork is push-authorized") is **confirmed by the owner in-session** rather than merely stored | `docs/DECISIONS_2026-08-22.md` · `docs/ARCHITECTURE_PROPOSAL_2026-08-20.md` §8 decision 0 (✔✔ block) · `docs/GOAL_DECISION_2026-08-21.md` § "Still open" (2026-08-22 update) · **#3367** · **#3369** (the permuter conflation the brief carried into its recommendation) · **#8**/task board | **THE FIRST WHITEBOX READS DISPATCHED UNDER THE READ-BEFORE-PROBE DOCTRINE AS FUNDED WORK, NOT SURVEY** — R1 decides whether the ten refuted allocation keys have an explanation at all; R2 replaces I2's 1.5–4.5 eng-mo black-box price with a 2–4 d read. Two brief recommendations recorded but **not owner-decided** (`DECISIONS` § last): the permuter wants a *population measurement* before a build, and `DIFF_STRUCTURE.md` wants a rescan, not an edit |
+
+Reserved ranges, per the #3322 precedent, so four concurrent lanes cannot
+collide on numbers (the failure hit twice in the 2026-08-07 wave): **#3372–
+#3375 `w-r1`** · **#3376–#3379 `w-r2`** · **#3380–#3383 `w-shiproadmap`** ·
+**#3384–#3386 `w-docmap`**. Unused reservations are released at each lane's
+merge, in the merge commit.
+
+### `#3371` is spent above; `#3372`–`#3386` are reserved.
+
+### **THE NEXT FREE NUMBER IS `#3387`.**

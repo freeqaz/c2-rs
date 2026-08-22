@@ -973,5 +973,14 @@ engineering one**, and no amendment to this document can supply it.~~
 > **And the caveat that keeps this honest:** `[R]` means *"the instructions were
 > read correctly,"* not *"this is what c2 does"* (`READ_PLAN` §5.3 — the `.bss`
 > bump rule was read correctly out of a clean function and was wrong about c2).
+
+> **✔✔ PARTIALLY DECIDED BY THE OWNER, 2026-08-22** (*"#1 funded for option
+> 4"* — `docs/DECISIONS_2026-08-22.md` decision 1; board **#3371**). The
+> reads-first path is **funded**: R1→R2→R3 dispatched as characterization
+> lanes under prereg. **The branch choice this section poses — approve 4a/4b,
+> characterization-only, or Phase 0 — remains OPEN and is deferred until
+> R1–R3 report.** Nothing above is approved, re-priced or waived by the
+> funding; block 3's three "bears on the choice" points are now the questions
+> the reads' results will be read against.
 > Every read ends in a confirmation probe, and the byte judge is untouched by
 > all of it. **Clauses (a), (b) and (c) of row 5's NO-GO still stand.**
