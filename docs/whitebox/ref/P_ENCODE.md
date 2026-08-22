@@ -367,7 +367,7 @@ is reached through one indirect vector, `ds:0x10c433f8`, called as
 `push <type>; edx = symbol; ecx = 0; call [0x10c433f8]`. The type codes are
 `IMAGE_REL_PPC_*` and they match the architecture exactly: `[R]`
 
-| helper | sites | emits | reached from |
+| helper | reaching paths | emits | reached from |
 |---|---:|---|---|
 | `0x10bf976d` | 1 | **6** = `REL24`, then stashes the symbol in `DAT_10c6fd5c` | form 7 (`bl`) |
 | `0x10bf96d9` | 1 | **0x0d** = `IFGLUE`, on the symbol `0x10bf976d` stashed | form 37, only when the opcode is `0x280` (`rsttoc`) — the *"nop after the call"* glue slot |
@@ -376,6 +376,13 @@ is reached through one indirect vector, `ds:0x10c433f8`, called as
 | `0x10bf9808` | 2 | `REFLO` + `PAIR`, if the memory operand carries a symbol | both `D`-form memory composers |
 | `0x10bf9758` | 1 | **0x0f** = `SECREL16` | form 34 (`loffs`) |
 | `0x10bd470b` + inline | 1 | **2** = `ADDR32` | form 65 (`DCD`) |
+
+**"Reaching paths" is not "call sites"** — form 30 (`lau`) reaches
+`0x10bf96ea` by `jmp 0x10bfa522` into form 51's tail rather than by its own
+`call`, and `0x10bf9808`'s two sites are inside the `D`-form composers, not in
+the encoder body. Exact, mechanically counted: the body
+`0x10bf9f15..0x10bfae2a` contains **15 direct call sites over 13 distinct
+targets, plus 1 indirect** (`0x10bfa86f`, `ds:0x10c433f8`).
 
 `0x10b2930b`, called between the two halves of every `REFHI`/`REFLO` pair, is
 inside `coffemit.c`'s recovered range (`0x10b290dc..0x10b2b0dd`,
