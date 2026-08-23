@@ -178,110 +178,172 @@ def count_words(entry, succ, calls):
     return lo, (None if unbounded[0] else hi), sorted(dele)
 
 
-def opcode_tree(insns):
-    """Recover the dispatch tree of FUN_10c0d57e -> {opcode: arm VA}.
+# The per-opcode attribute byte table the dispatch tail consults at
+# 0x10c0e30b: `mov cl,BYTE PTR [eax+0x10c3afd8] / and cl,0x7 / cmp cl,2`.
+# The low 3 bits are an opcode CLASS; class 2 routes to 0x10c0e40f.
+CLASS_TABLE = 0x10C3AFD8
+CLASS_MASK = 0x7
 
-    FUN_10c0d57e is a BINARY DECISION TREE, not a jump table (this reproduces
-    WB_SELECT_FINDINGS.md:668's PARTIAL), so the arm set cannot be read out of
-    a table -- it has to be recovered from the comparison chain.  MSVC emits
-    two idioms against the register holding `param_2[1]`:
+# 0x10c0e30b is not an arm: it is the dispatch TAIL, which re-dispatches on
+# CLASS_TABLE rather than on the opcode.  Paths reaching it are reported
+# separately, never merged into the opcode->arm map.
+DISPATCH_TAIL = 0x10C0E30B
 
-        cmp eax,IMM / je ARM / ja HIGH     -- a binary-search pivot
-        mov ecx,eax / sub ecx,IMM / je ARM / sub ecx,K / je ARM ...
-                                           -- a dense run, flags from the sub
 
-    A linear scan cannot do this: the opcode register is clobbered inside arm
-    bodies, and the sub-runs are reached only by branches.  So this is a
-    forward dataflow over the CFG, forking at every conditional branch,
-    carrying `alias[reg] = k` ("reg holds opcode - k") and `const[reg] = c`.
-    A path dies when the opcode register is clobbered or a call is reached
-    (that is an arm body, not dispatch), which bounds the walk.
+def opcode_bound(insns):
+    """The largest opcode constant the tree actually tests, + 1.
+
+    Used as the walk's upper bound so the map is bounded by what the CODE
+    discriminates rather than by a number chosen to make the output look
+    tidy.  Everything above it reaches the dispatch tail by construction.
+    """
+    best = 0
+    for _, mn, ops in insns:
+        if mn in ("cmp", "sub", "add", "lea"):
+            for m in re.finditer(r"0x([0-9a-f]+)", ops):
+                v = int(m.group(1), 16)
+                if v <= 0x1000:
+                    best = max(best, v)
+    return best + 1
+
+
+def opcode_tree(insns, OPMAX):
+    """Recover FUN_10c0d57e's dispatch -> {arm VA: sorted list of opcodes}.
+
+    FUN_10c0d57e is a BINARY SEARCH TREE on `param_2[1]`, not a jump table
+    (this reproduces WB_SELECT_FINDINGS.md:668's PARTIAL from the bytes), so
+    there is no table to read and no fixed idiom to match.  The only correct
+    recovery is to propagate the OPCODE INTERVAL along every path: each
+    compare-and-branch narrows [lo, hi], and when a path reaches an arm body
+    the surviving interval IS that arm's opcode set.
+
+    This is what catches RANGE arms, which an equality-only scan misses by
+    construction -- `cmp eax,0xb / jb default / cmp eax,0xd / jbe ARM` is the
+    addi/addic/addic. arm, and `lea ecx,[eax-0x26e] / cmp ecx,1 / ja default`
+    is the rlandi pair.  Neither contains a single `je` on the opcode.
+
+    State per path: the interval, a set of excluded values (from `je`/`jne`
+    fall-throughs), and alias[reg] = k meaning "reg holds opcode - k".
     """
     by_va = {va: i for i, (va, _, _) in enumerate(insns)}
-    arms = {}
-    seen = set()
-    # state: (alias tuple, const tuple, last-modified alias reg, pending cmp)
-    start = insns[0][0]
-    work = [(start, (), (), None, None)]
+    entry = insns[0][0]
+    arms, wide, seen = {}, {}, set()
+
+    # A body reached with a WIDE surviving interval was not discriminated for
+    # those opcodes -- it is a shared fall-through, not a per-opcode arm.
+    # Crediting it would inflate the arm map by hundreds of opcodes the tree
+    # never tests.  Wide arrivals are reported separately, never merged.
+    NARROW = 64
+
+    def emit(arm, lo, hi, exc):
+        if arm is None or lo > hi:
+            return
+        ops = [o for o in range(max(lo, 1), min(hi, OPMAX) + 1) if o not in exc]
+        if not ops:
+            return
+        if len(ops) <= NARROW:
+            arms.setdefault(arm, set()).update(ops)
+        else:
+            wide.setdefault(arm, set()).update(ops)
+
+    # (va, lo, hi, excluded, alias, pending-compare-value, arm-entry)
+    work = [(entry, 1, OPMAX, frozenset(), (("eax", 0),), None, None)]
+    tail = set()
     while work:
-        va, al, co, last, pend = work.pop()
-        key = (va, al, co, last, pend)
-        if key in seen or va not in by_va:
+        va, lo, hi, exc, al, pend, arm = work.pop()
+        if va not in by_va or lo > hi:
+            continue
+        key = (va, lo, hi, exc, al, pend, arm)
+        if key in seen or len(seen) > 300000:
             continue
         seen.add(key)
-        if len(seen) > 400000:
-            break
-        alias, const = dict(al), dict(co)
+        alias = dict(al)
         _, mn, ops = insns[by_va[va]]
         f = [x.strip() for x in ops.split(",")] if ops else []
         nxt = insns[by_va[va] + 1][0] if by_va[va] + 1 < len(insns) else None
-        newpend = None
+        t = target_of(ops) if mn in BRANCH else None
 
-        if mn == "call":
-            continue                      # arm body: dispatch is over
-        if mn.startswith("ret"):
+        if va == DISPATCH_TAIL:
+            tail.update(o for o in range(max(lo, 1), min(hi, OPMAX) + 1)
+                        if o not in exc)
             continue
+        if mn == "call" or mn.startswith("ret"):
+            emit(arm, lo, hi, exc)          # an arm body: dispatch is over
+            continue
+
+        newpend = pend
         if mn == "mov" and len(f) == 2:
             d, sr = f
-            const.pop(d, None); alias.pop(d, None)
-            if re.fullmatch(r"0x[0-9a-f]+", sr):
-                const[d] = int(sr, 16)
-            elif sr in alias:
+            alias.pop(d, None)
+            if sr in alias:
                 alias[d] = alias[sr]
             elif OPCODE_LOAD.fullmatch(sr):
                 alias[d] = 0
+        elif mn == "lea" and len(f) == 2:
+            m = re.fullmatch(r"\[(e[a-z]{2})([-+])0x([0-9a-f]+)\]", f[1])
+            alias.pop(f[0], None)
+            if m and m.group(1) in alias:
+                k = int(m.group(3), 16)
+                alias[f[0]] = alias[m.group(1)] + (k if m.group(2) == "-" else -k)
         elif mn in ("sub", "add") and len(f) == 2 and f[0] in alias \
                 and re.fullmatch(r"0x[0-9a-f]+", f[1]):
             k = int(f[1], 16)
             alias[f[0]] += k if mn == "sub" else -k
-            last = f[0]
+            newpend = alias[f[0]]           # sub sets the flags against 0
         elif mn in ("dec", "inc") and f and f[0] in alias:
             alias[f[0]] += 1 if mn == "dec" else -1
-            last = f[0]
+            newpend = alias[f[0]]
         elif mn == "cmp" and len(f) == 2:
-            a, b = f
-            if a in alias and re.fullmatch(r"0x[0-9a-f]+", b):
-                newpend = (alias[a], int(b, 16))
-            elif a in alias and b in const:
-                newpend = (alias[a], const[b])
-            elif b in alias and a in const:
-                newpend = (alias[b], const[a])
-        elif mn in ("test",):
-            pass
+            x, y = f
+            if x in alias and re.fullmatch(r"0x[0-9a-f]+", y):
+                newpend = alias[x] + int(y, 16)
+            else:
+                newpend = None
+        elif mn == "test":
+            newpend = None
         elif f and mn not in BRANCH:
-            const.pop(f[0], None); alias.pop(f[0], None)
-            if f[0] == OPCODE_REG:
-                continue                  # the opcode is gone; stop this path
+            alias.pop(f[0], None)
+            if f[0] == "eax" and "eax" not in alias:
+                emit(arm, lo, hi, exc)      # the opcode is dead: arm body
+                continue
 
-        t = target_of(ops) if mn in BRANCH else None
-        if mn == "je" and t:
-            k = (pend[0] + pend[1]) if pend is not None else alias.get(last)
-            if k is not None and 0 < k <= 0x400:
-                arms.setdefault(k, t)
-        elif mn in ("jb", "jbe") and t and pend is not None:
-            # `sub eax,0x26e / cmp eax,2 / jb ARM` is a RANGE arm: every opcode
-            # in [base, base+imm) shares one body.  Equality-only recovery
-            # misses these entirely -- rlandi/rlandi. is exactly this shape.
-            base, imm = pend
-            hi = base + imm - (1 if mn == "jb" else 0)
-            if 0 < base and hi - base < 64 and hi <= 0x400:
-                for k in range(base, hi + 1):
-                    arms.setdefault(k, t)
-        if mn in BRANCH:
-            # A branch does not write the flags, so a pending compare survives
-            # it -- MSVC emits `cmp / ja HIGH / je ARM`, and dropping `pend`
-            # across the `ja` loses every binary-search pivot in the tree.
-            t = target_of(ops)
-            if t is not None and t in by_va:
-                work.append((t, tuple(sorted(alias.items())),
-                             tuple(sorted(const.items())), last, pend))
-            if mn not in UNCOND and nxt is not None:
-                work.append((nxt, tuple(sorted(alias.items())),
-                             tuple(sorted(const.items())), last, pend))
+        def push(dst, l, h, e, a2):
+            if dst is not None and l <= h:
+                work.append((dst, l, h, e, tuple(sorted(a2.items())),
+                             newpend if dst == nxt else None,
+                             arm if dst == nxt else dst))
+
+        if mn in BRANCH and t is not None:
+            v = pend
+            if mn == "jmp":
+                work.append((t, lo, hi, exc, tuple(sorted(alias.items())),
+                             pend, t))
+            elif v is None:
+                push(t, lo, hi, exc, alias); push(nxt, lo, hi, exc, alias)
+            elif mn in ("je", "jz"):
+                push(t, v, v, frozenset(), alias)
+                push(nxt, lo, hi, exc | {v}, alias)
+            elif mn in ("jne", "jnz"):
+                push(t, lo, hi, exc | {v}, alias)
+                push(nxt, v, v, frozenset(), alias)
+            elif mn == "ja":
+                push(t, max(lo, v + 1), hi, exc, alias)
+                push(nxt, lo, min(hi, v), exc, alias)
+            elif mn in ("jae", "jnb"):
+                push(t, max(lo, v), hi, exc, alias)
+                push(nxt, lo, min(hi, v - 1), exc, alias)
+            elif mn == "jb":
+                push(t, lo, min(hi, v - 1), exc, alias)
+                push(nxt, max(lo, v), hi, exc, alias)
+            elif mn == "jbe":
+                push(t, lo, min(hi, v), exc, alias)
+                push(nxt, max(lo, v + 1), hi, exc, alias)
+            else:
+                push(t, lo, hi, exc, alias); push(nxt, lo, hi, exc, alias)
         elif nxt is not None:
-            work.append((nxt, tuple(sorted(alias.items())),
-                         tuple(sorted(const.items())), last, newpend))
-    return arms
+            work.append((nxt, lo, hi, exc, tuple(sorted(alias.items())),
+                         newpend, arm))
+    return arms, wide, tail
 
 
 def mnemonic(img, op):
@@ -322,24 +384,35 @@ def main(argv):
     insns = disasm(path, EXPAND_LO, EXPAND_HI)
     print("# FUN_10c0d57e  %#x..%#x  %d instructions"
           % (EXPAND_LO, EXPAND_HI, len(insns)))
-    arms = opcode_tree(insns)
+    OPMAX = opcode_bound(insns)
+    arms, wide, tail = opcode_tree(insns, OPMAX)
+    print("# opcode bound discriminated by the tree: %#x" % OPMAX)
 
     if mode == "--arms":
+        byop = {o: a for a, os in arms.items() for o in os}
         print("# opcode  mnemonic      arm VA")
-        for op in sorted(arms):
-            print("%#08x  %-12s  %#010x" % (op, mnemonic(img, op) or "-", arms[op]))
-        print("# %d distinct opcode values receive a non-default arm" % len(arms))
+        for op in sorted(byop):
+            print("%#08x  %-12s  %#010x" % (op, mnemonic(img, op) or "-", byop[op]))
+        print("# %d distinct opcode values receive a non-default arm, "
+              "over %d distinct arm bodies" % (len(byop), len(arms)))
+        print("# %d opcodes reach the dispatch TAIL %#x (class table %#x)"
+              % (len(tail), DISPATCH_TAIL, CLASS_TABLE))
+        print("# %d shared fall-through bodies reached un-narrowed: %s"
+              % (len(wide), ",".join("%#x(%d)" % (a, len(o))
+                                     for a, o in sorted(wide.items()))))
         return 0
 
     if mode == "--words":
         succ, calls = build_cfg(insns)
-        print("# opcode  mnemonic      arm VA      words(min..max)  delegates")
-        for op in sorted(arms):
-            lo, hi, dele = count_words(arms[op], succ, calls)
+        print("# arm VA      words(min..max)  nopcodes  opcodes / delegates")
+        for arm in sorted(arms):
+            lo, hi, dele = count_words(arm, succ, calls)
             hs = "unbounded" if hi is None else str(hi)
-            print("%#08x  %-12s  %#010x  %3s..%-9s  %s"
-                  % (op, mnemonic(img, op) or "-", arms[op], lo, hs,
-                     ",".join("%#x" % d for d in dele) or "-"))
+            os_ = sorted(arms[arm])
+            names = [mnemonic(img, o) or ("%#x" % o) for o in os_[:8]]
+            print("%#010x  %3s..%-9s  %8d  %s%s"
+                  % (arm, lo, hs, len(os_), ",".join(names),
+                     "  DELEGATES:" + ",".join("%#x" % d for d in dele) if dele else ""))
         return 0
 
     print(__doc__)
