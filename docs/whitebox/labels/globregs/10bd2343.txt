@@ -1,0 +1,138 @@
+# 10bd2343  FUN_10bd2343  size=230
+# role: symbol-chunk allocator -- stamps sym+0x1c, APPENDS the chunk
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# regenerate: docs/whitebox/scripts/dump_globregs.py
+
+## disassembly (objdump, GNU binutils)
+
+10bd2343:	56                   	push   esi
+10bd2344:	ba 20 0c 00 00       	mov    edx,0xc20
+10bd2349:	33 c9                	xor    ecx,ecx
+10bd234b:	e8 da de 04 00       	call   0x10c2022a
+10bd2350:	8b f0                	mov    esi,eax
+10bd2352:	33 d2                	xor    edx,edx
+10bd2354:	8d 46 20             	lea    eax,[esi+0x20]
+10bd2357:	8d 8e 20 0c 00 00    	lea    ecx,[esi+0xc20]
+10bd235d:	89 16                	mov    DWORD PTR [esi],edx
+10bd235f:	89 46 04             	mov    DWORD PTR [esi+0x4],eax
+10bd2362:	89 4e 08             	mov    DWORD PTR [esi+0x8],ecx
+10bd2365:	89 56 10             	mov    DWORD PTR [esi+0x10],edx
+10bd2368:	89 56 14             	mov    DWORD PTR [esi+0x14],edx
+10bd236b:	89 56 18             	mov    DWORD PTR [esi+0x18],edx
+10bd236e:	89 56 1c             	mov    DWORD PTR [esi+0x1c],edx
+10bd2371:	3b c1                	cmp    eax,ecx
+10bd2373:	73 1b                	jae    0x10bd2390
+10bd2375:	8b 0d 44 f8 c6 10    	mov    ecx,DWORD PTR ds:0x10c6f844
+10bd237b:	8b 09                	mov    ecx,DWORD PTR [ecx]
+10bd237d:	89 48 1c             	mov    DWORD PTR [eax+0x1c],ecx
+10bd2380:	8b 0d 44 f8 c6 10    	mov    ecx,DWORD PTR ds:0x10c6f844
+10bd2386:	ff 01                	inc    DWORD PTR [ecx]
+10bd2388:	83 c0 60             	add    eax,0x60
+10bd238b:	3b 46 08             	cmp    eax,DWORD PTR [esi+0x8]
+10bd238e:	72 e5                	jb     0x10bd2375
+10bd2390:	8b 0d 44 f8 c6 10    	mov    ecx,DWORD PTR ds:0x10c6f844
+10bd2396:	8b 41 0c             	mov    eax,DWORD PTR [ecx+0xc]
+10bd2399:	39 41 08             	cmp    DWORD PTR [ecx+0x8],eax
+10bd239c:	75 5d                	jne    0x10bd23fb
+10bd239e:	2b 41 04             	sub    eax,DWORD PTR [ecx+0x4]
+10bd23a1:	53                   	push   ebx
+10bd23a2:	55                   	push   ebp
+10bd23a3:	c1 f8 02             	sar    eax,0x2
+10bd23a6:	57                   	push   edi
+10bd23a7:	8b f8                	mov    edi,eax
+10bd23a9:	8b df                	mov    ebx,edi
+10bd23ab:	c1 e3 03             	shl    ebx,0x3
+10bd23ae:	8b d3                	mov    edx,ebx
+10bd23b0:	33 c9                	xor    ecx,ecx
+10bd23b2:	e8 73 de 04 00       	call   0x10c2022a
+10bd23b7:	8b e8                	mov    ebp,eax
+10bd23b9:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd23be:	c1 e7 02             	shl    edi,0x2
+10bd23c1:	57                   	push   edi
+10bd23c2:	ff 70 04             	push   DWORD PTR [eax+0x4]
+10bd23c5:	55                   	push   ebp
+10bd23c6:	e8 91 64 05 00       	call   0x10c2885c
+10bd23cb:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd23d0:	89 68 04             	mov    DWORD PTR [eax+0x4],ebp
+10bd23d3:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd23d8:	8b 48 04             	mov    ecx,DWORD PTR [eax+0x4]
+10bd23db:	03 cf                	add    ecx,edi
+10bd23dd:	89 48 08             	mov    DWORD PTR [eax+0x8],ecx
+10bd23e0:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd23e5:	8b 48 04             	mov    ecx,DWORD PTR [eax+0x4]
+10bd23e8:	83 c4 0c             	add    esp,0xc
+10bd23eb:	03 cb                	add    ecx,ebx
+10bd23ed:	5f                   	pop    edi
+10bd23ee:	5d                   	pop    ebp
+10bd23ef:	89 48 0c             	mov    DWORD PTR [eax+0xc],ecx
+10bd23f2:	8b 0d 44 f8 c6 10    	mov    ecx,DWORD PTR ds:0x10c6f844
+10bd23f8:	33 d2                	xor    edx,edx
+10bd23fa:	5b                   	pop    ebx
+10bd23fb:	39 51 10             	cmp    DWORD PTR [ecx+0x10],edx
+10bd23fe:	75 05                	jne    0x10bd2405
+10bd2400:	89 71 10             	mov    DWORD PTR [ecx+0x10],esi
+10bd2403:	eb 05                	jmp    0x10bd240a
+10bd2405:	8b 41 14             	mov    eax,DWORD PTR [ecx+0x14]
+10bd2408:	89 30                	mov    DWORD PTR [eax],esi
+10bd240a:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd240f:	89 70 14             	mov    DWORD PTR [eax+0x14],esi
+10bd2412:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd2417:	8b 40 08             	mov    eax,DWORD PTR [eax+0x8]
+10bd241a:	89 30                	mov    DWORD PTR [eax],esi
+10bd241c:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd2421:	83 40 08 04          	add    DWORD PTR [eax+0x8],0x4
+10bd2425:	8b c6                	mov    eax,esi
+10bd2427:	5e                   	pop    esi
+10bd2428:	c3                   	ret
+
+## decompilation (Ghidra)
+
+// ===== FUNC 10bd2343 FUN_10bd2343 size=230 =====
+
+undefined4 * FUN_10bd2343(void)
+
+{
+  undefined4 *puVar1;
+  int iVar2;
+  undefined4 *puVar3;
+  int iVar4;
+  size_t _Size;
+  
+  puVar1 = FUN_10c2022a(0,0xc20);
+  puVar3 = puVar1 + 8;
+  *puVar1 = 0;
+  puVar1[1] = puVar3;
+  puVar1[2] = puVar1 + 0x308;
+  puVar1[4] = 0;
+  puVar1[5] = 0;
+  puVar1[6] = 0;
+  puVar1[7] = 0;
+  if (puVar3 < puVar1 + 0x308) {
+    do {
+      puVar3[7] = *DAT_10c6f844;
+      *DAT_10c6f844 = *DAT_10c6f844 + 1;
+      puVar3 = puVar3 + 0x18;
+    } while (puVar3 < (undefined4 *)puVar1[2]);
+  }
+  if (DAT_10c6f844[2] == DAT_10c6f844[3]) {
+    iVar2 = DAT_10c6f844[3] - DAT_10c6f844[1] >> 2;
+    iVar4 = iVar2 * 8;
+    puVar3 = FUN_10c2022a(0,iVar4);
+    _Size = iVar2 * 4;
+    memcpy(puVar3,(void *)DAT_10c6f844[1],_Size);
+    DAT_10c6f844[1] = (int)puVar3;
+    DAT_10c6f844[2] = DAT_10c6f844[1] + _Size;
+    DAT_10c6f844[3] = DAT_10c6f844[1] + iVar4;
+  }
+  if (DAT_10c6f844[4] == 0) {
+    DAT_10c6f844[4] = (int)puVar1;
+  }
+  else {
+    *(undefined4 **)DAT_10c6f844[5] = puVar1;
+  }
+  DAT_10c6f844[5] = (int)puVar1;
+  *(undefined4 **)DAT_10c6f844[2] = puVar1;
+  DAT_10c6f844[2] = DAT_10c6f844[2] + 4;
+  return puVar1;
+}
+

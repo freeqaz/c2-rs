@@ -1,0 +1,268 @@
+# 10b57633  FUN_10b57633  size=541
+# role: globregs phase driver -- resets the counter, runs 1/2/3
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# regenerate: docs/whitebox/scripts/dump_globregs.py
+
+## disassembly (objdump, GNU binutils)
+
+10b57633:	51                   	push   ecx
+10b57634:	53                   	push   ebx
+10b57635:	55                   	push   ebp
+10b57636:	56                   	push   esi
+10b57637:	57                   	push   edi
+10b57638:	6a 07                	push   0x7
+10b5763a:	8b f1                	mov    esi,ecx
+10b5763c:	59                   	pop    ecx
+10b5763d:	e8 45 8b 0c 00       	call   0x10c20187
+10b57642:	6a 08                	push   0x8
+10b57644:	5d                   	pop    ebp
+10b57645:	8b cd                	mov    ecx,ebp
+10b57647:	e8 3b 8b 0c 00       	call   0x10c20187
+10b5764c:	bf d8 00 c4 10       	mov    edi,0x10c400d8
+10b57651:	8b cd                	mov    ecx,ebp
+10b57653:	e8 75 f8 fc ff       	call   0x10b26ecd
+10b57658:	89 07                	mov    DWORD PTR [edi],eax
+10b5765a:	83 c7 04             	add    edi,0x4
+10b5765d:	81 ff f8 00 c4 10    	cmp    edi,0x10c400f8
+10b57663:	7c ec                	jl     0x10b57651
+10b57665:	33 ff                	xor    edi,edi
+10b57667:	33 db                	xor    ebx,ebx
+10b57669:	47                   	inc    edi
+10b5766a:	89 3d cc ff c3 10    	mov    DWORD PTR ds:0x10c3ffcc,edi
+10b57670:	89 1d c8 ff c3 10    	mov    DWORD PTR ds:0x10c3ffc8,ebx
+10b57676:	89 3d d4 00 c4 10    	mov    DWORD PTR ds:0x10c400d4,edi
+10b5767c:	89 1d e0 e3 c2 10    	mov    DWORD PTR ds:0x10c2e3e0,ebx
+10b57682:	39 1d 50 e4 c2 10    	cmp    DWORD PTR ds:0x10c2e450,ebx
+10b57688:	75 0b                	jne    0x10b57695
+10b5768a:	89 3d 50 e4 c2 10    	mov    DWORD PTR ds:0x10c2e450,edi
+10b57690:	e8 78 39 0a 00       	call   0x10bfb00d
+10b57695:	8b ce                	mov    ecx,esi
+10b57697:	e8 5e 3a 0a 00       	call   0x10bfb0fa
+10b5769c:	e8 50 4b fd ff       	call   0x10b2c1f1
+10b576a1:	68 00 01 00 00       	push   0x100
+10b576a6:	53                   	push   ebx
+10b576a7:	68 d0 ff c3 10       	push   0x10c3ffd0
+10b576ac:	e8 b1 11 0d 00       	call   0x10c28862
+10b576b1:	83 c4 0c             	add    esp,0xc
+10b576b4:	8b ce                	mov    ecx,esi
+10b576b6:	e8 aa 5f 0a 00       	call   0x10bfd665
+10b576bb:	8b cd                	mov    ecx,ebp
+10b576bd:	89 44 24 10          	mov    DWORD PTR [esp+0x10],eax
+10b576c1:	e8 07 f8 fc ff       	call   0x10b26ecd
+10b576c6:	6a 0a                	push   0xa
+10b576c8:	59                   	pop    ecx
+10b576c9:	a3 e8 e3 c2 10       	mov    ds:0x10c2e3e8,eax
+10b576ce:	e8 b9 5a fe ff       	call   0x10b3d18c
+10b576d3:	84 c0                	test   al,al
+10b576d5:	74 15                	je     0x10b576ec
+10b576d7:	8b cd                	mov    ecx,ebp
+10b576d9:	e8 ef f7 fc ff       	call   0x10b26ecd
+10b576de:	a3 ec e3 c2 10       	mov    ds:0x10c2e3ec,eax
+10b576e3:	c6 05 cf e2 c2 10 01 	mov    BYTE PTR ds:0x10c2e2cf,0x1
+10b576ea:	eb 06                	jmp    0x10b576f2
+10b576ec:	88 1d cf e2 c2 10    	mov    BYTE PTR ds:0x10c2e2cf,bl
+10b576f2:	8b 4c 24 10          	mov    ecx,DWORD PTR [esp+0x10]
+10b576f6:	e8 ea d9 ff ff       	call   0x10b550e5
+10b576fb:	8b e8                	mov    ebp,eax
+10b576fd:	39 1d 00 ed c2 10    	cmp    DWORD PTR ds:0x10c2ed00,ebx
+10b57703:	75 07                	jne    0x10b5770c
+10b57705:	8b ce                	mov    ecx,esi
+10b57707:	e8 4b 53 0a 00       	call   0x10bfca57
+10b5770c:	8b ce                	mov    ecx,esi
+10b5770e:	e8 68 ce ff ff       	call   0x10b5457b
+10b57713:	8b cd                	mov    ecx,ebp
+10b57715:	e8 ff 3e 0a 00       	call   0x10bfb619
+10b5771a:	8b e8                	mov    ebp,eax
+10b5771c:	6a 07                	push   0x7
+10b5771e:	8b d5                	mov    edx,ebp
+10b57720:	c1 e2 02             	shl    edx,0x2
+10b57723:	59                   	pop    ecx
+10b57724:	e8 01 8b 0c 00       	call   0x10c2022a
+10b57729:	8b d5                	mov    edx,ebp
+10b5772b:	8b ce                	mov    ecx,esi
+10b5772d:	a3 d0 00 c4 10       	mov    ds:0x10c400d0,eax
+10b57732:	e8 78 f1 ff ff       	call   0x10b568af
+10b57737:	38 1d cf e2 c2 10    	cmp    BYTE PTR ds:0x10c2e2cf,bl
+10b5773d:	74 07                	je     0x10b57746
+10b5773f:	8b ce                	mov    ecx,esi
+10b57741:	e8 6b ce ff ff       	call   0x10b545b1
+10b57746:	a1 e8 e3 c2 10       	mov    eax,ds:0x10c2e3e8
+10b5774b:	39 18                	cmp    DWORD PTR [eax],ebx
+10b5774d:	74 0a                	je     0x10b57759
+10b5774f:	8b 56 0c             	mov    edx,DWORD PTR [esi+0xc]
+10b57752:	8b ce                	mov    ecx,esi
+10b57754:	e8 21 d0 ff ff       	call   0x10b5477a
+10b57759:	8b ce                	mov    ecx,esi
+10b5775b:	e8 a4 d1 ff ff       	call   0x10b54904
+10b57760:	8b d7                	mov    edx,edi
+10b57762:	8b ce                	mov    ecx,esi
+10b57764:	e8 df d0 ff ff       	call   0x10b54848
+10b57769:	8b ce                	mov    ecx,esi
+10b5776b:	e8 45 d2 ff ff       	call   0x10b549b5
+10b57770:	f7 86 94 00 00 00 00 	test   DWORD PTR [esi+0x94],0x400000
+10b57777:	00 40 00
+10b5777a:	75 12                	jne    0x10b5778e
+10b5777c:	8b 06                	mov    eax,DWORD PTR [esi]
+10b5777e:	f7 40 20 00 10 00 00 	test   DWORD PTR [eax+0x20],0x1000
+10b57785:	75 07                	jne    0x10b5778e
+10b57787:	8b ce                	mov    ecx,esi
+10b57789:	e8 8a f5 ff ff       	call   0x10b56d18
+10b5778e:	8b 46 08             	mov    eax,DWORD PTR [esi+0x8]
+10b57791:	8b 38                	mov    edi,DWORD PTR [eax]
+10b57793:	eb 11                	jmp    0x10b577a6
+10b57795:	8b 4f 58             	mov    ecx,DWORD PTR [edi+0x58]
+10b57798:	3b cb                	cmp    ecx,ebx
+10b5779a:	74 08                	je     0x10b577a4
+10b5779c:	e8 11 f7 fc ff       	call   0x10b26eb2
+10b577a1:	89 5f 58             	mov    DWORD PTR [edi+0x58],ebx
+10b577a4:	8b 3f                	mov    edi,DWORD PTR [edi]
+10b577a6:	3b fb                	cmp    edi,ebx
+10b577a8:	75 eb                	jne    0x10b57795
+10b577aa:	8b ce                	mov    ecx,esi
+10b577ac:	e8 ce f9 ff ff       	call   0x10b5717f
+10b577b1:	89 1d e4 e3 c2 10    	mov    DWORD PTR ds:0x10c2e3e4,ebx
+10b577b7:	8b 4e 0c             	mov    ecx,DWORD PTR [esi+0xc]
+10b577ba:	8b d5                	mov    edx,ebp
+10b577bc:	e8 a9 ec ff ff       	call   0x10b5646a
+10b577c1:	8b 46 08             	mov    eax,DWORD PTR [esi+0x8]
+10b577c4:	8b 54 24 10          	mov    edx,DWORD PTR [esp+0x10]
+10b577c8:	8b 48 04             	mov    ecx,DWORD PTR [eax+0x4]
+10b577cb:	e8 62 df ff ff       	call   0x10b55732
+10b577d0:	8b 4e 0c             	mov    ecx,DWORD PTR [esi+0xc]
+10b577d3:	8b f8                	mov    edi,eax
+10b577d5:	e8 a9 d6 ff ff       	call   0x10b54e83
+10b577da:	8b ce                	mov    ecx,esi
+10b577dc:	e8 23 d1 ff ff       	call   0x10b54904
+10b577e1:	6a 07                	push   0x7
+10b577e3:	8b d7                	mov    edx,edi
+10b577e5:	c1 e2 02             	shl    edx,0x2
+10b577e8:	59                   	pop    ecx
+10b577e9:	e8 3c 8a 0c 00       	call   0x10c2022a
+10b577ee:	8b f8                	mov    edi,eax
+10b577f0:	8b cf                	mov    ecx,edi
+10b577f2:	e8 c7 e5 ff ff       	call   0x10b55dbe
+10b577f7:	8b d7                	mov    edx,edi
+10b577f9:	8b ce                	mov    ecx,esi
+10b577fb:	e8 ae e6 ff ff       	call   0x10b55eae
+10b57800:	8b ce                	mov    ecx,esi
+10b57802:	e8 75 57 0a 00       	call   0x10bfcf7c
+10b57807:	89 1d cc ff c3 10    	mov    DWORD PTR ds:0x10c3ffcc,ebx
+10b5780d:	eb 0f                	jmp    0x10b5781e
+10b5780f:	8b 08                	mov    ecx,DWORD PTR [eax]
+10b57811:	8b 40 04             	mov    eax,DWORD PTR [eax+0x4]
+10b57814:	a3 c8 ff c3 10       	mov    ds:0x10c3ffc8,eax
+10b57819:	e8 5a f7 ff ff       	call   0x10b56f78
+10b5781e:	a1 c8 ff c3 10       	mov    eax,ds:0x10c3ffc8
+10b57823:	3b c3                	cmp    eax,ebx
+10b57825:	75 e8                	jne    0x10b5780f
+10b57827:	8b ce                	mov    ecx,esi
+10b57829:	c6 05 d2 e2 c2 10 01 	mov    BYTE PTR ds:0x10c2e2d2,0x1
+10b57830:	e8 f8 65 0a 00       	call   0x10bfde2d
+10b57835:	5f                   	pop    edi
+10b57836:	39 1d d0 e4 c2 10    	cmp    DWORD PTR ds:0x10c2e4d0,ebx
+10b5783c:	74 0d                	je     0x10b5784b
+10b5783e:	8b ce                	mov    ecx,esi
+10b57840:	5e                   	pop    esi
+10b57841:	5d                   	pop    ebp
+10b57842:	5b                   	pop    ebx
+10b57843:	83 c4 04             	add    esp,0x4
+10b57846:	e9 c7 ae 02 00       	jmp    0x10b82712
+10b5784b:	5e                   	pop    esi
+10b5784c:	5d                   	pop    ebp
+10b5784d:	5b                   	pop    ebx
+10b5784e:	59                   	pop    ecx
+10b5784f:	c3                   	ret
+
+## decompilation (Ghidra)
+
+// ===== FUNC 10b57633 FUN_10b57633 size=541 =====
+
+void __fastcall FUN_10b57633(int *param_1)
+
+{
+  int *piVar1;
+  undefined4 uVar2;
+  uint uVar3;
+  uint uVar4;
+  undefined4 *puVar5;
+  bool bVar6;
+  
+  FUN_10c20187(7);
+  FUN_10c20187(8);
+  puVar5 = &DAT_10c400d8;
+  do {
+    uVar2 = FUN_10b26ecd(8);
+    *puVar5 = uVar2;
+    puVar5 = puVar5 + 1;
+  } while ((int)puVar5 < 0x10c400f8);
+  DAT_10c3ffcc = 1;
+  DAT_10c3ffc8 = (undefined4 *)0x0;
+  DAT_10c400d4 = 1;
+  DAT_10c2e3e0 = 0;
+  if (DAT_10c2e450 == 0) {
+    DAT_10c2e450 = 1;
+    FUN_10bfb00d();
+  }
+  FUN_10bfb0fa();
+  FUN_10b2c1f1();
+  memset(&DAT_10c3ffd0,0,0x100);
+  uVar3 = FUN_10bfd665((int)param_1);
+  DAT_10c2e3e8 = (int *)FUN_10b26ecd(8);
+  uVar4 = FUN_10b3d18c(10);
+  bVar6 = (char)uVar4 != '\0';
+  if (bVar6) {
+    DAT_10c2e3ec = FUN_10b26ecd(8);
+  }
+  DAT_10c2e2cf = bVar6;
+  uVar4 = FUN_10b550e5(uVar3);
+  if (DAT_10c2ed00 == 0) {
+    FUN_10bfca57((int)param_1);
+  }
+  FUN_10b5457b((int)param_1);
+  uVar4 = FUN_10bfb619(uVar4);
+  DAT_10c400d0 = FUN_10c2022a(7,uVar4 << 2);
+  FUN_10b568af((int)param_1,uVar4);
+  if (DAT_10c2e2cf != '\0') {
+    FUN_10b545b1((int)param_1);
+  }
+  if (*DAT_10c2e3e8 != 0) {
+    FUN_10b5477a(param_1,(undefined4 *)param_1[3]);
+  }
+  FUN_10b54904((int)param_1);
+  FUN_10b54848((int)param_1,1);
+  FUN_10b549b5((int)param_1);
+  if (((param_1[0x25] & 0x400000U) == 0) && ((*(uint *)(*param_1 + 0x20) & 0x1000) == 0)) {
+    FUN_10b56d18((int)param_1);
+  }
+  for (puVar5 = *(undefined4 **)param_1[2]; puVar5 != (undefined4 *)0x0;
+      puVar5 = (undefined4 *)*puVar5) {
+    if ((int *)puVar5[0x16] != (int *)0x0) {
+      FUN_10b26eb2((int *)puVar5[0x16]);
+      puVar5[0x16] = 0;
+    }
+  }
+  FUN_10b5717f(param_1);
+  DAT_10c2e3e4 = 0;
+  FUN_10b5646a((undefined4 *)param_1[3],uVar4);
+  uVar3 = FUN_10b55732(*(int *)(param_1[2] + 4),uVar3);
+  FUN_10b54e83((undefined4 *)param_1[3]);
+  FUN_10b54904((int)param_1);
+  puVar5 = FUN_10c2022a(7,uVar3 << 2);
+  FUN_10b55dbe((int)puVar5);
+  FUN_10b55eae((int)param_1,(int)puVar5);
+  FUN_10bfcf7c((int)param_1);
+  DAT_10c3ffcc = 0;
+  while (DAT_10c3ffc8 != (undefined4 *)0x0) {
+    piVar1 = (int *)*DAT_10c3ffc8;
+    DAT_10c3ffc8 = (undefined4 *)DAT_10c3ffc8[1];
+    FUN_10b56f78(piVar1);
+  }
+  DAT_10c2e2d2 = 1;
+  FUN_10bfde2d((int)param_1);
+  if (DAT_10c2e4d0 == 0) {
+    return;
+  }
+  FUN_10b82712((int)param_1);
+  return;
+}
+

@@ -1,0 +1,82 @@
+# 10b54d32  FUN_10b54d32  size=130
+# role: the candidate constructor -- id = DAT_10c400d4++
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# regenerate: docs/whitebox/scripts/dump_globregs.py
+
+## disassembly (objdump, GNU binutils)
+
+10b54d32:	56                   	push   esi
+10b54d33:	8b 35 e0 e3 c2 10    	mov    esi,DWORD PTR ds:0x10c2e3e0
+10b54d39:	57                   	push   edi
+10b54d3a:	8b f9                	mov    edi,ecx
+10b54d3c:	85 f6                	test   esi,esi
+10b54d3e:	74 0a                	je     0x10b54d4a
+10b54d40:	8b 46 30             	mov    eax,DWORD PTR [esi+0x30]
+10b54d43:	a3 e0 e3 c2 10       	mov    ds:0x10c2e3e0,eax
+10b54d48:	eb 1b                	jmp    0x10b54d65
+10b54d4a:	6a 48                	push   0x48
+10b54d4c:	5a                   	pop    edx
+10b54d4d:	6a 0e                	push   0xe
+10b54d4f:	59                   	pop    ecx
+10b54d50:	e8 d5 b4 0c 00       	call   0x10c2022a
+10b54d55:	8b f0                	mov    esi,eax
+10b54d57:	a1 d4 00 c4 10       	mov    eax,ds:0x10c400d4
+10b54d5c:	89 46 1c             	mov    DWORD PTR [esi+0x1c],eax
+10b54d5f:	ff 05 d4 00 c4 10    	inc    DWORD PTR ds:0x10c400d4
+10b54d65:	80 4e 05 01          	or     BYTE PTR [esi+0x5],0x1
+10b54d69:	89 76 08             	mov    DWORD PTR [esi+0x8],esi
+10b54d6c:	c6 46 04 02          	mov    BYTE PTR [esi+0x4],0x2
+10b54d70:	89 3e                	mov    DWORD PTR [esi],edi
+10b54d72:	0f b7 47 10          	movzx  eax,WORD PTR [edi+0x10]
+10b54d76:	6a 08                	push   0x8
+10b54d78:	c1 e8 0c             	shr    eax,0xc
+10b54d7b:	8b 3c 85 cc 22 b0 10 	mov    edi,DWORD PTR [eax*4+0x10b022cc]
+10b54d82:	59                   	pop    ecx
+10b54d83:	e8 45 21 fd ff       	call   0x10b26ecd
+10b54d88:	89 46 20             	mov    DWORD PTR [esi+0x20],eax
+10b54d8b:	8b 14 bd 24 d0 c3 10 	mov    edx,DWORD PTR [edi*4+0x10c3d024]
+10b54d92:	8b c8                	mov    ecx,eax
+10b54d94:	e8 96 23 fd ff       	call   0x10b2712f
+10b54d99:	8b 56 1c             	mov    edx,DWORD PTR [esi+0x1c]
+10b54d9c:	8b 0c bd d8 00 c4 10 	mov    ecx,DWORD PTR [edi*4+0x10c400d8]
+10b54da3:	e8 32 21 fd ff       	call   0x10b26eda
+10b54da8:	8b ce                	mov    ecx,esi
+10b54daa:	e8 57 74 fd ff       	call   0x10b2c206
+10b54daf:	5f                   	pop    edi
+10b54db0:	8b c6                	mov    eax,esi
+10b54db2:	5e                   	pop    esi
+10b54db3:	c3                   	ret
+
+## decompilation (Ghidra)
+
+// ===== FUNC 10b54d32 FUN_10b54d32 size=130 =====
+
+int * __fastcall FUN_10b54d32(int param_1)
+
+{
+  int iVar1;
+  int *piVar2;
+  int *piVar3;
+  
+  if (DAT_10c2e3e0 == (int *)0x0) {
+    piVar2 = FUN_10c2022a(0xe,0x48);
+    piVar2[7] = DAT_10c400d4;
+    DAT_10c400d4 = DAT_10c400d4 + 1;
+  }
+  else {
+    piVar2 = DAT_10c2e3e0;
+    DAT_10c2e3e0 = (int *)DAT_10c2e3e0[0xc];
+  }
+  *(byte *)((int)piVar2 + 5) = *(byte *)((int)piVar2 + 5) | 1;
+  piVar2[2] = (int)piVar2;
+  *(undefined1 *)(piVar2 + 1) = 2;
+  *piVar2 = param_1;
+  iVar1 = *(int *)(&DAT_10b022cc + (uint)(*(ushort *)(param_1 + 0x10) >> 0xc) * 4);
+  piVar3 = (int *)FUN_10b26ecd(8);
+  piVar2[8] = (int)piVar3;
+  FUN_10b2712f(piVar3,(undefined4 *)(&DAT_10c3d024)[iVar1]);
+  FUN_10b26eda((uint *)(&DAT_10c400d8)[iVar1],piVar2[7]);
+  FUN_10b2c206((int)piVar2);
+  return piVar2;
+}
+

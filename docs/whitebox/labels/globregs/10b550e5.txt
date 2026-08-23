@@ -1,0 +1,290 @@
+# 10b550e5  FUN_10b550e5  size=490
+# role: STEP 1 INDEX -- assigns aux[0x00], allocates sym+0x34
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# regenerate: docs/whitebox/scripts/dump_globregs.py
+
+## disassembly (objdump, GNU binutils)
+
+10b550e5:	51                   	push   ecx
+10b550e6:	51                   	push   ecx
+10b550e7:	83 25 54 e4 c2 10 00 	and    DWORD PTR ds:0x10c2e454,0x0
+10b550ee:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10b550f3:	83 24 24 00          	and    DWORD PTR [esp],0x0
+10b550f7:	55                   	push   ebp
+10b550f8:	8b e9                	mov    ebp,ecx
+10b550fa:	8b 48 10             	mov    ecx,DWORD PTR [eax+0x10]
+10b550fd:	89 4c 24 08          	mov    DWORD PTR [esp+0x8],ecx
+10b55101:	85 c9                	test   ecx,ecx
+10b55103:	0f 84 a9 01 00 00    	je     0x10b552b2
+10b55109:	53                   	push   ebx
+10b5510a:	56                   	push   esi
+10b5510b:	57                   	push   edi
+10b5510c:	eb 04                	jmp    0x10b55112
+10b5510e:	8b 4c 24 14          	mov    ecx,DWORD PTR [esp+0x14]
+10b55112:	8d 79 20             	lea    edi,[ecx+0x20]
+10b55115:	e9 7e 01 00 00       	jmp    0x10b55298
+10b5511a:	8a 47 04             	mov    al,BYTE PTR [edi+0x4]
+10b5511d:	3c 10                	cmp    al,0x10
+10b5511f:	0f 84 70 01 00 00    	je     0x10b55295
+10b55125:	83 67 40 fe          	and    DWORD PTR [edi+0x40],0xfffffffe
+10b55129:	39 7f 08             	cmp    DWORD PTR [edi+0x8],edi
+10b5512c:	0f 85 63 01 00 00    	jne    0x10b55295
+10b55132:	33 db                	xor    ebx,ebx
+10b55134:	3c 03                	cmp    al,0x3
+10b55136:	74 7b                	je     0x10b551b3
+10b55138:	0f 86 7a 01 00 00    	jbe    0x10b552b8
+10b5513e:	3c 05                	cmp    al,0x5
+10b55140:	76 66                	jbe    0x10b551a8
+10b55142:	3c 06                	cmp    al,0x6
+10b55144:	0f 86 6e 01 00 00    	jbe    0x10b552b8
+10b5514a:	3c 08                	cmp    al,0x8
+10b5514c:	76 60                	jbe    0x10b551ae
+10b5514e:	3c 0a                	cmp    al,0xa
+10b55150:	0f 85 62 01 00 00    	jne    0x10b552b8
+10b55156:	8b 07                	mov    eax,DWORD PTR [edi]
+10b55158:	8b 40 37             	mov    eax,DWORD PTR [eax+0x37]
+10b5515b:	a9 00 04 00 00       	test   eax,0x400
+10b55160:	0f 84 52 01 00 00    	je     0x10b552b8
+10b55166:	a9 00 00 20 00       	test   eax,0x200000
+10b5516b:	0f 85 47 01 00 00    	jne    0x10b552b8
+10b55171:	8b f7                	mov    esi,edi
+10b55173:	83 7e 20 04          	cmp    DWORD PTR [esi+0x20],0x4
+10b55177:	75 1b                	jne    0x10b55194
+10b55179:	6a 20                	push   0x20
+10b5517b:	5a                   	pop    edx
+10b5517c:	6a 0e                	push   0xe
+10b5517e:	59                   	pop    ecx
+10b5517f:	e8 a6 b0 0c 00       	call   0x10c2022a
+10b55184:	8b 4c 24 14          	mov    ecx,DWORD PTR [esp+0x14]
+10b55188:	89 46 34             	mov    DWORD PTR [esi+0x34],eax
+10b5518b:	89 28                	mov    DWORD PTR [eax],ebp
+10b5518d:	45                   	inc    ebp
+10b5518e:	83 66 38 00          	and    DWORD PTR [esi+0x38],0x0
+10b55192:	eb 06                	jmp    0x10b5519a
+10b55194:	89 5e 34             	mov    DWORD PTR [esi+0x34],ebx
+10b55197:	89 5e 38             	mov    DWORD PTR [esi+0x38],ebx
+10b5519a:	8b 76 0c             	mov    esi,DWORD PTR [esi+0xc]
+10b5519d:	33 db                	xor    ebx,ebx
+10b5519f:	3b f3                	cmp    esi,ebx
+10b551a1:	75 d0                	jne    0x10b55173
+10b551a3:	e9 ed 00 00 00       	jmp    0x10b55295
+10b551a8:	f6 47 05 02          	test   BYTE PTR [edi+0x5],0x2
+10b551ac:	74 1c                	je     0x10b551ca
+10b551ae:	33 db                	xor    ebx,ebx
+10b551b0:	43                   	inc    ebx
+10b551b1:	eb 17                	jmp    0x10b551ca
+10b551b3:	39 5f 14             	cmp    DWORD PTR [edi+0x14],ebx
+10b551b6:	0f 85 fc 00 00 00    	jne    0x10b552b8
+10b551bc:	f6 47 07 40          	test   BYTE PTR [edi+0x7],0x40
+10b551c0:	0f 85 f2 00 00 00    	jne    0x10b552b8
+10b551c6:	80 67 06 fd          	and    BYTE PTR [edi+0x6],0xfd
+10b551ca:	8b f7                	mov    esi,edi
+10b551cc:	66 8b 4e 10          	mov    cx,WORD PTR [esi+0x10]
+10b551d0:	83 66 38 00          	and    DWORD PTR [esi+0x38],0x0
+10b551d4:	e8 4b 2b 08 00       	call   0x10bd7d24
+10b551d9:	84 c0                	test   al,al
+10b551db:	74 72                	je     0x10b5524f
+10b551dd:	80 3d cf e2 c2 10 00 	cmp    BYTE PTR ds:0x10c2e2cf,0x0
+10b551e4:	74 34                	je     0x10b5521a
+10b551e6:	66 8b 4f 10          	mov    cx,WORD PTR [edi+0x10]
+10b551ea:	b8 00 f0 00 00       	mov    eax,0xf000
+10b551ef:	66 23 c8             	and    cx,ax
+10b551f2:	b8 00 50 00 00       	mov    eax,0x5000
+10b551f7:	66 3b c8             	cmp    cx,ax
+10b551fa:	74 11                	je     0x10b5520d
+10b551fc:	66 8b 4e 10          	mov    cx,WORD PTR [esi+0x10]
+10b55200:	ba 00 f0 00 00       	mov    edx,0xf000
+10b55205:	66 23 ca             	and    cx,dx
+10b55208:	66 3b c8             	cmp    cx,ax
+10b5520b:	75 0d                	jne    0x10b5521a
+10b5520d:	8b 0d ec e3 c2 10    	mov    ecx,DWORD PTR ds:0x10c2e3ec
+10b55213:	8b d5                	mov    edx,ebp
+10b55215:	e8 c0 1c fd ff       	call   0x10b26eda
+10b5521a:	85 db                	test   ebx,ebx
+10b5521c:	74 1e                	je     0x10b5523c
+10b5521e:	83 7c 24 10 00       	cmp    DWORD PTR [esp+0x10],0x0
+10b55223:	75 0c                	jne    0x10b55231
+10b55225:	6a 08                	push   0x8
+10b55227:	59                   	pop    ecx
+10b55228:	e8 a0 1c fd ff       	call   0x10b26ecd
+10b5522d:	89 44 24 10          	mov    DWORD PTR [esp+0x10],eax
+10b55231:	8b 4c 24 10          	mov    ecx,DWORD PTR [esp+0x10]
+10b55235:	8b d5                	mov    edx,ebp
+10b55237:	e8 9e 1c fd ff       	call   0x10b26eda
+10b5523c:	6a 20                	push   0x20
+10b5523e:	5a                   	pop    edx
+10b5523f:	6a 0e                	push   0xe
+10b55241:	59                   	pop    ecx
+10b55242:	e8 e3 af 0c 00       	call   0x10c2022a
+10b55247:	89 46 34             	mov    DWORD PTR [esi+0x34],eax
+10b5524a:	89 28                	mov    DWORD PTR [eax],ebp
+10b5524c:	45                   	inc    ebp
+10b5524d:	eb 04                	jmp    0x10b55253
+10b5524f:	83 66 34 00          	and    DWORD PTR [esi+0x34],0x0
+10b55253:	8b 76 0c             	mov    esi,DWORD PTR [esi+0xc]
+10b55256:	85 f6                	test   esi,esi
+10b55258:	0f 85 6e ff ff ff    	jne    0x10b551cc
+10b5525e:	39 74 24 10          	cmp    DWORD PTR [esp+0x10],esi
+10b55262:	74 2d                	je     0x10b55291
+10b55264:	39 77 34             	cmp    DWORD PTR [edi+0x34],esi
+10b55267:	75 0e                	jne    0x10b55277
+10b55269:	6a 20                	push   0x20
+10b5526b:	5a                   	pop    edx
+10b5526c:	6a 0e                	push   0xe
+10b5526e:	59                   	pop    ecx
+10b5526f:	e8 b6 af 0c 00       	call   0x10c2022a
+10b55274:	89 47 34             	mov    DWORD PTR [edi+0x34],eax
+10b55277:	8b 47 34             	mov    eax,DWORD PTR [edi+0x34]
+10b5527a:	8b 54 24 10          	mov    edx,DWORD PTR [esp+0x10]
+10b5527e:	89 50 04             	mov    DWORD PTR [eax+0x4],edx
+10b55281:	8b 0d e8 e3 c2 10    	mov    ecx,DWORD PTR ds:0x10c2e3e8
+10b55287:	e8 e8 21 fd ff       	call   0x10b27474
+10b5528c:	83 64 24 10 00       	and    DWORD PTR [esp+0x10],0x0
+10b55291:	8b 4c 24 14          	mov    ecx,DWORD PTR [esp+0x14]
+10b55295:	83 c7 60             	add    edi,0x60
+10b55298:	3b 79 04             	cmp    edi,DWORD PTR [ecx+0x4]
+10b5529b:	0f 82 79 fe ff ff    	jb     0x10b5511a
+10b552a1:	8b 09                	mov    ecx,DWORD PTR [ecx]
+10b552a3:	89 4c 24 14          	mov    DWORD PTR [esp+0x14],ecx
+10b552a7:	85 c9                	test   ecx,ecx
+10b552a9:	0f 85 5f fe ff ff    	jne    0x10b5510e
+10b552af:	5f                   	pop    edi
+10b552b0:	5e                   	pop    esi
+10b552b1:	5b                   	pop    ebx
+10b552b2:	8b c5                	mov    eax,ebp
+10b552b4:	5d                   	pop    ebp
+10b552b5:	59                   	pop    ecx
+10b552b6:	59                   	pop    ecx
+10b552b7:	c3                   	ret
+10b552b8:	ff 05 54 e4 c2 10    	inc    DWORD PTR ds:0x10c2e454
+10b552be:	8b c7                	mov    eax,edi
+10b552c0:	89 58 34             	mov    DWORD PTR [eax+0x34],ebx
+10b552c3:	89 58 38             	mov    DWORD PTR [eax+0x38],ebx
+10b552c6:	8b 40 0c             	mov    eax,DWORD PTR [eax+0xc]
+10b552c9:	3b c3                	cmp    eax,ebx
+10b552cb:	75 f3                	jne    0x10b552c0
+10b552cd:	eb c6                	jmp    0x10b55295
+
+## decompilation (Ghidra)
+
+// ===== FUNC 10b550e5 FUN_10b550e5 size=490 =====
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+uint __fastcall FUN_10b550e5(uint param_1)
+
+{
+  int *piVar1;
+  byte bVar2;
+  undefined4 *puVar3;
+  bool bVar4;
+  char cVar5;
+  uint *puVar6;
+  undefined4 *puVar7;
+  int *piVar8;
+  undefined4 *extraout_ECX;
+  undefined4 *extraout_ECX_00;
+  int *piVar9;
+  uint *local_8;
+  
+  _DAT_10c2e454 = 0;
+  local_8 = (uint *)0x0;
+  puVar3 = *(undefined4 **)(DAT_10c6f844 + 0x10);
+  do {
+    if (puVar3 == (undefined4 *)0x0) {
+      return param_1;
+    }
+    for (piVar9 = puVar3 + 8; piVar9 < (int *)puVar3[1]; piVar9 = piVar9 + 0x18) {
+      bVar2 = *(byte *)(piVar9 + 1);
+      if ((bVar2 != 0x10) && (piVar9[0x10] = piVar9[0x10] & 0xfffffffe, (int *)piVar9[2] == piVar9))
+      {
+        bVar4 = false;
+        puVar7 = puVar3;
+        piVar8 = piVar9;
+        if (bVar2 == 3) {
+          if ((piVar9[5] == 0) && ((*(byte *)((int)piVar9 + 7) & 0x40) == 0)) {
+            *(byte *)((int)piVar9 + 6) = *(byte *)((int)piVar9 + 6) & 0xfd;
+LAB_10b551cc:
+            do {
+              piVar8[0xe] = 0;
+              cVar5 = FUN_10bd7d24(CONCAT22((short)((uint)puVar7 >> 0x10),(short)piVar8[4]));
+              if (cVar5 == '\0') {
+                piVar8[0xd] = 0;
+                puVar7 = extraout_ECX;
+              }
+              else {
+                if ((DAT_10c2e2cf != '\0') &&
+                   (((*(ushort *)(piVar9 + 4) & 0xf000) == 0x5000 ||
+                    ((*(ushort *)(piVar8 + 4) & 0xf000) == 0x5000)))) {
+                  FUN_10b26eda(DAT_10c2e3ec,param_1);
+                }
+                if (bVar4) {
+                  if (local_8 == (uint *)0x0) {
+                    local_8 = (uint *)FUN_10b26ecd(8);
+                  }
+                  FUN_10b26eda(local_8,param_1);
+                }
+                puVar6 = FUN_10c2022a(0xe,0x20);
+                piVar8[0xd] = (int)puVar6;
+                *puVar6 = param_1;
+                param_1 = param_1 + 1;
+                puVar7 = extraout_ECX_00;
+              }
+              piVar1 = piVar8 + 3;
+              piVar8 = (int *)*piVar1;
+            } while ((int *)*piVar1 != (int *)0x0);
+            if (local_8 != (uint *)0x0) {
+              if (piVar9[0xd] == 0) {
+                puVar7 = FUN_10c2022a(0xe,0x20);
+                piVar9[0xd] = (int)puVar7;
+              }
+              *(uint **)(piVar9[0xd] + 4) = local_8;
+              FUN_10b27474(DAT_10c2e3e8,local_8);
+              local_8 = (uint *)0x0;
+            }
+            goto LAB_10b55295;
+          }
+        }
+        else if (3 < bVar2) {
+          if (bVar2 < 6) {
+            if ((*(byte *)((int)piVar9 + 5) & 2) == 0) goto LAB_10b551cc;
+LAB_10b551ae:
+            bVar4 = true;
+            goto LAB_10b551cc;
+          }
+          if (6 < bVar2) {
+            if (bVar2 < 9) goto LAB_10b551ae;
+            if (((bVar2 == 10) && ((*(uint *)(*piVar9 + 0x37) & 0x400) != 0)) &&
+               ((*(uint *)(*piVar9 + 0x37) & 0x200000) == 0)) {
+              do {
+                if (piVar8[8] == 4) {
+                  puVar6 = FUN_10c2022a(0xe,0x20);
+                  piVar8[0xd] = (int)puVar6;
+                  *puVar6 = param_1;
+                  param_1 = param_1 + 1;
+                  piVar8[0xe] = 0;
+                }
+                else {
+                  piVar8[0xd] = 0;
+                  piVar8[0xe] = 0;
+                }
+                piVar1 = piVar8 + 3;
+                piVar8 = (int *)*piVar1;
+              } while ((int *)*piVar1 != (int *)0x0);
+              goto LAB_10b55295;
+            }
+          }
+        }
+        _DAT_10c2e454 = _DAT_10c2e454 + 1;
+        do {
+          piVar8[0xd] = 0;
+          piVar8[0xe] = 0;
+          piVar8 = (int *)piVar8[3];
+        } while (piVar8 != (int *)0x0);
+      }
+LAB_10b55295:
+    }
+    puVar3 = (undefined4 *)*puVar3;
+  } while( true );
+}
+

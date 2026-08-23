@@ -1,0 +1,32 @@
+# 10b54bf0  FUN_10b54bf0  size=23
+# role: candidate-list link (sym+0x30 next, aux[0x10] prev)
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# regenerate: docs/whitebox/scripts/dump_globregs.py
+
+## disassembly (objdump, GNU binutils)
+
+10b54bf0:	8b c2                	mov    eax,edx
+10b54bf2:	89 48 30             	mov    DWORD PTR [eax+0x30],ecx
+10b54bf5:	85 c9                	test   ecx,ecx
+10b54bf7:	74 06                	je     0x10b54bff
+10b54bf9:	8b 49 34             	mov    ecx,DWORD PTR [ecx+0x34]
+10b54bfc:	89 41 10             	mov    DWORD PTR [ecx+0x10],eax
+10b54bff:	8b 48 34             	mov    ecx,DWORD PTR [eax+0x34]
+10b54c02:	83 61 10 00          	and    DWORD PTR [ecx+0x10],0x0
+10b54c06:	c3                   	ret
+
+## decompilation (Ghidra)
+
+// ===== FUNC 10b54bf0 FUN_10b54bf0 size=23 =====
+
+void __fastcall FUN_10b54bf0(int param_1,int param_2)
+
+{
+  *(int *)(param_2 + 0x30) = param_1;
+  if (param_1 != 0) {
+    *(int *)(*(int *)(param_1 + 0x34) + 0x10) = param_2;
+  }
+  *(undefined4 *)(*(int *)(param_2 + 0x34) + 0x10) = 0;
+  return;
+}
+

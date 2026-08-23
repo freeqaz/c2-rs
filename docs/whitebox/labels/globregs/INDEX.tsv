@@ -1,0 +1,14 @@
+addr	size	name	role
+10b57633	541	FUN_10b57633	globregs phase driver -- resets the counter, runs 1/2/3
+10bd2343	230	FUN_10bd2343	symbol-chunk allocator -- stamps sym+0x1c, APPENDS the chunk
+10bd3225	394	FUN_10bd3225	symbol-table construction / one symbol allocation
+10b550e5	490	FUN_10b550e5	STEP 1 INDEX -- assigns aux[0x00], allocates sym+0x34
+10b568af	1129	FUN_10b568af	fills DAT_10c400d0 (index -> symbol) and the per-block sets
+10b55732	1676	FUN_10b55732	STEP 2 RENAME -- the read plan's entry point (F1)
+10b54bad	67	FUN_10b54bad	version stamp -- aux[0x14]=v, PREPENDS to aux[0x0c], ret v+1
+10b54bf0	23	FUN_10b54bf0	candidate-list link (sym+0x30 next, aux[0x10] prev)
+10b54c07	222	FUN_10b54c07	STEP 2b MERGE at joins -- ascending bitset index
+10b55dbe	240	FUN_10b55dbe	STEP 3 MINT -- one candidate per (symbol, version)
+10b54d32	130	FUN_10b54d32	the candidate constructor -- id = DAT_10c400d4++
+10b27290	137	FUN_10b27290	stateful ascending bitset iterator
+10c2022a	280	FUN_10c2022a	the arena allocator -- memsets a fresh chunk
