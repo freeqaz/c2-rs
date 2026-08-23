@@ -140,6 +140,39 @@ struct TextFn {
     words: usize,
     /// Padding words stripped.
     pad: usize,
+    /// The function's leading words, capped — enough to classify a prologue
+    /// (`prolog_words` is ≤ 8 on 100 % of #3431's 12,610).
+    head: Vec<u32>,
+}
+
+/// Classify one PPC word far enough to name a prologue shape. Transcribed from
+/// `docs/whitebox/scripts/probe_prolog_words.py::classify` so the two agree by
+/// construction — this lane extends that probe's shape population rather than
+/// competing with it.
+fn classify(w: u32) -> &'static str {
+    let op = w >> 26;
+    let xo = (w >> 1) & 0x3FF;
+    match (op, xo) {
+        (31, 339) => "mfspr", // `mflr r12` is `mfspr r12,LR`
+        (31, 467) => "mtspr",
+        (31, 183) => "stwux",
+        (31, 444) => "or", // `mr`
+        (18, _) => {
+            if w & 1 != 0 {
+                "bl"
+            } else {
+                "b"
+            }
+        }
+        (16, _) => "bc",
+        (37, _) => "stwu",
+        (36, _) => "stw",
+        (54, _) => "stfd",
+        (62, _) => "std",
+        (14, _) => "addi",
+        (15, _) => "addis",
+        _ => "other",
+    }
 }
 
 /// The obj's `.text` functions, in address order.
@@ -184,7 +217,13 @@ fn text_functions(obj: &ObjImage) -> Vec<TextFn> {
         while n > 0 && words[n - 1] == PAD_WORD {
             n -= 1;
         }
-        out.push(TextFn { name: name.clone(), start: *val, words: n, pad: words.len() - n });
+        out.push(TextFn {
+            name: name.clone(),
+            start: *val,
+            words: n,
+            pad: words.len() - n,
+            head: words.iter().take(8).copied().collect(),
+        });
     }
     out
 }
@@ -372,6 +411,14 @@ enum Stratum {
     FramedClean,
     /// Has a record **and** ≥1 of `nopalign`/`0x2e5`/`retaddr`.
     FramedUnbounded,
+    /// **The tap's function ordinal could not be verified against `.text`
+    /// address order.** This instrument pairs funcwalk `func == i+1` with the
+    /// i-th function in `.text` address order. That is an *assumption*: c2's
+    /// ordinal is its own processing order, and nothing in the funcwalk payload
+    /// carries a name to check it with. When the TU's funcwalk count and its
+    /// `.text` function count disagree, the pairing is provably unsafe and
+    /// every row of that TU goes here rather than into a hold-rate.
+    OrdinalUnverified,
     /// Record↔function match did not verify. Not guessed at.
     Unattributable,
 }
@@ -395,6 +442,14 @@ struct Row {
     n_pro: usize,
     /// Trailing inter-function `nop` padding words stripped from `w`.
     pad: usize,
+    /// `T` counted at EVERY site that produced a funcwalk for this function,
+    /// not only at `after0`. This is what locates the expansion: if the
+    /// equality holds at `after0` but not upstream, the prologue was expanded
+    /// somewhere between.
+    t_by_phase: Vec<(String, usize)>,
+    /// The classified prologue: the first `P` words of `.text`, by shape.
+    /// Empty for a leaf.
+    shape: Vec<&'static str>,
     /// Opcodes of the tuples NOT carrying the real-instruction bit — i.e. the
     /// pseudo-ops that survive to `after0`. Small; kept so the rung can say
     /// *which* pseudo-ops are still there rather than only how many.
@@ -478,6 +533,16 @@ fn measure_one(
         }
     }
 
+    // The ordinal fence. `func == i+1` is paired with the i-th `.text`
+    // function in address order; if c2 walked a different NUMBER of functions
+    // than `.text` contains, that pairing is provably unsafe for this TU.
+    // Measured, not anticipated: `wkg_splice_pos.cpp` produced six "failures"
+    // with mismatches in both directions (T=73 against W=14 beside T=6 against
+    // W=72) — the signature of a permuted pairing, not of a compiler that
+    // sometimes emits 59 extra words.
+    let n_walks = rep.funcs.iter().filter(|x| x.phase == PHASE).count();
+    let ordinals_verified = n_walks == funcs.len();
+
     let mut out_rows = Vec::new();
     for (fi, tf) in funcs.iter().enumerate() {
         let (name, w, pad) = (&tf.name, &tf.words, &tf.pad);
@@ -506,7 +571,9 @@ fn measure_one(
                 _ => base,
             }
         });
-        let stratum = if !ok {
+        let stratum = if !ordinals_verified {
+            Stratum::OrdinalUnverified
+        } else if !ok {
             Stratum::Unattributable
         } else if p.is_none() {
             Stratum::Leaf
@@ -526,6 +593,30 @@ fn measure_one(
             n_epi,
             n_pro,
             pad: *pad,
+            t_by_phase: {
+                let mut v: Vec<(String, usize)> = rep
+                    .funcs
+                    .iter()
+                    .filter(|x| x.func == f)
+                    .map(|x| {
+                        (
+                            x.phase.clone(),
+                            x.rows()
+                                .iter()
+                                .filter_map(|r| Tuple::parse(r))
+                                .filter(|t| t.is_instruction())
+                                .count(),
+                        )
+                    })
+                    .collect();
+                v.sort();
+                v.dedup();
+                v
+            },
+            shape: match p {
+                Some(pw) => tf.head.iter().take(pw as usize).map(|w| classify(*w)).collect(),
+                None => Vec::new(),
+            },
             pseudo: tuples.iter().filter(|x| !x.is_instruction()).map(|x| x.opcode).collect(),
         });
     }
@@ -764,6 +855,55 @@ fn report(c: &Corpus) {
             ""
         };
         eprintln!("  {:#06x} : {:>5}{}", o, n, tag);
+    }
+
+    // R6's caveat 1 was that the prologue SHAPE is confirmed on 282 records
+    // (2.2 %) only, because `probe_prolog_words.py` could not attribute a
+    // record to a function without resolving the `BeginAddress` relocation.
+    // This lane resolves it, so every framed function here is shape-attributable.
+    let framed_rows: Vec<&Row> = c
+        .rows
+        .iter()
+        .filter(|r| r.p.is_some() && r.stratum != Stratum::OrdinalUnverified)
+        .collect();
+    eprintln!(
+        "\n-- prologue SHAPE on {} exactly-attributed framed functions (R6's caveat 1) --",
+        framed_rows.len()
+    );
+    let mut shapes: BTreeMap<String, usize> = BTreeMap::new();
+    for r in &framed_rows {
+        *shapes.entry(r.shape.join("|")).or_default() += 1;
+    }
+    let mut sv: Vec<(&String, &usize)> = shapes.iter().collect();
+    sv.sort_by(|a, b| b.1.cmp(a.1));
+    for (k, n) in sv.iter().take(12) {
+        eprintln!("  {:>5}  {}", n, k);
+    }
+    let with_bl = framed_rows.iter().filter(|r| r.shape.contains(&"bl")).count();
+    eprintln!(
+        "  prologues containing a `bl` (register-save helper): {}/{} = {:.1}%",
+        with_bl,
+        framed_rows.len(),
+        pct(with_bl, framed_rows.len())
+    );
+
+    // WHERE does the expansion happen? Counting `T` at every site that walked
+    // the function turns "the equality holds at after0" into a statement about
+    // the pass order.
+    eprintln!("\n-- H0 (T == W) by TAP SITE, framed functions only --");
+    let mut per: BTreeMap<String, (usize, usize)> = BTreeMap::new();
+    for r in c.rows.iter().filter(|r| r.p.is_some() && r.stratum != Stratum::OrdinalUnverified) {
+        for (ph, t) in &r.t_by_phase {
+            let e = per.entry(ph.clone()).or_default();
+            e.1 += 1;
+            if *t == r.w {
+                e.0 += 1;
+            }
+        }
+    }
+    for (ph, (h, n)) in &per {
+        eprintln!("  {:<10} {:>5}/{:<5} = {:>6.2}%{}", ph, h, n, pct(*h, *n),
+            if ph == PHASE { "   <- the site the bijection uses" } else { "" });
     }
 
     let padded = c.rows.iter().filter(|r| r.pad > 0).count();
