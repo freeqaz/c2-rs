@@ -30,8 +30,9 @@ to how many words."* The shape of the answer is not the shape the row expected,
 and that is the finding:
 
 > **The final-expansion switch `FUN_10c0d57e` almost never changes the word
-> count itself.** Of the 29 arm bodies this lane recovered, **26 emit at most
-> one instruction**, and the three that produce a whole prologue or epilogue
+> count itself.** Of the 29 arm bodies this lane recovered, **24 emit at most
+> one instruction** and **5 are unbounded** (`retaddr`, `nopalign` ×3, `0x2e5`),
+> and the three that produce a whole prologue or epilogue
 > emit **zero words directly — they delegate** to a driver outside the switch.
 > The count-changing work is not spread across the switch; it is concentrated in
 > **four** delegate helpers, and the prologue's own count is **recorded by c2 in
@@ -40,7 +41,7 @@ and that is the finding:
 | question | answer | tier |
 |---|---|---|
 | how many opcodes get a non-default arm? | **69** discriminated opcodes over **29** arm bodies; **767** more reach the dispatch tail | `[R]` |
-| how many words does an arm emit? | **0 or 1** for 26 of 29 bodies (§3) | `[R]` |
+| how many words does an arm emit? | **0 or 1** for **24 of 29** bodies; the other **5** are unbounded (§3) | `[R]` |
 | which arms expand 1→many? | **none directly.** `0x2f0`/`0x2f4`/`0x2f6` delegate (§4) | `[R]` |
 | how many words is a prologue? | **1–7**, seven distinct values, **100 % ≤ 8** over 12,610 framed functions | **`[O]`** |
 | is the count a constant? | **no** | **`[O]`** |
@@ -167,7 +168,7 @@ a multi-word emitter, so the arm's own count is not the whole story.
 
 **Three readings of this table that matter:**
 
-1. **The switch is overwhelmingly count-preserving.** 26 of 29 bodies emit 0 or
+1. **The switch is overwhelmingly count-preserving.** 24 of 29 bodies emit 0 or
    1 words. The read plan's mental model — a switch that fans pseudo-ops out
    into many words — is true of the *system* and false of *this function*.
 2. **`bc` at `0x21` can add a word, and it is a MACHINE-band opcode.** This is

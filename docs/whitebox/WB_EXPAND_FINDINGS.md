@@ -16,7 +16,8 @@ predicted, what came back, and which of it a control could have caught.
 ## 0. The one-paragraph result
 
 The read plan expected a table of pseudo-ops fanning out into many words. **The
-switch does not work that way**: 26 of its 29 arm bodies emit 0 or 1 words, and
+switch does not work that way**: 24 of its 29 arm bodies emit 0 or 1 words (5 are
+unbounded), and
 the prologue/epilogue arms emit **zero directly** — they delegate. The
 count-changing work lives in four helpers, and the prologue's own word count
 turns out to be **written into the object by c2 itself**, so a port never has to
