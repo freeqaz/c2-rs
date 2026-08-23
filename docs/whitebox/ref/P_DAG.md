@@ -196,6 +196,56 @@ Ready-list order: **priority DESC (unsigned), then `node+0x44` ASC**
 > [`P_REGALLOC.md`](P_REGALLOC.md) §4's tie-break. Two records, two `+0x44`s,
 > opposite directions.
 
+> ### ⛔ AMENDED 2026-08-23 (read **R7**, lane `w-read-r7`, board **#3433**) — **THE FORMULA ABOVE IS THREE TERMS OF SIX, AND TWO MORE ARE COMPUTED AND DISCARDED**
+>
+> The block above stands as written; this box is the correction, per this
+> page's own revision rule. Grade and full derivation:
+> [`WB_SCHEDCONF_FINDINGS.md`](../WB_SCHEDCONF_FINDINGS.md) §2.
+>
+> **The weight table is EIGHT entries, not §2.1's seven**, and is reached
+> **through a pointer** at `0x10c6fe14` — written exactly once, at
+> `0x10c1c13b`, with the constant `0x10c3bf9c`. The indirection is real; the
+> swap never happens.
+>
+> | entry | value | term | read at | status |
+> |---|---:|---|---|---|
+> | `w[0]` | `-1` | `node+0x4e` bit 1 | `0x10be5ed6` | **DEAD** (0/1 term `>>1`) |
+> | `w[1]` | `13` | height `node+0x48` | `0x10be5eec` | live |
+> | `w[2]` | `8` | fanout `node+0x26` | `0x10be5f35` | live |
+> | `w[3]` | `-1` | `node+0x4e` bit 0 | `0x10be5f03` | **DEAD — and bit 0 is the CRITICAL PATH** |
+> | `w[4]` | `-2` | — | — | never read by the priority pass |
+> | `w[5]` | `10` | `node+0x4e` bit 2 | `0x10be5f1b` | live — the "symdest" term |
+> | `w[6]` | `0` | `node+0x4e` bit 3 | `0x10be5f88` | **live, worth 1, gated on typeword `0x5000` — ABSENT ABOVE** |
+> | `w[7]` | `0` | dynamic unit bonus 0..7 | `0x10c1bbf6` | **live — past §2.1's "7 shorts"** |
+>
+> * **c2 computes the critical path and then weights it `-1`.** Bit 0 is seeded
+>   on the region head at `0x10be5e5b` and propagated at `0x10be5ec3` to every
+>   successor achieving the node's height exactly. Bit 1, set by `FUN_10c1bd6f`
+>   at `0x10c1bdad`, is likewise discarded.
+> * **The three "keys" are SUMMED into one word, not concatenated.** Fanout is
+>   `movzx eax,WORD PTR [esi+0x26]` then `shl eax,8` with **no mask and no
+>   clamp** (`0x10be5f39`). So `fanout = 4` contributes exactly what the bit-2
+>   flag contributes, and `fanout ≥ 32` carries into height. They are separable
+>   keys **only while `fanout ≤ 3`** — which is where `order.rs`'s
+>   `MAX_MODELLED_PRODUCERS = 3` (board #541) happens to sit.
+> * **Bits 2 and 3 are assigned once at node creation** (`FUN_10b327cd`,
+>   `0x10b3280a` / `0x10b32820`): bit 2 iff the operand chain at `tuple+0x28`
+>   holds a record of kind byte 2 or 6, bit 3 iff the chain at `tuple+0x2c`
+>   does. **The name *"has-symbol-dest"* looks backwards** — the `<<10` term
+>   reads `+0x28`, which `WB_MIDDLE_INTERFACES.md:182-183` calls the *source*
+>   side. Mechanism exact, name flagged, not renamed: kinds 2 and 6 have no
+>   naming table in this repo.
+> * **`0x2b8` is not a sentinel, it is MAXIMAL priority** — `or DWORD
+>   [esi+0x38],0xffffffff` under an unsigned compare. `FUN_10c1bbaf` reserves
+>   `0xffffffff` for it and demotes a genuine overflow to `0xfffffffe`
+>   (`0x10c1bc21`) so the two can never tie.
+> * **The compared field is `node+0x3c`, the per-cycle WORKING copy, not
+>   `+0x38`**, and **`node+0x44` is truncated to 16 bits by the caller**
+>   (`movzx …,WORD PTR [x+0x44]`, `0x10be5fe8`/`0x10be5fef`) before an unsigned
+>   16-bit compare. The ready list is re-priced and **fully re-sorted every
+>   cycle** (`0x10c1bbaf` then `0x10be6046`), so the priority is a function of
+>   (DAG, cycle, resource state) — **not a static function of the DAG.**
+
 ---
 
 ## 4. The five commissioned answers `[O]`
@@ -252,6 +302,39 @@ Ready-list order: **priority DESC (unsigned), then `node+0x44` ASC**
 > producer's latency-2 edge to the branch. The original claim stands beside this
 > box, as `WB_DAGORDER_FINDINGS.md`'s revision rule requires.
 
+> ### ✅⛔ AMENDED 2026-08-23 (read **R7**, board **#3433**) — **ALL NINE ROWS CONFIRMED, AND THE TABLE IS A LOSSY FLATTENING OF THE MECHANISM**
+>
+> Every latency above reproduces from the raw image bytes — **10/10**, the two
+> branch halves scored separately (`scripts/dump_sched_tables.py --verify`).
+> **This section is vindicated as a set of facts.** What it is not is a
+> description of how c2 gets them.
+>
+> * **The matrix cells are TAGS, not latencies.** `0x10c1c261` returns a cell
+>   verbatim only when it is `> -2`; six negative tags dispatch on the producer
+>   opcode, the consumer opcode, the consumer category and an **edge flag bit**
+>   (`0x10c1c294`–`0x10c1c332`). Reading `0x10c3c1a8` as a static grid of
+>   numbers yields a plausible and wrong matrix — R7's registered width check
+>   went **red on the correct width** for exactly this reason.
+> * **ALU→ADDRESS = 5 and ALU→DATA = 2 ARE THE SAME CELL.** Cell `(1,8)` holds
+>   the tag `-2` and is **the only cell of all 121 that does**; it resolves to
+>   **2** when `edge+0x19` bit 1 is set and **5** otherwise, for consumer
+>   opcodes in `[0x14d,0x180]` (52 qualify, `stw` = `0x17a` among them). A model
+>   that picks one number for this cell is wrong on the other half — and
+>   `crates/` carries the `2` and not the `5`.
+> * **The index is `CLASSTAB[opcode]` at STRIDE 12 from `0x10b221d0`**
+>   (`0x10c1c234`, `0x10c1c23f`), a table **distinct** from §2.1's machine
+>   table. They agree on **660 of 661** opcodes and differ at `0x292`, so
+>   §2.1's *"`+8` class IS the unit"* is a near-identity, not an identity.
+>   Class 0 short-circuits: **100 of 121 cells are reachable, 21 never are.**
+> * **Anti-deps are 0 STRUCTURALLY**, by the `test BYTE PTR [ecx+0x10],0x21`
+>   gate at `0x10c1c1e4` — not by a matrix cell.
+> * **§2's row citing `0x10c1c25e` as "the ALU→branch cell" is MIS-ADDRESSED.**
+>   `0x10c1c25a` is a 7-byte instruction spanning `..0x10c1c260`, so
+>   `0x10c1c25e` is mid-instruction. The decision is at **`0x10c1c315`**.
+>
+> Data: [`SCHED_LATENCY.tsv`](SCHED_LATENCY.tsv). Full decode:
+> [`WB_SCHEDCONF_FINDINGS.md`](../WB_SCHEDCONF_FINDINGS.md) §2.4.
+
 ---
 
 ## 6. What is NOT known here
@@ -269,4 +352,42 @@ Ready-list order: **priority DESC (unsigned), then `node+0x44` ASC**
   thing that moves tuples.
 * The **mid-level** (pre-lowering) pass's differences from the machine-level
   one, beyond the `0x2b8` store special case.
-* Whether the region-finder's `0x50`-tuple cap ever binds in practice: unmeasured.
+* ~~Whether the region-finder's `0x50`-tuple cap ever binds in practice:
+  unmeasured.~~ **✅ MEASURED 2026-08-23 (read R7, board #3434): it does NOT
+  bind — 0 of 1,461 graded regions reach it, and the longest region observed is
+  14 tuples against a cap of 80.** The cap is also a **signed `>`** at
+  `0x10be5d66` on a count starting at 0, so up to **81** tuples are visited past
+  the head; `0x50` is the constant, not the count.
+
+> ### ⛔ AMENDED 2026-08-23 (read **R7**, board **#3434**–**#3435**) — TWO THINGS THIS PAGE SAYS ABOUT REGIONS, AND ONE IT DOES NOT SAY ABOUT MOTION
+>
+> **§2's region row is right on the categories and wrong on how they act.**
+> Graded **1,461 / 1,461** against the live tap over 60 fixtures
+> (`scripts/grade_regions.py`), 100 % at every region length 1–14:
+>
+> * `0x12`, `0x14`, `0x1b` stop **INCLUSIVE** (the terminator joins the region,
+>   `0x10be5d85`); `0x19` stops **EXCLUSIVE** (`0x10be5d7f`), as does
+>   `0x17`-with-`0x30f` (`0x10be5d8b`). Treating the four alike is an
+>   off-by-one on **every** boundary.
+> * **There is a HEAD SPECIAL CASE this page does not mention**: a region whose
+>   first tuple has opcode `0x30f` takes it and starts scanning at the second
+>   (`0x10be5d55`). **It fires on 1,121 of the 1,461 graded pairs** — the most
+>   common path in the whole rule, previously undocumented.
+> * Honest coverage: only **three of the rule's seven exits** ever fired.
+>   `cap>0x50`, `incl-cat-14`, `excl-cat-19` and `end-of-list` are read and
+>   **ungraded**.
+>
+> **§2's issue row is wrong by a term.** `0x10be60c0` selects the first ready
+> node with `node+0x40 <= cycle + slack(unit)` (`0x10be6174`), **not
+> `<= cycle`**; `slack` is `max(reservation[unit], 0)`.
+>
+> **And the thing this page has never said, which R7 measured
+> (`scripts/grade_reorder.py`, two independent instruments agreeing):
+> ON THIS REPO'S CORPUS THE SCHEDULER ALMOST NEVER MOVES ANYTHING.** The final
+> schedule (run 4, `sched0`→`after0`) changes the tuple order on **3 of 357
+> functions — 0.84 %**; runs 1 and 2 on 6 and 9. For contrast `globregs` moves
+> 334 of 357. Reordering is nearly a function of body length (0.00 % at every
+> length ≤ 7, 355 of 456 pairs) because the median region is **2** tuples.
+> **A scheduler model graded on this corpus scores ~99 % by returning its
+> input**, so the corpus cannot validate one in either direction —
+> [`WB_SCHEDCONF_FINDINGS.md`](../WB_SCHEDCONF_FINDINGS.md) §4.

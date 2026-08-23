@@ -286,3 +286,4 @@ the header block this table is read from.
 | 2026-08-22 | w-shiproadmap | [w-shiproadmap](2026-08-22-w-shiproadmap.md) | 10 | +0 — no crates/ edit of any kind, no emit rule, no refusal |
 | 2026-08-23 | w-read-r4 | [w-read-r4](2026-08-23-w-read-r4.md) | 8 | +0 — no `crates/` or `fixtures/` file is touched |
 | 2026-08-23 | w-read-r5 | [w-read-r5](2026-08-23-w-read-r5.md) | 9 | +0 — no `crates/` change of any kind, no emit rule, no refusal |
+| 2026-08-23 | w-read-r7 | [w-read-r7](2026-08-23-w-read-r7.md) | 11 | +0 — no `crates/` or `fixtures/` file is touched |
