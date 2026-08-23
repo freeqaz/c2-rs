@@ -70,13 +70,16 @@ also runs the instruction scheduler three times around it `[R]`.
 | `0x10b30517` | 2214 | 1 | 24 | **`color.c`** | 13 | **the interference "graph" — which is not one.** Recomputes, per candidate, the set of candidates simultaneously live with it, by walking blocks forward from `cand+0x28` and tuples backward within each `[R]` |
 | `0x10b2d630` | 2034 | 1 | 28 | **`color.c`** | 34 | **the allowed-set narrowing AND the priority accumulation** — it does both, which is the correction that closed `WB_LIVE` §10. `cand[0x0c] += cand[0x18] * n_live`, `-= n_live` when not live, and a POGO-only third term `[R]` |
 | `0x10b2ceb7` | 1913 | 1 | 28 | **`color.c`** | 9 | the copy/`mr` coalescer; the copy opcode set is `{0x270, 0x272, 0x293, 0x7b}` `[R]` |
-| `0x10b3032a` | 493 | 1 | 13 | **`color.c`** | 5 | **the spiller / live-range splitter.** Saves and restores `+0x40` **and `+0x44`** across a split (`iVar7[0x40] = …[3]; iVar7[0x44] = …[4]`), and uses `+0x18` as a **bitfield** (`&= 0xfffffffe`) `[R]`. `wb-live` listed this function as *"named and not opened"* |
+| `0x10b3032a` | 493 | 1 | 13 | **`color.c`** | 5 | **the spiller / live-range splitter.** ~~Saves and restores `+0x40` **and `+0x44`** across a split (`iVar7[0x40] = …[3]; iVar7[0x44] = …[4]`)~~ ⛔ **R4: that is the BASIC BLOCK record, not the candidate** — the list is `**(proc+8)`, the same one `FUN_10b2b3f0` initialises, and the same base carries `+0x48`/`+0x4c`/`+0x50`, which a `0x48`-byte candidate cannot have; the saved values are **bitset pointers**. **This function never writes candidate `+0x44` at all**; its callees `0x10b2dfe2`/`0x10b2e4ae` *inherit* the parent's key onto a split child (§4.1). Uses `+0x18` as a **bitfield** (`&= 0xfffffffe`) `[R]`. `wb-live` listed this function as *"named and not opened"* |
+| `0x10b55dbe` | 240 | 1 | 6 | *(gap)* | — | ⭑ **R4: WHERE CANDIDATE IDS ARE ACTUALLY ASSIGNED.** Symbol-arena order × version-list order; the mint call is `0x10b55e66`. No document named it before 2026-08-23. [`P_GLOBREGS.md`](P_GLOBREGS.md) §6 `[R]` |
+| `0x10b55eae` | 1468 | 1 | 18 | **`globregs.c`** | 5 | ⭑ **R4: THE SOLE ORIGINATING WRITER OF `cand+0x44`**, at `0x10b55fac` — a tuple-visit ordinal. Previously listed here only as *"rebuilds the per-block bitsets"*. [`P_GLOBREGS.md`](P_GLOBREGS.md) §7 `[R]` |
+| `0x10b550e5` | 490 | 1 | 5 | *(gap)* | — | ⭑ **R4: the promotion policy — item F1**, which §7 below calls unread. It is here, not in `0x10b55732`. [`P_GLOBREGS.md`](P_GLOBREGS.md) §3 `[R]` |
 | `0x10b316b1` | 164 | 1 | 4 | `color.c` gap | 14 | **builds the priority worklist.** Walks the 1024-bucket candidate hash `DAT_10c43b80` bucket by bucket, follows each chain at `cand+0x30`, filters by class through `&DAT_10b022cc`, and accumulates through `0x10b2b82d`; ends `DAT_10c43b7c = list` `[R]` |
 | `0x10b315df` | 210 | 1 | 8 | `color.c` gap | 2 | seed: mint / merge candidates `[R]` |
 | `0x10b2b82d` | 126 | 3 | 0 | *(gap after `coffemit.c`)* | 13 | **THE PRIORITY COMPARATOR** — a sorted insert into a doubly-linked list (`+0x14` next, `+0x18` prev). §4 `[R]` · order **`[O]`** on 20 cells at two profiles |
 | `0x10b2c21d` | — | — | — | **`color.c` anchor** | — | candidate lookup by id: 1024-bucket hash at `0x10c43b80`, chain `cand+0x30`, ICE if absent `[R]` |
 | `0x10b54d32` | 130 | 6 | 5 | *(gap after `globopt.c`)* | 17 | **the candidate constructor.** `alloc(0x48)`; `kind = 2`; `id = DAT_10c400d4++` (~~compilation-global monotonic~~ ⛔ **R1: FUNCTION-SCOPED** — reset to `1` at `0x10b57676`; and the id is stamped **only on a fresh `alloc`**, the free-list path at `0x10b54d48` jumps past both the read and the increment, so a recycled record keeps its old id); `allowed = copy(DAT_10c3d024[class])` — **every candidate starts with the whole class allowed**, and allocation only ever removes `[R]` |
-| `0x10b55732` | 1676 | 1 | 18 | *(gap after `globopt.c`)* | 16 | `globregs.c`'s mint/merge; **its promotion policy is item F1 and is unread** |
+| `0x10b55732` | 1676 | 1 | 18 | *(gap after `globopt.c`)* | 16 | ~~`globregs.c`'s mint/merge; **its promotion policy is item F1 and is unread**~~ ⛔ **R4: it is the RENAMER, and it mints nothing** — 18 callees, none of them `0x10b54d32`. It builds the dense per-function **live-range version** numbering by a **backward** walk (blocks via `B->[0x04]`, tuples via `T->[0x10]`) and returns the count. The promotion policy is `0x10b550e5`; the mint is `0x10b55dbe`. [`P_GLOBREGS.md`](P_GLOBREGS.md) §1, §4 `[R]` |
 | `0x10b55eae` | 1468 | 1 | 18 | **`globregs.c` anchor** | 5 | rebuilds the per-block bitsets `[R]` |
 | `0x10b54904` | — | — | — | *(gap)* | — | the backward liveness fixpoint `[R]` |
 | `0x10b54848` | — | — | — | *(gap)* | — | the forward availability fixpoint, same shape `[R]` |
@@ -202,6 +205,43 @@ Three consequences a port has to carry:
    > named that as the thing R1 decides, and this is the decision. Board
    > **#3374**.
 
+   > ## ⛔ REVISION 2026-08-23 by read **R4** — THIS IS THE **THIRD** TIER, NOT THE SECOND
+   >
+   > The row above describes the bucket walk correctly and **puts it one tier
+   > too high.** `cand+0x44` — the comparator's *second* key, which §4.1 below
+   > records as *"the unenumerated field that decides every tie"* with no
+   > writer named — **is written**, and it holds a **program-position
+   > quantity**:
+   >
+   > > **Sole origination site `0x10b55fac`, in `FUN_10b55eae`**: a tuple-visit
+   > > counter zeroed once per function at `0x10b55eb7` and incremented once
+   > > per real tuple at `0x10b55f77`. Three further writes exist and all three
+   > > are verbatim **inheritance** onto a split child (`0x10b2e159`,
+   > > `0x10b2e665`, `0x10b2e73f`); a fifth is the destructor's
+   > > `memset(cand,0,0x48)` at `0x10b2f03b`. Enumerated two independent ways.
+   > > The **sole reader** is the comparator, six reads.
+   >
+   > So the bucket walk is reached only when two candidates tie on `+0x0c`
+   > **and** on `+0x44`. The tie tier proper is a **sort on a traversal
+   > ordinal**. [`P_GLOBREGS.md`](P_GLOBREGS.md) §7,
+   > [`../WB_GLOBREGS_FINDINGS.md`](../WB_GLOBREGS_FINDINGS.md). Board
+   > **#3411**.
+   >
+   > **And this answers what R1 handed on.** `../WB_CANDID_FINDINGS.md` §5.2
+   > left the ten refuted `codegen::alloc` keys unexplained on this mechanism.
+   > They are explained now — the key is a lowered-program-position ordinal, so
+   > every source-level variable property was the wrong variable, and a
+   > one-candidate-per-variable key is wrong *in kind* because a symbol with
+   > *k* versions mints *k* candidates. **The 52,416-config null was
+   > structurally guaranteed**: that search ranged over *priority functions*
+   > and the tie tier is not one. `P_GLOBREGS.md` §8. Board **#3413**.
+   >
+   > **What R4 did NOT settle**, said here so the row is not over-read: what
+   > the ordinal means in *program* terms is `[R]` only. A separator cell that
+   > reaches the `+0x44` tier while holding `+0x0c` fixed was **not** built —
+   > the one that was (`G-block`) moved the live range and so never reached the
+   > tier. Board **#3414**.
+
    > **The fence on that claim, from the lane that made it.** Pure descending id
    > predicts `n=2`'s `b a` and `n=8`'s leading `h g f`, but **`n=3` is `b a c`
    > where it predicts `c b a`**. Either the mint order is not source order
@@ -231,7 +271,7 @@ Three consequences a port has to carry:
 | `+0x38` | preference list | the selector's negative term |
 | `+0x3c` | last defining tuple | |
 | `+0x40` | benefit | saved/restored across a split |
-| **`+0x44`** | **— absent —** | ⛔ **CORRECTION 2 (`#3243`).** The record is `0x48` bytes and the enumeration stops at `+0x40`. `+0x44` is the **worklist comparator's tie-break**, saved and restored beside `+0x40` by the spiller `0x10b3032a`. **The unenumerated field is the one that decides every tie — and at `/O1` most cells are ties.** |
+| **`+0x44`** | **— absent —** | ⛔ **CORRECTION 2 (`#3243`).** The record is `0x48` bytes and the enumeration stops at `+0x40`. `+0x44` is the **worklist comparator's tie-break**, ~~saved and restored beside `+0x40` by the spiller `0x10b3032a`~~. **The unenumerated field is the one that decides every tie — and at `/O1` most cells are ties.** <br>⛔ **R4, 2026-08-23 — the field is READ.** It is a **tuple-visit ordinal**, written at exactly one origination site **`0x10b55fac`** (`FUN_10b55eae`), counter zeroed at `0x10b55eb7` and `inc`'d at `0x10b55f77`. **The spiller does not write it** — that clause was the *block* record (see §2). The only other writes are three verbatim split inheritances and the destructor's `memset`. **Its default is a hard 0**, twice guaranteed: the arena `memset`s every chunk (`0x10c2022a`) and the destructor `memset`s the whole `0x48` restoring only `+0x1c`, so the free-list path in `0x10b54d32` cannot leak a stale key. [`P_GLOBREGS.md`](P_GLOBREGS.md) §7 |
 
 > **Two different `+0x44`s exist and they are not the same field.** This one is
 > the *allocator candidate's*. The **DAG node's** `+0x44` is the original tuple
@@ -298,7 +338,15 @@ source-level use counts is fitting the wrong variable.
   wrong in kind: F5's input is `cand+0x0c`, accumulated over the code **the
   scheduler produced**, and F0 — priced at 8 — is what produces it. **F5 is not
   separable from F0.**
-* **F1**, `globregs.c`'s promotion policy at `0x10b55732`: unread.
+* ~~**F1**, `globregs.c`'s promotion policy at `0x10b55732`: unread.~~
+  ⛔ **READ 2026-08-23 by R4, and it is at a different address**:
+  `FUN_10b550e5` @ `0x10b550e5`. Two gates — a **kind** switch (every arm
+  addressed) and a **type-class** table at `0x10b18b28` (30 entries, exactly
+  five classes not promotable). **No numeric threshold and no mode flag**, so
+  a port needs no fitted constant for F1. [`P_GLOBREGS.md`](P_GLOBREGS.md) §3.
+  The *candidate set* is still not buildable, but for a different reason: a
+  candidate is a **(symbol, live-range version)** pair, and the versions need
+  the backward walk over the **lowered** tuple list.
 * **F4**'s non-call physical def: **still no obj cell in existence.**
 * **The cost model itself**: this record has the comparator, not the cost
   function's derivation.
