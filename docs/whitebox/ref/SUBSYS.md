@@ -109,7 +109,7 @@ reference page here; `findings` means a dated `WB_*_FINDINGS.md`.
 
 | # | phase | `ref` page | findings | verdict |
 |---:|---|---|---|---|
-| 1 | **Emitter CFG classes** (`cflow-loop`, `cflow-if-n`, `cflow-if-2`) | **[`P_LABEL.md`](P_LABEL.md)** (the *charge* half only) | the **label counter** (`WB_LABEL_FINDINGS.md`, `WB_LABELCHARGE_FINDINGS.md`) | **STILL UNSERVED, and R3 sharpened why.** The label *charge* is now read to 163 enumerated sites; **block order and branch selection are still not read anywhere**, and a charge rule without an order rule cannot place a label. §4.1's own first target, `fg.c` `0x10b36133`, is where **ten** of the 132 label-constructor call sites live, across eight functions — the concrete overlap R3 hands R8 |
+| 1 | **Emitter CFG classes** (`cflow-loop`, `cflow-if-n`, `cflow-if-2`) | **[`P_LABEL.md`](P_LABEL.md)** (charge) + **[`P_BLOCKORDER.md`](P_BLOCKORDER.md)** (order) | the **label counter** (`WB_LABEL_FINDINGS.md`, `WB_LABELCHARGE_FINDINGS.md`), **`WB_BLOCKORDER_FINDINGS.md`** | ~~STILL UNSERVED~~ — **BLOCK ORDER IS SERVED 2026-08-23 by R8** (#3437–#3441). Emission order **is** tuple-list order; the emit walk `0x10b338f5` has no sort and no ordering key, and the `switch` lowering is read (`0x10bd22a7`). **Branch selection is still not read**, so the phase is not closed — but *"a charge rule without an order rule cannot place a label"* no longer applies |
 | 2 | **An inliner** | [`P_INLINE.md`](P_INLINE.md) | `WB_INLINE_FINDINGS.md` | served |
 | 3 | **`memset` / selector lowering** | — | `WB_SELECT_RECONCILED.md`, `WB_TABLES_FINDINGS.md`, `WB_MEMCPY_FINDINGS.md` | served by findings; §2's row is the entry |
 | 4 | **Exception handling** | [`P_EH.md`](P_EH.md) | `WB_EH_FINDINGS.md` | served |
@@ -138,6 +138,43 @@ across it. What a lane opening phase 1 should read first, in this order:
 **Do not start from a probe grid.** `#761`'s cost is on the board: what shipped
 for `cflow-loop` was *"a twenty-word transcription of one function class at
 `/O1`"*, and `gap-metric cfg-reach-shipped` has been **2 of 16** since.
+
+> ### ⛔ 2026-08-23, lane `w-read-r8` — **ALL THREE OF THESE ARE DEAD LEADS FOR BLOCK ORDER, AND THE LIST IS THREE TU ANCHORS RATHER THAN THREE CANDIDATES**
+>
+> Amended beside, not rewritten. The list above was written under the heading
+> *"Found and not taken — the next read is **named, not taken**"*
+> (`rungs/2026-08-19-c2map3.md:243`), and it is exactly that: three **`c2_tus.tsv`
+> translation-unit anchors**. `READ_PLAN` §3 row R8 and the R8 dispatch brief
+> both re-quote them as if they were candidate sites for the rule, which is how
+> the riskiest row in the plan came to be priced 5–10 days *"with no known
+> address"*. Read to bodies by R8 ([`P_BLOCKORDER.md`](P_BLOCKORDER.md);
+> **#3437**–**#3441**):
+>
+> * ~~*"`fg.c` at `0x10b36133` — the flow graph"*~~ — **54 bytes, one caller,
+>   one callee.** An opcode classifier on `*(p+4)` against
+>   `0x30d`/`0x30f`/`0x313`/`0x317`; its single callee is the ICE
+>   `FUN_10b33526`. It cannot hold an ordering rule of any size. *The clause
+>   that was right and load-bearing is **"the call graph is the handle"*** —
+>   that is how R8 found the answer.
+> * ~~*"`factor.c` at `0x10b34a89` — **tail merging**"*~~ — **struck.**
+>   `FUN_10b34a89` is an **arithmetic identity/exactness predicate** over
+>   opcodes `0x2c7`/`0x2c9`/`0x2ca`/`0x2cb`/`0x2cf`. The `factor.c`
+>   attribution is `in-anchor` and stands; the description of the *function*
+>   does not. The tuple-reordering routines `0x10b3b167`/`0x10b3b41b` are a
+>   separate, still-live lead.
+> * ~~*"`0x10b968b0` … **the label format strings**"*~~ — it is the 507-byte
+>   **function that uses them**, a decorated-name suffix builder splitting at
+>   `@`. Not on the block-order path.
+>
+> **Where the rule actually was:** the emit walk `FUN_10b338f5` @ `0x10b338f5`,
+> four call-graph hops from the encoder R2 had already addressed — and the
+> single most useful line in this directory for finding it was
+> [`P_DAG.md`](P_DAG.md)`:113`, *"`0x10be626c` re-links the tuple list
+> (`tuple+0` next, `+0x10` prev)"*, which names the data structure.
+>
+> **The "do not start from a probe grid" rule above was honoured and is
+> vindicated.** R8 read first and built its grid afterwards — and it was the
+> read that told the grid which control to carry.
 
 ---
 

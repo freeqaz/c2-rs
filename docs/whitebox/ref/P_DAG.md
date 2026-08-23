@@ -346,6 +346,36 @@ Ready-list order: **priority DESC (unsigned), then `node+0x44` ASC**
   §4 phrase *"flow-graph construction order"* survives only because construction
   order for a switch is not source order; **as a rule a port could use it is not
   established.**
+
+  > ### ✔ ANSWERED 2026-08-23 by R8 — and the bullet above is wrong about `M2`
+  >
+  > [`P_BLOCKORDER.md`](P_BLOCKORDER.md);
+  > [`../WB_BLOCKORDER_FINDINGS.md`](../WB_BLOCKORDER_FINDINGS.md); board
+  > **#3437**–**#3441**. Amended beside rather than rewritten, per
+  > [`README.md`](README.md) §2.1 — **the bullet stands as written; it is wrong
+  > in one word.**
+  >
+  > **There is no block-ordering pass and no block-order key.** The emit walk
+  > `FUN_10b338f5` @ `0x10b338f5` follows `tuple+0` and does nothing else — no
+  > sort, no comparator, no block loop. Emission order **is** tuple-list order,
+  > so `M1` and `M2` were never rival rules about *blocks*; they are two
+  > traversals inside the `switch` lowering (entry `0x10bd22a7`, decider
+  > `0x10bd1373`, recursive driver `0x10bd1f1a`).
+  >
+  > * ~~*"reverse **case** order"*~~ as this page and four others gloss it —
+  >   **it is descending case VALUE, and the reverse-*source* reading published
+  >   at `#1906` / `WB_LOOP_FINDINGS.md:449` / `WB_REGALLOC_FINDINGS.md:541` is
+  >   REFUTED.** Every prior cell wrote its cases in ascending source order,
+  >   where the two are the same sequence and no such cell can separate them.
+  > * The rule, `[O]` at 22 of 22 decision-tree cells including a frozen
+  >   out-of-sample holdout: table and CTR-ladder lowerings emit arms in
+  >   **source** order (the case list is built by append and never sorted);
+  >   the decision tree emits `emit(V) = n<8 ? reverse(V) : emit(V[:p]) ++
+  >   [V[p]] ++ emit(V[p+1:])`, `p = n/2`, over the **values**. The `8` is read
+  >   at `0x10bd1388`.
+  > * *"a port cannot place labels"* — **discharged.** `FUN_10bd415e` wraps a
+  >   label symbol into the kind-`0x1b` / op-`0x308` tuple the emit walk turns
+  >   into an address.
 * **A second author of tuple order exists**: a dependence-DAG **block merger**
   (`WB_DAGCLIENTS_FINDINGS.md`, `WB_MERGER4_FINDINGS.md` — `0x10b3baa8` →
   `0x10b3a790`, which is *not* a DAG client). The scheduler is not the only

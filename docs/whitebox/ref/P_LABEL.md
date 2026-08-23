@@ -502,7 +502,7 @@ Two consequences worth stating `[I]`:
 
 | # | open |
 |---|---|
-| 1 | **The ORDER.** Which block a `$M` lands on is R8's. A charge rule alone cannot place a label. |
+| 1 | ~~**The ORDER.** Which block a `$M` lands on is R8's. A charge rule alone cannot place a label.~~ — **ANSWERED 2026-08-23 by R8**, [`P_BLOCKORDER.md`](P_BLOCKORDER.md) §5.2 (#3437–#3441). A label symbol minted here is wrapped by **`FUN_10bd415e`** @ `0x10bd415e` into a **kind-`0x1b`, opcode-`0x308` tuple** (back-linked at `labelsym+0x33`), spliced into the one tuple list by an inserter, and turned into an address by the emit walk `FUN_10b338f5`'s `0x1b` arm. **A label lands exactly where its `0x1b` tuple was spliced** — there is no ordering pass to overrule it. **85 functions call `FUN_10bd415e`**, the *placement* population beside this page's 86 *minting* callers |
 | 2 | **Which units make the gap** (7 / 9 / 10). The candidate set is bounded to §3's once-per-TU sites and the mode-dependence is measured; the per-unit attribution needs a live tap on `0x10b97de5`, unbuilt. |
 | 3 | **The `/Gy` `+3` per function.** Re-confirmed `[O]` here as an exact `3 × nfuncs` in every `/Gy` cell of §4.1's grid, but *what* the three are is still not read out of the binary — the same status `WB_LABEL_FINDINGS.md` §6 open #2 left it in. |
 | 4 | **§5's signed-relational `+2`.** The one surcharge row this read does not explain. |
