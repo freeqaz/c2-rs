@@ -55,16 +55,47 @@ not which to delete.
 
 - **`w-keygen`'s `rdata_shell` code is NOT on master** (`rdata_shell` /
   `rdata_two` grep empty) while master's W-REACH rung prices exactly that
-  capability: *"+90 [TU reach] the moment `.rdata$r` lands."* The keygen lane
+  capability: ~~*"+90 [TU reach] the moment `.rdata$r` lands."*~~ The keygen lane
   landed without it — either declined for a reason the rung will state, or
   parked. If `.rdata$r` placement is ever funded, this branch holds a started
   implementation (7 crates files + 4 fixtures).
-- **`w-reltgt`** — "require relocation-target agreement before crediting
+
+  > **CORRECTED 2026-08-23 — the two sections are DIFFERENT and this line
+  > conflated them, inflating the branch's price.** `_2026-08-05-w-reach.md:312`
+  > prices **`.rdata$r`**, the *COMDAT RTTI* section (step one of `BOARD.md:567`'s
+  > ladder `.rdata$r` 590 → `.text$yd` 804 → `.xdata$x` 871). `w-keygen`'s open
+  > refusal 15 (`2026-08-13-w-keygen.md:123`) is **non-COMDAT `.rdata` with
+  > content — 384 bytes**, a TU-level section, and the branch's own decode bound
+  > explicitly *refuses* COMDAT `.rdata`. **Landing `w-keygen` does not buy +90
+  > TU reach.** Price it on refusal 15 (20 → 19) plus the live wrong emit it
+  > closes plus its 12 GRID R cells. The verdict is unchanged and the branch is
+  > still the highest-value item in this set — only the number was wrong.
+- **`w-reltgt`** — ~~"require relocation-target agreement before crediting
   fnbyte-exact." No rung, no board row, no `relocation-target agreement`
   match in `gap/factors.rs`. The idea may have landed under other names in
-  the reloc campaign, or may be a genuinely open credit-tightening. 2 commits,
-  prereg included.
-- **`w-scfl`** — loop-production prereg with discriminators and falsifiers;
-  no scfl rung or test on master. Tip commit self-labels its test scratch
-  ("deleted before the lane lands"), so the branch was mid-flight when
-  abandoned.
+  the reloc campaign, or may be a genuinely open credit-tightening.~~
+
+  > **CORRECTED 2026-08-23 — SUPERSEDED, and the "no trace" above was a FALSE
+  > NEGATIVE of my own making.** The grep ran against the *branch's* key names
+  > and against the wrong file. The idea landed as lane `w-relo`, merge
+  > `2abca17df` (2026-08-07) — *"exact now means exact — FBM grades relocation
+  > targets, and 861 bodies it credited branch to the wrong function"* — with a
+  > richer reader (`RelocDiffers(RelocKind)` at `gap/fnbytes.rs:140`), a
+  > known-answer control and an independent second-reader replication. It landed
+  > **four days before this branch's own salvage commit**. The hedge in the
+  > struck text ("may have landed under other names") was the correct reading;
+  > the flat "no trace on master" was not. **Verdict: ABANDON-SUPERSEDED.**
+- **`w-scfl`** — ~~loop-production prereg with discriminators and falsifiers;
+  no scfl rung or test on master.~~ **CORRECTED 2026-08-23: SUPERSEDED.** Master's
+  lane `w-seed` (merge `ed511348b`) measured the branch's own predictions 27 h
+  after its prereg — 223 of 228 converted, 0 regressed — and *partly refuted the
+  central one* (H1 predicts a top-tested loop; the measured grammar is
+  bottom-tested). Tip commit self-labels its only code as scratch to be deleted
+  before landing. **Verdict: ABANDON-SUPERSEDED.**
+
+  > **Net on this section: of the three branches flagged "worth a look", exactly
+  > ONE survives — `w-keygen`.** Two were refuted by a deeper read. The section's
+  > method (grep master for the capability's identifiers) is what produced both
+  > false negatives: a grep keyed on the *branch's* vocabulary cannot see the
+  > same idea landed under a different lane's names. Establish supersession by
+  > reading the campaign, not by grepping the branch's own words.
