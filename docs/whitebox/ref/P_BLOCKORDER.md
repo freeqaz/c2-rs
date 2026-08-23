@@ -328,7 +328,7 @@ order** all randomized independently, seed-deterministic
 A marker too wide for a `li` immediate makes a cell **unreadable**, and
 unreadable cells are reported as such and never scored as passes.
 
-### 5.0a The one miss is a HYBRID lowering, and the record has never described one `[O]`
+### 5.1 The one miss is a HYBRID lowering, and the record has never described one `[O]`
 
 `sw_rc065`, 19 clustered values
 `{26–29, 31–33, 36–38, 52, 53, 119–122, 173–175}`:
@@ -352,7 +352,7 @@ is named but not modelled. It is 1 cell in 240, it is explained by a constant
 read from the image rather than fitted to the cell, and it is the shape the
 prereg registered (**P3.3**) as the thing a corpus finds and a hand grid cannot.
 
-### 5.1 The correction this forces on the record `[O]`
+### 5.2 The correction this forces on the record `[O]`
 
 **Every published statement of `M2` in this repo says "reverse *source*
 order", and it is wrong.** Board **#1906**, `WB_LOOP_FINDINGS.md:449`,
@@ -377,7 +377,7 @@ disagree cell by cell, and the objs decide:
 *source* orders and emit **the identical arm sequence** — an independent
 confirmation on the same point.
 
-### 5.2 What this gives `P_LABEL.md` §8 open #1 `[R]`
+### 5.3 What this gives `P_LABEL.md` §8 open #1 `[R]`
 
 R3 read the *charge*: `FUN_10b9a455` mints a label symbol. **The placement is
 `FUN_10bd415e` @ `0x10bd415e`, 31 B**, which wraps that symbol into a
@@ -408,7 +408,7 @@ list. The jump-table path makes the join concrete — the emitted table base is 
 
 ---
 
-## 6.1 A note on TU attribution — do not quote `ADDR.tsv`'s file names for this page
+### 6.1 A note on TU attribution — do not quote `ADDR.tsv`'s file names for this page
 
 `ADDR.tsv` assigns a translation unit by **address banding** between the ICE-site
 anchors in `c2_tus.tsv`, and every address on this page lands in a **`gap`**,
