@@ -175,7 +175,7 @@ Record layout: **`4F` · VI16(sub) · fields per the format string.**
 | `0x04` | `6f` | — | **ICE `:160`** | `[R]` |
 | `0x05` | `43` | — | **ICE `:160`** | `[R]` |
 | `0x06` | `49` | — | **ICE `:160`** | `[R]` |
-| `0x07` | *(empty string)* | none | **2** | `[R]` |
+| `0x07` | *(empty)* — see note | none | **2** | `[R]` |
 | `0x0a` | `07` | — | **ICE `:160`** | `[R]` |
 | `0x0b` | `0b` | BYTE + DEFER (§7) | ≥ 3, **unbounded** | `[R]` |
 | `0x0c` | `4d` | — | **ICE `:160`** | `[R]` |
@@ -205,7 +205,17 @@ Record layout: **`4F` · VI16(sub) · fields per the format string.**
 | `0x00`,`0x08`,`0x09`,`0x27`,`0x29`..`0x31`,`0x34`,`0x3f` | *(zero)* | none | **2** | `[R]` |
 
 **Summary of the domain: 12 sub-opcodes decode a payload · 17 are FATAL
-(16 → ICE `:160`, `0x17` → ICE `:88`) · 35 read nothing.**
+(16 → ICE `:160`, `0x17` → ICE `:88`) · 35 read nothing.** `12 + 17 + 35 =
+64`, checked arithmetically rather than asserted.
+
+> **Note on `0x07`, because "empty string" would overstate it.** Its
+> descriptor is `0x10b01bbe`, which is **not** the address of an empty string
+> literal — it points at a NUL *inside* another literal's padding
+> (`… 61 74 61 00 | 00 00 20 20 …`). Behaviourally the interpreter reads a
+> NUL and consumes no payload, so the record is 2 bytes; but the pointer looks
+> like a compiler-emitted alias onto a shared zero byte rather than a
+> deliberate empty format. Stated precisely so a later reader does not infer a
+> distinct "empty format" concept that the data does not support. `[R]`
 
 ### 4.1 The corpus-witnessed seven, and the port's three constants
 
