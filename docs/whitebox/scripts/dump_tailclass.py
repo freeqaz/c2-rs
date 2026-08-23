@@ -464,10 +464,13 @@ def mode_tail(img, path, cg):
 
 def mode_minters(img, path, cg, addr):
     t, _ = tail_call_targets(path, EXPAND_LO, EXPAND_HI, addr)
-    hit, w, n = cg.reaches_mint(t)
+    d, w, n = cg.mint_distance(t)
     print("%#010x  targets=%s" % (addr, " ".join("%#x" % x for x in t)))
-    print("  mints=%s  visited=%d  %s"
-          % (hit, n, " -> ".join("%#x" % v for v in w) if hit else ""))
+    print("  hops-to-nearest-constructor=%s  visited=%d  %s"
+          % (d if d else "-", n, " -> ".join("%#x" % v for v in (w or []))))
+    print("  1 == emits a word directly.  A larger number is EVIDENCE only;")
+    print("  see --tail, and P_OPATTR.md §4.3, for why the transitive form of")
+    print("  this question saturates and is not reported.")
     return 0
 
 
