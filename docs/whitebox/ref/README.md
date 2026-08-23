@@ -132,6 +132,7 @@ Per-page coverage against its own band (Ghidra function entries in the span):
 | [`P_INLINE.md`](P_INLINE.md) | 16 | `0x10b5b86d`–`0x10b62b00` | 93 |
 | [`P_ENCODE.md`](P_ENCODE.md) | 71 addresses / 79 arms | `0x10bf96d0`–`0x10bfae2a` (`code.c`) | 14 |
 | [`P_LABEL.md`](P_LABEL.md) | 31/31 allocator sites + 132 located | `0x10b97dd0` / `0x10b9a455` and their 163 call sites, image-wide | 163 |
+| [`P_SUB4F.md`](P_SUB4F.md) | **3 in band** (`0x10b9761e` + both list siblings) — plus the 64-row table `0x10b26268`, 14/14 arms and 5 scalar readers out of band | `p2pragma.c`, `0x10b97502`–`0x10b97807` | 11 |
 
 > **2026-08-18, lane `w-sizebracket`** — `P_INLINE.md` gained §2.1a/§2.1b/§2.1c
 > and a ⛔ correction box, and `ADDR.tsv` was regenerated: **1,209 rows, 1,141

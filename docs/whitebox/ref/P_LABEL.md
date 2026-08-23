@@ -49,6 +49,7 @@ be a constant either.
 | references to it **in the whole image** | **7**, every one in `.text` | `[R]` |
 | — the only **increment** | **`0x10b97de5`** `ff 05 d0 ed c2 10` | `[R]` |
 | — seed install, IL directive `0x16` | **`0x10b97807`**, in `FUN_10b9761e` | `[R]` |
+| ⛔ **AMENDED BESIDE 2026-08-23 by read R9 — this row's address is right and its arm is UNREACHABLE.** `0x16` is a **field-type code, not an IL directive**, and of the 13 codes `FUN_10b9761e`'s cascade handles, `0x16` is the **only one no descriptor in `0x10b26268` selects** — so no `0x4F` sub-record can reach `0x10b97807`. R3 read the instructions correctly; the arm is **not on the path**, which is the `.bss`-bump mode ([`README.md`](README.md):54-60) and exactly what `[R]` is defined not to exclude. **`LABEL_SEED_GAP` is untouched** — `w-seedgap` measured its coefficients black box from objs (`../DISCLOSURE.md` row `W-SEEDGAP-1`), so no shipped number depends on this arm. See [`P_SUB4F.md`](P_SUB4F.md) §6.1, [`../WB_SUB4F_FINDINGS.md`](../WB_SUB4F_FINDINGS.md) §4, board **#3444** | | `[R]` |
 | — seed install, per-TU header | **`0x10b97ca1`**, in `FUN_10b97a22` | `[R]` |
 | — reads | `0x10b8b5cd` (the crossing check), `0x10b97c90`, `0x10b97dd0`, `0x10b97de0` | `[R]` |
 | the **downward** end of the same id space | `DAT_10c2ed40`, written at `0x10b8b5c7` in `FUN_10b8b561`, with the crossing check `if (DAT_10c2ed40 <= DAT_10c2edd0) fatal` | `[R]` |
