@@ -184,3 +184,59 @@ R1's unanswered question) and **R5** (the 189-arm IL→codegen dispatch,
 15–25 d — the shared input to all ten Phase-1 slices and the closure of
 R2's `[R]` bound). Decision 1 funded R1–R3 only; R5 is material spend and is
 **not** started under this decision. Nothing else blocks on an answer.
+
+---
+
+## Decision 6 — R4 and R5 are funded (2026-08-23)
+
+*This file is the continuous owner-decision record opened 2026-08-22; this
+decision was taken the following day, in the same session, and is dated
+explicitly rather than split into a second file.*
+
+The owner, verbatim, on being asked the one open spend question at the end of
+the Phase 0 wave:
+
+> *"fund R4 and R5 now. drive this with opus subagents please. your role is
+> coordinator"*
+
+**What this decides.** The two reads left unfunded by decision 1 —
+`docs/whitebox/READ_PLAN_2026-08-21.md` §3 rows **R4** and **R5** — are
+funded and dispatched as characterization lanes under prereg. Decision 1
+funded R1→R3 only; decision 5 explicitly put R4/R5 back to the owner as the
+sole open spend question. It is now answered.
+
+- **R4** — `FUN_10b55732` (1,676 B), the globregs mint/merge, **3–5 days**.
+  This is where R1's subtraction sent its question: R1 proved the candidate
+  counter is **function-scoped**, which removed `P_REGALLOC.md` consequence
+  3's premise, so **the ten fitted-then-refuted allocation keys
+  (`alloc.rs:103-539`, "wrong on 5 to 42 each") have no explanation on that
+  mechanism at all**. R4 reads the mint order and merge rule as an ordered
+  algorithm — the missing input to the already-read comparator, and the
+  standing account owed to the 52,416-configuration null.
+- **R5** — `FUN_10bc2d7a` (5,080 B), the **189-arm** IL-record → codegen
+  dispatch, **15–25 days**. The largest row on the critical path: it is
+  I1 (the general decode), the shared input to all ten Phase-1 construct
+  slices, and the closure of the `[R]` bound R2 named in `P_ENCODE.md` §9 —
+  an encoder is a total function of a tuple **nobody can yet build**, and R5
+  is how the tuple gets built. Its gate was discharged by R2: the
+  arm-reading method works on 79 bounded bodies.
+
+**Why now, and what it does NOT decide.** R5 is material spend and it is
+**still not an approval of rows 4a/4b** — a read produces a spec, not an
+implementation, and quoting "the dispatch is read" as "I1 is cheaper" would
+be the units error `READ_PLAN` §5 warns about. `CEILING` §5's ~5:1
+calibration was fitted on lane-shaped construction work and must not be
+applied to a read. Phase 0 continues in parallel and still prices 4a/4b on
+evidence; step 5's NO-GO clauses stand; the byte judge is untouched.
+
+**The standing caveat, unchanged:** `[R]` means *"the instructions were read
+correctly"*, not *"this is what c2 does"* — the `.bss` bump rule was read
+correctly out of a clean function and was wrong about c2. Every read lane
+ends in a confirmation probe.
+
+**Dispatched under this decision**, both Opus, both characterization lanes
+(`Fixtures: none`, `Census: +0`, predicted reach 0, prereg as the first
+commit): **`w-read-r4`** (board **#3410**–**#3414**) and **`w-read-r5`**
+(board **#3415**–**#3421**).
+
+**Nothing is currently waiting on the owner.**

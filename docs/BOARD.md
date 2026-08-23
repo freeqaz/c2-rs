@@ -4595,4 +4595,12 @@ generations --sample 400 | gc --limit 50000` over the live legacy root, and from
 
 ### `#3406`–`#3409` are `w-cacheinode`'s and all four are spent above.
 
-### **THE NEXT FREE NUMBER IS `#3410`.**
+## Owner decision, 2026-08-23 — R4 and R5 funded
+
+| row | claim | state | evidence | links | consequence |
+|---|---|---|---|---|---|
+| **3410**<sub>coordinator</sub> | **THE LAST TWO OPEN READS ARE FUNDED: R4 (globregs mint/merge, 3–5 d) AND R5 (THE 189-ARM IL→CODEGEN DISPATCH, 15–25 d)** | **DECIDED by the owner** (*"fund R4 and R5 now. drive this with opus subagents please. your role is coordinator"*), recorded verbatim in `docs/DECISIONS_2026-08-22.md` decision 6. Decision 1 funded R1–R3 only; decision 5 named R4/R5 as the sole open spend question — it is now answered and **nothing is waiting on the owner** | R4 is the destination of R1's subtraction: the candidate counter is function-scoped (#3372–#3375), so `P_REGALLOC.md` consequence 3 lost its premise and the **ten fitted-then-refuted allocation keys** (`alloc.rs:103-539`, wrong on 5 to 42 each) are unexplained · R5 is I1, the shared input to all ten Phase-1 slices, and closes the `[R]` bound R2 stated in `P_ENCODE.md` §9 (an encoder is a total function of a tuple nobody can yet build); its gate was discharged by R2's 79 bounded bodies | `docs/DECISIONS_2026-08-22.md` decision 6 · `docs/whitebox/READ_PLAN_2026-08-21.md` §3 rows R4/R5, §5.2 · **#3371** · **#3391** · **#3376** | **THIS APPROVES NO ROW OF 4a/4b.** A read produces a spec, not an implementation; quoting "the dispatch is read" as "I1 is cheaper" is the units error `READ_PLAN` §5 warns about, and `CEILING` §5's ~5:1 calibration must not be applied to a read. Phase 0 continues in parallel and still prices 4a/4b on evidence. **Dispatched: `w-read-r4`** (**#3411**–**#3414**), **`w-read-r5`** (**#3415**–**#3421**) |
+
+### Reservation ledger, 2026-08-23 (fourth wave — the funded reads), LIVE — **`#3410` spent above · `#3411`–`#3414` reserved `w-read-r4` · `#3415`–`#3421` reserved `w-read-r5`.** Both lanes in flight; this ledger is live until they land. The third wave's ledger above is CLOSED and stays as written.
+
+### **THE NEXT FREE NUMBER IS `#3422`.**
