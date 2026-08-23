@@ -65,7 +65,7 @@ the row says it is.** Both were registered as scorable predictions:
 
 | `READ_PLAN` §3 row R4 says | what is true |
 |---|---|
-| *"`FUN_10b55732` … globregs mint/merge"* | it is the **renamer**. It holds **no direct call** to the mint `0x10b54d32` — 18 callees, none of them it. Candidate ids are assigned in **`FUN_10b55dbe`** (240 B), called by the same driver 40 bytes later at `0x10b577f2`. **No document in the repo named `0x10b55dbe` as the mint site before this lane.** |
+| *"`FUN_10b55732` … globregs mint/merge"* | it is the **renamer**. It holds **no direct call** to the mint `0x10b54d32` — 18 callees, none of them it. Candidate ids are assigned in **`FUN_10b55dbe`** (240 B), called by the same driver 40 bytes later at `0x10b577f2`. ⚠ **Prior-art correction to this lane's own first draft:** it claimed no document had named `0x10b55dbe`. **Two had** — `WB_LIVE_FINDINGS.md` lists it among the candidate creators, and R1's own table (`WB_CANDID_FINDINGS.md` §2) has `0x10b55e66` in `FUN_10b55dbe` as mint call site #1 of seven. **What is new here is not the address but the ORDER of its walk**, which R1 explicitly deferred: *"which of the seven sites it reaches, and in what order, is read R4"*. |
 | *"the candidate mint order … **the missing input to the already-read comparator**"* | **the missing input was `cand+0x44`**, not the mint order. The mint order reaches the comparator only at the third tier. The row's framing sent the lane to the right subsystem for the wrong reason. |
 
 Neither is a defect in the *funding* decision — R4 was the right read and it

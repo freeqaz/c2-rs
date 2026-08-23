@@ -167,7 +167,7 @@ insert ([`P_REGALLOC.md`](P_REGALLOC.md) §1, §4).
 | `0x10b54bad` | 67 | 1 | 3 | *(gap)* | **the version stamp.** `alloc(arena 7, 8)`; `rec[1] = {v}`; **HEAD-inserts** `rec` on `aux[0x0c]` (`0x10b54bdb`/`0x10b54be0`); `aux[0x14] = v`; **returns `v+1`** `[R]` |
 | `0x10b54bf0` | 23 | 1 | 0 | *(gap)* | the candidate-list link: `sym+0x30` next, `aux[0x10]` prev `[R]` |
 | `0x10b54c07` | 222 | 2 | 5 | *(gap)* | **STEP 2b, the MERGE at joins.** §5 `[R]` |
-| **`0x10b55dbe`** | **240** | **1** | **6** | *(gap)* | **STEP 3, the MINT — where candidate ids are actually assigned.** Symbol-arena order × version-list order; `0x10b55e66` calls the constructor. **Named by no document before R4** `[R]` |
+| **`0x10b55dbe`** | **240** | **1** | **6** | *(gap)* | **STEP 3, the MINT — where candidate ids are actually assigned.** Symbol-arena order × version-list order; `0x10b55e66` calls the constructor. Named as a candidate creator by `WB_LIVE_FINDINGS.md` and as mint site #1 of seven by R1; **its walk ORDER is what R4 adds**, and R1 deferred exactly that `[R]` |
 | **`0x10b55eae`** | **1468** | **1** | **18** | **`globregs.c` anchor** | **STEP 4 — the sole originating writer of `cand+0x44`** at `0x10b55fac`. Also re-points every pseudo-register operand at its candidate (`0x10b55fa9`). §7 `[R]` |
 | `0x10b54d32` | 130 | 6 | 5 | *(gap)* | the candidate constructor. `alloc(0x0e, 0x48)`; `+0x04 = 2`; `+0x1c = DAT_10c400d4++` on the fresh path only. **Writes `+0x44` never** — verified, 0 references `[R]` |
 | `0x10b2efd6` | 130 | ~ | ~ | **`color.c`** | the candidate **destructor**: unhooks the hash chain, `memset(cand, 0, 0x48)` at `0x10b2f03b`, pushes on the free list, **restores only `+0x1c`**. This is why a recycled record has `+0x44 == 0` `[R]` |
