@@ -483,10 +483,15 @@ inputs take.
 > INDEX MAPPING, because nothing indexes this table by an opcode.** Full read at
 > [`P_OPATTR.md`](P_OPATTR.md) §7.
 >
-> * **One referencing function, not two.** All three references in the image
->   (`0x10c0175e`, `0x10c01774`, `0x10c01790`) are inside `FUN_10c0174b`.
->   `FUN_10c00900` references **`0x10b1b260`**, the *first* table — so the
->   sentence above overcounts by including it.
+> * **13 references in 3 functions, and `FUN_10c00900` is not one of them** —
+>   it references **`0x10b1b260`**, the *first* table. The split by **field** is
+>   the answer: `FUN_10c0174b` names only the base and row 1 (3 refs, the name
+>   search); `FUN_10c027d3` reads **`+0x4`** ×1, **`+0x8`** ×1 and **`+0xc`** ×7
+>   — opcode, `BO`, `BI`; `FUN_10c01f23` holds one end-pointer.
+>   *(Counting this needs care: both tables live inside `.text`, so `objdump -d`
+>   disassembles their bytes as code and invents branch operands that land in
+>   the table's own range. Seven such phantoms must be filtered out by function
+>   membership.)*
 > * **It is a name search.** `FUN_10c0174b` starts at row 1
 >   (`xor ebp,ebp / inc ebp`), strides `shl eax,4`, string-compares each row's
 >   name and terminates on the `_last` string `0x10b19ce4` — the exact twin of

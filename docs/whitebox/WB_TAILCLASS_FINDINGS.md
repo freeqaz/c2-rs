@@ -82,7 +82,7 @@ the orientation pass that produced §0.1.
 | **P3.1** | arm 6 is a copy-propagation / redundant-move arm, not an expansion | **HIT** | both, with the delete on the same-register path |
 | **P3.2** | arm 6 mints nothing | **PARTIAL** | its thunk and handler mint nothing on the read path; the propagation fallback's four callees were not each chased |
 | **P4.1** | the contradiction resolves by the **question being malformed** | **HIT** | there is no mapping, because nothing indexes by opcode |
-| **P4.2** | name-keyed, not opcode-indexed; `+4` already carries the opcode | **HIT** | `0x10c0299c` reads `+4` explicitly |
+| **P4.2** | name-keyed, not opcode-indexed; `+4` already carries the opcode | **HIT** | `0x10c0299c` reads `+4` explicitly, and the reference split by field settles it: the name search touches only the base and row 1, while the caller reads `+4`/`+8`/`+0xc` |
 | **P4.3** | `+4` never `≥ 0x298`, so it can never name a pseudo-op | **HIT** | max `0x295` over 122 rows |
 | **P4.4** | R6's `twlti` came from indexing the **first** table past its end | **MISS** | **wrong mechanism.** It came from R6's *stated* hypothesis `op = 0x298 + j` applied to the **extended** table — row 88 **is** `twlti`, exactly. Indexing the first table past its end gives `twige`, which is what misled me into predicting this |
 
@@ -181,6 +181,26 @@ characterization lane rather than in the harness.
 violator is `mr` — arm 14, `0x10c16d83`, a handler this lane did not read.
 
 ---
+
+## 5.1 A second error this lane caught in its own published claim
+
+`P_OPATTR.md` §7.1 said *"one referencing function, not two"*, on a
+base-literal grep that found 3. Widening the scan to the table's whole address
+range found 20 — **seven of them phantoms**, because **both the mnemonic table
+and the extended table live inside `.text`**, so `objdump -d` disassembles their
+bytes as code and invents branch instructions whose operands land in the table's
+own range. Filtering by `FUNCS.tsv` function membership gives the true answer:
+**13 references in 3 functions.**
+
+The correction **strengthens** §7 rather than weakening it — the split by
+*field* is a cleaner form of the same argument — but the claim as published was
+wrong, and it was wrong in a direction (*undercounting*) that a base-literal
+grep will always produce for a table whose walker starts at row 1.
+
+**Three of this lane's own defects were found by running things, not reading
+them**: this, the `--minters` crash after a rename, and the probe's
+vacuity-before-refutation ordering. A fourth (the consumer regex admitting
+addresses below the table) was found by checking what actually matched.
 
 ## 6. For a follow-up
 
