@@ -44,7 +44,7 @@ because it attaches an operand rather than emitting one.
 
 ---
 
-## 2. Prereg grade — 12 HIT / 2 MISS / 3 PARTIAL / 4 UNGRADED over 21
+## 2. Prereg grade — 11 HIT / 2 MISS / 4 PARTIAL / 4 UNGRADED over 21
 
 `[POST]` predictions are scored **UNGRADED — post-read** by the prereg's own
 rule (§1) and are **not** counted as hits: I had already seen the answer during
@@ -58,7 +58,7 @@ the orientation pass that produced §0.1.
 | **P1.2** `[POST]` | byte-identical to the mnemonic flags field | **UNGRADED** | 664 of 664 |
 | **P1.3** | extent exactly `0x298`, not the `0x300` the tail implies | **HIT** | derived two independent ways |
 | **P1.4** | some consumer indexes it out of extent; the tail is my candidate | **HIT** | the tail, no bound check |
-| **P1.5** | that out-of-bounds read is benign | **HIT** | classes landed on are `{0,1,4}`, never 2 or 3 |
+| **P1.5** | that out-of-bounds read is benign | **PARTIAL** | benign **through `0x302`**, which is every opcode the switch discriminates — `{0,1,4}`, 0 class-2/3 hits. **But not benign in general**: from opcode **`0x33c`** the second table decodes to class 2 and the tail would treat it as a load. I published the unqualified "benign" on a range I had not bounded, then bounded it |
 | **P1.6** | more than 5 but fewer than 40 consumers | **HIT** | **38** |
 | **P1.7** | the class partitions by **operand shape**, not expansion behaviour | **HIT** | load / store / move / sign-extend |
 | **P1.8** | bit `0x80` unused across the table | **HIT** | n = 0 |
