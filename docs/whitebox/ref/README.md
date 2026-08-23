@@ -134,6 +134,23 @@ Per-page coverage against its own band (Ghidra function entries in the span):
 | [`P_LABEL.md`](P_LABEL.md) | 31/31 allocator sites + 132 located | `0x10b97dd0` / `0x10b9a455` and their 163 call sites, image-wide | 163 |
 | [`P_SUB4F.md`](P_SUB4F.md) | **3 in band** (`0x10b9761e` + both list siblings) — plus the 64-row table `0x10b26268`, 14/14 arms and 5 scalar readers out of band | `p2pragma.c`, `0x10b97502`–`0x10b97807` | 11 |
 | [`P_EXPAND.md`](P_EXPAND.md) | 29 arm bodies / 69 opcodes + 18/18 peephole arms | `0x10c0d57e`–`0x10c0e4b9` (`lower.c`) + `0x10c182b4` | 0 |
+| [`P_OPATTR.md`](P_OPATTR.md) | 664/664 table entries · 5 classes · 38/38 consumers · 122/122 extended rows | `0x10c3afd8` (the table) + `0x10c0e30b` (the tail) + `0x10b1d180` | 0 |
+
+> **2026-08-23, lane `w-tailread`** — [`P_OPATTR.md`](P_OPATTR.md) is new and
+> **corrects `P_EXPAND.md` in five places**, each landed as an amendment box
+> beside the original (§2.1's rule). The one to know before quoting either page:
+> **`0x10c3afd8` was never unrecorded** — it is board **#2040**/**#2044**/
+> **#2106**/**#2206** from 2026-08-09 — and **"767 opcodes reach the tail" is
+> the walk's own domain**, which reports 1024 if the bound is set to `0x400`.
+> `P_EXPAND.md` §1.1's arm map is short by one at opcode `0x302`.
+>
+> `ADDR.tsv` regenerated at this lane's tip: **1,600 rows, 1,525 cited in
+> `docs/`**, 339 hand-labelled, resolved-to-a-containing-function
+> **1,327/1,600 = 82.9 %** (func-entry 579, in-func 748, data 260, unmapped 13).
+> §4's self-referential drift note fires again — most of the growth since the
+> 2026-08-18 line below is other lanes' prose, not this one's. **The C1a/C1b
+> targets are unaffected and are deliberately not restated**, because this lane
+> did not re-derive them.
 
 > **2026-08-18, lane `w-sizebracket`** — `P_INLINE.md` gained §2.1a/§2.1b/§2.1c
 > and a ⛔ correction box, and `ADDR.tsv` was regenerated: **1,209 rows, 1,141
