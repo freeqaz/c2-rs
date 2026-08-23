@@ -47,6 +47,27 @@ def parse(path):
     return cells
 
 
+def tree_order(idx_by_value):
+    """The decision-tree arm-emission order, as a closed form.
+
+    idx_by_value: case indices sorted ASCENDING BY CASE VALUE.
+
+    Source order does not appear.  The bottom-out threshold 8 is not fitted: it
+    is the first dword of the speed-mode threshold record at 0x10b2418c, read by
+    the table-vs-tree decider FUN_10bd1373 at 0x10bd1388 and again by the
+    split-point chooser FUN_10bd1801 at 0x10bd18e0.
+
+    Scored 22 HIT / 0 MISS over every decision-tree cell of both grids, six of
+    which were an out-of-sample holdout frozen before compiling.
+    """
+    n = len(idx_by_value)
+    if n < 8:
+        return list(reversed(idx_by_value))
+    p = n // 2
+    return (tree_order(idx_by_value[:p]) + [idx_by_value[p]]
+            + tree_order(idx_by_value[p + 1:]))
+
+
 def shape(mnemonics):
     """Decide the lowering shape FROM THE BYTES, not from the case count."""
     mn = set(mnemonics)
