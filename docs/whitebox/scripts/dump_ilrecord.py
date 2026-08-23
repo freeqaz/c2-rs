@@ -202,8 +202,14 @@ def cmd_arms(img):
         a["nops"] = len(ops)
         rows.append(a)
     b = sorted(r["bytes"] for r in rows)
-    print("arm bodies (linear span): min %d  median %d  max %d  total %d"
-          % (b[0], b[len(b) // 2], b[-1], sum(b)))
+    # True median: with 62 arms the count is EVEN, so the upper-middle element
+    # (43) is not the median (42.5).  Spelled out because the spec page quotes
+    # this number and an instrument that disagrees with its own document by
+    # half a byte is how a reader loses trust in both.
+    n = len(b)
+    med = b[n // 2] if n % 2 else (b[n // 2 - 1] + b[n // 2]) / 2
+    print("arm bodies (linear span): min %d  median %g  max %d  total %d"
+          % (b[0], med, b[-1], sum(b)))
     print("arms with >=1 direct call : %d / %d"
           % (sum(1 for r in rows if r["ncalls"]), len(rows)))
     print("arms with >=1 .data global: %d / %d"
