@@ -18,6 +18,9 @@ under `--apply` — removes what is provably loss-free to remove:
   UNLANDED  branch not merged: the BRANCH is never touched. The worktree is
             removed only with --reap-unlanded and only if clean (commits live
             in refs; a clean tree holds nothing else).
+  EMPTY-LANE  branch tip sits on the base's first-parent line: a lane with no
+            commits yet. Reads merged+clean, but may be a live session's
+            surface that has not committed — kept unless --reap-empty-lanes.
 
 Everything else is reported, never acted on: trees whose reflog moved within
 --active-hours (somebody's live surface — rebasing or removing one is how
@@ -95,7 +98,17 @@ def only_compilers_symlink(wt_path, lines):
     return os.path.islink(os.path.join(wt_path, "compilers"))
 
 
-def classify(repo, wt, base, active_hours):
+def first_parent_line(repo, base):
+    """Commits on the base branch's first-parent line. A lane that LANDED has
+    its tip on the second-parent side of its merge — never here. A tip that IS
+    here is an empty lane: a worktree minted off the base with no commits yet,
+    which reads merged+clean and would otherwise be reaped out from under the
+    session that just created it and has not committed yet."""
+    out = git(["rev-list", "--first-parent", base], cwd=repo).stdout
+    return set(out.split())
+
+
+def classify(repo, wt, base, active_hours, fp_line):
     path = wt["worktree"]
     if not os.path.isdir(path):
         return {"path": path, "cls": "GONE"}
@@ -130,6 +143,8 @@ def classify(repo, wt, base, active_hours):
                  cwd=repo, check=False).returncode == 0
     if row["branch"] is None:
         row["cls"] = "DETACHED" if merged else "DETACHED-UNLANDED"
+    elif merged and sha in fp_line:
+        row["cls"] = "EMPTY-LANE"
     else:
         row["cls"] = "MERGED" if merged else "UNLANDED"
     return row
@@ -206,15 +221,21 @@ def main():
     ap.add_argument("--rescue-dirty", action="store_true",
                     help="for DIRTY detached-unlanded trees: commit the dirty "
                          "state onto rescue/<name>, then remove")
+    ap.add_argument("--reap-empty-lanes", action="store_true",
+                    help="also remove CLEAN worktrees whose branch tip sits on "
+                         "the base's first-parent line (a lane with no commits "
+                         "yet — possibly abandoned, possibly a session that "
+                         "has not committed; hence opt-in)")
     args = ap.parse_args()
 
     repo = args.repo or git(["rev-parse", "--show-toplevel"]).stdout.strip()
     trees = list_worktrees(repo)
     primary = trees[0]["worktree"]
+    fp_line = first_parent_line(repo, args.base)
 
     rows = []
     for wt in trees[1:]:
-        rows.append(classify(repo, wt, args.base, args.active_hours))
+        rows.append(classify(repo, wt, args.base, args.active_hours, fp_line))
 
     counts = {}
     actions = []
@@ -239,6 +260,13 @@ def main():
                     act += "; " + remove_worktree(repo, row, args.apply)
             else:
                 act = "kept (dirty, no --rescue-dirty)"
+        elif cls == "EMPTY-LANE":
+            if args.reap_empty_lanes and row["dirty"] == 0:
+                act = remove_worktree(repo, row, args.apply)
+                if not act.startswith("REFUSED") and row["branch"]:
+                    act += "; " + delete_branch(repo, row["branch"], args.apply)
+            else:
+                act = "kept (no commits yet — may be a live session's surface)"
         elif cls == "UNLANDED":
             if args.reap_unlanded and row["dirty"] == 0:
                 act = remove_worktree(repo, row, args.apply)
