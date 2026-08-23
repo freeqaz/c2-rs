@@ -240,3 +240,68 @@ commit): **`w-read-r4`** (board **#3410**–**#3414**) and **`w-read-r5`**
 (board **#3415**–**#3421**).
 
 **Nothing is currently waiting on the owner.**
+
+---
+
+## Decision 7 — the remaining Phase 0 slices are dispatched and R6–R9 are funded (2026-08-23)
+
+The owner, verbatim:
+
+> *"okay please continue and dispatch the remaining slices and fund R6+. do
+> this via opus subagents"*
+
+**What this decides.** Two things, both dispatched as Opus lanes:
+
+1. **The remaining Phase 0 slices — S1b and S1c** (`ROADMAP_SLICING_2026-08-21.md`
+   §5 row S1; priced by the lane that landed S1a in
+   `docs/rungs/2026-08-22-w-s1.md` §6). S1a shipped the per-op value and the
+   one general composition; S1b collapses `Selected::{Plain,Tail,MemcpyTail}`
+   on the live path (~10 edit sites, mechanical, one full base+tip gate pair),
+   and S1c converts the 18 `Plain` + 4 `Tail` producers to build a
+   `Vec<MachineOp>` natively — **the bulk of S1's 2–4 weeks**. Dispatched as
+   ONE lane, not two: both edit `Selected` and its consumers, and this repo's
+   own record is that concurrent lanes erase each other through shared
+   predicates with no textual conflict and no red gate.
+2. **Reads R6, R7, R8 and R9 — the entire unfunded remainder** of
+   `docs/whitebox/READ_PLAN_2026-08-21.md` §3. With R1–R5 spent, funding these
+   closes the read plan. Four separate lanes: the subsystems are disjoint and
+   the read plan itself says so.
+
+| lane | read | price (days) | why it is worth its price |
+|---|---|---:|---|
+| `w-read-r6` | the final-expansion switches — `FUN_10c0d57e` (3,899 B), `FUN_10c182b4` (426 B, 18 arms), the `0x2f4`/`0x2f0` prologue arms | **4–6** | **it de-risks the lane dispatched beside it**: S1's bijection instrument is *known* to go red on framed functions without this, because the final expansion rewrites the prologue pseudo-op in situ into many words |
+| `w-read-r7` | scheduler `[R]` → `[O]` — **no new reading**; confront the read priority/latency model with the live tap | **3–5** | re-prices F0 8 → 4 raw and confronts the **13,104-configuration residual** with c2's actual priority function |
+| `w-read-r8` | block emission order — `fg.c` `0x10b36133`, `factor.c` `0x10b34a89`, `0x10b968b0` | **5–10, uncertain** | `CEILING` phase 1, the one **unserved** phase — *"a port cannot place labels"*. It is **the other half of R3** and R3 is spent, which is what unblocks it |
+| `w-read-r9` | the `0x4F` sub-record switch `FUN_10b9761e` (~14 arms) | **1–2** | the one transcribed width in the port, and every other sub-opcode's refusal. **R5 supplied its entry points** (arms 48/49) |
+
+**The riskiest row is named as such**: R8 is the only row in the plan **with no
+known address for the rule it is looking for**, and its 5–10 is explicitly
+uncertain. A priced decline is an acceptable outcome there.
+
+**What this does NOT decide, and it matters.** **Phase 1 is NOT dispatched and
+is not unlocked.** `ROADMAP_SLICING` §6 rule 2 gates Phase 1 on S0's
+`blind-differs` number. That number now exists — and it is **373 of 388
+reached, 96.1 % byte-wrong** (#3392–#3396). The gate has been satisfied in the
+sense that the number was produced; it has **not** been satisfied in the sense
+the rule intended, for two independent reasons:
+
+- **S0 declined all three of §5's registered readings**, under a rule frozen in
+  its prereg before measuring: its ladder relaxed an *admission* gate, while
+  §5's outcomes are about a *general decode*. 99.66 % of the population never
+  reached the lowering. **S0 has not yet asked §5's question**, and the lane
+  said so about its own headline.
+- **The number that does exist argues against Phase 1's naive form**, not for
+  it. 96.1 % wrong emits is a direct price on what the next `functions()`
+  widening would ship, and under `PROGRESS_METRIC.md` a wrong emit scores
+  strictly below the refusal it replaces.
+
+So Phase 1 stays closed, and the honest statement is that **the cheap path to
+coverage is now measured and it is bad**, rather than that it is untested.
+Rows 4a/4b remain unapproved; step 5's NO-GO clauses stand; the byte judge is
+untouched.
+
+**Board:** `#3423` this decision · `#3424`–`#3428` `w-s1bc` ·
+`#3429`–`#3432` `w-read-r6` · `#3433`–`#3436` `w-read-r7` ·
+`#3437`–`#3441` `w-read-r8` · `#3442`–`#3444` `w-read-r9`.
+
+**Nothing is waiting on the owner.**
