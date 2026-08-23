@@ -279,12 +279,69 @@ def cmd_sample(img, n, seed):
         print("%3d  %08x  %s" % (ai, targets[ai], " ".join("%02x" % v for v in ops)))
 
 
+def cmd_probe(img):
+    """The confirmation probe of `WB_ILRECORD_FINDINGS.md` §5.
+
+    Claim under test (`ref/P_ILRECORD.md` §6): every node opcode this dispatch
+    mints is an IR opcode, NOT a machine opcode -- so the I1/I2 boundary is the
+    line `0x294` in c2's single opcode numbering.
+
+    The predicate is not this lane's.  `P_ENCODE.md` §2.1, marked `[O]`, states
+    that the encoder's two tables are exactly `0x001..0x294` long and that the
+    base-word table "is a cheap validity check on any claim that opcode N is a
+    machine opcode".  §3 fixes the encode-form range at `0..113`.  So:
+
+        machine_opcode(N)  <=>  form_table[N] <= 113
+
+    This can fail.  If the opcodes minted by `FUN_10bc2d7a` were machine
+    opcodes they would pass at the control's rate, and §6 would be wrong.
+    """
+    from dump_opcode_tables import ENCODE_FORM_TABLE_VA, BASE_WORD_TABLE_VA
+    form = lambda op: img.u32(ENCODE_FORM_TABLE_VA + 4 * op)
+    base = lambda op: img.u32(BASE_WORD_TABLE_VA + 4 * op)
+    ok = lambda op: form(op) is not None and form(op) <= 113
+
+    minted = [0x2AF, 0x2B0, 0x2B3, 0x2B4, 0x2B5, 0x2B6, 0x2C5, 0x2C6, 0x2D4,
+              0x2DD, 0x2DE, 0x2E4, 0x2E5, 0x2EE, 0x2EF, 0x2F0, 0x2F4, 0x2F5,
+              0x2FB, 0x2FE, 0x2FF, 0x305, 0x306, 0x310, 0x311]
+
+    ctrl = [op for op in range(1, 0x295) if ok(op)]
+    hit = [op for op in minted if ok(op)]
+    bg = [op for op in range(0x295, 0x401) if ok(op)]
+
+    print("PROBE — is any opcode minted by FUN_10bc2d7a a MACHINE opcode?")
+    print("  predicate: encode-form table %08x holds a value <= 113"
+          % ENCODE_FORM_TABLE_VA)
+    print()
+    print("  CONTROL   machine space 0x001..0x294 : %3d / %3d = %5.1f%% pass"
+          % (len(ctrl), 0x294, 100.0 * len(ctrl) / 0x294))
+    print("  TEST      opcodes this dispatch mints: %3d / %3d = %5.1f%% pass"
+          % (len(hit), len(minted), 100.0 * len(hit) / len(minted)))
+    print("  BACKGROUND indices 0x295..0x400      : %3d / %3d = %5.1f%% pass"
+          % (len(bg), 0x401 - 0x295, 100.0 * len(bg) / (0x401 - 0x295)))
+    print()
+    print("  expected passes if the minted opcodes were machine opcodes: %.1f"
+          % (len(minted) * len(ctrl) / 0x294))
+    print("  observed: %d" % len(hit))
+    print()
+    for op in minted:
+        print("    %04x  base=%08x  form=%-12s %s"
+              % (op, base(op) or 0, form(op),
+                 "MACHINE" if ok(op) else "not encodable — IR"))
+    print()
+    print("VERDICT: %s" % ("REFUTED — §6 is wrong" if hit else
+                           "CONFIRMED — no minted opcode is encodable"))
+    return 1 if hit else 0
+
+
 def main():
     if len(sys.argv) < 3:
         sys.exit(__doc__)
     img = load(sys.argv[1])
     cmd = sys.argv[2]
-    if cmd == "--tables":
+    if cmd == "--probe":
+        sys.exit(cmd_probe(img))
+    elif cmd == "--tables":
         cmd_tables(img)
     elif cmd == "--arms":
         cmd_arms(img)
