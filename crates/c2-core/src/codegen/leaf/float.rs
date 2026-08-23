@@ -13,7 +13,6 @@ use crate::codegen::encode::{
     encode_fdiv,
     encode_fmr,
     encode_fmul,
-    encode_frsp,
     encode_fsub,
     encode_lfs,
 };
@@ -380,6 +379,20 @@ pub fn fp_tail_call_text(
     params: &[u32],
     fp: &c2_il::FpTail,
 ) -> Result<Vec<u8>, BackendError> {
+    Ok(crate::codegen::mop::ops_to_bytes(&fp_tail_call_ops(params, fp)?))
+}
+
+/// **S1c (i): the FP tail-call setup as an op stream.**
+///
+/// Zero or one op, and the **zero** case is the load-bearing one: when the
+/// argument already sits in the return register there is nothing to move, and
+/// this returns the EMPTY stream rather than an empty byte vector. `splice.rs`
+/// reads that emptiness as a semantic stratum, so it is worth spelling as "no
+/// ops" rather than "no bytes" — the same reasoning the void-tail arm carries.
+pub fn fp_tail_call_ops(
+    params: &[u32],
+    fp: &c2_il::FpTail,
+) -> Result<crate::codegen::mop::Ops, BackendError> {
     if params.len() > 13 {
         return Err(out_of_class(
             "more than 13 FP parameters: the 14th is stack-homed; out of class",
@@ -396,12 +409,13 @@ pub fn fp_tail_call_text(
         .ok_or_else(|| {
             out_of_class("FP tail-call argument is not one of the FP parameters")
         })?;
+    use crate::codegen::encode::{mop_fmr, mop_frsp};
     Ok(if fp.narrowing {
-        encode_frsp(FP_RET, src).to_vec()
+        vec![mop_frsp(FP_RET, src)]
     } else if src == FP_RET {
         Vec::new()
     } else {
-        encode_fmr(FP_RET, src).to_vec()
+        vec![mop_fmr(FP_RET, src)]
     })
 }
 

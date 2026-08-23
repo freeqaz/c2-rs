@@ -67,9 +67,10 @@
 //! this route was not opened by widening that one.
 
 use super::encode::{
-    BO_FALSE, CR_BIT_EQ, CR_BIT_LT, CR_COMPARE, cr_bi, encode_addi, encode_addis, encode_b_intra,
-    encode_bc, encode_blr, encode_cmpw, encode_cmpwi, encode_lwz, encode_lwzx, encode_rlwinm,
+    BO_FALSE, CR_BIT_EQ, CR_BIT_LT, CR_COMPARE, cr_bi, mop_addi, mop_addis, mop_b_intra,
+    mop_bc, mop_blr, mop_cmpw, mop_cmpwi, mop_lwz, mop_lwzx, mop_rlwinm,
 };
+use super::mop::{ops_to_bytes, MachineOp, Ops};
 use crate::BackendError;
 use c2_il::IlFunction;
 
@@ -91,31 +92,41 @@ const VALUE: i32 = 0x34;
 /// are what make that true — but the `?`s are kept rather than `expect`ed so a
 /// future edit to a block offset produces a refusal and not a panic.
 pub(crate) fn static_scan_loop_words() -> Option<Vec<u8>> {
+    Some(ops_to_bytes(&static_scan_loop_ops()?))
+}
+
+/// **S1c (i): the same sixteen words as an op stream**, reachable by a caller.
+///
+/// The branch displacements stay exactly what they were: they are **file-level
+/// block-offset constants**, never derived from the length of what has been
+/// emitted so far, which is why this class converts without a byte-position
+/// story and `ptr_walk_loop` does not.
+pub(crate) fn static_scan_loop_ops() -> Option<Ops> {
     let bit_lt = cr_bi(CR_COMPARE, CR_BIT_LT); // 24
     let bit_eq = cr_bi(CR_COMPARE, CR_BIT_EQ); // 26
     // `slwi rA,rS,2` is `rlwinm rA,rS,2,0,29`.
-    let slwi2 = |ra: u8, rs: u8| encode_rlwinm(ra, rs, 2, 0, 29);
+    let slwi2 = |ra: u8, rs: u8| mop_rlwinm(ra, rs, 2, 0, 29);
 
-    let words: [[u8; 4]; 16] = [
+    let words: [MachineOp; 16] = [
         // -- ENTRY: materialize &a, peel a[0], rotate into the test ----------
-        encode_addis(10, 0, 0), // lis  r10,0        + REFHI
-        encode_addi(11, 0, 0),  // li   r11,0        j = 0
-        encode_addi(9, 10, 0),  // addi r9,r10,0     + REFLO   r9 = &a
-        encode_lwz(10, 10, 0),  // lwz  r10,0(r10)   + REFLO   r10 = a[0]
-        encode_b_intra(TEST - 0x10)?,
+        mop_addis(10, 0, 0), // lis  r10,0        + REFHI
+        mop_addi(11, 0, 0),  // li   r11,0        j = 0
+        mop_addi(9, 10, 0),  // addi r9,r10,0     + REFLO   r9 = &a
+        mop_lwz(10, 10, 0),  // lwz  r10,0(r10)   + REFLO   r10 = a[0]
+        mop_b_intra(TEST - 0x10)?,
         // -- TOP -------------------------------------------------------------
-        encode_cmpw(CR_COMPARE, 10, 3),
-        encode_bc(BO_FALSE, bit_lt, VALUE - 0x18)?,
+        mop_cmpw(CR_COMPARE, 10, 3),
+        mop_bc(BO_FALSE, bit_lt, VALUE - 0x18)?,
         // -- BODY ------------------------------------------------------------
-        encode_addi(11, 11, 1), // j++
+        mop_addi(11, 11, 1), // j++
         slwi2(10, 11),
-        encode_lwzx(10, 10, 9), // r10 = a[j]
+        mop_lwzx(10, 10, 9), // r10 = a[j]
         // -- TEST (the rotation's landing pad) -------------------------------
-        encode_cmpwi(CR_COMPARE, 10, 0),
+        mop_cmpwi(CR_COMPARE, 10, 0),
         // the BACK EDGE
-        encode_bc(BO_FALSE, bit_eq, TOP - 0x2c)?,
+        mop_bc(BO_FALSE, bit_eq, TOP - 0x2c)?,
         // -- FALLOUT ---------------------------------------------------------
-        encode_blr(),
+        mop_blr(),
         // -- VALUE: c2 recomputes what r10 already holds ---------------------
         //
         // **The rematerialization is the class, not a peephole to remove.**
@@ -125,17 +136,13 @@ pub(crate) fn static_scan_loop_words() -> Option<Vec<u8>> {
         // `mr r3,r3` is the second instance and w-cfgclass made that one a
         // `#[test]`. Collapsing either is six wrong bytes in an obj that links.
         slwi2(11, 11),
-        encode_lwzx(3, 11, 9),
-        encode_blr(),
+        mop_lwzx(3, 11, 9),
+        mop_blr(),
     ];
-    let mut out = Vec::with_capacity(64);
-    for w in words {
-        out.extend_from_slice(&w);
-    }
-    debug_assert_eq!(out.len(), 64);
+    debug_assert_eq!(words.len(), 16);
     debug_assert_eq!(BODY, 0x1c, "the block table is read by the displacements above");
     debug_assert_eq!(FALLOUT, 0x30);
-    Some(out)
+    Some(words.to_vec())
 }
 
 /// The body for `func`, or `None` if it is not this class.

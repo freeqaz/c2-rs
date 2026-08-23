@@ -6,7 +6,6 @@ use crate::codegen::encode::{
     encode_adde,
     encode_addi,
     encode_addic,
-    encode_addis,
     encode_addze,
     encode_andc,
     encode_blr,
@@ -14,9 +13,7 @@ use crate::codegen::encode::{
     encode_cntlzw,
     encode_eqv,
     encode_neg,
-    encode_mr,
     encode_orc,
-    encode_rlwimi,
     encode_rlwinm,
     encode_srawi,
     encode_srwi31,
@@ -649,6 +646,15 @@ pub fn cmp_shift_or_text(
     cso: &c2_il::CmpShiftOr,
     mode: OptMode,
 ) -> Result<Vec<u8>, BackendError> {
+    Ok(crate::codegen::mop::ops_to_bytes(&cmp_shift_or_ops(cso, mode)?))
+}
+
+/// **S1c (i): the W43 spine as an op stream**, reachable by a caller rather
+/// than rendered on the way out. Six ops, no branch, no byte-position logic.
+pub fn cmp_shift_or_ops(
+    cso: &c2_il::CmpShiftOr,
+    mode: OptMode,
+) -> Result<crate::codegen::mop::Ops, BackendError> {
     // The one locator the census also runs, so the two cannot disagree about
     // which `(SH, C)` pairs are in class.
     let (mb, me) = c2_il::shift_or_rlwimi(cso.sh, cso.c).ok_or_else(|| {
@@ -664,13 +670,14 @@ pub fn cmp_shift_or_text(
     let const_reg = 10u8;
     let sub_reg = if mode == OptMode::O1 { 11 } else { 9 };
     let a = RET_REG;
-    let mut t: Vec<u8> = Vec::with_capacity(24);
-    t.extend_from_slice(&encode_addic(11, a, -1));
-    t.extend_from_slice(&encode_addis(const_reg, 0, hi));
-    t.extend_from_slice(&encode_subfe(sub_reg, 11, a));
-    t.extend_from_slice(&encode_rlwimi(const_reg, sub_reg, cso.sh, mb, me));
-    t.extend_from_slice(&encode_mr(RET_REG, const_reg));
-    t.extend_from_slice(&encode_blr());
+    use crate::codegen::encode::{mop_addic, mop_addis, mop_blr, mop_mr, mop_rlwimi, mop_subfe};
+    let mut t: crate::codegen::mop::Ops = Vec::with_capacity(6);
+    t.push(mop_addic(11, a, -1));
+    t.push(mop_addis(const_reg, 0, hi));
+    t.push(mop_subfe(sub_reg, 11, a));
+    t.push(mop_rlwimi(const_reg, sub_reg, cso.sh, mb, me));
+    t.push(mop_mr(RET_REG, const_reg));
+    t.push(mop_blr());
     Ok(t)
 }
 
