@@ -31,6 +31,12 @@ taken.
 6. **The closure argument that worked for R3 fails here, and the failure is the
    finding**: splice direction is a runtime parameter passed by pointer at 707
    sites.
+7. **c2 emits HYBRID switches** — one dense cluster as a jump table, the
+   outliers as a decision tree, in one function. 1 cell in 240, absent from the
+   record, and explained by an already-read constant rather than a fitted one.
+8. **`FUN_10bd415e` places a label**, which is what `P_LABEL.md` §8 open #1
+   asked for: a minted label symbol becomes a kind-`0x1b`/op-`0x308` tuple, and
+   it lands exactly where that tuple was spliced.
 
 ---
 
