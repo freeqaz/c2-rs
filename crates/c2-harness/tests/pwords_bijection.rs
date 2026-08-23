@@ -652,7 +652,20 @@ fn run_corpus(tc: &Toolchain, fixtures: &[PathBuf], perturb: Perturb, jobs: usiz
     let rows = Mutex::new(Vec::new());
     let excluded = Mutex::new(Vec::new());
     let next = AtomicUsize::new(0);
-    let base = std::env::temp_dir().join(format!("c2rs-pwords-{}", std::process::id()));
+    // The work root must be unique per CALL, not per process. Keyed on the pid
+    // alone, the two tests in this file — which cargo runs as parallel threads
+    // of ONE process — shared `j0..jN` and clobbered each other's captures
+    // mid-flight. The symptom was not a crash: the control pass graded 37
+    // framed functions and the perturbed pass 76, from the same fixture list,
+    // and the sensitivity check died on a population mismatch it reported as
+    // "perturbation changed the graded population". The single-test evidence
+    // runs never hit it because a filtered run has only one caller.
+    static CALL: AtomicUsize = AtomicUsize::new(0);
+    let base = std::env::temp_dir().join(format!(
+        "c2rs-pwords-{}-{}",
+        std::process::id(),
+        CALL.fetch_add(1, Ordering::Relaxed)
+    ));
     std::thread::scope(|s| {
         for j in 0..jobs {
             let (rows, excluded, next, base) = (&rows, &excluded, &next, &base);
@@ -795,8 +808,17 @@ fn report(c: &Corpus) {
     // P6: is R an exact FUNCTION of P? If it is, the equality closes with the
     // obj field alone and the demotion is fully repairable.
     eprintln!("\n-- is R an exact function of P? (P6) --");
+    // Scoped to the VERIFIED strata. Computed over all non-leaf rows it also
+    // swept in the `OrdinalUnverified` quarantine, and then printed "**NOT**
+    // an exact function of P" while the hold-rates above said `R = -P` on
+    // every verified row — a report contradicting itself out of a population
+    // mismatch. The quarantined rows get their own line below.
     let mut map: BTreeMap<u32, BTreeMap<i64, usize>> = BTreeMap::new();
-    for r in c.rows.iter().filter(|r| r.stratum != Stratum::Leaf) {
+    for r in c
+        .rows
+        .iter()
+        .filter(|r| r.stratum != Stratum::Leaf && r.stratum != Stratum::OrdinalUnverified)
+    {
         if let (Some(p), Some(res)) = (r.p, r.residual()) {
             *map.entry(p).or_default().entry(res).or_default() += 1;
         }
@@ -815,9 +837,24 @@ fn report(c: &Corpus) {
         );
     }
     eprintln!(
-        "  => R is {} an exact function of P",
+        "  => over the VERIFIED strata ({} functions), R is {} an exact function of P",
+        map.values().map(|m| m.values().sum::<usize>()).sum::<usize>(),
         if functional { "**EXACTLY**" } else { "**NOT**" }
     );
+    let quarantined: Vec<i64> = c
+        .rows
+        .iter()
+        .filter(|r| r.stratum == Stratum::OrdinalUnverified)
+        .filter_map(|r| r.residual())
+        .collect();
+    if !quarantined.is_empty() {
+        eprintln!(
+            "  (excluded from that: {} OrdinalUnverified residuals {:?} — an unsafe \
+             pairing, not a compiler behaviour)",
+            quarantined.len(),
+            quarantined
+        );
+    }
 
     // I(f): does the prologue pseudo-op carry the real-instruction bit? (P3)
     let framed: Vec<&Row> = c.rows.iter().filter(|r| r.p.is_some()).collect();
@@ -995,9 +1032,18 @@ fn pwords_corrected_bijection_over_the_fixture_corpus() {
 #[test]
 fn the_instrument_fails_on_deliberately_broken_input() {
     let Some(tc) = ready() else { return };
-    // A small population: this test is about the instrument's sensitivity, not
-    // about the corpus.
-    let pop: Vec<PathBuf> = population().into_iter().take(16).collect();
+    // The SAME population the measurement test uses — deliberately not a
+    // smaller slice of it.
+    //
+    // This test first took `.take(16)` of it, on the reasoning that a
+    // sensitivity check does not need the whole corpus. **The gate caught
+    // that**: that 16-fixture subset contains no framed function at all, so
+    // the control had nothing to perturb and the test died on its own
+    // precondition (`EXIT=101`, 1,839 passed / 1 failed). The measurement test
+    // asserts `framed > 0` over `population()`, so keying this test to the
+    // same population is what makes the precondition hold by construction
+    // rather than by luck of where the stride landed.
+    let pop: Vec<PathBuf> = population();
 
     let base = run_corpus(&tc, &pop, Perturb::None, jobs());
     let h1_ok = |c: &Corpus| {
