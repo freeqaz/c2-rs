@@ -284,6 +284,7 @@ the header block this table is read from.
 | 2026-08-22 | w-s1 | [w-s1](2026-08-22-w-s1.md) | 14 | +0 — a re-expression, not a widening; required-zero byte delta |
 | 2026-08-22 | w-seedgap | [w-seedgap](2026-08-22-w-seedgap.md) | 11 | +0 — no fixture is added, converted or reclassified. The |
 | 2026-08-22 | w-shiproadmap | [w-shiproadmap](2026-08-22-w-shiproadmap.md) | 10 | +0 — no crates/ edit of any kind, no emit rule, no refusal |
+| 2026-08-23 | w-4f01 | [w-4f01](2026-08-23-w-4f01.md) | 3 | 707716/2417794 → 707716/2417794 (29.27% → 29.27%), +0 |
 | 2026-08-23 | w-read-r4 | [w-read-r4](2026-08-23-w-read-r4.md) | 8 | +0 — no `crates/` or `fixtures/` file is touched |
 | 2026-08-23 | w-read-r5 | [w-read-r5](2026-08-23-w-read-r5.md) | 9 | +0 — no `crates/` change of any kind, no emit rule, no refusal |
 | 2026-08-23 | w-read-r6 | [w-read-r6](2026-08-23-w-read-r6.md) | 9 | unchanged → unchanged (+0) |
