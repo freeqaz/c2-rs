@@ -119,6 +119,29 @@ The partition is by **operand shape**, not by expansion behaviour: it separates
 the opcodes that carry a memory operand (2, 3), those that are a pure register
 copy (1), and those that are a width conversion (4).
 
+**And "load" / "store" are exact, not approximate — which a name heuristic would
+get wrong.** Checked against the mnemonic strings:
+
+```
+mnemonics beginning "st" : 52   of them class 3: 52   NOT class 3: none
+mnemonics beginning "l"  : 68   of them class 2: 55   NOT class 2: 13
+class-2 members not beginning "l": none
+class-3 members not beginning "st": none
+```
+
+Class 3 is **exactly** the `st*` set. Class 2 is 55 of the 68 `l*` mnemonics,
+and **every one of the 13 exclusions is right**:
+
+* `lvsl`, `lvsl128`, `lvsr`, `lvsr128` — *load vector for shift left/right*.
+  They take an address operand and **perform no memory access**, computing a
+  permute control vector from the low bits. A name heuristic calls these loads;
+  c2's table does not.
+* `li`, `lis` — load *immediate*. `lea` (×2) — address computation only, **and
+  this is exactly why the dispatch tail has to name `lea` explicitly** (§4).
+* `loffs`, `lau`, `lal`, `lcarry`, `lcarry.` — pseudo-ops.
+
+So the class field is a **memory-access** predicate, precisely drawn.
+
 ### 2.1 An independent cross-check: every peephole arm is class-pure
 
 The class decode above could be a pattern this lane fitted. It is not, and the
