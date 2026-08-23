@@ -122,8 +122,18 @@ pub enum ExToken {
     LoRecord,
     /// `53` — 'SS' statement-start.
     Ss,
-    /// `4F 01 NN` — per-statement sequence/label marker (multi-fn TUs).
-    Stmt(u8),
+    /// `4F 01 <VI32>` — the per-statement **source-line** marker.
+    ///
+    /// The payload is a VI32 varint (`c2.dll` `0x10c1f9e9`), not a fixed byte:
+    /// one byte when the line is `< 128`, else the escape `0x80` followed by
+    /// four LE bytes. `wide` selects the form, exactly as [`ExToken::Lit`]
+    /// does, so a value representable narrowly but encoded wide re-encodes to
+    /// the bytes it was parsed from. Board **#3443**.
+    ///
+    /// It is a **line**, not the "sequence/label index" this variant's doc
+    /// said until 2026-08-23 — see [`ExToken::BlockStart`] for the evidence
+    /// that settled it.
+    Stmt { line: i32, wide: bool },
     /// `26 <tok>` — function/result-temp reference (precedes a CALL).
     ResultRef(u16),
     /// `BD <3-byte ret type> 00 80 01 10 00 00` — the fixed 10-byte CALL token.
@@ -153,8 +163,13 @@ pub enum ExToken {
     Return(u16),
     /// `4F 12 47 54 01 54 00` — function-tail separator + 'GT' terminate.
     FnTail,
-    /// `4F 02 20 00 4F 01 NN 4D` — module end (last function only).
-    ModuleEnd(u8),
+    /// `4F 02 20 00 4F 01 <VI32> 4D` — module end (last function only).
+    ///
+    /// `4F 02 20 00` is a complete 4-byte record (`P_SUB4F.md` §4: sub `0x02`,
+    /// format `73`, VARU payload), so the `4F 01` after it is a **separate**
+    /// source-line record with its own VI32 — see [`ExToken::Stmt`]. The whole
+    /// token is 8 bytes narrow and **12 wide**. Board **#3443**.
+    ModuleEnd { line: i32, wide: bool },
     /// `46` — 'F' formal-parameter list marker.
     Formals,
     /// `2D <tok>` — one formal-parameter entry.
@@ -170,11 +185,21 @@ pub enum ExToken {
     /// individually field-typed (a further K2 shrink). K3 reads it to know where
     /// the fixed header ends and the length-relevant body structure begins.
     FnHeader(Vec<u8>),
-    /// `4F 02 20 00 4F 01 NN` — the per-function **block-start marker** (`NN` is
-    /// the statement/block index, distinct per function). Structurally the same
-    /// `4F 02 20 00 4F 01 NN` sequence [`ExToken::ModuleEnd`] carries, minus the
+    /// `4F 02 20 00 4F 01 <VI32>` — the per-function **block-start marker**.
+    /// Structurally the same sequence [`ExToken::ModuleEnd`] carries, minus the
     /// trailing `4D`; located here in the metadata prefix, before `53 53`.
-    BlockStart(u8),
+    /// 7 bytes narrow, **11 wide**. Board **#3443**.
+    ///
+    /// **The payload is a source LINE, not "the statement/block index" this
+    /// doc claimed until 2026-08-23**, and the correction came free with the
+    /// width fix. A capture of a five-line function under `#line 258` puts
+    /// **258** here and **263** in the module end — the function's first and
+    /// last source lines. No fixture could have shown this before: every one of
+    /// them is a one-line function below line 128, where the line number and a
+    /// small per-function index are the same one byte. The rename is not
+    /// cosmetic — a reader who believed "index" would have no reason to expect
+    /// the field to escape at all.
+    BlockStart { line: i32, wide: bool },
 
     // ---- float-leaf vocabulary (float arithmetic + struct-member loads) ----
     //
@@ -226,7 +251,7 @@ impl ExToken {
             ExToken::Lo => out.push(LO),
             ExToken::LoRecord => out.extend_from_slice(&LO_RECORD),
             ExToken::Ss => out.push(0x53),
-            ExToken::Stmt(nn) => out.extend_from_slice(&[0x4F, 0x01, nn]),
+            ExToken::Stmt { line, wide } => encode_line_record(out, line, wide),
             ExToken::ResultRef(t) => {
                 out.push(0x26);
                 tok(out, t);
@@ -273,8 +298,10 @@ impl ExToken {
                 tok(out, t);
             }
             ExToken::FnTail => out.extend_from_slice(&[0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00]),
-            ExToken::ModuleEnd(nn) => {
-                out.extend_from_slice(&[0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, nn, 0x4D]);
+            ExToken::ModuleEnd { line, wide } => {
+                out.extend_from_slice(&BLOCK_START);
+                encode_line_record(out, line, wide);
+                out.push(0x4D);
             }
             ExToken::Formals => out.push(0x46),
             ExToken::Formal(t) => {
@@ -282,9 +309,9 @@ impl ExToken {
                 tok(out, t);
             }
             ExToken::FnHeader(ref b) => out.extend_from_slice(b),
-            ExToken::BlockStart(nn) => {
+            ExToken::BlockStart { line, wide } => {
                 out.extend_from_slice(&BLOCK_START);
-                out.extend_from_slice(&[0x4F, 0x01, nn]);
+                encode_line_record(out, line, wide);
             }
             ExToken::FloatLoad(t) => {
                 out.push(0xB9);
@@ -1027,6 +1054,52 @@ fn walk_ex_prefix(prefix: &[u8], tw: usize, spans: &mut Vec<Span>) {
     }
 }
 
+/// Read the `4F 01` **source-line record** whose `4F` is at `b[p]`, returning
+/// `(line, wide, total_record_len)` — `(v, false, 3)` or `(v, true, 7)`.
+///
+/// The payload is **VI32** (`c2.dll` `0x10c1f9e9`, read R9 —
+/// `docs/whitebox/ref/P_SUB4F.md` §4): one byte when the value is `< 0x80`,
+/// else the escape byte `0x80` followed by four little-endian bytes. A source
+/// line of 128 or more therefore makes the record **seven** bytes, and every
+/// decoder here read three until board **#3443**.
+///
+/// **Registered narrowing — this is not the full VI32 reader.** True VI32
+/// sign-extends a lead byte in `0x81..=0xFF` to a *negative* value in one byte.
+/// This refuses that lead byte instead, which is the fail-closed idiom every
+/// already-correct site in the crate uses (`func::readers::read_varint`,
+/// `func::ehscope`'s `opt_line`). A source line is never negative, so the case
+/// is unreachable from c1xx-produced IL — but the narrowing is deliberate and
+/// is recorded rather than discovered later and called a fix.
+fn read_line_record(b: &[u8], p: usize) -> Option<(i32, bool, usize)> {
+    if !starts_with(b, p, &[0x4F, 0x01]) {
+        return None;
+    }
+    match *b.get(p + 2)? {
+        0x80 => {
+            let v = b.get(p + 3..p + 7)?;
+            Some((i32::from_le_bytes([v[0], v[1], v[2], v[3]]), true, 7))
+        }
+        n if n < 0x80 => Some((i32::from(n), false, 3)),
+        // A negative one-byte VI32. Unreachable for a line number; refused
+        // rather than guessed, so the record stays opaque and round-trips.
+        _ => None,
+    }
+}
+
+/// The inverse of [`read_line_record`]: append `4F 01 <VI32>`. `wide` is
+/// carried rather than re-derived so that a narrowly-representable value that
+/// c2 encoded wide re-encodes to the bytes it was parsed from — the same reason
+/// [`ExToken::Lit`] carries it.
+fn encode_line_record(out: &mut Vec<u8>, line: i32, wide: bool) {
+    out.extend_from_slice(&[0x4F, 0x01]);
+    if wide {
+        out.push(0x80);
+        out.extend_from_slice(&line.to_le_bytes());
+    } else {
+        out.push(line as u8);
+    }
+}
+
 /// Try to decode one metadata-prefix token at `prefix[p]` (width 2). Only the
 /// prefix token classes are recognized here (never body ops), so a stray header
 /// byte can never be mis-read as a LOAD/LIT/ADD. Returns the token and the bytes
@@ -1047,9 +1120,12 @@ fn try_prefix_token(prefix: &[u8], p: usize) -> Option<(ExToken, usize)> {
         0x4F => {
             // Block-start: 4F 02 20 00 4F 01 NN (no trailing 4D — that is the
             // module end, which lives in the body, not the prefix).
-            if starts_with(prefix, p, &BLOCK_START) && starts_with(prefix, p + 4, &[0x4F, 0x01]) {
-                let nn = *prefix.get(p + 6)?;
-                Some((ExToken::BlockStart(nn), 7))
+            if starts_with(prefix, p, &BLOCK_START) {
+                // The `4F 01` after the 4-byte `4F 02` record is a SEPARATE
+                // source-line record with a VI32 payload, so this token is 7
+                // bytes narrow and 11 wide (board #3443).
+                let (line, wide, n) = read_line_record(prefix, p + 4)?;
+                Some((ExToken::BlockStart { line, wide }, 4 + n))
             } else {
                 None
             }
@@ -1129,14 +1205,20 @@ fn try_ex_token(body: &[u8], p: usize) -> Option<(ExToken, usize)> {
             if starts_with(body, p, &LO_RECORD) {
                 Some((ExToken::LoRecord, 2))
             } else if starts_with(body, p, &[0x4F, 0x01]) {
-                let nn = *body.get(p + 2)?;
-                Some((ExToken::Stmt(nn), 3))
+                // VI32 payload: 3 bytes below source line 128, 7 at or above
+                // it (board #3443). Reading a fixed byte here left the line
+                // number's own low byte where an opcode is expected, and `02`,
+                // `03` and `04` are Add/Sub/Mul in this very match.
+                let (line, wide, n) = read_line_record(body, p)?;
+                Some((ExToken::Stmt { line, wide }, n))
             } else if starts_with(body, p, &[0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00]) {
                 Some((ExToken::FnTail, 7))
-            } else if starts_with(body, p, &[0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01]) {
-                let nn = *body.get(p + 6)?;
-                if body.get(p + 7) == Some(&0x4D) {
-                    Some((ExToken::ModuleEnd(nn), 8))
+            } else if starts_with(body, p, &BLOCK_START) {
+                // Same nested source-line record as `BlockStart`, plus a `4D`
+                // — which sits four bytes further along when the line is wide.
+                let (line, wide, n) = read_line_record(body, p + 4)?;
+                if body.get(p + 4 + n) == Some(&0x4D) {
+                    Some((ExToken::ModuleEnd { line, wide }, 4 + n + 1))
                 } else {
                     None
                 }
@@ -1470,7 +1552,23 @@ mod tests {
             (ExToken::Lo, &[0x4C]),
             (ExToken::LoRecord, &[0x4F, 0x11]),
             (ExToken::Ss, &[0x53]),
-            (ExToken::Stmt(0x0E), &[0x4F, 0x01, 0x0E]),
+            (
+                ExToken::Stmt {
+                    line: 0x0E,
+                    wide: false,
+                },
+                &[0x4F, 0x01, 0x0E][..],
+            ),
+            // The SAME record at a source line >= 128: seven bytes, not three
+            // (board #3443). This row is the one the old fixed-byte read could
+            // not have carried.
+            (
+                ExToken::Stmt {
+                    line: 258,
+                    wide: true,
+                },
+                &[0x4F, 0x01, 0x80, 0x02, 0x01, 0x00, 0x00][..],
+            ),
             (ExToken::ResultRef(0xE609), &[0x26, 0xE6, 0x09]),
             (
                 ExToken::Call([0x82, 0x07, 0x03]),
@@ -1509,7 +1607,10 @@ mod tests {
             (ExToken::Return(0xE709), &[0x54, 0x02, 0x29, 0xE7, 0x09]),
             (ExToken::FnTail, &[0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00]),
             (
-                ExToken::ModuleEnd(0x02),
+                ExToken::ModuleEnd {
+                    line: 0x02,
+                    wide: false,
+                },
                 &[0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x02, 0x4D],
             ),
             (ExToken::Formals, &[0x46]),
@@ -1540,6 +1641,213 @@ mod tests {
                 "decode mismatch for {tok:?}"
             );
         }
+    }
+
+    // ---- the `4F 01` VI32 width (board #3443, lane w-4f01) -----------------
+    //
+    // **The bytes in the three tests below are a REAL CAPTURE, not a
+    // construction.** They are the `4F 01` records of a five-line function
+    // under `#line 258`, captured through the real toolchain at this lane's tip
+    // and read out with a hex dump:
+    //
+    //     off 2692: 4f 02 20 00 4f 01 80 02 01 00 00 53   <- block start, line 258
+    //     off 2696: 4f 01 80 02 01 00 00 53 53
+    //     off 2719: 4f 01 80 03 01 00 00 26 e7
+    //     off 2813: 4f 02 20 00 4f 01 80 07 01 00 00 4d   <- module end,  line 263
+    //
+    // Nothing here is this lane's guess about what c2 emits.
+    //
+    // `4F 01`'s payload is **VI32** (`c2.dll` `0x10c1f9e9`): one byte when the
+    // value is `< 0x80`, else the escape `0x80` followed by four LE bytes. So
+    // the record is **3 bytes below source line 128 and 7 at or above it** —
+    // `docs/whitebox/ref/P_SUB4F.md` §4, confirmed by that page's twin grid at
+    // 10/10, whose `#line 127` cell carries *both* widths in one file.
+    //
+    // **These three tests are written to assert only the CONSUMED WIDTH and the
+    // resulting token sequence, never the payload's type.** That is deliberate:
+    // it is what let them be run against the pre-fix tree and observed to FAIL
+    // (a red a compile error could not have produced). The decoded *value* is
+    // asserted separately, in `stmt_marker_decodes_the_source_line_value`.
+
+    /// Walk `bytes` with the body decoder, skipping unrecognized bytes exactly
+    /// as [`walk_ex_body`] does, and return the tokens in order.
+    fn walk_tokens(bytes: &[u8]) -> Vec<ExToken> {
+        let mut toks = Vec::new();
+        let mut p = 0usize;
+        while p < bytes.len() {
+            match try_ex_token(bytes, p) {
+                Some((t, n)) => {
+                    toks.push(t);
+                    p += n;
+                }
+                None => p += 1,
+            }
+        }
+        toks
+    }
+
+    #[test]
+    fn stmt_marker_payload_is_vi32_not_a_fixed_byte() {
+        // Line 258 = 0x00010202. Captured: `4f 01 80 02 01 00 00`.
+        let wide: &[u8] = &[0x4F, 0x01, 0x80, 0x02, 0x01, 0x00, 0x00];
+        let (tok, n) = try_ex_token(wide, 0).expect("a wide line marker must decode");
+        assert!(matches!(tok, ExToken::Stmt { .. }), "got {tok:?}");
+        assert_eq!(
+            n, 7,
+            "a source line >= 128 escapes to `0x80` + 4, so the record is SEVEN bytes"
+        );
+        // …and the narrow form is unchanged, which is exactly why the whole
+        // existing corpus is green either way: every fixture sits below line
+        // 128, where the two rules consume the same three bytes.
+        let narrow: &[u8] = &[0x4F, 0x01, 0x0E];
+        let (tok, n) = try_ex_token(narrow, 0).expect("a narrow line marker must decode");
+        assert!(matches!(tok, ExToken::Stmt { .. }), "got {tok:?}");
+        assert_eq!(n, 3, "below line 128 the record is still three bytes");
+    }
+
+    /// The defect's teeth: `0x02`, `0x03` and `0x04` are `Add`, `Sub` and `Mul`
+    /// in this very decoder, so a three-byte read of a seven-byte record leaves
+    /// the line number's own low byte sitting where an opcode is expected and
+    /// **synthesizes an arithmetic token that is nowhere in the program**.
+    ///
+    /// That is not a cosmetic decode error. `c2-harness`'s permuter picks its
+    /// mutation sites with `matches!(t, ExToken::Add | ExToken::Sub |
+    /// ExToken::Mul)` (`search/moves.rs`), so a phantom operator is a mutation
+    /// target manufactured out of a source-line payload.
+    #[test]
+    fn wide_stmt_marker_does_not_synthesize_a_phantom_operator() {
+        for (line, phantom) in [
+            (258i32, ExToken::Add), // 0x0102 -> payload `02 01 00 00`
+            (259, ExToken::Sub),    // 0x0103 -> payload `03 01 00 00`
+            (260, ExToken::Mul),    // 0x0104 -> payload `04 01 00 00`
+        ] {
+            let mut bytes = vec![0x4F, 0x01, 0x80];
+            bytes.extend_from_slice(&line.to_le_bytes());
+            bytes.push(0x53); // an `SS` after the marker, as the capture has
+            let toks = walk_tokens(&bytes);
+            assert!(
+                !toks.contains(&phantom),
+                "line {line}: decoded a phantom {phantom:?} out of the line payload — {toks:?}"
+            );
+            assert_eq!(
+                toks.len(),
+                2,
+                "line {line}: the marker and the SS, and nothing else — {toks:?}"
+            );
+            assert!(matches!(toks[0], ExToken::Stmt { .. }), "{toks:?}");
+            assert_eq!(toks[1], ExToken::Ss, "{toks:?}");
+        }
+    }
+
+    /// `4F 02 20 00` is exactly a **4-byte** record (`P_SUB4F.md` §4: sub `0x02`,
+    /// format code `73`, VARU payload), so the `4F 01` that follows it in a
+    /// block-start and in a module-end is a **separate record** carrying its own
+    /// VI32 — and both sites were reading it as one fixed byte.
+    #[test]
+    fn nested_stmt_marker_in_block_start_and_module_end_is_vi32() {
+        // Block start at `#line 258` — captured at offset 2692.
+        let bs: &[u8] = &[
+            0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x80, 0x02, 0x01, 0x00, 0x00,
+        ];
+        let (tok, n) = try_prefix_token(bs, 0).expect("a wide block start must decode");
+        assert!(matches!(tok, ExToken::BlockStart { .. }), "got {tok:?}");
+        assert_eq!(n, 11, "4 (the `4F 02` record) + 7 (the wide `4F 01`)");
+
+        // Module end at line 263 — captured at offset 2813.
+        let me: &[u8] = &[
+            0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x80, 0x07, 0x01, 0x00, 0x00, 0x4D,
+        ];
+        let (tok, n) = try_ex_token(me, 0).expect("a wide module end must decode");
+        assert!(matches!(tok, ExToken::ModuleEnd { .. }), "got {tok:?}");
+        assert_eq!(
+            n, 12,
+            "the trailing `4D` is four bytes further along when the line is wide; \
+             the fixed-width read looked for it at p+7, did not find it, and \
+             REFUSED the whole record"
+        );
+    }
+
+    /// The **value** half, which the three tests above deliberately do not
+    /// assert (they are width-and-sequence only, so that they could be run
+    /// against the pre-fix tree and observed to fail rather than to not
+    /// compile). This one names the payload type and therefore only exists
+    /// after the fix.
+    ///
+    /// It also pins the *semantic* correction that came free with the width:
+    /// the block-start and module-end payloads are the function's **first and
+    /// last source lines** (258 and 263 for the captured five-line function
+    /// under `#line 258`), not the "statement/block index" the doc comments
+    /// called them. A one-line fixture below line 128 cannot separate those two
+    /// readings, and every fixture was one.
+    #[test]
+    fn stmt_marker_decodes_the_source_line_value() {
+        let cases: &[(&[u8], i32, bool)] = &[
+            (&[0x4F, 0x01, 0x7F], 127, false), // the last narrow line
+            (&[0x4F, 0x01, 0x80, 0x80, 0x00, 0x00, 0x00], 128, true), // the first wide one
+            (&[0x4F, 0x01, 0x80, 0x02, 0x01, 0x00, 0x00], 258, true),
+            (&[0x4F, 0x01, 0x80, 0x40, 0x42, 0x0F, 0x00], 1_000_000, true),
+        ];
+        for (bytes, want, wide) in cases {
+            assert_eq!(
+                try_ex_token(bytes, 0),
+                Some((
+                    ExToken::Stmt {
+                        line: *want,
+                        wide: *wide
+                    },
+                    bytes.len()
+                )),
+                "line {want}"
+            );
+            // …and it re-encodes to exactly the bytes it was parsed from.
+            let mut out = Vec::new();
+            ExToken::Stmt {
+                line: *want,
+                wide: *wide,
+            }
+            .encode_into(&mut out);
+            assert_eq!(&out[..], *bytes, "line {want} must re-encode exactly");
+        }
+
+        // Block start 258, module end 263: the function's first and last lines.
+        assert_eq!(
+            try_prefix_token(
+                &[0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x80, 0x02, 0x01, 0x00, 0x00],
+                0
+            ),
+            Some((
+                ExToken::BlockStart {
+                    line: 258,
+                    wide: true
+                },
+                11
+            ))
+        );
+        assert_eq!(
+            try_ex_token(
+                &[0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x80, 0x07, 0x01, 0x00, 0x00, 0x4D],
+                0
+            ),
+            Some((
+                ExToken::ModuleEnd {
+                    line: 263,
+                    wide: true
+                },
+                12
+            ))
+        );
+    }
+
+    /// The registered narrowing, asserted so it cannot be mistaken for a bug
+    /// later: a lead byte in `0x81..=0xFF` is a *negative* one-byte VI32 in the
+    /// real reader, and this decoder **refuses** it rather than sign-extending.
+    /// Unreachable for a source line; fail-closed, and the bytes stay opaque.
+    #[test]
+    fn negative_one_byte_line_payload_is_refused_not_sign_extended() {
+        assert_eq!(try_ex_token(&[0x4F, 0x01, 0x81, 0x53], 0), None);
+        assert_eq!(try_ex_token(&[0x4F, 0x01, 0xFF, 0x53], 0), None);
+        // A truncated escape is refused too, rather than reading past the end.
+        assert_eq!(try_ex_token(&[0x4F, 0x01, 0x80, 0x02, 0x01], 0), None);
     }
 
     // A minimal but complete single-function `.ex`: header, one `4F 1F` segment
@@ -1604,7 +1912,10 @@ mod tests {
                 ExToken::Assign(0xE709),
                 ExToken::Return(0xE709),
                 ExToken::FnTail,
-                ExToken::ModuleEnd(0x02),
+                ExToken::ModuleEnd {
+                    line: 0x02,
+                    wide: false,
+                },
             ]
         );
         // The `4F 1F …` metadata prefix stays opaque.
@@ -1790,7 +2101,10 @@ mod tests {
             toks,
             vec![
                 ExToken::FnHeader(add3_fn_header()),
-                ExToken::BlockStart(0x01),
+                ExToken::BlockStart {
+                    line: 0x01,
+                    wide: false,
+                },
                 ExToken::Ss,
                 ExToken::Ss,
                 ExToken::ResultRef(0xE609),
@@ -1817,15 +2131,34 @@ mod tests {
     fn block_start_token_round_trips() {
         let bytes: &[u8] = &[0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x07];
         let mut out = Vec::new();
-        ExToken::BlockStart(0x07).encode_into(&mut out);
+        ExToken::BlockStart {
+            line: 0x07,
+            wide: false,
+        }
+        .encode_into(&mut out);
         assert_eq!(out, bytes);
         assert_eq!(
             try_prefix_token(bytes, 0),
-            Some((ExToken::BlockStart(0x07), 7))
+            Some((
+                ExToken::BlockStart {
+                    line: 0x07,
+                    wide: false
+                },
+                7
+            ))
         );
         // A trailing 4D (module end, not block-start) is NOT a BlockStart here.
         let modend: &[u8] = &[0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01, 0x07, 0x4D];
-        assert_eq!(try_prefix_token(modend, 0), Some((ExToken::BlockStart(0x07), 7)));
+        assert_eq!(
+            try_prefix_token(modend, 0),
+            Some((
+                ExToken::BlockStart {
+                    line: 0x07,
+                    wide: false
+                },
+                7
+            ))
+        );
         // (the 4D is left for the body walker's ModuleEnd — prefix never sees it)
     }
 
@@ -1870,7 +2203,7 @@ mod tests {
         assert_eq!(
             spans
                 .iter()
-                .filter(|s| matches!(s, Span::Ex(ExToken::BlockStart(_))))
+                .filter(|s| matches!(s, Span::Ex(ExToken::BlockStart { .. })))
                 .count(),
             1
         );

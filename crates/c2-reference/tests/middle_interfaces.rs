@@ -687,15 +687,28 @@ fn ex_token_width(img: &Image, body: &[u8], p: usize) -> Option<usize> {
 ///   from any table; both are read off one snapshot.
 /// * DERIVED — the `cc` column is the operand size in bytes from the IL TYPE
 ///   word's size index `(v >> 9) & 7` (PREREG P1.4).
-/// * TRANSCRIBED — `4F 01 <byte>`, the source-line record, is three bytes wide
-///   and produces no tuple. `0x4F` is operand class `0x0C`, whose payload is a
-///   sub-record read by `FUN_10b9761e` off an 8-byte-stride descriptor table at
-///   `0x10b26268` and then a ~14-arm switch; decoding that table is well
-///   outside this lane's subset, so exactly ONE sub-opcode is pinned from the
-///   corpus and **every other `0x4F` sub-opcode refuses.** This matters: only
-///   `mvp_add3` (a one-line definition) has no interior line record, and
-///   without this rule the multi-line fixtures — the ones that make the `add`
-///   count a prediction rather than a transcription — could not be graded.
+/// * READ — `4F 01 <VI32>`, the source-line record, produces no tuple and is
+///   **3 bytes below source line 128, 7 at or above it**. `0x4F` is operand
+///   class `0x0C`, whose payload is a sub-record read by `FUN_10b9761e` off an
+///   8-byte-stride descriptor table at `0x10b26268`; that table has since been
+///   decoded (read R9, `docs/whitebox/ref/P_SUB4F.md`) and it is a table of
+///   **format-string pointers**, not of widths. Sub-opcode `0x01`'s format is
+///   code `0x6c` = one **VI32** field (`0x10c1f9e9`): one byte when the value
+///   is `< 0x80`, else the escape `0x80` followed by four LE bytes. Exactly ONE
+///   sub-opcode is still pinned and **every other `0x4F` sub-opcode refuses.**
+///
+///   > **This bullet read "`4F 01 <byte>` … is three bytes wide" and was
+///   > TRANSCRIBED, and it was wrong** (board **#3443**, fixed by lane
+///   > `w-4f01`). It was green on the entire corpus for the reason the next
+///   > sentence gives — every fixture sits below line 128, where a fixed-byte
+///   > read and a VI32 read consume the same three bytes — so no gate ever saw
+///   > it. It is marked READ rather than TRANSCRIBED now because there is an
+///   > address behind it.
+///
+///   This matters: only `mvp_add3` (a one-line definition) has no interior line
+///   record, and without this rule the multi-line fixtures — the ones that make
+///   the `add` count a prediction rather than a transcription — could not be
+///   graded.
 ///
 /// # The stopping rule
 ///
@@ -720,7 +733,19 @@ fn decode_body_to_tuples(img: &Image, body: &[u8]) -> Option<Vec<Tuple>> {
             if *body.get(p + 1)? != 0x01 {
                 return None;
             }
-            p += 3;
+            // Its payload is VI32, not a fixed byte (board #3443): one byte
+            // below source line 128, else `0x80` + four LE bytes. Reading three
+            // unconditionally desynchronizes the walk on any function past line
+            // 127 — which is almost every real one — and the *next* thing this
+            // loop does is treat a line-number byte as an opcode.
+            p += match *body.get(p + 2)? {
+                0x80 => 7,
+                n if n < 0x80 => 3,
+                // A negative one-byte VI32: unreachable for a line number, and
+                // refused rather than guessed (the fail-closed idiom the rest
+                // of the tree uses for this record).
+                _ => return None,
+            };
             continue;
         }
         let w = ex_token_width(img, body, p)?;
