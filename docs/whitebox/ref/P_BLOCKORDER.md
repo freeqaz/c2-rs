@@ -279,6 +279,37 @@ including **six out-of-sample holdout cells whose predictions were frozen and
 committed before the first `cl.exe`**
 ([`../grids/wb-blockorder/`](../grids/wb-blockorder/)).
 
+**And 239 HIT / 1 MISS over a 240-cell randomized corpus** `[O]` — case count
+(2–24), value set, density (dense / sparse / clustered / wide) and **source
+order** all randomized independently, seed-deterministic
+([`../grids/wb-blockorder/gen_random.py`](../grids/wb-blockorder/gen_random.py)).
+A marker too wide for a `li` immediate makes a cell **unreadable**, and
+unreadable cells are reported as such and never scored as passes.
+
+### 5.0a The one miss is a HYBRID lowering, and the record has never described one `[O]`
+
+`sw_rc065`, 19 clustered values
+`{26–29, 31–33, 36–38, 52, 53, 119–122, 173–175}`:
+
+```
+emitted, as values:  36 37 52 27 26 53 32 38 28 29 33 31 | 119 | 175 174 173 122 121 120
+                     `------------ SOURCE order ------------'   `--- the tree rule ---'
+                        the 12 low values, as a JUMP TABLE        pivot 119, then reverse
+```
+
+c2 **partitioned the case set** and lowered the parts differently: a jump table
+for the dense low cluster (12 values spanning 26–53) and a decision tree for the
+seven outliers. **§5's rule holds on each part; what it omits is the partition
+step**, and that step is already read: `FUN_10bd1801` @ `0x10bd1801` chooses a
+split using the **max-gap parameter `3`** at `[0x10b24184 + mode*0x10]`, loaded
+at **`0x10bd1844`**. The cluster boundaries here are exactly the gaps > 3
+(38→52, 53→119, 122→173).
+
+So the honest scope of §5 is **per contiguous cluster**, and the clustering rule
+is named but not modelled. It is 1 cell in 240, it is explained by a constant
+read from the image rather than fitted to the cell, and it is the shape the
+prereg registered (**P3.3**) as the thing a corpus finds and a hand grid cannot.
+
 ### 5.1 The correction this forces on the record `[O]`
 
 **Every published statement of `M2` in this repo says "reverse *source*

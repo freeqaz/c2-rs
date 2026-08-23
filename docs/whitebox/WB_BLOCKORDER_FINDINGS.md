@@ -61,9 +61,9 @@ taken.
 
 | # | prediction | p | verdict | note |
 |---|---|---:|---|---|
-| **P3.1** | #1906 replicates at scale: jump tables monotone in case index, decision trees not | 0.70 | **H in substance, M in form** | Replicates — but the corpus half was **not run** (§6), so this is grid evidence, and #1906's *wording* is corrected (§2) |
+| **P3.1** | #1906 replicates at scale: jump tables monotone in case index, decision trees not | 0.70 | **H** | Replicates on the grid **and on a 240-cell randomized corpus, 239/240**. #1906's *wording* is corrected all the same (§2 row 1) |
 | **P3.2** | The tree/table threshold is a readable constant, and the lane names or bounds it | 0.40 | **H, and it is two constants** | `8` at `0x10bd1388` off the record at `0x10b2418c`; `range > 9` at `0x10c1dc7b` |
-| **P3.3** | The corpus contains a switch shape neither #1906's cells nor this grid predicted | 0.65 | **U — the corpus was not run.** But the *grid* produced three such shapes on its own (the sparse pivot cells), and the **holdout produced two more** (§5) | |
+| **P3.3** | The corpus contains a switch shape neither #1906's cells nor this grid predicted | 0.65 | **H — and it is exactly one cell in 240** | A 240-cell randomized corpus was built and run after all. `sw_rc065` is a **HYBRID**: c2 partitioned 19 clustered values and gave the dense low cluster a **jump table** and the seven outliers a **decision tree**. No prior cell in the record is a hybrid. §5.1a |
 | **P3.4** | `M2`'s `default`-first placement is a separate fact from the reversal | 0.50 | **H** | Tree → default first; ladder and table → default last. Independent of the arm rule |
 
 ### 1.4 The self-test that would have voided the lane (prereg §3.4)
@@ -77,7 +77,7 @@ first, then the six arms in reverse case order, three `cmplwi cr6` compares,
 `li`/`blr` leaves, 92 bytes. Structurally identical to §7.6's cell.
 `sw_dense03` likewise gives `997, 149, 211, 137`.
 
-**Score: 12 H · 2 M · 1 partial · 1 U, over 16 registered rows.**
+**Score: 14 H · 2 M · 1 partial · 0 U, over 16 registered rows.**
 
 ---
 
@@ -181,6 +181,46 @@ emit(V):                          # V = case values, ascending
 
 **22 HIT / 0 MISS** over every decision-tree cell in both grids.
 
+### 5.1a The randomized corpus, and the one cell that beat the rule
+
+Built after the grid, on the prereg's standing ground that *grids and corpora
+fail in opposite directions*: **240 cells**, seed-deterministic, with case count
+(2–24), value set, density (dense / sparse / clustered / wide) and **source
+order** randomized independently. Ground truth comes free from the generator, so
+no source parsing is needed — which is what makes this a corpus rather than a
+bigger grid.
+
+**239 HIT / 1 MISS.** Breakdown: decision-tree 196/196, jump-table 38/39,
+CTR-ladder 5/5.
+
+An extractor honesty note that is not a detail: a marker constant too wide for a
+`li r3,imm` field becomes `lis`/`ori` and the arm order becomes unreadable. The
+**first** run of this corpus had markers up to 60,000 and reported **230 of 240
+cells UNREADABLE** rather than scoring them — which is the behaviour that makes
+the remaining 10 worth anything. The marker range was narrowed and the corpus
+regenerated; the rule under test was already committed and published, so this is
+an out-of-sample test of a fixed rule, not a search over corpora.
+
+**The miss, `sw_rc065`** (19 values, clustered):
+
+```
+emitted, as values:  36 37 52 27 26 53 32 38 28 29 33 31 | 119 | 175 174 173 122 121 120
+                     `----------- SOURCE order -----------'   `---- the tree rule ----'
+                        12 low values, as a JUMP TABLE          pivot 119, then reverse
+```
+
+c2 **partitioned the case set and lowered the parts differently** — a hybrid,
+and the record has never described one. §5's rule holds on each part; what it
+omits is the partition, and the partition constant is **already read**:
+`FUN_10bd1801` @ `0x10bd1801` uses the **max-gap `3`** at `[0x10b24184]`, loaded
+at `0x10bd1844`, and the cluster boundaries are exactly this cell's gaps > 3
+(38→52, 53→119, 122→173).
+
+**So the rule's honest scope is per contiguous cluster**, and `ref/P_BLOCKORDER.md`
+§5 now says so. The miss cost nothing to explain because the read had already
+supplied the constant — which is the second time on this lane that read-first
+paid at the moment the objs disagreed.
+
 > **Would the probe have gone red if the claim were false in the most likely
 > way?** The most likely falsehood was *"reverse case order" is really reverse
 > **source** order* — nobody had separated them. The `scram` family separates
@@ -191,12 +231,13 @@ emit(V):                          # V = case values, ascending
 
 ## 6. What was NOT done, stated so absence does not read as coverage
 
-* **The corpus half of the confirmation probe was not run.** The prereg
-  registered a workload-scale extractor (jump-table target monotonicity, which
-  needs no source-order ground truth) and it is **not built**. What replaced it
-  is the frozen out-of-sample holdout. **P3.3 is `U` for this reason**, and the
-  corpus check remains a real, cheap, unclaimed follow-up — the toolchain is
-  live and `work/dc3-workload/` exists.
+* **The corpus is randomized, not the dc3 workload.** The prereg registered a
+  workload-scale extractor; what was built instead is a 240-cell randomized
+  corpus (§5.1a). The trade is deliberate — the workload has real switches but
+  no ground truth about their case **values** without parsing dc3 sources, and
+  the rule is stated over values. **A workload scan would still add something
+  this cannot: the real distribution of switch shapes.** Unclaimed follow-up.
+* **The cluster partition is named, not modelled.** §5.1a. One cell in 240.
 * **`FUN_10b35c78`** is unread; it is the standing candidate for
   `P_BLOCKORDER.md` §6 open #1.
 * **No call-bearing-arm grid**, which is what would separate a block *move*
