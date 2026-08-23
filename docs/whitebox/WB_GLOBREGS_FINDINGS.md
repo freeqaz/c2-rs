@@ -98,7 +98,7 @@ Graded against [`WB_GLOBREGS_PREREG.md`](WB_GLOBREGS_PREREG.md) as committed at
 | **P2.2** | excludes kind 1 (physical register), kind 3 (memory), and an address-taken/aliased flag — scored 0–3 | **2 of 3** | kind 1 **is** excluded (`0x10b55138`, kinds < 3 reject). Kind **3 is NOT excluded — it is eligible**, which is the point of the pass: globregs *promotes memory-resident locals into registers*. The alias-style clause exists and is named: kind 3 additionally needs `sym+0x14 == 0` **and** `sym+0x07 & 0x40` clear (`0x10b551b3`, `0x10b551bc`) |
 | **P2.3** | at least one numeric threshold in the predicate | **MISS — and the prereg called this "a clean result"** | there is none. The policy is wholly categorical: a kind switch plus a 30-entry table lookup. **A port needs no fitted constant for F1**, which is stronger than the read plan asked for |
 | **P2.4** | the policy consults a compilation-mode global | **MISS** | `DAT_10c2e2cf` is read at `0x10b551dd` but only adds an index to a side bitset; it does not gate eligibility. **The mode-dependence is at the phase level, not the symbol level** — `DAT_10c2e2fc` (#3375), including a 40,000 size bail-out |
-| **P2.5** | formals are promoted, and promoted first | **UNGRADED** | they are promoted (all 118 probe cells depend on it). "First" is not separable: §4's observable cannot distinguish mint position from tie-key position — prereg §7 item 1 |
+| **P2.5** | formals are promoted, and promoted first | **UNGRADED** | they are promoted (every probe cell depends on it). "First" is not separable: §4's observable cannot distinguish mint position from tie-key position — prereg §7 item 1 |
 
 ### P3 — `cand+0x44`, the field that decides every tie
 
@@ -168,9 +168,18 @@ G-perm  24 permutations   : 24 of 24 identical to base          (both modes)
 G-block separator         : UNCHANGED in both variants          (both modes)
 ```
 
-**Population: 118 resolved formal→register assignments over 66 objs** — 70 from
-the ladder (2+3+…+8 = 35 per mode), 48 from the permutation grid — plus 4
-positive-control objs and 4 separator objs.
+**Population: 262 resolved formal→register assignments over 62 grid objs** —
+70 from the ladder (2+3+…+8 = 35 assignments per mode, 14 objs) and 192 from
+the permutation grid (24 objs per mode × 4 formals) — plus 4 separator objs
+(8 assignments) and 4 positive-control objs. **70 objs compiled in total.**
+
+> **An arithmetic correction this lane made to itself, kept rather than quietly
+> fixed.** A first draft of this section, of the rung and of board **#3414**
+> said *"118 assignments over 66 objs"*, reached by adding 70 **assignments**
+> to 48 **cells** — two different units. The corrected figures are above and
+> are larger, so nothing published rested on the smaller number; it is recorded
+> because a denominator reached by adding incompatible units is precisely the
+> defect `STATUS.md` tells readers to check for.
 
 ### 4.1 What went green, and what that is worth
 
@@ -209,7 +218,7 @@ image of the claim"*, and it is the binding limit here:
 > On every straight-line body this lane built, the map is invariably
 > `a_i → r(31-i)`. **That is equally consistent with the `+0x44` ordinal and
 > with plain symbol-arena mint order**, because on a straight-line body the two
-> coincide. **118 cells do not separate them**, and no cell in this lane does.
+> coincide. **262 assignments over 62 objs do not separate them**, and no cell in this lane does.
 
 So: the **existence and identity** of the tie key is `[R]`, verified at the
 bytes twice-sourced, and it replaces consequence 3 outright. **What the ordinal
