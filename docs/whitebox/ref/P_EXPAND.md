@@ -87,6 +87,30 @@ shared bodies reached with an un-narrowed interval   10
 **`ADDR.tsv:1124`'s "41 arms" for this function is not a measurement of it** —
 41 is its *callee* count. No document in this repo had ever counted its arms.
 
+> **⛔ AMENDED — lane `w-tailread`, 2026-08-23, board #3460/#3461.** The block
+> above stands as written except for two rows, and the originals are left
+> intact so this can be graded.
+>
+> **1. `opcodes reaching the dispatch TAIL = 767` is not a measurement.**
+> `0x2ff` **is** 767, and it is exactly this walk's domain (`1..OPMAX`). Re-run
+> `opcode_tree` with the bound raised and the number follows it:
+> `OPMAX 0x2ff → 767`, `0x400 → 1024`, `0x600 → 1536`. It says the tail is
+> reachable carrying an un-narrowed interval — a property of the abstract
+> interpretation, not of c2. **Six of the ten shared fall-through bodies below
+> report `767` for the same reason.** §7's warning that *"reaches the tail is
+> not is unchanged"* is right and is not what this amends.
+>
+> **2. `opcode bound … 0x2ff` is short, and so is the arm map: `0x302` exists.**
+> `opcode_bound()` takes the largest **literal** in a `cmp`/`sub`/`add`/`lea`,
+> giving `0x2fe + 1`. But the dispatch continues past that literal by a
+> subtract chain — `sub ecx,0x2fe / je (0x2fe) / dec / je (0x2ff) / sub ecx,3 /
+> je 0x10c0e479` — so **opcode `0x302` has a discriminated arm at
+> `0x10c0e479`** that no literal names and this map therefore misses. Corrected
+> count: **70** discriminated opcodes, still over 29 arm bodies. Raising the
+> bound to `0x600` gains nothing further, so 70 is stable.
+>
+> See [`P_OPATTR.md`](P_OPATTR.md) §3 and §3.1.
+
 ### 1.2 The dispatch tail is a **table**, and it is new  `[R]`
 
 Everything the tree does not discriminate falls to **`0x10c0e30b`**, which is
@@ -105,6 +129,40 @@ opcode class.** Class 2 routes to `0x10c0e40f`, shared with `lea` (`0x281`) and
 `retaddr` (`0x28f`). No document in this repo records this table. It is the
 natural next read for anyone extending this page, and it is why "767 opcodes
 reach the tail" is **not** the same statement as "767 opcodes are unchanged".
+
+> **⛔ AMENDED — lane `w-tailread`, 2026-08-23, board #3460/#3462.** Read in
+> full at [`P_OPATTR.md`](P_OPATTR.md). Four corrections; the original is left
+> as written.
+>
+> **1. *"No document in this repo records this table"* is FALSE**, and the same
+> sentence appears in `WB_EXPAND_FINDINGS.md:79` (*"an unrecorded table"*) and
+> in board **#3432** (*"recorded in no document here"*). The table is board
+> **#2040**, **#2044**, **#2106** and **#2206**, lane `wb-select`, 2026-08-09,
+> and `rungs/2026-08-09-wb-select2.md:67` states it in one line: *"The same
+> byte is exposed as an array at `0x10c3afd8`, indexed by machine opcode."*
+> #2044 already decodes bits `0x08`/`0x10`/`0x20`/`0x40`. **What was genuinely
+> unread is the low 3 bits.** Verified: `attr[op]` equals the `0x10b1b260`
+> mnemonic table's `+8` flags byte for **664 of 664** entries.
+>
+> **2. It is not "the dispatch tail's table".** The tail is **one of 38**
+> consumers image-wide, and one of ten that read the class field.
+>
+> **3. The class field is an operand-shape partition, not an expansion one:**
+> 1 = move/SPR-transfer (35), 2 = load (55), 3 = store (52), 4 = sign-extend
+> (6), 0 = other (516). Classes 5–7 and bit `0x80` are unused.
+>
+> **4. The tail is a THREE-way classifier and `retaddr` is not part of it.**
+> `class 2 → 0x10c0e40f`; `opcode 0x281 → 0x10c0e40f`; `class 3 → 0x10c0e331`;
+> everything else → the exit join. **`lea` is class 0** — which is *why* it is
+> named explicitly — and **`retaddr` (`0x28f`) is class 0 too**, reaching
+> `0x10c0e40f` from neither route; its arm is `0x10c0e006`, as §3 says. The
+> predicate the tail computes is *load-or-lea*.
+>
+> **And the tail expands nothing.** Its five callees are a form predicate
+> (`0x10c123b9`, which indexes `P_ENCODE.md` §3's encode-form table), a set
+> allocator, a set-insert, an **operand**-node allocator and an **operand**-list
+> append. None is one of §2's 16 instruction constructors. Word delta **zero**
+> for every opcode reaching it.
 
 ---
 
@@ -180,6 +238,35 @@ a multi-word emitter, so the arm's own count is not the whole story.
 3. **`nopalign` (`0x27b`) is genuinely unbounded** — the alignment-padding arm
    contains a loop, so no constant describes it. Any instrument asserting a
    word count must special-case it.
+
+> **⛔ AMENDED — lane `w-tailread`, 2026-08-23, board #3463. THIS TABLE IS
+> ONE-SIDED: IT COUNTS ADDITIONS AND CANNOT SEE DELETIONS.** The counts above
+> are correct as counts of constructor calls; they are not word deltas.
+>
+> §2 names the **mint** primitive (`0x10bd3824`, doubly-linked insert-after,
+> under the wrapper `0x10bd5732`). It has an exact inverse that no document
+> here names: **`0x10bd5516`**, the **unlink**, whose body is `0x10bd3824`
+> reversed. And it is the commoner operation —
+> **`0x10bd5516`: 401 direct callers · `0x10bd3824`: 207.**
+>
+> Inside `FUN_10c0d57e` there is exactly one call to it, at **`0x10c0e4a6`**,
+> in the body at **`0x10c0e4a4`** — the row above labelled *"the no-op join"*,
+> `0..0`, `fmr, mr, 0x2e5, 0x2f7`. **It is the DELETE join; its word delta is
+> −1.** Three further arms fall into it: `0x10c0e494` (`0x2fe`, after setting
+> the opcode to `0x297`), `0x10c0e479` (`0x302`, the arm §1.1's amendment
+> recovers) and `0x10c0dfdc` (via `call 0x10bd2d83 / jmp 0x10c0e4a4`) — which
+> this table also scores `0..0`.
+>
+> **§2's closure argument is sound, and this supplies the premise it omits.**
+> Inverting the call graph on `0x10bd5732` is closed only if that address is
+> never taken. Measured: **`0x10bd5732` address-taken 0 times** — so the
+> inversion holds. One level down it would not: **`0x10bd3824` is address-taken
+> at 506 sites**, passed as a callback to the emitter helpers, two of them
+> inside this switch (`0x10c0db6b`, `0x10c0e20e`). Spot-checked: that path's
+> node builder `0x10bd575d` does not set `+9` bit 0, so it is not minting
+> instructions — one function checked, not the population.
+>
+> See [`P_OPATTR.md`](P_OPATTR.md) §5.
 
 ---
 
@@ -331,6 +418,39 @@ so reading one entry too many invents a bogus "arm 51" whose jump-table word is
 `no-mint` column, all 18). This bounds but does **not** settle prereg P4.2: the
 check reads the 24-byte thunk, not the handler it tail-calls transitively.
 
+> **⛔ EXTENDED — lane `w-tailread`, 2026-08-23, board #3462.** Arm 6's handler
+> read, and then obj-checked, with a result that goes against the read.
+>
+> **`[R]`** Arm 6 is a 12-byte thunk `mov ecx,esi / call 0x10c16fbd /
+> jmp 0x10c18448`. **`FUN_10c16fbd`** (191 B, 1 caller, 7 callees) is a
+> **redundant-move eliminator with a copy-propagation fallback**: if the `+0x28`
+> and `+0x2c` operands' `[+0x1c]` fields name the **same register** it clears
+> bit `0x40` on both descriptors and tail-calls `0x10c16cde`, which unlinks the
+> instruction; otherwise it attempts propagation through `0x10c16a46` /
+> `0x10bfc132` / `0x10c16ba5` / `0x10c16c66`. Its class-1 siblings each have
+> their own handler: arm 14 `mr` → `0x10c16d83`, arm 15 `mr.` → `0x10c1707c`,
+> arm 16 `vmr` → `0x10c16e59`.
+>
+> **`[O]` AND HERE IS WHY `[R]` IS NOT A LICENCE.** `probe_selfmove.py` over
+> **120,000 objs** (176,969 `.text` sections, 1,726,709 words, **135,218**
+> move-form instructions decoded — the liveness half):
+>
+> | form | non-self | self-move |
+> |---|---:|---:|
+> | `fmr` | 32,569 | **0** |
+> | `mr.` | 150 | **0** |
+> | `mr` | 102,499 | **3,792** |
+>
+> **c2 emits `mr r8,r8`** — 3,792 times, in 1,206 objs (1.00 %), at `/Ox`, with
+> no relocation covering those offsets. **3,792 of 3,792 name `r8`** and none
+> any other register, and they sit adjacent to branches. That is an idiom, and
+> this lane does not settle which one.
+>
+> **Arm 6 itself is clean**: 0 self-moves across 32,569 `fmr`. What the corpus
+> refutes is the *generalisation* to all class-1 opcodes, and the violator is
+> arm 14, whose handler was **not** read. Do not quote the `[R]` reading as
+> *"c2 emits no self-move"*.
+
 ---
 
 ## 6. A table that LOOKS like the answer and is not  `[R]`
@@ -357,6 +477,34 @@ hypothesis is wrong** — and the mapping from this table's row index to an
 This is the `.bss`-bump failure mode (`C2_MAP_METHOD.md` §7) caught before it
 shipped: a small, clean, correctly-read table that is simply not on the path the
 inputs take.
+
+> **⛔ SETTLED — lane `w-tailread`, 2026-08-23, board #3463. The refusal above
+> was right, and the reason is that the question has no answer: THERE IS NO
+> INDEX MAPPING, because nothing indexes this table by an opcode.** Full read at
+> [`P_OPATTR.md`](P_OPATTR.md) §7.
+>
+> * **One referencing function, not two.** All three references in the image
+>   (`0x10c0175e`, `0x10c01774`, `0x10c01790`) are inside `FUN_10c0174b`.
+>   `FUN_10c00900` references **`0x10b1b260`**, the *first* table — so the
+>   sentence above overcounts by including it.
+> * **It is a name search.** `FUN_10c0174b` starts at row 1
+>   (`xor ebp,ebp / inc ebp`), strides `shl eax,4`, string-compares each row's
+>   name and terminates on the `_last` string `0x10b19ce4` — the exact twin of
+>   `FUN_10c00900`'s `imul eax,eax,0xc` walk of the first table. **`ebp` is a
+>   search cursor and is never an opcode.**
+> * **The row becomes an opcode by reading field `+4`, at one address.** Its
+>   sole caller, `0x10c0298d`, does exactly that four instructions later:
+>   `shl eax,0x4 / mov ecx,[eax+0x10b1d184]` at **`0x10c0299c`**. No index
+>   arithmetic is involved and none is recoverable, because none exists.
+> * **The table can never name a pseudo-op.** Over its 122 rows the `+4` field
+>   has min `0x0`, max `0x295`, 23 distinct values, and **0 rows ≥ `0x298`**.
+>   So no row of it denotes `0x2f0`, and the contradiction's premise is empty.
+> * **Where `twlti` came from, reproduced exactly.** Row **88** is `twlti`
+>   (real opcode `0x19d` = `twi`, BO 0, BI 16) and `0x2f0 − 0x298 = 88`. The
+>   arithmetic was right; the hypothesis `op = 0x298 + j` is computed **nowhere
+>   in the image**. (Indexing the *first*, stride-12 table past its extent —
+>   board #3357's trap — gives a different garbage mnemonic again,
+>   `0x2f0 → twige`.)
 
 ---
 
