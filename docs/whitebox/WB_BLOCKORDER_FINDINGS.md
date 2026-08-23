@@ -51,7 +51,7 @@ taken.
 
 | # | prediction | p | verdict | note |
 |---|---|---:|---|---|
-| **P2.1** | **H-LIST**: the emit walk performs no sort and no comparison on an ordering key; it follows a linked list. Hit requires naming the walk's address and its `next` offset | 0.55 | **H** | `FUN_10b338f5` @ `0x10b338f5`; advance `tuple = *(tuple+0)` at `0x10b33a94` |
+| **P2.1** | **H-LIST**: the emit walk performs no sort and no comparison on an ordering key; it follows a linked list. Hit requires naming the walk's address and its `next` offset | 0.55 | **H** | `FUN_10b338f5` @ `0x10b338f5`; advance `tuple = *(tuple+0)` at **`0x10b33a21`** (`8b 36`, two bytes) |
 | **P2.2** | **The payload clause** — at least one list-construction site read to **direction**, with address and field offsets, or P2.1 is scored M regardless | 0.45 | **H, five times over** | `0x10bd3815` AFTER, `0x10bd3824` BEFORE, `0x10bd3835` CHAIN-AFTER, `0x10bd3852` UNLINK, `0x10bd38d0` MOVE-RANGE, all with bodies |
 | **P2.3** | The `M2` reversal is produced at **construction**, not at emission | 0.45 | **H** | It is produced by the decision-tree traversal in the switch lowering; emission has no opinion |
 | **P2.4** | Block order has **more than one author** | 0.70 | **H** | The scheduler (×4/function via `FUN_10be626c`), two `factor.c` routines, and 707 inserter-pointer sites. §3 |

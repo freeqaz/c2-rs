@@ -67,8 +67,8 @@ do {
 
 | fact | evidence |
 |---|---|
-| the advance is `tuple = *(tuple+0)` — one flat singly-linked traversal | `0x10b33a94` |
-| **no sort, no comparator, no ordering key, no block loop, no recursion** | the entire 426-byte body |
+| the advance is `tuple = *(tuple+0)` — one flat singly-linked traversal | **`0x10b33a21`**, `8b 36` = `mov esi,[esi]` — **two bytes**, and the loop back-edge is `jmp 0x10b33a21` at `0x10b33a9d` |
+| **no sort, no comparator, no ordering key, no block loop, no recursion** | the entire 426-byte body. Its **whole direct callee set is five**: `memset`, `__security_check_cookie`, the encoder `FUN_10bf9f15`, `FUN_10bd456b` and `FUN_10c205f1` — there is nothing present that could sort |
 | a running offset (`local_14`, seeded `-1`) accumulates encoded lengths | `0x10b33997` |
 | the encoder called is `FUN_10bf9f15` — **R2's**, [`P_ENCODE.md`](P_ENCODE.md) | `0x10b33990` |
 | a tuple is a real instruction iff kind `∈ [0x0d, 0x16]` | `0x10b33978` |
