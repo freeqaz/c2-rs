@@ -45,9 +45,10 @@
 use c2_il::{PoolFreeList, PoolFreeListOp};
 
 use crate::codegen::encode::{
-    cr_bi, encode_bclr, encode_blr, encode_cmplwi, encode_lwz, encode_mr, encode_stw,
+    cr_bi, mop_bclr, mop_blr, mop_cmplwi, mop_lwz, mop_mr, mop_stw,
     BO_TRUE, CR_BIT_EQ, CR_COMPARE,
 };
+use crate::codegen::mop::{ops_to_bytes, Ops};
 use crate::codegen::fold::{ArmEnd, ArmValues, FoldBand, FoldShape, Relation};
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
@@ -66,6 +67,17 @@ pub(crate) fn pool_free_list_text(
     g: &PoolFreeList,
     mode: OptMode,
 ) -> Result<Vec<u8>, BackendError> {
+    Ok(ops_to_bytes(&pool_free_list_ops(g, mode)?))
+}
+
+/// **S1c (i): the free-list PUSH/POP leaf as an op stream**, reachable by a
+/// caller. The body length stays a constant of the variant — 6 ops for PUSH and
+/// 7 for POP — and the assertion below now counts OPS, which is what it was
+/// always about; the `4 *` was an artefact of counting bytes.
+pub(crate) fn pool_free_list_ops(
+    g: &PoolFreeList,
+    mode: OptMode,
+) -> Result<Ops, BackendError> {
     // The mode clause, restated here even though the recognizer already asked
     // it: `select_function` is what `function_gate` runs, so a body that reached
     // codegen at the other mode would be a census/gate disagreement, and that
@@ -116,7 +128,7 @@ pub(crate) fn pool_free_list_text(
              offset is a `lis`+`ori` into a scratch and has no capture here",
         )
     })?;
-    let mut t: Vec<u8> = Vec::with_capacity(28);
+    let mut t: Ops = Vec::with_capacity(7);
     match g.op {
         // ---- PUSH — `void Pool::Free(void *v)` ----------------------------
         PoolFreeListOp::Push => {
@@ -130,11 +142,11 @@ pub(crate) fn pool_free_list_text(
             // slot rather than written as `4`, so a class that ever admits a
             // second formal cannot silently keep this register.
             let r_v = R_THIS + 1;
-            t.extend_from_slice(&encode_cmplwi(CR_COMPARE, r_v, 0));
-            t.extend_from_slice(&encode_bclr(BO_TRUE, cr_bi(CR_COMPARE, CR_BIT_EQ)));
-            t.extend_from_slice(&encode_lwz(R_S1, R_THIS, off));
-            t.extend_from_slice(&encode_stw(R_S1, r_v, 0));
-            t.extend_from_slice(&encode_stw(r_v, R_THIS, off));
+            t.push(mop_cmplwi(CR_COMPARE, r_v, 0));
+            t.push(mop_bclr(BO_TRUE, cr_bi(CR_COMPARE, CR_BIT_EQ)));
+            t.push(mop_lwz(R_S1, R_THIS, off));
+            t.push(mop_stw(R_S1, r_v, 0));
+            t.push(mop_stw(r_v, R_THIS, off));
         }
         // ---- POP — `void *Pool::Alloc()` ----------------------------------
         PoolFreeListOp::Pop => {
@@ -147,18 +159,18 @@ pub(crate) fn pool_free_list_text(
             // `this` is parked FIRST, because the very next word overwrites r3
             // with the loaded head — which is also the returned value, and is
             // why the guarded arm needs no `li`.
-            t.extend_from_slice(&encode_mr(R_S1, R_THIS));
-            t.extend_from_slice(&encode_lwz(R_THIS, R_THIS, off));
-            t.extend_from_slice(&encode_cmplwi(CR_COMPARE, R_THIS, 0));
-            t.extend_from_slice(&encode_bclr(BO_TRUE, cr_bi(CR_COMPARE, CR_BIT_EQ)));
-            t.extend_from_slice(&encode_lwz(R_S2, R_THIS, 0));
-            t.extend_from_slice(&encode_stw(R_S2, R_S1, off));
+            t.push(mop_mr(R_S1, R_THIS));
+            t.push(mop_lwz(R_THIS, R_THIS, off));
+            t.push(mop_cmplwi(CR_COMPARE, R_THIS, 0));
+            t.push(mop_bclr(BO_TRUE, cr_bi(CR_COMPARE, CR_BIT_EQ)));
+            t.push(mop_lwz(R_S2, R_THIS, 0));
+            t.push(mop_stw(R_S2, R_S1, off));
         }
     }
-    t.extend_from_slice(&encode_blr());
+    t.push(mop_blr());
     debug_assert_eq!(
         t.len(),
-        4 * match g.op {
+        match g.op {
             PoolFreeListOp::Push => 6,
             PoolFreeListOp::Pop => 7,
         },

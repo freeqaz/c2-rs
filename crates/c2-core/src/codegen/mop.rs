@@ -1183,58 +1183,404 @@ mod ops_tests {
         assert!(ops_to_bytes(&ops).is_empty());
     }
 
-    /// **Every `mop_*` agrees with its `encode_*` over the whole register
-    /// domain**, 0..32 exhaustively rather than a sample — #3379's own lesson,
-    /// whose 46-word probe *"could not distinguish a 4-bit `RB` from a 5-bit
-    /// one, because no word in it used a register >= 16"*.
-    ///
-    /// This is the control on the S1c encoder rewrite: `encode_X` is now
-    /// `mop_X(..).word()`, and if that move changed any composition it changed
-    /// a word here.
-    #[test]
-    fn every_converted_mop_agrees_with_its_encoder_over_the_whole_domain() {
-        use crate::codegen::encode as e;
-        for a in 0..32u8 {
-            for b in 0..32u8 {
-                assert_eq!(e::mop_mr(a, b).word(), e::encode_mr(a, b));
-                assert_eq!(e::mop_extsb(a, b).word(), e::encode_extsb(a, b));
-                for c in 0..32u8 {
-                    assert_eq!(e::mop_add(a, b, c).word(), e::encode_add(a, b, c));
-                    assert_eq!(e::mop_andc(a, b, c).word(), e::encode_andc(a, b, c));
-                    assert_eq!(e::mop_divw(a, b, c).word(), e::encode_divw(a, b, c));
-                    assert_eq!(e::mop_divwu(a, b, c).word(), e::encode_divwu(a, b, c));
-                    assert_eq!(e::mop_mullw(a, b, c).word(), e::encode_mullw(a, b, c));
-                    assert_eq!(e::mop_subf(a, b, c).word(), e::encode_subf(a, b, c));
+    // ---- S1c (i), lane w-s1c2: the domain sweep, widened from 22 to ALL 85 --
+    //
+    // `w-s1bc` shipped this sweep over the 22 encoders it had converted. It is
+    // the control that makes the encoder rewrite's required-zero byte delta
+    // CHECKABLE rather than asserted, so leaving it at 22 while the population
+    // went to 85 would have been a green control over a quarter of its
+    // population — `STATUS.md` trap 0 exactly.
+    //
+    // The macros exist so that adding an encoder is one name in one list, and
+    // so a failure names the FUNCTION (`stringify!`) rather than a line number.
+    // They are `macro_rules!`, i.e. std only; nothing here adds a dependency.
+
+    /// `mop_X(a,b,c).word() == encode_X(a,b,c)` over all 32^3 register triples.
+    macro_rules! agree_rrr {
+        ($($mop:ident / $enc:ident),* $(,)?) => {
+            for a in 0..32u8 {
+                for b in 0..32u8 {
+                    for c in 0..32u8 {
+                        $(assert_eq!(
+                            e::$mop(a, b, c).word(), e::$enc(a, b, c),
+                            concat!(stringify!($mop), " disagrees at ({},{},{})"), a, b, c
+                        );)*
+                    }
                 }
-                // Displacements at both signs, both 16-bit boundaries, and a
-                // non-multiple of 4 (which `ld`/`std` are DS-form about).
-                for d in [0i16, 1, -1, 4, -4, 6, i16::MAX, i16::MIN] {
-                    assert_eq!(e::mop_addi(a, b, d).word(), e::encode_addi(a, b, d));
-                    assert_eq!(e::mop_addis(a, b, d).word(), e::encode_addis(a, b, d));
-                    assert_eq!(e::mop_lbz(a, b, d).word(), e::encode_lbz(a, b, d));
-                    assert_eq!(e::mop_lhz(a, b, d).word(), e::encode_lhz(a, b, d));
-                    assert_eq!(e::mop_lwz(a, b, d).word(), e::encode_lwz(a, b, d));
-                    assert_eq!(e::mop_ld(a, b, d).word(), e::encode_ld(a, b, d));
-                    assert_eq!(e::mop_stb(a, b, d).word(), e::encode_stb(a, b, d));
-                    assert_eq!(e::mop_sth(a, b, d).word(), e::encode_sth(a, b, d));
-                    assert_eq!(e::mop_stw(a, b, d).word(), e::encode_stw(a, b, d));
-                    assert_eq!(e::mop_std(a, b, d).word(), e::encode_std(a, b, d));
-                    assert_eq!(e::mop_twi(a, b, d).word(), e::encode_twi(a, b, d));
+            }
+        };
+    }
+
+    /// Two registers and a 16-bit signed displacement.
+    macro_rules! agree_rrd {
+        ($disps:expr; $($mop:ident / $enc:ident),* $(,)?) => {
+            for a in 0..32u8 {
+                for b in 0..32u8 {
+                    for d in $disps {
+                        $(assert_eq!(
+                            e::$mop(a, b, d).word(), e::$enc(a, b, d),
+                            concat!(stringify!($mop), " disagrees at ({},{},{})"), a, b, d
+                        );)*
+                    }
+                }
+            }
+        };
+    }
+
+    /// Two registers and a 16-bit unsigned immediate.
+    macro_rules! agree_rru {
+        ($($mop:ident / $enc:ident),* $(,)?) => {
+            for a in 0..32u8 {
+                for b in 0..32u8 {
+                    for u in [0u16, 1, 0x7fff, 0x8000, 0xffff] {
+                        $(assert_eq!(
+                            e::$mop(a, b, u).word(), e::$enc(a, b, u),
+                            concat!(stringify!($mop), " disagrees at ({},{},{})"), a, b, u
+                        );)*
+                    }
+                }
+            }
+        };
+    }
+
+    /// Two registers.
+    macro_rules! agree_rr {
+        ($($mop:ident / $enc:ident),* $(,)?) => {
+            for a in 0..32u8 {
+                for b in 0..32u8 {
+                    $(assert_eq!(
+                        e::$mop(a, b).word(), e::$enc(a, b),
+                        concat!(stringify!($mop), " disagrees at ({},{})"), a, b
+                    );)*
+                }
+            }
+        };
+    }
+
+    /// A `double` flag and three registers — the A-form FP family, where the
+    /// flag selects between two OPCODE ROWS (`fadd`/`fadds`) rather than
+    /// between two operand values, which is why it is swept and not fixed.
+    macro_rules! agree_frrr {
+        ($($mop:ident / $enc:ident),* $(,)?) => {
+            for dbl in [false, true] {
+                for a in 0..32u8 {
+                    for b in 0..32u8 {
+                        for c in 0..32u8 {
+                            $(assert_eq!(
+                                e::$mop(dbl, a, b, c).word(), e::$enc(dbl, a, b, c),
+                                concat!(stringify!($mop), " disagrees at ({},{},{},{})"),
+                                dbl, a, b, c
+                            );)*
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    /// **The register-register families — 26 opcodes over their whole 32^3
+    /// domain.**
+    ///
+    /// The population deliberately mixes forms 49, 39, 36, 41, 14, 26/50 and
+    /// 28/61 in one sweep, because the thing most likely to be wrong is a
+    /// **field role**, not an opcode: form 49 puts the destination at bit 21
+    /// and form 39 at bit 16, and `P_ENCODE.md` §5.1 calls that the single most
+    /// safety-critical fact on the page. Sweeping all three registers
+    /// independently is what makes the swap visible — at `a == b == c` every
+    /// layout agrees.
+    #[test]
+    fn every_register_register_mop_agrees_with_its_encoder() {
+        use crate::codegen::encode as e;
+        agree_rrr!(
+            mop_add / encode_add,
+            mop_adde / encode_adde,
+            mop_subf / encode_subf,
+            mop_subfc / encode_subfc,
+            mop_subfe / encode_subfe,
+            mop_mullw / encode_mullw,
+            mop_divw / encode_divw,
+            mop_divwu / encode_divwu,
+            mop_and / encode_and,
+            mop_andc / encode_andc,
+            mop_or / encode_or,
+            mop_orc / encode_orc,
+            mop_eqv / encode_eqv,
+            mop_xor / encode_xor,
+            mop_slw / encode_slw,
+            mop_srw / encode_srw,
+            mop_sraw / encode_sraw,
+            mop_srawi / encode_srawi,
+            mop_clrlwi_record / encode_clrlwi_record,
+            mop_lwzx / encode_lwzx,
+            mop_lhzx / encode_lhzx,
+            mop_lfsx / encode_lfsx,
+            mop_stdx / encode_stdx,
+            mop_stfsx / encode_stfsx,
+            mop_cmpw / encode_cmpw,
+            mop_cmplw / encode_cmplw,
+        );
+    }
+
+    /// **The D-form families — two registers and a signed displacement.**
+    ///
+    /// The displacement set spans both signs, both 16-bit boundaries and a
+    /// value that is **not** a multiple of 4, which is the one the DS-form
+    /// opcodes (`ld`, `std`, `ldr`) are about: their low two bits are the form
+    /// selector, so a 14-bit `disp >> 2` and a 16-bit `disp` are different
+    /// functions and only disagree off a word boundary.
+    ///
+    /// **`stdu` is swept on multiples of 4 alone**, and that is a property of
+    /// the encoder rather than a gap: it carries a `debug_assert_eq!(ds & 3, 0)`
+    /// that fires in the portable (debug) lane. Sweeping it off a word boundary
+    /// would test the assertion, not the encoding.
+    #[test]
+    fn every_d_form_mop_agrees_with_its_encoder() {
+        use crate::codegen::encode as e;
+        const D: [i16; 8] = [0, 1, -1, 4, -4, 6, i16::MAX, i16::MIN];
+        const D4: [i16; 6] = [0, 4, -4, 8, -8, -32768];
+        agree_rrd!(D;
+            mop_addi / encode_addi,
+            mop_addic / encode_addic,
+            mop_addic_record / encode_addic_record,
+            mop_addis / encode_addis,
+            mop_mulli / encode_mulli,
+            mop_subfic / encode_subfic,
+            mop_lwz / encode_lwz,
+            mop_lbz / encode_lbz,
+            mop_lbzu / encode_lbzu,
+            mop_lhz / encode_lhz,
+            mop_ld / encode_ld,
+            mop_ldr / encode_ldr,
+            mop_lfd / encode_lfd,
+            mop_stw / encode_stw,
+            mop_stwu / encode_stwu,
+            mop_stb / encode_stb,
+            mop_sth / encode_sth,
+            mop_sthu / encode_sthu,
+            mop_std / encode_std,
+            mop_stfd / encode_stfd,
+            mop_stfsu / encode_stfsu,
+            mop_twi / encode_twi,
+            mop_cmpwi / encode_cmpwi,
+        );
+        agree_rrd!(D4; mop_stdu / encode_stdu);
+    }
+
+    /// The logical-immediate and compare-immediate forms, whose field is
+    /// **unsigned and ORed unmasked** — so the sweep includes `0xffff` and the
+    /// sign-bit boundary rather than small values only.
+    #[test]
+    fn every_immediate_mop_agrees_with_its_encoder() {
+        use crate::codegen::encode as e;
+        agree_rru!(
+            mop_ori / encode_ori,
+            mop_xori / encode_xori,
+            mop_cmplwi / encode_cmplwi,
+        );
+    }
+
+    /// The two-register forms, including the four that are `rlwinm` wrappers
+    /// with their masks baked (`srwi31`, `clrlwi31`) and the `mr`/`fmr` moves.
+    #[test]
+    fn every_two_register_mop_agrees_with_its_encoder() {
+        use crate::codegen::encode as e;
+        agree_rr!(
+            mop_addze / encode_addze,
+            mop_subfze / encode_subfze,
+            mop_neg / encode_neg,
+            mop_extsb / encode_extsb,
+            mop_extsb_record / encode_extsb_record,
+            mop_extsh / encode_extsh,
+            mop_cntlzw / encode_cntlzw,
+            mop_srwi31 / encode_srwi31,
+            mop_clrlwi31 / encode_clrlwi31,
+            mop_mr / encode_mr,
+            mop_mr_record / encode_mr_record,
+            mop_fmr / encode_fmr,
+            mop_frsp / encode_frsp,
+            mop_bclr / encode_bclr,
+        );
+    }
+
+    /// The A-form floating-point family, over the `double` flag AND all three
+    /// registers.
+    ///
+    /// `fmul` is the one worth having in a sweep rather than a spot check: it
+    /// is form **23**, not form 22, because its multiplier lands in the **C**
+    /// field at bit 6 and not in B at bit 11. Reusing form 22 for it multiplies
+    /// by the wrong register and still assembles.
+    #[test]
+    fn every_fp_a_form_mop_agrees_with_its_encoder() {
+        use crate::codegen::encode as e;
+        agree_frrr!(
+            mop_fadd / encode_fadd,
+            mop_fsub / encode_fsub,
+            mop_fmul / encode_fmul,
+            mop_fdiv / encode_fdiv,
+        );
+        // The single-precision loads/stores take the same flag with a
+        // displacement instead of a third register.
+        for dbl in [false, true] {
+            for a in 0..32u8 {
+                for b in 0..32u8 {
+                    for d in [0i16, 1, -1, 4, -4, i16::MAX, i16::MIN] {
+                        assert_eq!(e::mop_lfs(dbl, a, b, d).word(), e::encode_lfs(dbl, a, b, d));
+                        assert_eq!(e::mop_stfs(dbl, a, b, d).word(), e::encode_stfs(dbl, a, b, d));
+                    }
                 }
             }
         }
-        // The rotates, over their own split fields rather than a register pair.
-        for sh in 0..32u8 {
-            for mb in 0..32u8 {
-                assert_eq!(e::mop_rldicl(3, 4, sh, mb).word(), e::encode_rldicl(3, 4, sh, mb));
-                for me in 0..32u8 {
+    }
+
+    /// **The rotates, over their own split immediate fields.**
+    ///
+    /// The 32-bit rotates take `SH`, `MB` and `ME` as three successive 5-bit
+    /// operands and are swept exhaustively over all three.
+    ///
+    /// **The 64-bit rotates are swept 0..64, not 0..32, and that is a widening
+    /// rather than a restatement.** `rldicl`/`rldimi` are form 68, whose `SH`
+    /// is **split** — `SH[4:0]` at bit 11 with `SH[5]` alone at bit 1 — and
+    /// whose `MB` is stored low-bit-first as `(MB & 0x1f) << 1 | (MB >> 5)`.
+    /// The incumbent sweep ran 0..32, so **every value it tried had bit 5
+    /// clear** and neither split's high bit was ever exercised. A sweep that
+    /// cannot reach the field it is checking is #3379's 46-word probe again,
+    /// one form over.
+    #[test]
+    fn every_rotate_mop_agrees_with_its_encoder() {
+        use crate::codegen::encode as e;
+        for &ra in &[0u8, 3, 31] {
+            for &rs in &[0u8, 4, 31] {
+                for sh in 0..32u8 {
+                    for mb in 0..32u8 {
+                        for me in 0..32u8 {
+                            assert_eq!(
+                                e::mop_rlwinm(ra, rs, sh, mb, me).word(),
+                                e::encode_rlwinm(ra, rs, sh, mb, me)
+                            );
+                            assert_eq!(
+                                e::mop_rlwinm_record(ra, rs, sh, mb, me).word(),
+                                e::encode_rlwinm_record(ra, rs, sh, mb, me)
+                            );
+                            assert_eq!(
+                                e::mop_rlwimi(ra, rs, sh, mb, me).word(),
+                                e::encode_rlwimi(ra, rs, sh, mb, me)
+                            );
+                        }
+                    }
+                }
+                // form 68's two 6-bit split fields, over their WHOLE range.
+                for sh in 0..64u8 {
+                    for mb in 0..64u8 {
+                        assert_eq!(
+                            e::mop_rldicl(ra, rs, sh, mb).word(),
+                            e::encode_rldicl(ra, rs, sh, mb),
+                            "mop_rldicl disagrees at sh={sh} mb={mb}"
+                        );
+                        assert_eq!(
+                            e::mop_rldimi(ra, rs, sh, mb).word(),
+                            e::encode_rldimi(ra, rs, sh, mb),
+                            "mop_rldimi disagrees at sh={sh} mb={mb}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// **The fallible branch encoders — the refusal is part of the agreement.**
+    ///
+    /// `bdnz`, `bc` and `b_intra` return `Option`, and S1c gives them an
+    /// `Option<MachineOp>` twin rather than an infallible one. The property is
+    /// therefore not "the words agree" but "**the `Option`s agree**": a twin
+    /// that encoded an out-of-range displacement instead of refusing it would
+    /// pass a word comparison over the in-range domain and be silently wrong
+    /// exactly where the range check exists to help.
+    ///
+    /// So the sweep spans **both sides of both limits** and every displacement
+    /// that is not a multiple of 4, and asserts `None == None` as hard as it
+    /// asserts the words.
+    #[test]
+    fn every_fallible_branch_mop_agrees_with_its_encoder_including_its_refusals() {
+        use crate::codegen::encode as e;
+        let disps: [i32; 20] = [
+            0, 4, -4, 8, -8, 1, -1, 2, -2, 3,
+            0x7ffc, -0x8000, 0x8000, -0x8004,
+            0x1ff_fffc, -0x200_0000, 0x200_0000, -0x200_0004,
+            i32::MAX, i32::MIN,
+        ];
+        let mut refused = 0usize;
+        for d in disps {
+            assert_eq!(
+                e::mop_bdnz(d).map(|m| m.word()), e::encode_bdnz(d),
+                "mop_bdnz disagrees at {d}"
+            );
+            assert_eq!(
+                e::mop_b_intra(d).map(|m| m.word()), e::encode_b_intra(d),
+                "mop_b_intra disagrees at {d}"
+            );
+            for bo in 0..32u8 {
+                for bi in 0..32u8 {
                     assert_eq!(
-                        e::mop_rlwinm(3, 4, sh, mb, me).word(),
-                        e::encode_rlwinm(3, 4, sh, mb, me)
+                        e::mop_bc(bo, bi, d).map(|m| m.word()), e::encode_bc(bo, bi, d),
+                        "mop_bc disagrees at ({bo},{bi},{d})"
                     );
                 }
             }
+            if e::mop_b_intra(d).is_none() {
+                refused += 1;
+            }
         }
+        // The sweep REACHED the refusing arm — without this the test could pass
+        // by never having asked a question either side could refuse, which is
+        // the "green over the population it ran on" failure one level down.
+        assert!(refused > 0, "no displacement in the sweep was refused");
+    }
+
+    /// The nullary and unary encoders. `mtctr` is here rather than with the
+    /// two-register forms because its second field is not a register at all: it
+    /// is SPR 9, written **low half first**, so an unsplit twin would name SPR
+    /// 288 and still assemble.
+    #[test]
+    fn every_nullary_and_unary_mop_agrees_with_its_encoder() {
+        use crate::codegen::encode as e;
         assert_eq!(e::mop_blr().word(), e::encode_blr());
+        assert_eq!(e::mop_bctrl().word(), e::encode_bctrl());
+        for a in 0..32u8 {
+            assert_eq!(e::mop_mtctr(a).word(), e::encode_mtctr(a), "mop_mtctr at {a}");
+        }
+    }
+
+    /// **The population control: every `encode_*` in the module has a `mop_*`
+    /// twin, and the count is asserted rather than described.**
+    ///
+    /// Without this, the sweeps above are green over whatever subset somebody
+    /// remembered to list — which is exactly how the incumbent stayed green
+    /// over 22 of 85. This cannot see a twin that exists and is unswept, so it
+    /// is a floor on the population and not a proof of coverage; it is checked
+    /// against the module source, which is the only place the truth is.
+    #[test]
+    fn the_encoder_and_mop_populations_are_the_same_size() {
+        let src = include_str!("encode.rs");
+        let mut encoders = 0usize;
+        let mut mops = 0usize;
+        for line in src.lines() {
+            let l = line.trim_start_matches("pub ").trim_start_matches("pub(crate) ");
+            if !l.starts_with("fn ") || !line.starts_with("pub") && !line.starts_with("fn ") {
+                continue;
+            }
+            let name = &l[3..];
+            if name.starts_with("encode_") {
+                encoders += 1;
+            } else if name.starts_with("mop_") {
+                mops += 1;
+            }
+        }
+        assert_eq!(
+            encoders, mops,
+            "encode.rs has {encoders} encoders and {mops} mop_* twins — S1c (i) \
+             requires one twin per encoder"
+        );
+        // The absolute number, so that a DROP of both is not silently green.
+        assert_eq!(encoders, 85, "the encoder population moved; update the sweeps too");
     }
 }

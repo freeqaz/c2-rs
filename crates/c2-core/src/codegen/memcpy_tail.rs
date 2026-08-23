@@ -50,7 +50,8 @@
 //! by side in `comdat.rs`: this class puts the name only in `Function::calls`
 //! and leaves `helper_externals` empty.
 
-use crate::codegen::encode::encode_addi;
+use crate::codegen::encode::mop_addi;
+use crate::codegen::mop::{ops_to_bytes, Ops};
 use crate::codegen::select::{fits_i16, out_of_class, OptMode};
 use crate::BackendError;
 use c2_il::MemcpyTail;
@@ -68,6 +69,19 @@ const LEN_REG: u8 = 5;
 /// The bytes **before** the tail branch. Empty is not a possible answer: the
 /// `li` is always emitted, so the caller's branch offset is 4 or 8.
 pub fn memcpy_tail_text(m: &MemcpyTail, mode: OptMode) -> Result<Vec<u8>, BackendError> {
+    Ok(ops_to_bytes(&memcpy_tail_ops(m, mode)?))
+}
+
+/// **S1c (i): the same body as an op stream**, before any word exists.
+///
+/// The split is `global_store_leaf`'s shape rather than `div_mod_leaf`'s: the
+/// `Ops` are *reachable by a caller*, not merely used internally and rendered
+/// on the way out. That is the difference between keeping [`C2Op`] alive and
+/// keeping it alive **where something can read it**, which is what the goal's
+/// two named consumers need (`GOAL_DECISION_2026-08-21.md` § AMENDED).
+///
+/// [`C2Op`]: crate::codegen::mop::C2Op
+pub fn memcpy_tail_ops(m: &MemcpyTail, mode: OptMode) -> Result<Ops, BackendError> {
     // **The mode gate is asked here as well as in the parser** (board #1638), so
     // that `select::function_gate` and both writers ask it in exactly one place.
     // Every cell behind the two words is `/O1 /Oi`; at `/Ox` the `/Oi` expansion
@@ -92,16 +106,16 @@ pub fn memcpy_tail_text(m: &MemcpyTail, mode: OptMode) -> Result<Vec<u8>, Backen
              a wider length needs has no cell here",
         ));
     }
-    let mut text = Vec::with_capacity(8);
+    let mut text: Ops = Vec::with_capacity(2);
     // **Zero emits nothing** — cells `off0` and `freefn`, both 8 bytes with no
     // `addi` at all. A port that emitted `addi r3,r3,0` would be one word long
     // and every relocation would still resolve.
     if m.dst_off != 0 {
-        text.extend_from_slice(&encode_addi(DST_REG, DST_REG, m.dst_off as i16));
+        text.push(mop_addi(DST_REG, DST_REG, m.dst_off as i16));
     }
     // `li rD,k` IS `addi rD,r0,k` — one encoder, not two. `38a00010` in the
     // reference obj reads `li 5,16` and `addi 5,0,16` interchangeably.
-    text.extend_from_slice(&encode_addi(LEN_REG, 0, m.len as i16));
+    text.push(mop_addi(LEN_REG, 0, m.len as i16));
     Ok(text)
 }
 

@@ -63,10 +63,11 @@
 //! eight-row table and the two separating controls.
 
 use super::encode::{
-    BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_BIT_GT, CR_COMPARE, cr_bi, encode_addi, encode_and,
-    encode_bclr, encode_bdnz, encode_blr, encode_cmplwi, encode_cmpwi, encode_mr, encode_mtctr,
-    encode_mullw, encode_or, encode_slw, encode_sraw, encode_subf, encode_xor,
+    BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_BIT_GT, CR_COMPARE, cr_bi, mop_addi, mop_and,
+    mop_bclr, mop_bdnz, mop_blr, mop_cmplwi, mop_cmpwi, mop_mr, mop_mtctr,
+    mop_mullw, mop_or, mop_slw, mop_sraw, mop_subf, mop_xor,
 };
+use super::mop::{ops_to_bytes, MachineOp, Ops};
 use crate::BackendError;
 use c2_il::{CountedAccumLoop, CountedAccumOp, IlFunction};
 
@@ -88,22 +89,29 @@ const R_OPERAND: u8 = 4;
 /// The one word the body performs. Injective by construction — see the
 /// `#[test]` at the bottom, which is the pin that two opcodes cannot collapse
 /// onto one encoding.
-fn body_word(op: CountedAccumOp) -> [u8; 4] {
+fn body_op(op: CountedAccumOp) -> MachineOp {
     match op {
         // `subf rD,rA,rB` computes `rB - rA`, so `s = s - k` is
         // `subf r3, r4, r3` — the operands are in the order that reads WRONG
         // and is right. c2's own word is `7c641850`.
-        CountedAccumOp::Sub => encode_subf(R_ACC, R_OPERAND, R_ACC),
-        CountedAccumOp::Mul => encode_mullw(R_ACC, R_ACC, R_OPERAND),
-        CountedAccumOp::And => encode_and(R_ACC, R_ACC, R_OPERAND),
-        CountedAccumOp::Or => encode_or(R_ACC, R_ACC, R_OPERAND),
-        CountedAccumOp::Xor => encode_xor(R_ACC, R_ACC, R_OPERAND),
-        CountedAccumOp::Shl => encode_slw(R_ACC, R_ACC, R_OPERAND),
+        CountedAccumOp::Sub => mop_subf(R_ACC, R_OPERAND, R_ACC),
+        CountedAccumOp::Mul => mop_mullw(R_ACC, R_ACC, R_OPERAND),
+        CountedAccumOp::And => mop_and(R_ACC, R_ACC, R_OPERAND),
+        CountedAccumOp::Or => mop_or(R_ACC, R_ACC, R_OPERAND),
+        CountedAccumOp::Xor => mop_xor(R_ACC, R_ACC, R_OPERAND),
+        CountedAccumOp::Shl => mop_slw(R_ACC, R_ACC, R_OPERAND),
         // **`sraw` and not `srw`** — the arithmetic shift, because the reader
         // requires a SIGNED accumulator. An unsigned one is `srw`, refuses at
         // the reader, and has no arm here on purpose.
-        CountedAccumOp::Sar => encode_sraw(R_ACC, R_ACC, R_OPERAND),
+        CountedAccumOp::Sar => mop_sraw(R_ACC, R_ACC, R_OPERAND),
     }
+}
+
+/// The rendered form of [`body_op`], kept because the injectivity pin below is
+/// a statement about **words**: two opcodes must not collapse onto one
+/// encoding, which is a property of the composition and not of the op value.
+fn body_word(op: CountedAccumOp) -> [u8; 4] {
+    body_op(op).word()
 }
 
 /// The eight words for `l`.
@@ -112,6 +120,11 @@ fn body_word(op: CountedAccumOp) -> [u8; 4] {
 /// which is `-4` by construction — but it is kept rather than `expect`ed so a
 /// future edit to the block layout produces a refusal and not a panic.
 pub(crate) fn counted_accum_loop_words(l: &CountedAccumLoop) -> Option<Vec<u8>> {
+    Some(ops_to_bytes(&counted_accum_loop_ops(l)?))
+}
+
+/// **S1c (i): the same eight words as an op stream**, reachable by a caller.
+pub(crate) fn counted_accum_loop_ops(l: &CountedAccumLoop) -> Option<Ops> {
     // **PASS 1 — the guard, and it is the loop's own signedness in cr6.**
     //
     // `wb-loop` §3: the pre-test compares the loop's START against its BOUND
@@ -125,34 +138,30 @@ pub(crate) fn counted_accum_loop_words(l: &CountedAccumLoop) -> Option<Vec<u8>> 
     // §3 refutes on three cells and which would predict one branch condition
     // where the objs show four.
     let (guard_cmp, guard_bo, guard_bit) = if l.counter_unsigned {
-        (encode_cmplwi(CR_COMPARE, R_BOUND, 0), BO_TRUE, CR_BIT_EQ)
+        (mop_cmplwi(CR_COMPARE, R_BOUND, 0), BO_TRUE, CR_BIT_EQ)
     } else {
-        (encode_cmpwi(CR_COMPARE, R_BOUND, 0), BO_FALSE, CR_BIT_GT)
+        (mop_cmpwi(CR_COMPARE, R_BOUND, 0), BO_FALSE, CR_BIT_GT)
     };
 
-    let words: [[u8; 4]; 8] = [
-        encode_mr(R_BOUND, R_ACC),
+    let words: [MachineOp; 8] = [
+        mop_mr(R_BOUND, R_ACC),
         // `li rD,SIMM` is `addi rD,0,SIMM`. The reader has already fenced
         // `acc_init` into `simm16`, so the cast cannot lose a bit.
-        encode_addi(R_ACC, 0, l.acc_init as i16),
+        mop_addi(R_ACC, 0, l.acc_init as i16),
         guard_cmp,
-        encode_bclr(guard_bo, cr_bi(CR_COMPARE, guard_bit)),
+        mop_bclr(guard_bo, cr_bi(CR_COMPARE, guard_bit)),
         // **PASS 2.** `mtctr` in the preheader and `bdnz` at the latch are the
         // two tuples `p2\ppc\lower.c`'s converter CREATES; the three it DELETES
         // (the increment, its assign, and the compare) are exactly the three
         // this emitter never writes. The loop's own counter has no register.
-        encode_mtctr(R_BOUND),
-        body_word(l.op),
-        encode_bdnz(-4)?,
-        encode_blr(),
+        mop_mtctr(R_BOUND),
+        body_op(l.op),
+        mop_bdnz(-4)?,
+        mop_blr(),
     ];
 
-    let mut out = Vec::with_capacity(32);
-    for w in words {
-        out.extend_from_slice(&w);
-    }
-    debug_assert_eq!(out.len(), 32);
-    Some(out)
+    debug_assert_eq!(words.len(), 8);
+    Some(words.to_vec())
 }
 
 /// The body for `func`, or `None` if it is not this class.
@@ -197,6 +206,7 @@ pub fn counted_accum_loop_emit(
 
 #[cfg(test)]
 mod tests {
+    use crate::codegen::encode::{encode_bdnz, encode_mtctr};
     use super::*;
 
     fn cell(op: CountedAccumOp, acc_init: i32, counter_unsigned: bool) -> CountedAccumLoop {
@@ -326,7 +336,7 @@ mod tests {
     /// `match` at `/Ox` into a refusal without any byte changing.
     #[test]
     fn the_selector_routes_the_shape_at_both_modes_and_to_the_same_bytes() {
-        use crate::codegen::select::{select_function, OptMode, Selected};
+        use crate::codegen::select::{select_function, OptMode};
         let mut f = super::super::testutil::func_with(vec![0xE3, 0xE4], Vec::new());
         f.body = c2_il::BodyShape::CountedAccumLoop(cell(CountedAccumOp::Mul, 1, false));
         let want = counted_accum_loop_words(f.counted_accum_loop().unwrap()).unwrap();
