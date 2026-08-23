@@ -247,10 +247,17 @@ fail on demand.
 
 Registered in prereg §6 before any result, and **none of it was discharged**:
 
-1. **`M − 7` sub-opcodes are gradeable by no probe this lane can build.** Board
+1. **Most of the domain is gradeable by no probe this lane can build.** Board
    #3096 measured that no body in 870 TUs reaches a `0x4F` sub-opcode other
-   than `01`/`12`; this lane's 386 fixtures reach ten. **Of 64 slots, 54 were
-   never exercised.** Their rows are `[R]` and stay `[R]`.
+   than `01`/`12`. This lane's 386 fixtures **establish seven** — exactly
+   `IL_STMT_GRAMMAR` §12.6's set `{01,02,11,12,1f,20,33}`, each occurring
+   hundreds to thousands of times. The scan reports three further candidates
+   (`0x0a` ×67, `0x0b` ×4, `0x10` ×2) which are **two to three orders of
+   magnitude rarer and are not distinguishable from payload bytes** (§3.1), so
+   they are not counted as witnessed. **At least 54 of the 64 slots were never
+   exercised**, and their rows are `[R]` and stay `[R]` — including **every
+   one of the 17 ICE rows**, which is the half of the deliverable no probe
+   built from valid IL can ever reach.
 2. **One front end, one version.** Both probes measure c2's reader against
    c1xx 16.00.11886.00's writer; they agree by construction wherever c1xx
    never goes. The 17 ICE sub-opcodes and the 17 unhandled format codes are
