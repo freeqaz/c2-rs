@@ -4671,4 +4671,12 @@ generations --sample 400 | gc --limit 50000` over the live legacy root, and from
 
 ### Reservation ledger, 2026-08-23 (fifth wave — Phase 0 tail + the read plan's close-out), LIVE — **`#3423` spent · `#3424`–`#3428` spent (`w-s1bc`, landed) · `#3433`–`#3436` spent (`w-read-r7`) · `#3437`–`#3441` spent (`w-read-r8`) · `#3442`–`#3444` spent (`w-read-r9`). `#3429`–`#3432` reserved `w-read-r6`, the one lane still in flight.** Live until R6 lands. Third and fourth waves' ledgers above are CLOSED.
 
-### **THE NEXT FREE NUMBER IS `#3445`.**
+## `w-cachereap2` — 2026-08-23, the reclaim's result
+
+| row | claim | state | evidence | links | consequence |
+|---|---|---|---|---|---|
+| **3445**<sub>w-cachereap2</sub> | **THE RETIREMENT RETURNED ≥332 GB — ~3.9× WHAT `[C1]`'s OWN RATE PREDICTS, SO "IT IS NOT A DISK PROBLEM" UNDERSTATED THE DISK SIDE AT THIS SCALE** | **MEASURED on completion.** `rm -rf` of the retired v1 root finished rc=0 in **4 h 54 m** (00:33:41 → 05:27:47); `/home` went 436 GB → **768 GB** free. That is **≥14.6 KB/entry** over 22,725,537 entries | it is a **lower bound, not an estimate**: the filesystem is shared and was busy at load 15–41 throughout, and the v2 root alone refilled 135,467 → 225,418 entries in the same window, so concurrent work consumed space this delta silently nets out | `docs/CAPTURE_CACHE_DESIGN.md` `[C1]`/`[C7]` · **#3422** · **#3409** | **`[C1]` IS RIGHT THAT `st_blocks` OVER-READS AND WRONG TO BE EXTRAPOLATED AS A RATE.** ~3.7 KB/entry predicts ~86 GB here; the `st_blocks` figure behind `#3409`'s warning (33,636 B/entry) predicts ~764 GB; the measurement lands between at ~0.43× of `st_blocks`, about what `zstd:3` on this data should give. `[C1]` now carries a do-not-extrapolate note in place. **This changes no decision** — inodes and the traversal footgun are why the work was done, the disk was never the justification, and it does not become one retroactively. It does mean the standing rule is narrower than it was written: **no per-entry v1-vs-v2 byte RATIO** (unpairable populations, `cache-root` is in the key), but the absolute reclaim total is a legitimate quantity and is now on the record |
+
+### `#3445` is `w-cachereap2`'s and it is spent above.
+
+### **THE NEXT FREE NUMBER IS `#3446`.**

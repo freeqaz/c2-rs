@@ -178,11 +178,29 @@ rename was **0.003 s**; the delete then ran detached under `nice -n 19
 ionice -c3`. Sequence worth copying: one instant rename ends the exposure, and
 the hours-long `rm -rf` is decoupled from it entirely.
 
-**Do not read a byte figure off this.** `/home` is `compress=zstd:3`, so
-`st_blocks` is not post-compression occupancy, and v1 and v2 are unpairable
-populations because `cache-root` is in the key. The inode ratio (9 → 3 per
-entry) is the claim; there is no defensible byte ratio and none should be
-quoted.
+**Do not read a v1-vs-v2 byte *ratio* off this.** `/home` is `compress=zstd:3`,
+so `st_blocks` is not post-compression occupancy, and the two roots are
+unpairable populations because `cache-root` is in the key. The inode ratio
+(9 → 3 per entry) is the claim; there is no defensible per-entry byte ratio and
+none should be quoted.
+
+**The reclaim total is a different quantity, and it IS measurable — as a lower
+bound.** The `rm -rf` finished in **4 h 54 m** (00:33:41 → 05:27:47, rc=0) and
+`/home` went from 436 GB to **768 GB** free: **≥332 GB returned**, i.e.
+≥14.6 KB per entry. It is a *lower* bound and not an estimate because the
+filesystem is shared and busy — the box ran at load 15–41 throughout and the v2
+root alone refilled from 135,467 to 225,418 entries in the same window, so
+concurrent work consumed space that this delta silently nets out.
+
+That figure **corrects [C1] for this population.** [C1]'s ~3.7 KB/entry
+predicts ~86 GB for 22.7 M entries; the `st_blocks` reading behind [C4]'s
+warning (33,636 B/entry) predicts ~764 GB. The truth lands between them, ~3.9×
+above [C1] and ~0.43× of `st_blocks` — the latter ratio being about what
+`zstd:3` on this data should give. So [C1] is right that `st_blocks` over-reads
+and wrong to be extrapolated as a rate: **"it is not a disk problem" understated
+the disk side by roughly 4× at this scale.** Inodes and the traversal footgun
+are still the reason the work was done; the disk was never the justification and
+does not become one retroactively.
 
 **The unplanned experiment.** The box lost power mid-flight on 2026-08-22
 (boot `-1` ends 14:34:59 UTC), with both roots live. At retirement the v1 tree
@@ -214,7 +232,9 @@ the cache, recorded here only because it is the same event.
 
 **[C1] — the whole bytes row is WRONG.** Deleting 98.7 % of these entries
 returned **~17 GiB**, not ~266 GB. See the correction note above. The entry,
-file and inode rows are unaffected.
+file and inode rows are unaffected. **Do not turn this into a per-entry rate:**
+read as ~3.7 KB/entry it under-predicts by ~3.9× at 22.7 M entries, where the
+retirement measured **≥332 GB returned** — see [C7].
 
 The volume holding all of it is 3.7 TB, 93 % full, with **262 GB free**. The
 capture caches are approximately equal to every remaining free byte on the
