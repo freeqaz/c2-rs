@@ -119,12 +119,34 @@ The partition is by **operand shape**, not by expansion behaviour: it separates
 the opcodes that carry a memory operand (2, 3), those that are a pure register
 copy (1), and those that are a width conversion (4).
 
-**A cross-check the peephole supplies for free.** `P_EXPAND.md` §5's arm table,
-read independently, groups its arms the same way: arms 3/4/5 are exactly the six
-class-4 opcodes, arm 6 and arms 14/15/16 are four of the class-1 opcodes, and
-arms 7/8/9 are store families. Two tables, one taxonomy.
+### 2.1 An independent cross-check: every peephole arm is class-pure
 
-### 2.1 The 38 consumers
+The class decode above could be a pattern this lane fitted. It is not, and the
+image contains its own control. `FUN_10c182b4` dispatches through a **different
+byte table** at `0x10c184a8` (`P_EXPAND.md` §5), read by a different lane from
+different bytes. Partition its 17 active arms by *this* table's class field
+(`dump_tailclass.py --table`):
+
+| arm | n | classes present | |
+|---:|---:|---|---|
+| 0 / 1 / 2 | 38 / 1 / 11 | `{0}` | three-operand ALU, `cmpi`, `cmpli`… |
+| **3 / 4 / 5** | 2 / 2 / 2 | **`{4}`** | `extsb` `extsh` `extsw` ± record — **all six class-4 opcodes, and only those** |
+| **6** | 1 | **`{1}`** | `fmr` |
+| **7 / 8 / 9** | 4 / 5 / 5 | **`{3}`** | `stb` / `sth` / `stw` families |
+| 10 / 11 / 12 / 13 | 108 / 26 / 4 / 2 | `{0}` | VMX, `rlandi` |
+| **14 / 15 / 16** | 1 / 1 / 1 | **`{1}`** | `mr` `mr.` `vmr` |
+| 17 | 445 | `{0:322, 1:30, 2:55, 3:38}` | the **do-nothing default** |
+
+> **Arms that are not class-pure, excluding the default: 0.** Every arm that
+> *does* something serves exactly one class. And the counts close: class 1 is
+> 4 named + 30 on the default + `vmr128` (outside the index bound) = **35**;
+> class 3 is 14 named + 38 = **52**; class 4 is 6 named + 0 = **6** — every
+> sign-extend has a dedicated arm. **All 55 class-2 opcodes are on the
+> do-nothing arm**: the peephole never rewrites a load.
+
+Two unrelated tables in the image, one taxonomy.
+
+### 2.2 The 38 consumers
 
 `dump_tailclass.py --consumers`. **28 bit probes, 10 class probes.** Two of the
 38 index a **compile-time-constant** opcode — `ds:0x10c3afe4` is `attr[0xc]`,

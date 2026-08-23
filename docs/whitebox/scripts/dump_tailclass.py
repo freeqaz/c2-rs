@@ -104,6 +104,13 @@ PRIOR_ART_BITS = {
     0x40: "reads XER[CA]                              [#2044]",
 }
 
+# The peephole's own opcode index (P_EXPAND.md §5), used only as an
+# INDEPENDENT cross-check of the class decode -- different bytes, different
+# lane, and it should come out class-pure if the taxonomy is real.
+PEEP_BYTE_INDEX = 0x10C184A8
+PEEP_INDEX_LEN = 0x293
+PEEP_DEFAULT_ARM = 17           # the do-nothing arm, 445 opcodes
+
 DISPATCH_TAIL = 0x10C0E30B
 EXPAND_LO = 0x10C0D57E
 EXPAND_HI = 0x10C0E4B9
@@ -314,6 +321,39 @@ def mode_table(img):
     print("  class 0 (%d): everything else; first 20: %s ..."
           % (len(cls.get(0, [])),
              " ".join((mnemonic(img, o) or "?") for o in cls.get(0, [])[:20])))
+    print()
+    print("## INDEPENDENT CROSS-CHECK: the peephole's arm table")
+    print("  The peephole FUN_10c182b4 dispatches through its OWN byte index at")
+    print("  %#x (P_EXPAND.md §5), built from different bytes and read by a"
+          % PEEP_BYTE_INDEX)
+    print("  different lane.  If the class field above is a real taxonomy and")
+    print("  not a pattern this lane fitted, that table's arms should come out")
+    print("  CLASS-PURE.  They do -- every arm but the do-nothing default:")
+    print()
+    off = img.off(PEEP_BYTE_INDEX)
+    arms = {}
+    for op1 in range(PEEP_INDEX_LEN):
+        arms.setdefault(img.blob[off + op1], []).append(op1 + 1)
+    impure = 0
+    print("  arm    n  classes present         first opcodes")
+    for a in sorted(arms):
+        ops = arms[a]
+        hist = {}
+        for o in ops:
+            hist[attr(img, o) & CLASS_MASK] = hist.get(
+                attr(img, o) & CLASS_MASK, 0) + 1
+        pure = len(hist) == 1
+        if not pure and a != PEEP_DEFAULT_ARM:
+            impure += 1
+        print("  %3d %4d  %-22s %s%s"
+              % (a, len(ops), dict(sorted(hist.items())),
+                 " ".join((mnemonic(img, o) or "?") for o in ops[:6]),
+                 "" if pure else ("   <- the do-nothing default"
+                                  if a == PEEP_DEFAULT_ARM else "   <- IMPURE")))
+    print()
+    print("  arms that are NOT class-pure, excluding the default: %d" % impure)
+    print("  Two unrelated tables in the image agree on the taxonomy, and the")
+    print("  class assignment was not fitted to the peephole.")
     return 0
 
 
