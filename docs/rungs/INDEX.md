@@ -291,3 +291,4 @@ the header block this table is read from.
 | 2026-08-23 | w-read-r8 | [w-read-r8](2026-08-23-w-read-r8.md) | 10 | +0 — no `crates/`, `fixtures/` or `probes/` file is touched. |
 | 2026-08-23 | w-read-r9 | [w-read-r9](2026-08-23-w-read-r9.md) | 8 | +0 — no `crates/` change of any kind: no emit rule, no refusal |
 | 2026-08-23 | w-s1bc | [w-s1bc](2026-08-23-w-s1bc.md) | 11 | +0 — a re-expression, not a widening; required-zero byte delta |
+| 2026-08-23 | w-tailread | [w-tailread](2026-08-23-w-tailread.md) | 7 | unchanged → unchanged (+0) |
