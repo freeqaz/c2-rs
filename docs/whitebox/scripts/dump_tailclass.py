@@ -357,7 +357,22 @@ def mode_table(img):
     return 0
 
 
-CONSUMER_RE = re.compile(r"0x10c3(af(d[89a-f]|[b-f][0-9a-f])|b[01][0-9a-f]{2}|b2[0-6][0-9a-f])")
+# Any operand naming an address INSIDE the table, not just its base: MSVC
+# folds a constant opcode index into a fixed address (`ds:0x10c3afe4` is
+# attr[0xc], "does addic have a record sibling").  A base-only match misses
+# those.  This is an exact range test rather than a hand-written hex regex --
+# the regex this replaced admitted 0x10c3afb0..0x10c3afd7, which are BELOW the
+# table.  Nothing in this image matched there, so the count was right by luck;
+# a range check is right by construction.
+_HEX = re.compile(r"0x([0-9a-f]{6,8})")
+
+
+def _names_table(op_text):
+    for m in _HEX.finditer(op_text):
+        v = int(m.group(1), 16)
+        if ATTR_TABLE <= v < ATTR_TABLE + ATTR_TABLE_LEN:
+            return v
+    return None
 
 
 def mode_consumers(img, path):
@@ -368,7 +383,7 @@ def mode_consumers(img, path):
     rows = []
     for i, line in enumerate(lines):
         m = LINE.match(line)
-        if not m or not CONSUMER_RE.search(m.group(4)):
+        if not m or _names_table(m.group(4)) is None:
             continue
         va, mn, ops = int(m.group(1), 16), m.group(3), m.group(4).strip()
         ctx = []
