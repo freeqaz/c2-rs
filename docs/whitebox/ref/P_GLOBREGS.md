@@ -17,7 +17,7 @@ Raw listings for every function named here, both objdump and Ghidra, are
 committed under [`../labels/globregs/`](../labels/globregs/) and regenerate
 with `docs/whitebox/scripts/dump_globregs.py` (digest-fenced).
 
-**Coverage: 19 code entries + 9 data entries.** The denominator R4 registered
+**Coverage: 16 code entries + 10 data entries** (counted from the tables in §2/§2.1, not estimated). The denominator R4 registered
 was *the target plus its 18 callees = 19*; the read went **outside** that
 denominator on purpose — twelve of the eighteen callees are the shared bitset
 library and carry no policy, while the three functions that actually decide
@@ -43,7 +43,9 @@ this lane's own prereg as MISSES.
 > visit**. [`P_REGALLOC.md`](P_REGALLOC.md) §4 consequence 3's *"on an exact
 > tie the order is a hash-bucket walk over a counter"* describes the **third**
 > tier, not the second. The bucket walk is only reached when two candidates
-> tie on `+0x0c` **and** on `+0x44`. `[R]`, direction `[O]` — §7.
+> tie on `+0x0c` **and** on `+0x44`. **`[R]`** on the writer, the value and
+> the default; **`[R]` only** on what the ordinal means in program terms —
+> §7.1 states the limit and the cell that failed to settle it.
 >
 > **2. `FUN_10b55732` is not where candidate ids are assigned.** It is the
 > **renamer**: it computes a dense per-function *version* numbering and returns
