@@ -290,6 +290,17 @@ def selftest(img):
     n = img.blob.count(TABLE_VA.to_bytes(4, "little"))
     chk("0x10b26268 appears exactly once image-wide", n == 1, "count=%d" % n)
 
+    # (8) P_SUB4F.md section 6.1's load-bearing claim: of the 13 handled
+    #     field-type codes, exactly one is selected by NO descriptor, and it
+    #     is 0x16 -- the arm holding the label-seed install R3 cited.
+    used = set()
+    for _i, _d0, _d1, codes in table(img):
+        used.update(codes or b"")
+    orphan = HANDLED_CODES - used
+    chk("0x16 is the unique handled-but-unselected field code",
+        orphan == {0x16},
+        "orphans=%s" % sorted("%02x" % c for c in orphan))
+
     print("  => %s" % ("SELFTEST PASS" if ok else "SELFTEST FAIL"))
     return ok
 
