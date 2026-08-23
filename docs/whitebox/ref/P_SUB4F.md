@@ -137,13 +137,18 @@ they were.
 
 ### 3.1 The scalar readers, all driven off the IL cursor `0x10c46310`
 
+All five live in **`ioin.c`**, not in `p2pragma.c` — `0x10c1fca9`'s own ICE
+argument is `0x10b261b8` = `L"…\be\common\ioin.c"`. So the record grammar
+(`p2pragma.c`) and the byte-level varint decoding (`ioin.c`) are separate
+TUs, which is why the widths are expressible as five reusable primitives.
+
 | name | VA | width | rule | mark |
 |---|---|---|---|:--:|
 | **BYTE** | `0x10c1f8fc` | **1** | one raw byte, no escape | `[R]` |
 | **VARU** | `0x10c1f91b` | **2 or 4** | reads a `u16`; if **bit 15** is set, reads two more and combines | `[O]` |
 | **VI16** | `0x10c1f9a6` | **1 or 3** | one byte sign-extended; **`== 0x80`** escapes to two more | `[O]` |
 | **VI32** | `0x10c1f9e9` | **1 or 5** | one byte sign-extended; **`== 0x80`** escapes to four more | `[O]` |
-| **STR** | `0x10c1fca9` | **VI16 + n** | VI16 count `n`, then `n` raw bytes; `n > cap` → ICE `vlines.c:300` | `[R]` |
+| **STR** | `0x10c1fca9` | **VI16 + n** | VI16 count `n`, then `n` raw bytes; `n > cap` → ICE **`ioin.c:300`** (`0x10b261b8`) | `[R]` |
 
 VARU's "2 or 4 with a continuation flag in bit 15" reproduces
 `DISCLOSURE.md`'s **`W-GLATTRS-1`** row exactly, from a different call site and
