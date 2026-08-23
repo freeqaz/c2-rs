@@ -1,0 +1,194 @@
+# 10bd3225  FUN_10bd3225  size=394
+# role: symbol-table construction / one symbol allocation
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# regenerate: docs/whitebox/scripts/dump_globregs.py
+
+## disassembly (objdump, GNU binutils)
+
+10bd3225:	53                   	push   ebx
+10bd3226:	56                   	push   esi
+10bd3227:	6a 4c                	push   0x4c
+10bd3229:	5a                   	pop    edx
+10bd322a:	33 c9                	xor    ecx,ecx
+10bd322c:	e8 f9 cf 04 00       	call   0x10c2022a
+10bd3231:	be a0 0f 00 00       	mov    esi,0xfa0
+10bd3236:	8b d6                	mov    edx,esi
+10bd3238:	33 c9                	xor    ecx,ecx
+10bd323a:	a3 44 f8 c6 10       	mov    ds:0x10c6f844,eax
+10bd323f:	e8 e6 cf 04 00       	call   0x10c2022a
+10bd3244:	8b 0d 44 f8 c6 10    	mov    ecx,DWORD PTR ds:0x10c6f844
+10bd324a:	89 41 04             	mov    DWORD PTR [ecx+0x4],eax
+10bd324d:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd3252:	8b 48 04             	mov    ecx,DWORD PTR [eax+0x4]
+10bd3255:	89 48 08             	mov    DWORD PTR [eax+0x8],ecx
+10bd3258:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd325d:	8b 48 04             	mov    ecx,DWORD PTR [eax+0x4]
+10bd3260:	03 ce                	add    ecx,esi
+10bd3262:	89 48 0c             	mov    DWORD PTR [eax+0xc],ecx
+10bd3265:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd326a:	33 db                	xor    ebx,ebx
+10bd326c:	89 18                	mov    DWORD PTR [eax],ebx
+10bd326e:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd3273:	89 58 10             	mov    DWORD PTR [eax+0x10],ebx
+10bd3276:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd327b:	89 58 14             	mov    DWORD PTR [eax+0x14],ebx
+10bd327e:	e8 c0 f0 ff ff       	call   0x10bd2343
+10bd3283:	8b 0d 44 f8 c6 10    	mov    ecx,DWORD PTR ds:0x10c6f844
+10bd3289:	89 41 18             	mov    DWORD PTR [ecx+0x18],eax
+10bd328c:	e8 b2 f0 ff ff       	call   0x10bd2343
+10bd3291:	8b 0d 44 f8 c6 10    	mov    ecx,DWORD PTR ds:0x10c6f844
+10bd3297:	89 41 1c             	mov    DWORD PTR [ecx+0x1c],eax
+10bd329a:	e8 a4 f0 ff ff       	call   0x10bd2343
+10bd329f:	8b 0d 44 f8 c6 10    	mov    ecx,DWORD PTR ds:0x10c6f844
+10bd32a5:	89 41 24             	mov    DWORD PTR [ecx+0x24],eax
+10bd32a8:	e8 96 f0 ff ff       	call   0x10bd2343
+10bd32ad:	8b 0d 44 f8 c6 10    	mov    ecx,DWORD PTR ds:0x10c6f844
+10bd32b3:	89 41 28             	mov    DWORD PTR [ecx+0x28],eax
+10bd32b6:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd32bb:	89 58 20             	mov    DWORD PTR [eax+0x20],ebx
+10bd32be:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd32c3:	89 58 2c             	mov    DWORD PTR [eax+0x2c],ebx
+10bd32c6:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd32cb:	89 58 30             	mov    DWORD PTR [eax+0x30],ebx
+10bd32ce:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd32d3:	33 c9                	xor    ecx,ecx
+10bd32d5:	89 58 34             	mov    DWORD PTR [eax+0x34],ebx
+10bd32d8:	e8 f0 3b f5 ff       	call   0x10b26ecd
+10bd32dd:	8b 0d 44 f8 c6 10    	mov    ecx,DWORD PTR ds:0x10c6f844
+10bd32e3:	89 41 44             	mov    DWORD PTR [ecx+0x44],eax
+10bd32e6:	33 c9                	xor    ecx,ecx
+10bd32e8:	e8 e0 3b f5 ff       	call   0x10b26ecd
+10bd32ed:	8b 0d 44 f8 c6 10    	mov    ecx,DWORD PTR ds:0x10c6f844
+10bd32f3:	89 41 48             	mov    DWORD PTR [ecx+0x48],eax
+10bd32f6:	33 c9                	xor    ecx,ecx
+10bd32f8:	e8 d0 3b f5 ff       	call   0x10b26ecd
+10bd32fd:	8b 0d 44 f8 c6 10    	mov    ecx,DWORD PTR ds:0x10c6f844
+10bd3303:	89 41 40             	mov    DWORD PTR [ecx+0x40],eax
+10bd3306:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd330b:	8b 70 30             	mov    esi,DWORD PTR [eax+0x30]
+10bd330e:	3b f3                	cmp    esi,ebx
+10bd3310:	74 31                	je     0x10bd3343
+10bd3312:	8b 4e 28             	mov    ecx,DWORD PTR [esi+0x28]
+10bd3315:	57                   	push   edi
+10bd3316:	6a 60                	push   0x60
+10bd3318:	53                   	push   ebx
+10bd3319:	89 48 30             	mov    DWORD PTR [eax+0x30],ecx
+10bd331c:	8b 7e 1c             	mov    edi,DWORD PTR [esi+0x1c]
+10bd331f:	56                   	push   esi
+10bd3320:	e8 3d 55 05 00       	call   0x10c28862
+10bd3325:	89 7e 1c             	mov    DWORD PTR [esi+0x1c],edi
+10bd3328:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd332d:	8b 40 04             	mov    eax,DWORD PTR [eax+0x4]
+10bd3330:	c1 ef 05             	shr    edi,0x5
+10bd3333:	8b 3c b8             	mov    edi,DWORD PTR [eax+edi*4]
+10bd3336:	83 c4 0c             	add    esp,0xc
+10bd3339:	83 47 10 01          	add    DWORD PTR [edi+0x10],0x1
+10bd333d:	11 5f 14             	adc    DWORD PTR [edi+0x14],ebx
+10bd3340:	5f                   	pop    edi
+10bd3341:	eb 39                	jmp    0x10bd337c
+10bd3343:	8b 48 18             	mov    ecx,DWORD PTR [eax+0x18]
+10bd3346:	8b 51 04             	mov    edx,DWORD PTR [ecx+0x4]
+10bd3349:	3b 51 08             	cmp    edx,DWORD PTR [ecx+0x8]
+10bd334c:	72 13                	jb     0x10bd3361
+10bd334e:	e8 f0 ef ff ff       	call   0x10bd2343
+10bd3353:	8b 0d 44 f8 c6 10    	mov    ecx,DWORD PTR ds:0x10c6f844
+10bd3359:	89 41 18             	mov    DWORD PTR [ecx+0x18],eax
+10bd335c:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd3361:	8b 40 18             	mov    eax,DWORD PTR [eax+0x18]
+10bd3364:	8b 70 04             	mov    esi,DWORD PTR [eax+0x4]
+10bd3367:	8d 4e 60             	lea    ecx,[esi+0x60]
+10bd336a:	89 48 04             	mov    DWORD PTR [eax+0x4],ecx
+10bd336d:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd3372:	8b 40 18             	mov    eax,DWORD PTR [eax+0x18]
+10bd3375:	83 40 10 01          	add    DWORD PTR [eax+0x10],0x1
+10bd3379:	11 58 14             	adc    DWORD PTR [eax+0x14],ebx
+10bd337c:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd3381:	8b 56 1c             	mov    edx,DWORD PTR [esi+0x1c]
+10bd3384:	8b 48 40             	mov    ecx,DWORD PTR [eax+0x40]
+10bd3387:	e8 4e 3b f5 ff       	call   0x10b26eda
+10bd338c:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd3391:	89 70 3c             	mov    DWORD PTR [eax+0x3c],esi
+10bd3394:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd3399:	8b 40 3c             	mov    eax,DWORD PTR [eax+0x3c]
+10bd339c:	c6 40 04 10          	mov    BYTE PTR [eax+0x4],0x10
+10bd33a0:	a1 44 f8 c6 10       	mov    eax,ds:0x10c6f844
+10bd33a5:	8b 48 40             	mov    ecx,DWORD PTR [eax+0x40]
+10bd33a8:	5e                   	pop    esi
+10bd33a9:	5b                   	pop    ebx
+10bd33aa:	e9 67 3c f5 ff       	jmp    0x10b27016
+
+## decompilation (Ghidra)
+
+// ===== FUNC 10bd3225 FUN_10bd3225 size=394 =====
+
+void FUN_10bd3225(void)
+
+{
+  uint *puVar1;
+  int *piVar2;
+  uint uVar3;
+  int iVar4;
+  undefined4 *puVar5;
+  undefined4 uVar6;
+  void *_Dst;
+  
+  DAT_10c6f844 = FUN_10c2022a(0,0x4c);
+  puVar5 = FUN_10c2022a(0,4000);
+  DAT_10c6f844[1] = puVar5;
+  DAT_10c6f844[2] = DAT_10c6f844[1];
+  DAT_10c6f844[3] = DAT_10c6f844[1] + 4000;
+  *DAT_10c6f844 = 0;
+  DAT_10c6f844[4] = 0;
+  DAT_10c6f844[5] = 0;
+  puVar5 = FUN_10bd2343();
+  DAT_10c6f844[6] = puVar5;
+  puVar5 = FUN_10bd2343();
+  DAT_10c6f844[7] = puVar5;
+  puVar5 = FUN_10bd2343();
+  DAT_10c6f844[9] = puVar5;
+  puVar5 = FUN_10bd2343();
+  DAT_10c6f844[10] = puVar5;
+  DAT_10c6f844[8] = 0;
+  DAT_10c6f844[0xb] = 0;
+  DAT_10c6f844[0xc] = 0;
+  DAT_10c6f844[0xd] = 0;
+  uVar6 = FUN_10b26ecd(0);
+  DAT_10c6f844[0x11] = uVar6;
+  uVar6 = FUN_10b26ecd(0);
+  DAT_10c6f844[0x12] = uVar6;
+  uVar6 = FUN_10b26ecd(0);
+  DAT_10c6f844[0x10] = uVar6;
+  _Dst = (void *)DAT_10c6f844[0xc];
+  if (_Dst == (void *)0x0) {
+    if (*(uint *)(DAT_10c6f844[6] + 8) <= *(uint *)(DAT_10c6f844[6] + 4)) {
+      puVar5 = FUN_10bd2343();
+      DAT_10c6f844[6] = puVar5;
+    }
+    _Dst = *(void **)(DAT_10c6f844[6] + 4);
+    *(int *)(DAT_10c6f844[6] + 4) = (int)_Dst + 0x60;
+    iVar4 = DAT_10c6f844[6];
+    puVar1 = (uint *)(iVar4 + 0x10);
+    uVar3 = *puVar1;
+    *puVar1 = *puVar1 + 1;
+    piVar2 = (int *)(iVar4 + 0x14);
+    *piVar2 = *piVar2 + (uint)(0xfffffffe < uVar3);
+  }
+  else {
+    DAT_10c6f844[0xc] = *(undefined4 *)((int)_Dst + 0x28);
+    uVar3 = *(uint *)((int)_Dst + 0x1c);
+    memset(_Dst,0,0x60);
+    *(uint *)((int)_Dst + 0x1c) = uVar3;
+    iVar4 = *(int *)(DAT_10c6f844[1] + (uVar3 >> 5) * 4);
+    puVar1 = (uint *)(iVar4 + 0x10);
+    uVar3 = *puVar1;
+    *puVar1 = *puVar1 + 1;
+    piVar2 = (int *)(iVar4 + 0x14);
+    *piVar2 = *piVar2 + (uint)(0xfffffffe < uVar3);
+  }
+  FUN_10b26eda((uint *)DAT_10c6f844[0x10],*(uint *)((int)_Dst + 0x1c));
+  DAT_10c6f844[0xf] = _Dst;
+  *(undefined1 *)(DAT_10c6f844[0xf] + 4) = 0x10;
+  thunk_FUN_10b26e6b((int *)DAT_10c6f844[0x10]);
+  return;
+}
+

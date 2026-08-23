@@ -1,0 +1,189 @@
+# 10c2022a  FUN_10c2022a  size=280
+# role: the arena allocator -- memsets a fresh chunk
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# regenerate: docs/whitebox/scripts/dump_globregs.py
+
+## disassembly (objdump, GNU binutils)
+
+10c2022a:	6b c9 14             	imul   ecx,ecx,0x14
+10c2022d:	56                   	push   esi
+10c2022e:	81 c1 08 ff c6 10    	add    ecx,0x10c6ff08
+10c20234:	57                   	push   edi
+10c20235:	8b f1                	mov    esi,ecx
+10c20237:	8b 4e 10             	mov    ecx,DWORD PTR [esi+0x10]
+10c2023a:	8d 7a 03             	lea    edi,[edx+0x3]
+10c2023d:	83 e7 fc             	and    edi,0xfffffffc
+10c20240:	3b f9                	cmp    edi,ecx
+10c20242:	77 13                	ja     0x10c20257
+10c20244:	8b 46 0c             	mov    eax,DWORD PTR [esi+0xc]
+10c20247:	8d 14 38             	lea    edx,[eax+edi*1]
+10c2024a:	2b cf                	sub    ecx,edi
+10c2024c:	89 56 0c             	mov    DWORD PTR [esi+0xc],edx
+10c2024f:	89 4e 10             	mov    DWORD PTR [esi+0x10],ecx
+10c20252:	e9 e8 00 00 00       	jmp    0x10c2033f
+10c20257:	8b 4e 08             	mov    ecx,DWORD PTR [esi+0x8]
+10c2025a:	3b f9                	cmp    edi,ecx
+10c2025c:	77 13                	ja     0x10c20271
+10c2025e:	8b 46 04             	mov    eax,DWORD PTR [esi+0x4]
+10c20261:	8d 14 38             	lea    edx,[eax+edi*1]
+10c20264:	2b cf                	sub    ecx,edi
+10c20266:	89 56 04             	mov    DWORD PTR [esi+0x4],edx
+10c20269:	89 4e 08             	mov    DWORD PTR [esi+0x8],ecx
+10c2026c:	e9 ce 00 00 00       	jmp    0x10c2033f
+10c20271:	53                   	push   ebx
+10c20272:	bb f8 0f 00 00       	mov    ebx,0xff8
+10c20277:	3b fb                	cmp    edi,ebx
+10c20279:	0f 87 85 00 00 00    	ja     0x10c20304
+10c2027f:	a1 60 01 c7 10       	mov    eax,ds:0x10c70160
+10c20284:	85 c0                	test   eax,eax
+10c20286:	74 0a                	je     0x10c20292
+10c20288:	8b 08                	mov    ecx,DWORD PTR [eax]
+10c2028a:	89 0d 60 01 c7 10    	mov    DWORD PTR ds:0x10c70160,ecx
+10c20290:	eb 0d                	jmp    0x10c2029f
+10c20292:	b9 00 10 00 00       	mov    ecx,0x1000
+10c20297:	e8 57 fe ff ff       	call   0x10c200f3
+10c2029c:	89 58 04             	mov    DWORD PTR [eax+0x4],ebx
+10c2029f:	8b 0e                	mov    ecx,DWORD PTR [esi]
+10c202a1:	2b df                	sub    ebx,edi
+10c202a3:	3b 5e 08             	cmp    ebx,DWORD PTR [esi+0x8]
+10c202a6:	8d 58 08             	lea    ebx,[eax+0x8]
+10c202a9:	72 32                	jb     0x10c202dd
+10c202ab:	89 08                	mov    DWORD PTR [eax],ecx
+10c202ad:	8b 4e 08             	mov    ecx,DWORD PTR [esi+0x8]
+10c202b0:	89 4e 10             	mov    DWORD PTR [esi+0x10],ecx
+10c202b3:	8b 4e 04             	mov    ecx,DWORD PTR [esi+0x4]
+10c202b6:	89 06                	mov    DWORD PTR [esi],eax
+10c202b8:	89 4e 0c             	mov    DWORD PTR [esi+0xc],ecx
+10c202bb:	89 5e 04             	mov    DWORD PTR [esi+0x4],ebx
+10c202be:	8b 48 04             	mov    ecx,DWORD PTR [eax+0x4]
+10c202c1:	2b cf                	sub    ecx,edi
+10c202c3:	89 4e 08             	mov    DWORD PTR [esi+0x8],ecx
+10c202c6:	8b 40 04             	mov    eax,DWORD PTR [eax+0x4]
+10c202c9:	83 e0 fc             	and    eax,0xfffffffc
+10c202cc:	50                   	push   eax
+10c202cd:	6a 00                	push   0x0
+10c202cf:	53                   	push   ebx
+10c202d0:	e8 8d 85 00 00       	call   0x10c28862
+10c202d5:	83 c4 0c             	add    esp,0xc
+10c202d8:	01 7e 04             	add    DWORD PTR [esi+0x4],edi
+10c202db:	eb 5f                	jmp    0x10c2033c
+10c202dd:	8b 09                	mov    ecx,DWORD PTR [ecx]
+10c202df:	89 08                	mov    DWORD PTR [eax],ecx
+10c202e1:	8b 0e                	mov    ecx,DWORD PTR [esi]
+10c202e3:	89 01                	mov    DWORD PTR [ecx],eax
+10c202e5:	8b 48 04             	mov    ecx,DWORD PTR [eax+0x4]
+10c202e8:	2b cf                	sub    ecx,edi
+10c202ea:	89 4e 10             	mov    DWORD PTR [esi+0x10],ecx
+10c202ed:	8b 40 04             	mov    eax,DWORD PTR [eax+0x4]
+10c202f0:	83 e0 fc             	and    eax,0xfffffffc
+10c202f3:	50                   	push   eax
+10c202f4:	6a 00                	push   0x0
+10c202f6:	53                   	push   ebx
+10c202f7:	e8 66 85 00 00       	call   0x10c28862
+10c202fc:	8d 04 3b             	lea    eax,[ebx+edi*1]
+10c202ff:	89 46 0c             	mov    DWORD PTR [esi+0xc],eax
+10c20302:	eb 35                	jmp    0x10c20339
+10c20304:	8d 4f 08             	lea    ecx,[edi+0x8]
+10c20307:	e8 e7 fd ff ff       	call   0x10c200f3
+10c2030c:	8b 0e                	mov    ecx,DWORD PTR [esi]
+10c2030e:	33 d2                	xor    edx,edx
+10c20310:	3b ca                	cmp    ecx,edx
+10c20312:	75 09                	jne    0x10c2031d
+10c20314:	89 06                	mov    DWORD PTR [esi],eax
+10c20316:	89 10                	mov    DWORD PTR [eax],edx
+10c20318:	89 56 08             	mov    DWORD PTR [esi+0x8],edx
+10c2031b:	eb 0b                	jmp    0x10c20328
+10c2031d:	8b 09                	mov    ecx,DWORD PTR [ecx]
+10c2031f:	89 08                	mov    DWORD PTR [eax],ecx
+10c20321:	8b 0e                	mov    ecx,DWORD PTR [esi]
+10c20323:	89 01                	mov    DWORD PTR [ecx],eax
+10c20325:	89 56 10             	mov    DWORD PTR [esi+0x10],edx
+10c20328:	89 78 04             	mov    DWORD PTR [eax+0x4],edi
+10c2032b:	83 e7 fc             	and    edi,0xfffffffc
+10c2032e:	57                   	push   edi
+10c2032f:	8d 58 08             	lea    ebx,[eax+0x8]
+10c20332:	52                   	push   edx
+10c20333:	53                   	push   ebx
+10c20334:	e8 29 85 00 00       	call   0x10c28862
+10c20339:	83 c4 0c             	add    esp,0xc
+10c2033c:	8b c3                	mov    eax,ebx
+10c2033e:	5b                   	pop    ebx
+10c2033f:	5f                   	pop    edi
+10c20340:	5e                   	pop    esi
+10c20341:	c3                   	ret
+
+## decompilation (Ghidra)
+
+// ===== FUNC 10c2022a FUN_10c2022a size=280 =====
+
+undefined4 * __fastcall FUN_10c2022a(int param_1,int param_2)
+
+{
+  undefined4 *puVar1;
+  undefined4 *puVar2;
+  int *piVar3;
+  uint _Size;
+  
+  piVar3 = &DAT_10c6ff08 + param_1 * 5;
+  _Size = param_2 + 3U & 0xfffffffc;
+  if ((uint)(&DAT_10c6ff18)[param_1 * 5] < _Size) {
+    if ((uint)(&DAT_10c6ff10)[param_1 * 5] < _Size) {
+      if (_Size < 0xff9) {
+        if (DAT_10c70160 == (undefined4 *)0x0) {
+          puVar1 = (undefined4 *)FUN_10c200f3(0x1000);
+          puVar1[1] = 0xff8;
+        }
+        else {
+          puVar1 = DAT_10c70160;
+          DAT_10c70160 = (undefined4 *)*DAT_10c70160;
+        }
+        puVar2 = puVar1 + 2;
+        if (0xff8 - _Size < (uint)(&DAT_10c6ff10)[param_1 * 5]) {
+          *puVar1 = *(undefined4 *)*piVar3;
+          *(undefined4 **)*piVar3 = puVar1;
+          (&DAT_10c6ff18)[param_1 * 5] = puVar1[1] - _Size;
+          memset(puVar2,0,puVar1[1] & 0xfffffffc);
+          (&DAT_10c6ff14)[param_1 * 5] = (int)puVar2 + _Size;
+        }
+        else {
+          *puVar1 = (undefined4 *)*piVar3;
+          (&DAT_10c6ff18)[param_1 * 5] = (&DAT_10c6ff10)[param_1 * 5];
+          *piVar3 = (int)puVar1;
+          (&DAT_10c6ff14)[param_1 * 5] = (&DAT_10c6ff0c)[param_1 * 5];
+          (&DAT_10c6ff0c)[param_1 * 5] = puVar2;
+          (&DAT_10c6ff10)[param_1 * 5] = puVar1[1] - _Size;
+          memset(puVar2,0,puVar1[1] & 0xfffffffc);
+          (&DAT_10c6ff0c)[param_1 * 5] = (&DAT_10c6ff0c)[param_1 * 5] + _Size;
+        }
+      }
+      else {
+        puVar2 = (undefined4 *)FUN_10c200f3(_Size + 8);
+        if ((undefined4 *)*piVar3 == (undefined4 *)0x0) {
+          *piVar3 = (int)puVar2;
+          *puVar2 = 0;
+          (&DAT_10c6ff10)[param_1 * 5] = 0;
+        }
+        else {
+          *puVar2 = *(undefined4 *)*piVar3;
+          *(undefined4 **)*piVar3 = puVar2;
+          (&DAT_10c6ff18)[param_1 * 5] = 0;
+        }
+        puVar2[1] = _Size;
+        puVar2 = puVar2 + 2;
+        memset(puVar2,0,_Size);
+      }
+    }
+    else {
+      puVar2 = (undefined4 *)(&DAT_10c6ff0c)[param_1 * 5];
+      (&DAT_10c6ff0c)[param_1 * 5] = (int)puVar2 + _Size;
+      (&DAT_10c6ff10)[param_1 * 5] = (&DAT_10c6ff10)[param_1 * 5] - _Size;
+    }
+  }
+  else {
+    puVar2 = (undefined4 *)(&DAT_10c6ff14)[param_1 * 5];
+    (&DAT_10c6ff14)[param_1 * 5] = (int)puVar2 + _Size;
+    (&DAT_10c6ff18)[param_1 * 5] = (&DAT_10c6ff18)[param_1 * 5] - _Size;
+  }
+  return puVar2;
+}
+

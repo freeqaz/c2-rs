@@ -1,0 +1,592 @@
+# 10b568af  FUN_10b568af  size=1129
+# role: fills DAT_10c400d0 (index -> symbol) and the per-block sets
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# regenerate: docs/whitebox/scripts/dump_globregs.py
+
+## disassembly (objdump, GNU binutils)
+
+10b568af:	55                   	push   ebp
+10b568b0:	8b ec                	mov    ebp,esp
+10b568b2:	83 ec 1c             	sub    esp,0x1c
+10b568b5:	8b 41 08             	mov    eax,DWORD PTR [ecx+0x8]
+10b568b8:	56                   	push   esi
+10b568b9:	8b 30                	mov    esi,DWORD PTR [eax]
+10b568bb:	89 55 e4             	mov    DWORD PTR [ebp-0x1c],edx
+10b568be:	89 75 e8             	mov    DWORD PTR [ebp-0x18],esi
+10b568c1:	85 f6                	test   esi,esi
+10b568c3:	0f 84 4c 04 00 00    	je     0x10b56d15
+10b568c9:	53                   	push   ebx
+10b568ca:	57                   	push   edi
+10b568cb:	6a 08                	push   0x8
+10b568cd:	59                   	pop    ecx
+10b568ce:	e8 fa 05 fd ff       	call   0x10b26ecd
+10b568d3:	6a 08                	push   0x8
+10b568d5:	59                   	pop    ecx
+10b568d6:	89 45 f0             	mov    DWORD PTR [ebp-0x10],eax
+10b568d9:	e8 ef 05 fd ff       	call   0x10b26ecd
+10b568de:	6a 08                	push   0x8
+10b568e0:	59                   	pop    ecx
+10b568e1:	89 45 f8             	mov    DWORD PTR [ebp-0x8],eax
+10b568e4:	e8 e4 05 fd ff       	call   0x10b26ecd
+10b568e9:	89 45 fc             	mov    DWORD PTR [ebp-0x4],eax
+10b568ec:	8b 46 20             	mov    eax,DWORD PTR [esi+0x20]
+10b568ef:	e9 f1 03 00 00       	jmp    0x10b56ce5
+10b568f4:	f6 47 09 01          	test   BYTE PTR [edi+0x9],0x1
+10b568f8:	0f 84 e1 03 00 00    	je     0x10b56cdf
+10b568fe:	8b cf                	mov    ecx,edi
+10b56900:	e8 8c e6 ff ff       	call   0x10b54f91
+10b56905:	85 c0                	test   eax,eax
+10b56907:	74 14                	je     0x10b5691d
+10b56909:	8b 55 e4             	mov    edx,DWORD PTR [ebp-0x1c]
+10b5690c:	8b 4d fc             	mov    ecx,DWORD PTR [ebp-0x4]
+10b5690f:	42                   	inc    edx
+10b56910:	e8 06 07 fd ff       	call   0x10b2701b
+10b56915:	8b 4d f8             	mov    ecx,DWORD PTR [ebp-0x8]
+10b56918:	e8 f9 06 fd ff       	call   0x10b27016
+10b5691d:	8b 5f 2c             	mov    ebx,DWORD PTR [edi+0x2c]
+10b56920:	e9 20 02 00 00       	jmp    0x10b56b45
+10b56925:	0f b6 43 08          	movzx  eax,BYTE PTR [ebx+0x8]
+10b56929:	48                   	dec    eax
+10b5692a:	0f 84 93 01 00 00    	je     0x10b56ac3
+10b56930:	48                   	dec    eax
+10b56931:	0f 84 97 00 00 00    	je     0x10b569ce
+10b56937:	83 e8 04             	sub    eax,0x4
+10b5693a:	74 21                	je     0x10b5695d
+10b5693c:	83 e8 06             	sub    eax,0x6
+10b5693f:	0f 85 fe 01 00 00    	jne    0x10b56b43
+10b56945:	8b 4d f4             	mov    ecx,DWORD PTR [ebp-0xc]
+10b56948:	8b 73 18             	mov    esi,DWORD PTR [ebx+0x18]
+10b5694b:	8b d3                	mov    edx,ebx
+10b5694d:	e8 18 c1 00 00       	call   0x10b62a6a
+10b56952:	83 f8 ff             	cmp    eax,0xffffffff
+10b56955:	0f 84 e8 01 00 00    	je     0x10b56b43
+10b5695b:	eb 03                	jmp    0x10b56960
+10b5695d:	8b 73 1c             	mov    esi,DWORD PTR [ebx+0x1c]
+10b56960:	8b ce                	mov    ecx,esi
+10b56962:	e8 61 bf 00 00       	call   0x10b628c8
+10b56967:	8b f0                	mov    esi,eax
+10b56969:	eb 56                	jmp    0x10b569c1
+10b5696b:	8b 7e 04             	mov    edi,DWORD PTR [esi+0x4]
+10b5696e:	80 7f 04 0c          	cmp    BYTE PTR [edi+0x4],0xc
+10b56972:	75 13                	jne    0x10b56987
+10b56974:	8b c6                	mov    eax,esi
+10b56976:	8b 77 34             	mov    esi,DWORD PTR [edi+0x34]
+10b56979:	89 45 ec             	mov    DWORD PTR [ebp-0x14],eax
+10b5697c:	85 f6                	test   esi,esi
+10b5697e:	75 04                	jne    0x10b56984
+10b56980:	8b 30                	mov    esi,DWORD PTR [eax]
+10b56982:	eb 41                	jmp    0x10b569c5
+10b56984:	8b 7e 04             	mov    edi,DWORD PTR [esi+0x4]
+10b56987:	8b 47 34             	mov    eax,DWORD PTR [edi+0x34]
+10b5698a:	85 c0                	test   eax,eax
+10b5698c:	74 1f                	je     0x10b569ad
+10b5698e:	8b 40 04             	mov    eax,DWORD PTR [eax+0x4]
+10b56991:	85 c0                	test   eax,eax
+10b56993:	74 18                	je     0x10b569ad
+10b56995:	8b 4d fc             	mov    ecx,DWORD PTR [ebp-0x4]
+10b56998:	8b d0                	mov    edx,eax
+10b5699a:	e8 d5 0a fd ff       	call   0x10b27474
+10b5699f:	8b 47 34             	mov    eax,DWORD PTR [edi+0x34]
+10b569a2:	8b 50 04             	mov    edx,DWORD PTR [eax+0x4]
+10b569a5:	8b 4d f8             	mov    ecx,DWORD PTR [ebp-0x8]
+10b569a8:	e8 f8 07 fd ff       	call   0x10b271a5
+10b569ad:	8b 36                	mov    esi,DWORD PTR [esi]
+10b569af:	85 f6                	test   esi,esi
+10b569b1:	75 b8                	jne    0x10b5696b
+10b569b3:	39 75 ec             	cmp    DWORD PTR [ebp-0x14],esi
+10b569b6:	0f 84 87 01 00 00    	je     0x10b56b43
+10b569bc:	8b 45 ec             	mov    eax,DWORD PTR [ebp-0x14]
+10b569bf:	8b 30                	mov    esi,DWORD PTR [eax]
+10b569c1:	83 65 ec 00          	and    DWORD PTR [ebp-0x14],0x0
+10b569c5:	85 f6                	test   esi,esi
+10b569c7:	75 a2                	jne    0x10b5696b
+10b569c9:	e9 75 01 00 00       	jmp    0x10b56b43
+10b569ce:	f6 43 14 40          	test   BYTE PTR [ebx+0x14],0x40
+10b569d2:	8b 73 18             	mov    esi,DWORD PTR [ebx+0x18]
+10b569d5:	74 07                	je     0x10b569de
+10b569d7:	8b 46 08             	mov    eax,DWORD PTR [esi+0x8]
+10b569da:	80 48 05 40          	or     BYTE PTR [eax+0x5],0x40
+10b569de:	8b 46 34             	mov    eax,DWORD PTR [esi+0x34]
+10b569e1:	85 c0                	test   eax,eax
+10b569e3:	0f 84 c9 00 00 00    	je     0x10b56ab2
+10b569e9:	8b 00                	mov    eax,DWORD PTR [eax]
+10b569eb:	85 c0                	test   eax,eax
+10b569ed:	0f 84 bf 00 00 00    	je     0x10b56ab2
+10b569f3:	f6 43 14 40          	test   BYTE PTR [ebx+0x14],0x40
+10b569f7:	0f 85 9e 00 00 00    	jne    0x10b56a9b
+10b569fd:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+10b56a00:	8b 48 04             	mov    ecx,DWORD PTR [eax+0x4]
+10b56a03:	81 f9 f8 02 00 00    	cmp    ecx,0x2f8
+10b56a09:	75 06                	jne    0x10b56a11
+10b56a0b:	f6 40 34 01          	test   BYTE PTR [eax+0x34],0x1
+10b56a0f:	75 25                	jne    0x10b56a36
+10b56a11:	81 f9 5d 01 00 00    	cmp    ecx,0x15d
+10b56a17:	74 1d                	je     0x10b56a36
+10b56a19:	81 f9 81 02 00 00    	cmp    ecx,0x281
+10b56a1f:	75 05                	jne    0x10b56a26
+10b56a21:	3b 58 28             	cmp    ebx,DWORD PTR [eax+0x28]
+10b56a24:	74 10                	je     0x10b56a36
+10b56a26:	ba f0 e3 c2 10       	mov    edx,0x10c2e3f0
+10b56a2b:	8b cb                	mov    ecx,ebx
+10b56a2d:	e8 66 d1 07 00       	call   0x10bd3b98
+10b56a32:	80 63 14 f0          	and    BYTE PTR [ebx+0x14],0xf0
+10b56a36:	8b 46 34             	mov    eax,DWORD PTR [esi+0x34]
+10b56a39:	8b 38                	mov    edi,DWORD PTR [eax]
+10b56a3b:	a1 d0 00 c4 10       	mov    eax,ds:0x10c400d0
+10b56a40:	8b 4d fc             	mov    ecx,DWORD PTR [ebp-0x4]
+10b56a43:	8b d7                	mov    edx,edi
+10b56a45:	89 34 b8             	mov    DWORD PTR [eax+edi*4],esi
+10b56a48:	e8 ea 04 fd ff       	call   0x10b26f37
+10b56a4d:	84 c0                	test   al,al
+10b56a4f:	75 25                	jne    0x10b56a76
+10b56a51:	8b cb                	mov    ecx,ebx
+10b56a53:	e8 fb 65 fe ff       	call   0x10b3d053
+10b56a58:	84 c0                	test   al,al
+10b56a5a:	75 10                	jne    0x10b56a6c
+10b56a5c:	80 7b 08 01          	cmp    BYTE PTR [ebx+0x8],0x1
+10b56a60:	75 0a                	jne    0x10b56a6c
+10b56a62:	8b 4d f0             	mov    ecx,DWORD PTR [ebp-0x10]
+10b56a65:	8b d7                	mov    edx,edi
+10b56a67:	e8 6e 04 fd ff       	call   0x10b26eda
+10b56a6c:	8b 4d fc             	mov    ecx,DWORD PTR [ebp-0x4]
+10b56a6f:	8b d7                	mov    edx,edi
+10b56a71:	e8 64 04 fd ff       	call   0x10b26eda
+10b56a76:	8b 4d f8             	mov    ecx,DWORD PTR [ebp-0x8]
+10b56a79:	8b d7                	mov    edx,edi
+10b56a7b:	e8 7b 04 fd ff       	call   0x10b26efb
+10b56a80:	8b 46 34             	mov    eax,DWORD PTR [esi+0x34]
+10b56a83:	83 78 18 00          	cmp    DWORD PTR [eax+0x18],0x0
+10b56a87:	74 29                	je     0x10b56ab2
+10b56a89:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
+10b56a8c:	8b 55 fc             	mov    edx,DWORD PTR [ebp-0x4]
+10b56a8f:	ff 75 f0             	push   DWORD PTR [ebp-0x10]
+10b56a92:	8b ce                	mov    ecx,esi
+10b56a94:	e8 61 e4 ff ff       	call   0x10b54efa
+10b56a99:	eb 17                	jmp    0x10b56ab2
+10b56a9b:	8b 4d fc             	mov    ecx,DWORD PTR [ebp-0x4]
+10b56a9e:	8b d0                	mov    edx,eax
+10b56aa0:	e8 35 04 fd ff       	call   0x10b26eda
+10b56aa5:	8b 46 34             	mov    eax,DWORD PTR [esi+0x34]
+10b56aa8:	8b 10                	mov    edx,DWORD PTR [eax]
+10b56aaa:	8b 4d f8             	mov    ecx,DWORD PTR [ebp-0x8]
+10b56aad:	e8 49 04 fd ff       	call   0x10b26efb
+10b56ab2:	8b 46 08             	mov    eax,DWORD PTR [esi+0x8]
+10b56ab5:	83 78 0c 00          	cmp    DWORD PTR [eax+0xc],0x0
+10b56ab9:	0f 84 84 00 00 00    	je     0x10b56b43
+10b56abf:	8b f8                	mov    edi,eax
+10b56ac1:	eb 7c                	jmp    0x10b56b3f
+10b56ac3:	80 63 14 f0          	and    BYTE PTR [ebx+0x14],0xf0
+10b56ac7:	81 7b 1c f0 e3 c2 10 	cmp    DWORD PTR [ebx+0x1c],0x10c2e3f0
+10b56ace:	75 73                	jne    0x10b56b43
+10b56ad0:	8b 73 18             	mov    esi,DWORD PTR [ebx+0x18]
+10b56ad3:	8b 46 34             	mov    eax,DWORD PTR [esi+0x34]
+10b56ad6:	8b 38                	mov    edi,DWORD PTR [eax]
+10b56ad8:	a1 d0 00 c4 10       	mov    eax,ds:0x10c400d0
+10b56add:	8b 4d fc             	mov    ecx,DWORD PTR [ebp-0x4]
+10b56ae0:	8b d7                	mov    edx,edi
+10b56ae2:	89 34 b8             	mov    DWORD PTR [eax+edi*4],esi
+10b56ae5:	e8 4d 04 fd ff       	call   0x10b26f37
+10b56aea:	84 c0                	test   al,al
+10b56aec:	75 88                	jne    0x10b56a76
+10b56aee:	8b cb                	mov    ecx,ebx
+10b56af0:	e8 5e 65 fe ff       	call   0x10b3d053
+10b56af5:	84 c0                	test   al,al
+10b56af7:	e9 64 ff ff ff       	jmp    0x10b56a60
+10b56afc:	3b f7                	cmp    esi,edi
+10b56afe:	74 3c                	je     0x10b56b3c
+10b56b00:	8b 47 24             	mov    eax,DWORD PTR [edi+0x24]
+10b56b03:	8b 57 20             	mov    edx,DWORD PTR [edi+0x20]
+10b56b06:	8b 4e 24             	mov    ecx,DWORD PTR [esi+0x24]
+10b56b09:	03 d0                	add    edx,eax
+10b56b0b:	3b ca                	cmp    ecx,edx
+10b56b0d:	7d 2d                	jge    0x10b56b3c
+10b56b0f:	8b 56 20             	mov    edx,DWORD PTR [esi+0x20]
+10b56b12:	03 d1                	add    edx,ecx
+10b56b14:	3b c2                	cmp    eax,edx
+10b56b16:	7d 24                	jge    0x10b56b3c
+10b56b18:	8b 47 34             	mov    eax,DWORD PTR [edi+0x34]
+10b56b1b:	85 c0                	test   eax,eax
+10b56b1d:	74 1d                	je     0x10b56b3c
+10b56b1f:	8b 00                	mov    eax,DWORD PTR [eax]
+10b56b21:	85 c0                	test   eax,eax
+10b56b23:	74 17                	je     0x10b56b3c
+10b56b25:	8b 4d fc             	mov    ecx,DWORD PTR [ebp-0x4]
+10b56b28:	8b d0                	mov    edx,eax
+10b56b2a:	e8 ab 03 fd ff       	call   0x10b26eda
+10b56b2f:	8b 47 34             	mov    eax,DWORD PTR [edi+0x34]
+10b56b32:	8b 10                	mov    edx,DWORD PTR [eax]
+10b56b34:	8b 4d f8             	mov    ecx,DWORD PTR [ebp-0x8]
+10b56b37:	e8 bf 03 fd ff       	call   0x10b26efb
+10b56b3c:	8b 7f 0c             	mov    edi,DWORD PTR [edi+0xc]
+10b56b3f:	85 ff                	test   edi,edi
+10b56b41:	75 b9                	jne    0x10b56afc
+10b56b43:	8b 1b                	mov    ebx,DWORD PTR [ebx]
+10b56b45:	85 db                	test   ebx,ebx
+10b56b47:	0f 85 d8 fd ff ff    	jne    0x10b56925
+10b56b4d:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+10b56b50:	81 78 04 b7 02 00 00 	cmp    DWORD PTR [eax+0x4],0x2b7
+10b56b57:	0f 84 82 01 00 00    	je     0x10b56cdf
+10b56b5d:	8b 70 28             	mov    esi,DWORD PTR [eax+0x28]
+10b56b60:	e9 6a 01 00 00       	jmp    0x10b56ccf
+10b56b65:	8a 46 08             	mov    al,BYTE PTR [esi+0x8]
+10b56b68:	3c 01                	cmp    al,0x1
+10b56b6a:	0f 85 98 00 00 00    	jne    0x10b56c08
+10b56b70:	80 66 14 f0          	and    BYTE PTR [esi+0x14],0xf0
+10b56b74:	81 7e 1c f0 e3 c2 10 	cmp    DWORD PTR [esi+0x1c],0x10c2e3f0
+10b56b7b:	0f 85 4c 01 00 00    	jne    0x10b56ccd
+10b56b81:	8b 7e 18             	mov    edi,DWORD PTR [esi+0x18]
+10b56b84:	8b 47 34             	mov    eax,DWORD PTR [edi+0x34]
+10b56b87:	8b 18                	mov    ebx,DWORD PTR [eax]
+10b56b89:	a1 d0 00 c4 10       	mov    eax,ds:0x10c400d0
+10b56b8e:	89 3c 98             	mov    DWORD PTR [eax+ebx*4],edi
+10b56b91:	80 7f 04 0d          	cmp    BYTE PTR [edi+0x4],0xd
+10b56b95:	75 2d                	jne    0x10b56bc4
+10b56b97:	f6 47 05 10          	test   BYTE PTR [edi+0x5],0x10
+10b56b9b:	75 27                	jne    0x10b56bc4
+10b56b9d:	8b 45 e8             	mov    eax,DWORD PTR [ebp-0x18]
+10b56ba0:	83 b8 a8 00 00 00 00 	cmp    DWORD PTR [eax+0xa8],0x0
+10b56ba7:	74 09                	je     0x10b56bb2
+10b56ba9:	83 3d 10 e3 c2 10 00 	cmp    DWORD PTR ds:0x10c2e310,0x0
+10b56bb0:	75 12                	jne    0x10b56bc4
+10b56bb2:	8b 4d f4             	mov    ecx,DWORD PTR [ebp-0xc]
+10b56bb5:	57                   	push   edi
+10b56bb6:	8b d6                	mov    edx,esi
+10b56bb8:	e8 3e df ff ff       	call   0x10b54afb
+10b56bbd:	8b f0                	mov    esi,eax
+10b56bbf:	e9 09 01 00 00       	jmp    0x10b56ccd
+10b56bc4:	8b 4d fc             	mov    ecx,DWORD PTR [ebp-0x4]
+10b56bc7:	8b d3                	mov    edx,ebx
+10b56bc9:	e8 69 03 fd ff       	call   0x10b26f37
+10b56bce:	84 c0                	test   al,al
+10b56bd0:	75 0a                	jne    0x10b56bdc
+10b56bd2:	8b 4d f0             	mov    ecx,DWORD PTR [ebp-0x10]
+10b56bd5:	8b d3                	mov    edx,ebx
+10b56bd7:	e8 fe 02 fd ff       	call   0x10b26eda
+10b56bdc:	8b 4d f8             	mov    ecx,DWORD PTR [ebp-0x8]
+10b56bdf:	8b d3                	mov    edx,ebx
+10b56be1:	e8 f4 02 fd ff       	call   0x10b26eda
+10b56be6:	8b 47 34             	mov    eax,DWORD PTR [edi+0x34]
+10b56be9:	83 78 18 00          	cmp    DWORD PTR [eax+0x18],0x0
+10b56bed:	0f 84 da 00 00 00    	je     0x10b56ccd
+10b56bf3:	ff 75 f8             	push   DWORD PTR [ebp-0x8]
+10b56bf6:	8b 55 fc             	mov    edx,DWORD PTR [ebp-0x4]
+10b56bf9:	ff 75 f0             	push   DWORD PTR [ebp-0x10]
+10b56bfc:	8b cf                	mov    ecx,edi
+10b56bfe:	e8 f7 e2 ff ff       	call   0x10b54efa
+10b56c03:	e9 c5 00 00 00       	jmp    0x10b56ccd
+10b56c08:	3c 02                	cmp    al,0x2
+10b56c0a:	75 6b                	jne    0x10b56c77
+10b56c0c:	f6 46 14 40          	test   BYTE PTR [esi+0x14],0x40
+10b56c10:	8b 7e 18             	mov    edi,DWORD PTR [esi+0x18]
+10b56c13:	74 0c                	je     0x10b56c21
+10b56c15:	8b 7f 08             	mov    edi,DWORD PTR [edi+0x8]
+10b56c18:	80 4f 05 40          	or     BYTE PTR [edi+0x5],0x40
+10b56c1c:	e9 ac 00 00 00       	jmp    0x10b56ccd
+10b56c21:	8b 47 34             	mov    eax,DWORD PTR [edi+0x34]
+10b56c24:	85 c0                	test   eax,eax
+10b56c26:	0f 84 a1 00 00 00    	je     0x10b56ccd
+10b56c2c:	83 38 00             	cmp    DWORD PTR [eax],0x0
+10b56c2f:	0f 84 98 00 00 00    	je     0x10b56ccd
+10b56c35:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+10b56c38:	8b 40 04             	mov    eax,DWORD PTR [eax+0x4]
+10b56c3b:	3d 5d 01 00 00       	cmp    eax,0x15d
+10b56c40:	0f 84 87 00 00 00    	je     0x10b56ccd
+10b56c46:	3d 81 02 00 00       	cmp    eax,0x281
+10b56c4b:	75 08                	jne    0x10b56c55
+10b56c4d:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+10b56c50:	3b 70 28             	cmp    esi,DWORD PTR [eax+0x28]
+10b56c53:	74 78                	je     0x10b56ccd
+10b56c55:	ba f0 e3 c2 10       	mov    edx,0x10c2e3f0
+10b56c5a:	8b ce                	mov    ecx,esi
+10b56c5c:	e8 37 cf 07 00       	call   0x10bd3b98
+10b56c61:	80 66 14 f0          	and    BYTE PTR [esi+0x14],0xf0
+10b56c65:	8b 47 34             	mov    eax,DWORD PTR [edi+0x34]
+10b56c68:	8b 18                	mov    ebx,DWORD PTR [eax]
+10b56c6a:	a1 d0 00 c4 10       	mov    eax,ds:0x10c400d0
+10b56c6f:	89 3c 98             	mov    DWORD PTR [eax+ebx*4],edi
+10b56c72:	e9 4d ff ff ff       	jmp    0x10b56bc4
+10b56c77:	8b 4d f4             	mov    ecx,DWORD PTR [ebp-0xc]
+10b56c7a:	8b d6                	mov    edx,esi
+10b56c7c:	e8 c9 55 0a 00       	call   0x10bfc24a
+10b56c81:	8b f8                	mov    edi,eax
+10b56c83:	85 ff                	test   edi,edi
+10b56c85:	74 46                	je     0x10b56ccd
+10b56c87:	8b 4d f4             	mov    ecx,DWORD PTR [ebp-0xc]
+10b56c8a:	57                   	push   edi
+10b56c8b:	8b d6                	mov    edx,esi
+10b56c8d:	e8 a6 56 0a 00       	call   0x10bfc338
+10b56c92:	8b 4d fc             	mov    ecx,DWORD PTR [ebp-0x4]
+10b56c95:	8b f0                	mov    esi,eax
+10b56c97:	8b 47 34             	mov    eax,DWORD PTR [edi+0x34]
+10b56c9a:	8b 10                	mov    edx,DWORD PTR [eax]
+10b56c9c:	e8 96 02 fd ff       	call   0x10b26f37
+10b56ca1:	84 c0                	test   al,al
+10b56ca3:	75 0d                	jne    0x10b56cb2
+10b56ca5:	8b 47 34             	mov    eax,DWORD PTR [edi+0x34]
+10b56ca8:	8b 10                	mov    edx,DWORD PTR [eax]
+10b56caa:	8b 4d f0             	mov    ecx,DWORD PTR [ebp-0x10]
+10b56cad:	e8 28 02 fd ff       	call   0x10b26eda
+10b56cb2:	8b 47 34             	mov    eax,DWORD PTR [edi+0x34]
+10b56cb5:	8b 10                	mov    edx,DWORD PTR [eax]
+10b56cb7:	8b 4d f8             	mov    ecx,DWORD PTR [ebp-0x8]
+10b56cba:	e8 1b 02 fd ff       	call   0x10b26eda
+10b56cbf:	8b 47 34             	mov    eax,DWORD PTR [edi+0x34]
+10b56cc2:	8b 00                	mov    eax,DWORD PTR [eax]
+10b56cc4:	8b 0d d0 00 c4 10    	mov    ecx,DWORD PTR ds:0x10c400d0
+10b56cca:	89 3c 81             	mov    DWORD PTR [ecx+eax*4],edi
+10b56ccd:	8b 36                	mov    esi,DWORD PTR [esi]
+10b56ccf:	85 f6                	test   esi,esi
+10b56cd1:	0f 85 8e fe ff ff    	jne    0x10b56b65
+10b56cd7:	8b 4d f4             	mov    ecx,DWORD PTR [ebp-0xc]
+10b56cda:	e8 c8 4c 0a 00       	call   0x10bfb9a7
+10b56cdf:	8b 45 f4             	mov    eax,DWORD PTR [ebp-0xc]
+10b56ce2:	8b 75 e8             	mov    esi,DWORD PTR [ebp-0x18]
+10b56ce5:	8b 78 10             	mov    edi,DWORD PTR [eax+0x10]
+10b56ce8:	89 7d f4             	mov    DWORD PTR [ebp-0xc],edi
+10b56ceb:	3b 7e 1c             	cmp    edi,DWORD PTR [esi+0x1c]
+10b56cee:	0f 85 00 fc ff ff    	jne    0x10b568f4
+10b56cf4:	8b 45 f0             	mov    eax,DWORD PTR [ebp-0x10]
+10b56cf7:	89 46 2c             	mov    DWORD PTR [esi+0x2c],eax
+10b56cfa:	8b 45 f8             	mov    eax,DWORD PTR [ebp-0x8]
+10b56cfd:	89 46 30             	mov    DWORD PTR [esi+0x30],eax
+10b56d00:	8b 45 fc             	mov    eax,DWORD PTR [ebp-0x4]
+10b56d03:	89 46 34             	mov    DWORD PTR [esi+0x34],eax
+10b56d06:	8b 36                	mov    esi,DWORD PTR [esi]
+10b56d08:	89 75 e8             	mov    DWORD PTR [ebp-0x18],esi
+10b56d0b:	85 f6                	test   esi,esi
+10b56d0d:	0f 85 b8 fb ff ff    	jne    0x10b568cb
+10b56d13:	5f                   	pop    edi
+10b56d14:	5b                   	pop    ebx
+10b56d15:	5e                   	pop    esi
+10b56d16:	c9                   	leave
+10b56d17:	c3                   	ret
+
+## decompilation (Ghidra)
+
+// ===== FUNC 10b568af FUN_10b568af size=1129 =====
+
+void __fastcall FUN_10b568af(int param_1,int param_2)
+
+{
+  byte *pbVar1;
+  undefined4 *puVar2;
+  char cVar3;
+  uint *puVar4;
+  uint *puVar5;
+  uint *puVar6;
+  int iVar7;
+  undefined4 *puVar8;
+  int *piVar9;
+  undefined4 uVar10;
+  undefined4 *puVar11;
+  undefined4 *puVar12;
+  uint uVar13;
+  undefined4 *puVar14;
+  int iVar15;
+  bool bVar16;
+  undefined4 *local_18;
+  
+  puVar2 = (undefined4 *)**(undefined4 **)(param_1 + 8);
+  do {
+    if (puVar2 == (undefined4 *)0x0) {
+      return;
+    }
+    puVar4 = (uint *)FUN_10b26ecd(8);
+    puVar5 = (uint *)FUN_10b26ecd(8);
+    puVar6 = (uint *)FUN_10b26ecd(8);
+    puVar11 = (undefined4 *)puVar2[8];
+    while (puVar11 = (undefined4 *)puVar11[4], puVar11 != (undefined4 *)puVar2[7]) {
+      if ((*(byte *)((int)puVar11 + 9) & 1) != 0) {
+        iVar7 = FUN_10b54f91((int)puVar11);
+        if (iVar7 != 0) {
+          FUN_10b2701b((int *)puVar6,param_2 + 1);
+          thunk_FUN_10b26e6b((int *)puVar5);
+        }
+        for (puVar12 = (undefined4 *)puVar11[0xb]; puVar12 != (undefined4 *)0x0;
+            puVar12 = (undefined4 *)*puVar12) {
+          cVar3 = *(char *)(puVar12 + 2);
+          if (cVar3 == '\x01') {
+            *(byte *)(puVar12 + 5) = *(byte *)(puVar12 + 5) & 0xf0;
+            if ((undefined *)puVar12[7] == &DAT_10c2e3f0) {
+              iVar7 = puVar12[6];
+              uVar13 = **(uint **)(iVar7 + 0x34);
+              *(int *)(DAT_10c400d0 + uVar13 * 4) = iVar7;
+              uVar10 = FUN_10b26f37(puVar6,uVar13);
+              if ((char)uVar10 == '\0') {
+                cVar3 = FUN_10b3d053();
+                bVar16 = cVar3 == '\0';
+LAB_10b56a60:
+                if (bVar16) {
+                  FUN_10b26eda(puVar4,uVar13);
+                }
+LAB_10b56a6c:
+                FUN_10b26eda(puVar6,uVar13);
+              }
+LAB_10b56a76:
+              FUN_10b26efb((int *)puVar5,uVar13);
+              if (*(int *)(*(int *)(iVar7 + 0x34) + 0x18) != 0) {
+                FUN_10b54efa(iVar7,puVar6,puVar4,puVar5);
+              }
+              goto LAB_10b56ab2;
+            }
+          }
+          else if (cVar3 == '\x02') {
+            iVar7 = puVar12[6];
+            if ((*(byte *)(puVar12 + 5) & 0x40) != 0) {
+              pbVar1 = (byte *)(*(int *)(iVar7 + 8) + 5);
+              *pbVar1 = *pbVar1 | 0x40;
+            }
+            if ((*(uint **)(iVar7 + 0x34) != (uint *)0x0) &&
+               (uVar13 = **(uint **)(iVar7 + 0x34), uVar13 != 0)) {
+              if ((*(byte *)(puVar12 + 5) & 0x40) == 0) {
+                iVar15 = puVar11[1];
+                if ((((iVar15 != 0x2f8) || ((*(byte *)(puVar11 + 0xd) & 1) == 0)) &&
+                    (iVar15 != 0x15d)) &&
+                   ((iVar15 != 0x281 || (puVar12 != (undefined4 *)puVar11[10])))) {
+                  FUN_10bd3b98((int)puVar12,&DAT_10c2e3f0);
+                  *(byte *)(puVar12 + 5) = *(byte *)(puVar12 + 5) & 0xf0;
+                }
+                uVar13 = **(uint **)(iVar7 + 0x34);
+                *(int *)(DAT_10c400d0 + uVar13 * 4) = iVar7;
+                uVar10 = FUN_10b26f37(puVar6,uVar13);
+                if ((char)uVar10 == '\0') {
+                  cVar3 = FUN_10b3d053();
+                  if (cVar3 == '\0') {
+                    bVar16 = *(char *)(puVar12 + 2) == '\x01';
+                    goto LAB_10b56a60;
+                  }
+                  goto LAB_10b56a6c;
+                }
+                goto LAB_10b56a76;
+              }
+              FUN_10b26eda(puVar6,uVar13);
+              FUN_10b26efb((int *)puVar5,**(uint **)(iVar7 + 0x34));
+            }
+LAB_10b56ab2:
+            iVar15 = *(int *)(iVar7 + 8);
+            if (*(int *)(iVar15 + 0xc) != 0) {
+              for (; iVar15 != 0; iVar15 = *(int *)(iVar15 + 0xc)) {
+                if (iVar7 != iVar15) {
+                  if (((*(int *)(iVar7 + 0x24) < *(int *)(iVar15 + 0x20) + *(int *)(iVar15 + 0x24))
+                      && (*(int *)(iVar15 + 0x24) < *(int *)(iVar7 + 0x20) + *(int *)(iVar7 + 0x24))
+                      ) && ((*(uint **)(iVar15 + 0x34) != (uint *)0x0 &&
+                            (uVar13 = **(uint **)(iVar15 + 0x34), uVar13 != 0)))) {
+                    FUN_10b26eda(puVar6,uVar13);
+                    FUN_10b26efb((int *)puVar5,**(uint **)(iVar15 + 0x34));
+                  }
+                }
+              }
+            }
+          }
+          else {
+            if (cVar3 == '\x06') {
+              uVar13 = puVar12[7];
+LAB_10b56960:
+              puVar8 = (undefined4 *)FUN_10b628c8(uVar13);
+LAB_10b569c1:
+              local_18 = (undefined4 *)0x0;
+LAB_10b569c5:
+              if (puVar8 != (undefined4 *)0x0) {
+                do {
+                  iVar7 = puVar8[1];
+                  puVar14 = puVar8;
+                  if (*(char *)(iVar7 + 4) == '\f') {
+                    puVar14 = *(undefined4 **)(iVar7 + 0x34);
+                    local_18 = puVar8;
+                    if (puVar14 == (undefined4 *)0x0) goto code_r0x10b56980;
+                    iVar7 = puVar14[1];
+                  }
+                  if ((*(int *)(iVar7 + 0x34) != 0) &&
+                     (puVar8 = *(undefined4 **)(*(int *)(iVar7 + 0x34) + 4),
+                     puVar8 != (undefined4 *)0x0)) {
+                    FUN_10b27474(puVar6,puVar8);
+                    FUN_10b271a5((int *)puVar5,*(undefined4 **)(*(int *)(iVar7 + 0x34) + 4));
+                  }
+                  puVar8 = (undefined4 *)*puVar14;
+                  if (puVar8 == (undefined4 *)0x0) {
+                    if (local_18 == (undefined4 *)0x0) break;
+                    puVar8 = (undefined4 *)*local_18;
+                    goto LAB_10b569c1;
+                  }
+                } while( true );
+              }
+              goto LAB_10b56b43;
+            }
+            if (cVar3 == '\f') {
+              uVar13 = puVar12[6];
+              iVar7 = FUN_10b62a6a((int)puVar11,(int)puVar12);
+              if (iVar7 != -1) goto LAB_10b56960;
+            }
+          }
+LAB_10b56b43:
+        }
+        if (puVar11[1] != 0x2b7) {
+          for (piVar9 = (int *)puVar11[10]; piVar9 != (int *)0x0; piVar9 = (int *)*piVar9) {
+            if ((char)piVar9[2] == '\x01') {
+              *(byte *)(piVar9 + 5) = *(byte *)(piVar9 + 5) & 0xf0;
+              if ((undefined *)piVar9[7] == &DAT_10c2e3f0) {
+                iVar7 = piVar9[6];
+                uVar13 = **(uint **)(iVar7 + 0x34);
+                *(int *)(DAT_10c400d0 + uVar13 * 4) = iVar7;
+                if (((*(char *)(iVar7 + 4) == '\r') && ((*(byte *)(iVar7 + 5) & 0x10) == 0)) &&
+                   ((puVar2[0x2a] == 0 || (DAT_10c2e310 == 0)))) {
+                  piVar9 = (int *)FUN_10b54afb((int)puVar11,piVar9,iVar7);
+                }
+                else {
+LAB_10b56bc4:
+                  uVar10 = FUN_10b26f37(puVar6,uVar13);
+                  if ((char)uVar10 == '\0') {
+                    FUN_10b26eda(puVar4,uVar13);
+                  }
+                  FUN_10b26eda(puVar5,uVar13);
+                  if (*(int *)(*(int *)(iVar7 + 0x34) + 0x18) != 0) {
+                    FUN_10b54efa(iVar7,puVar6,puVar4,puVar5);
+                  }
+                }
+              }
+            }
+            else if ((char)piVar9[2] == '\x02') {
+              iVar7 = piVar9[6];
+              if ((*(byte *)(piVar9 + 5) & 0x40) == 0) {
+                if ((((*(int **)(iVar7 + 0x34) != (int *)0x0) && (**(int **)(iVar7 + 0x34) != 0)) &&
+                    (puVar11[1] != 0x15d)) &&
+                   ((puVar11[1] != 0x281 || (piVar9 != (int *)puVar11[10])))) {
+                  FUN_10bd3b98((int)piVar9,&DAT_10c2e3f0);
+                  *(byte *)(piVar9 + 5) = *(byte *)(piVar9 + 5) & 0xf0;
+                  uVar13 = **(uint **)(iVar7 + 0x34);
+                  *(int *)(DAT_10c400d0 + uVar13 * 4) = iVar7;
+                  goto LAB_10b56bc4;
+                }
+              }
+              else {
+                pbVar1 = (byte *)(*(int *)(iVar7 + 8) + 5);
+                *pbVar1 = *pbVar1 | 0x40;
+              }
+            }
+            else {
+              iVar7 = FUN_10bfc24a(puVar11,(int)piVar9);
+              if (iVar7 != 0) {
+                piVar9 = (int *)FUN_10bfc338(puVar11,piVar9,iVar7);
+                uVar10 = FUN_10b26f37(puVar6,**(uint **)(iVar7 + 0x34));
+                if ((char)uVar10 == '\0') {
+                  FUN_10b26eda(puVar4,**(uint **)(iVar7 + 0x34));
+                }
+                FUN_10b26eda(puVar5,**(uint **)(iVar7 + 0x34));
+                *(int *)(DAT_10c400d0 + **(int **)(iVar7 + 0x34) * 4) = iVar7;
+              }
+            }
+          }
+          FUN_10bfb9a7((int)puVar11);
+        }
+      }
+    }
+    puVar2[0xb] = puVar4;
+    puVar2[0xc] = puVar5;
+    puVar2[0xd] = puVar6;
+    puVar2 = (undefined4 *)*puVar2;
+  } while( true );
+code_r0x10b56980:
+  puVar8 = (undefined4 *)*puVar8;
+  goto LAB_10b569c5;
+}
+

@@ -1,0 +1,83 @@
+# 10b27290  FUN_10b27290  size=137
+# role: stateful ascending bitset iterator
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# regenerate: docs/whitebox/scripts/dump_globregs.py
+
+## disassembly (objdump, GNU binutils)
+
+10b27290:	85 c9                	test   ecx,ecx
+10b27292:	74 13                	je     0x10b272a7
+10b27294:	8b 01                	mov    eax,DWORD PTR [ecx]
+10b27296:	a3 f0 e1 c2 10       	mov    ds:0x10c2e1f0,eax
+10b2729b:	85 c0                	test   eax,eax
+10b2729d:	75 2c                	jne    0x10b272cb
+10b2729f:	21 05 f8 e1 c2 10    	and    DWORD PTR ds:0x10c2e1f8,eax
+10b272a5:	eb 30                	jmp    0x10b272d7
+10b272a7:	8b 0d f8 e1 c2 10    	mov    ecx,DWORD PTR ds:0x10c2e1f8
+10b272ad:	a1 fc e1 c2 10       	mov    eax,ds:0x10c2e1fc
+10b272b2:	0b c8                	or     ecx,eax
+10b272b4:	75 26                	jne    0x10b272dc
+10b272b6:	a1 f0 e1 c2 10       	mov    eax,ds:0x10c2e1f0
+10b272bb:	85 c0                	test   eax,eax
+10b272bd:	74 56                	je     0x10b27315
+10b272bf:	8b 40 0c             	mov    eax,DWORD PTR [eax+0xc]
+10b272c2:	a3 f0 e1 c2 10       	mov    ds:0x10c2e1f0,eax
+10b272c7:	85 c0                	test   eax,eax
+10b272c9:	74 4a                	je     0x10b27315
+10b272cb:	8b 48 04             	mov    ecx,DWORD PTR [eax+0x4]
+10b272ce:	89 0d f8 e1 c2 10    	mov    DWORD PTR ds:0x10c2e1f8,ecx
+10b272d4:	8b 40 08             	mov    eax,DWORD PTR [eax+0x8]
+10b272d7:	a3 fc e1 c2 10       	mov    ds:0x10c2e1fc,eax
+10b272dc:	50                   	push   eax
+10b272dd:	ff 35 f8 e1 c2 10    	push   DWORD PTR ds:0x10c2e1f8
+10b272e3:	e8 98 f4 ff ff       	call   0x10b26780
+10b272e8:	83 f8 ff             	cmp    eax,0xffffffff
+10b272eb:	74 27                	je     0x10b27314
+10b272ed:	8b 0d f0 e1 c2 10    	mov    ecx,DWORD PTR ds:0x10c2e1f0
+10b272f3:	03 01                	add    eax,DWORD PTR [ecx]
+10b272f5:	8b c8                	mov    ecx,eax
+10b272f7:	83 e1 3f             	and    ecx,0x3f
+10b272fa:	8b 14 cd c0 16 b0 10 	mov    edx,DWORD PTR [ecx*8+0x10b016c0]
+10b27301:	8b 0c cd c4 16 b0 10 	mov    ecx,DWORD PTR [ecx*8+0x10b016c4]
+10b27308:	21 15 f8 e1 c2 10    	and    DWORD PTR ds:0x10c2e1f8,edx
+10b2730e:	21 0d fc e1 c2 10    	and    DWORD PTR ds:0x10c2e1fc,ecx
+10b27314:	c3                   	ret
+10b27315:	83 c8 ff             	or     eax,0xffffffff
+10b27318:	c3                   	ret
+
+## decompilation (Ghidra)
+
+// ===== FUNC 10b27290 FUN_10b27290 size=137 =====
+
+uint __fastcall FUN_10b27290(int *param_1)
+
+{
+  uint uVar1;
+  
+  if (param_1 == (int *)0x0) {
+    if (DAT_10c2e1f8 != 0 || DAT_10c2e1fc != 0) goto LAB_10b272dc;
+    if ((DAT_10c2e1f0 == (int *)0x0) ||
+       (DAT_10c2e1f0 = (int *)DAT_10c2e1f0[3], DAT_10c2e1f0 == (int *)0x0)) {
+      return 0xffffffff;
+    }
+  }
+  else {
+    DAT_10c2e1f0 = (int *)*param_1;
+    if (DAT_10c2e1f0 == (int *)0x0) {
+      DAT_10c2e1f8 = 0;
+      DAT_10c2e1fc = 0;
+      goto LAB_10b272dc;
+    }
+  }
+  DAT_10c2e1f8 = DAT_10c2e1f0[1];
+  DAT_10c2e1fc = DAT_10c2e1f0[2];
+LAB_10b272dc:
+  uVar1 = FUN_10b26780(DAT_10c2e1f8,DAT_10c2e1fc);
+  if (uVar1 != 0xffffffff) {
+    uVar1 = uVar1 + *DAT_10c2e1f0;
+    DAT_10c2e1f8 = DAT_10c2e1f8 & *(uint *)(&DAT_10b016c0 + (uVar1 & 0x3f) * 8);
+    DAT_10c2e1fc = DAT_10c2e1fc & *(uint *)(&DAT_10b016c4 + (uVar1 & 0x3f) * 8);
+  }
+  return uVar1;
+}
+

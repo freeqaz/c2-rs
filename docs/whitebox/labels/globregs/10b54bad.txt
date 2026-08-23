@@ -1,0 +1,58 @@
+# 10b54bad  FUN_10b54bad  size=67
+# role: version stamp -- aux[0x14]=v, PREPENDS to aux[0x0c], ret v+1
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# regenerate: docs/whitebox/scripts/dump_globregs.py
+
+## disassembly (objdump, GNU binutils)
+
+10b54bad:	53                   	push   ebx
+10b54bae:	56                   	push   esi
+10b54baf:	57                   	push   edi
+10b54bb0:	6a 08                	push   0x8
+10b54bb2:	8b da                	mov    ebx,edx
+10b54bb4:	5a                   	pop    edx
+10b54bb5:	6a 07                	push   0x7
+10b54bb7:	8b f1                	mov    esi,ecx
+10b54bb9:	59                   	pop    ecx
+10b54bba:	e8 6b b6 0c 00       	call   0x10c2022a
+10b54bbf:	6a 08                	push   0x8
+10b54bc1:	59                   	pop    ecx
+10b54bc2:	8b f8                	mov    edi,eax
+10b54bc4:	e8 04 23 fd ff       	call   0x10b26ecd
+10b54bc9:	8b d3                	mov    edx,ebx
+10b54bcb:	8b c8                	mov    ecx,eax
+10b54bcd:	89 47 04             	mov    DWORD PTR [edi+0x4],eax
+10b54bd0:	e8 05 23 fd ff       	call   0x10b26eda
+10b54bd5:	8b 46 34             	mov    eax,DWORD PTR [esi+0x34]
+10b54bd8:	8b 40 0c             	mov    eax,DWORD PTR [eax+0xc]
+10b54bdb:	89 07                	mov    DWORD PTR [edi],eax
+10b54bdd:	8b 46 34             	mov    eax,DWORD PTR [esi+0x34]
+10b54be0:	89 78 0c             	mov    DWORD PTR [eax+0xc],edi
+10b54be3:	8b 46 34             	mov    eax,DWORD PTR [esi+0x34]
+10b54be6:	5f                   	pop    edi
+10b54be7:	89 58 14             	mov    DWORD PTR [eax+0x14],ebx
+10b54bea:	5e                   	pop    esi
+10b54beb:	8d 43 01             	lea    eax,[ebx+0x1]
+10b54bee:	5b                   	pop    ebx
+10b54bef:	c3                   	ret
+
+## decompilation (Ghidra)
+
+// ===== FUNC 10b54bad FUN_10b54bad size=67 =====
+
+int __fastcall FUN_10b54bad(int param_1,uint param_2)
+
+{
+  undefined4 *puVar1;
+  uint *puVar2;
+  
+  puVar1 = FUN_10c2022a(7,8);
+  puVar2 = (uint *)FUN_10b26ecd(8);
+  puVar1[1] = puVar2;
+  FUN_10b26eda(puVar2,param_2);
+  *puVar1 = *(undefined4 *)(*(int *)(param_1 + 0x34) + 0xc);
+  *(undefined4 **)(*(int *)(param_1 + 0x34) + 0xc) = puVar1;
+  *(uint *)(*(int *)(param_1 + 0x34) + 0x14) = param_2;
+  return param_2 + 1;
+}
+
