@@ -438,7 +438,7 @@ loop). The arithmetic consequence would be:
 > * `[R]` **only** — what the ordinal means in *program* terms. It rests on an
 >   inherited reading of `+0x10` as *prev*, and on a traversal this lane
 >   composed rather than confirmed.
-> * `[O]` on 118 cells — the *observable*: on every straight-line body built
+> * `[O]` on **262 formal→register assignments over 62 grid objs** — the *observable*: on every straight-line body built
 >   here the map is invariably `a_i -> r(31-i)`, first formal first, at both
 >   modes. **That is consistent with the ordinal reading AND with plain
 >   arena/mint order, and this lane could not build a cell that separates

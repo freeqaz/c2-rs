@@ -303,7 +303,7 @@ one of F1's two unknowns became a table and the other became a dependency.
 range. The shape that would work holds every live range identical and varies
 only *tuple count between the same two program points* — e.g. padding one arm
 of a diamond with tuples that touch no candidate. That is a half-day and it
-would take §7.1's clause from `[R]` to `[O]` or kill it.
+would take [`ref/P_GLOBREGS.md`](ref/P_GLOBREGS.md) §7.1's clause from `[R]` to `[O]` or kill it.
 
 ---
 
