@@ -57,7 +57,11 @@ PEEP_LO = 0x10C182B4
 PEEP_HI = PEEP_LO + 426
 PEEP_JUMP_TABLE = 0x10C18460    # stride 4, one target per arm
 PEEP_BYTE_INDEX = 0x10C184A8    # stride 1, indexed by (opcode - 1)
-PEEP_INDEX_LEN = 0x293          # the bound tested: (u32)(op-1) > 0x292 -> done
+# The bound tested is `(u32)(op - 1) > 0x292 -> done`, so the index holds
+# 0x293 entries covering opcodes 0x001..0x293.  vmr128 (0x294) is OUTSIDE it
+# and reaches the pass's own exit, not an arm -- reading one entry too many
+# invents a bogus arm 51 whose jump-table word is 0x11111111.
+PEEP_INDEX_LEN = 0x293
 
 # The instruction constructors: every function that calls the list-insert
 # wrapper 0x10bd5732.  One call == one list node with the real-instruction bit.
@@ -370,7 +374,7 @@ def main(argv):
               % (PEEP_BYTE_INDEX, PEEP_JUMP_TABLE))
         idx_off = img.off(PEEP_BYTE_INDEX)
         arms = {}
-        for op1 in range(PEEP_INDEX_LEN + 1):
+        for op1 in range(PEEP_INDEX_LEN):
             arm = img.blob[idx_off + op1]
             arms.setdefault(arm, []).append(op1 + 1)
         print("# arm  target      nopcodes  example opcodes")
@@ -378,7 +382,14 @@ def main(argv):
             tgt = img.u32(PEEP_JUMP_TABLE + arm * 4)
             ops = arms[arm]
             names = [n for n in (mnemonic(img, o) for o in ops[:6]) if n]
-            print("%5d  %#010x  %8d  %s" % (arm, tgt, len(ops), ",".join(names)))
+            body = disasm(path, tgt, tgt + 24)
+            tail = [target_of(o) for _, m, o in body if m in ("call", "jmp")]
+            mk = [t for t in tail if t in CONSTRUCTORS]
+            print("%5d  %#010x  %8d  %-8s %s"
+                  % (arm, tgt, len(ops),
+                     "MINTS" if mk else "no-mint", ",".join(names)))
+        print("# %d opcodes over %d arms; 'MINTS' means the arm thunk reaches an"
+              " instruction constructor directly" % (sum(len(v) for v in arms.values()), len(arms)))
         return 0
 
     insns = disasm(path, EXPAND_LO, EXPAND_HI)
