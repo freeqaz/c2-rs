@@ -395,6 +395,25 @@ list. The jump-table path makes the join concrete — the emitted table base is 
 
 ---
 
+## 6.1 A note on TU attribution — do not quote `ADDR.tsv`'s file names for this page
+
+`ADDR.tsv` assigns a translation unit by **address banding** between the ICE-site
+anchors in `c2_tus.tsv`, and every address on this page lands in a **`gap`**,
+i.e. a hypothesis rather than a fact (`READ_PLAN` §5.4). The banding calls the
+emit walk `dag.c` and the switch-lowering module `stack.c`; **neither is
+credible**, and this page claims no TU for either.
+
+The likely reason is stated in `c2_tus.tsv`'s own header: *"a file with no ICE
+site is invisible here."* There is **no `swtch.c`** among the 59 recovered
+units, and a self-contained switch lowerer spanning `0x10bd0f55`–`0x10bd22a7`
+is exactly the shape of a file that raises no `C1001`. The same banding
+artifact affects the `page` column: `build_ref.py` assigns a page from an
+address band, so these addresses are attributed to `P_DAG.md`. **This page has
+no band** — its subject is a data structure and its users — which is the same
+status [`P_LABEL.md`](P_LABEL.md) carries and for the same reason.
+
+---
+
 ## 7. Reproduce
 
 ```sh
