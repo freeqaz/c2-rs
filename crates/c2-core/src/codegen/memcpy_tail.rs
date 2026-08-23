@@ -23,7 +23,7 @@
 //! recognizer has checked exactly that — so no `mr` is emitted, and the
 //! destination's `addi` precedes the length's `li` on both cells that have one.
 //!
-//! **The third word is not here**, for [`super::select::Selected::Tail`]'s
+//! **The third word is not here**, for [`super::select::Terminator::TailCall`]'s
 //! reason: a branch word encodes its own `.text` offset, so only the caller —
 //! which knows where the function lands — can finish it. What *is* different
 //! from an ordinary tail call is the callee's NAME: `memcpy` arrives in the IL

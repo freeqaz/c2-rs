@@ -33,11 +33,12 @@
 //!   0 and 8, so the two bases are carried separately.
 //!
 //! This body takes **no relocation, defines no label and mints no external** —
-//! the reference obj's `.text #7` has `nrel 0` — so it is a `Selected::Plain`
+//! the reference obj's `.text #7` has `nrel 0` — so it is a `Terminator::None`
 //! and `plan_labels`' ordinary 1 for a non-framed function is already the charge
 //! `work/w-xtea2/LABGRID.txt`'s `x-setnonce` row measures.
 
-use crate::codegen::encode::{encode_add, encode_blr, encode_ld, encode_rldicl, encode_std};
+use crate::codegen::encode::{mop_add, mop_blr, mop_ld, mop_rldicl, mop_std};
+use crate::codegen::mop::{ops_to_bytes, Ops};
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
 use c2_il::NonceAddRun;
@@ -89,21 +90,26 @@ pub fn nonce_add_run_text(n: &NonceAddRun, mode: OptMode) -> Result<Vec<u8>, Bac
             ));
         }
     }
-    let mut t = Vec::with_capacity(32);
-    t.extend_from_slice(&encode_ld(R_LOAD, R_SRC, n.src_off as i16));
-    t.extend_from_slice(&encode_rldicl(R_ADDEND, R_SHIFT, 0, CLRLDI_32));
-    t.extend_from_slice(&encode_add(R_LOAD, R_LOAD, R_ADDEND));
-    t.extend_from_slice(&encode_std(R_LOAD, R_THIS, n.dst_off as i16));
-    t.extend_from_slice(&encode_ld(R_LOAD, R_SRC, (n.src_off + ELEM) as i16));
-    // **The destination is r11 and not r10**, because this is r11's last use.
-    t.extend_from_slice(&encode_add(R_ADDEND, R_LOAD, R_ADDEND));
-    t.extend_from_slice(&encode_std(R_ADDEND, R_THIS, (n.dst_off + ELEM) as i16));
-    t.extend_from_slice(&encode_blr());
-    Ok(t)
+    // S1c (i): the eight words as an op stream, rendered once. The comments
+    // that name WHY a register is what it is now sit on the op that carries it
+    // rather than on a byte-vector append.
+    let ops: Ops = vec![
+        mop_ld(R_LOAD, R_SRC, n.src_off as i16),
+        mop_rldicl(R_ADDEND, R_SHIFT, 0, CLRLDI_32),
+        mop_add(R_LOAD, R_LOAD, R_ADDEND),
+        mop_std(R_LOAD, R_THIS, n.dst_off as i16),
+        mop_ld(R_LOAD, R_SRC, (n.src_off + ELEM) as i16),
+        // **The destination is r11 and not r10**, because this is r11's last use.
+        mop_add(R_ADDEND, R_LOAD, R_ADDEND),
+        mop_std(R_ADDEND, R_THIS, (n.dst_off + ELEM) as i16),
+        mop_blr(),
+    ];
+    Ok(ops_to_bytes(&ops))
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::codegen::encode::encode_rldicl;
     use super::*;
 
     /// `?SetNonce@XTEABlockEncrypter`'s own thirty-two bytes, word for word off

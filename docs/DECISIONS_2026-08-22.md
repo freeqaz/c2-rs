@@ -129,7 +129,21 @@ workload tree moved to `e5aef017d456`, where the base reads
 condition binds against **the S1 lane's own base-tree measurement with its
 workload stamp recorded beside it**, never against a filed snapshot — as
 written above it would have false-triggered a program stop on a
-workload-tree difference. Step 5's NO-GO clauses (a)–(c)
+workload-tree difference.
+**AND THAT RE-ANCHORING WAS ITSELF INSUFFICIENT — corrected again at the
+`w-s1bc` merge (2026-08-23, board #3428).** The condition is not merely
+mis-anchored, it is **unquotable without naming its corpus**: one *unchanged*
+binary produced **35,885 / 35,890 / 35,905 / 35,898** across four corpora
+inside ~2 hours, and `dc3-decomp` moved **seven times** during that single
+lane. Scoring that lane's tip against the filed 35,894 reads *"moved by 4"*
+and **would have stopped the program with byte-identical output throughout**.
+So *"re-measure on your own base tree"* is **not enough** — a base and a tip
+measured minutes apart can straddle a corpus change. **The standing form is
+now: the condition binds only on a base and tip measured against the SAME
+PINNED BINARIES and the SAME workload stamp, run back-to-back, with the stamp
+quoted beside the number.** A threshold that does not name the corpus it was
+taken on is not a threshold. Third correction to one registered condition in
+two days, each found by the lane the condition was pointed at. Step 5's NO-GO clauses (a)–(c)
 stand. Nothing here re-prices anything, and the byte judge is untouched.
 
 **The evidence the choice was made on** (discharging the coordinator's

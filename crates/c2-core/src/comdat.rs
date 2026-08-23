@@ -113,9 +113,17 @@ impl From<ComdatDecline> for BackendError {
 /// `docs/FUNCTION_BYTE_MATCH.md` — so they must not be renamed casually.
 pub fn selected_tag(s: &codegen::Selected) -> &'static str {
     match s {
-        codegen::Selected::Plain(_) => "plain",
-        codegen::Selected::Tail(_) => "tail",
-        codegen::Selected::MemcpyTail(_) => "memcpy-tail",
+        // **S1b: three variants became three [`codegen::Terminator`] values and
+        // THESE THREE STRINGS DID NOT MOVE.** They are the published interface
+        // this collapse was forbidden to touch — `c2rs gap` prints them,
+        // `docs/FUNCTION_BYTE_MATCH.md` quotes them, and
+        // `c2-harness/src/gap/{fnbytes,fndiff}.rs` name them in their own docs.
+        // The match is exhaustive over `Terminator`, so a fourth terminator
+        // cannot be added without deciding its string here — which is the one
+        // thing a collapsed discriminant could otherwise have made silent.
+        codegen::Selected::Body { term: codegen::Terminator::None, .. } => "plain",
+        codegen::Selected::Body { term: codegen::Terminator::TailCall, .. } => "tail",
+        codegen::Selected::Body { term: codegen::Terminator::MemcpyCall, .. } => "memcpy-tail",
         codegen::Selected::Float { consts, .. } if consts.is_empty() => "float",
         codegen::Selected::FpStoreDiamond { .. } => "fp-store-diamond",
         codegen::Selected::CtorForwardCall => "ctor-forward-call",
@@ -532,7 +540,7 @@ pub(crate) fn body_of<'a>(
         // A framed non-leaf call gets its own `.text` COMDAT like any other
         // function, plus a `.pdata` COMDAT associated to it (W-UNW-1).
         // `Selected::Framed` carries no bytes for the same reason
-        // `Selected::Tail` carries an incomplete text: the branch word encodes
+        // a `Terminator::TailCall` body carries an incomplete text: the branch word encodes
         // its own `.text` offset, so only the caller — which knows where the
         // function lands — can finish it. Under `/Gy` that offset is 0, because
         // each function starts its own section.
@@ -982,24 +990,12 @@ pub(crate) fn body_of<'a>(
         //
         // Asked before the ordinary `Tail` arm rather than inside it, because
         // the two produce different bodies from the same selection and the
-        // adjacency is the whole rule: `Selected::Tail`'s bytes are the setup,
+        // adjacency is the whole rule: a `Terminator::TailCall` body's bytes are the setup,
         // and E discards them.
-        codegen::Selected::Tail(_) if drops_tail_call(f, tu.empty_callees()) => {
+        codegen::Selected::Body { term: codegen::Terminator::TailCall, .. }
+            if drops_tail_call(f, tu.empty_callees()) =>
+        {
             (codegen::encode_blr().to_vec(), Vec::new())
-        }
-        // Each function's text starts at offset 0 of its own COMDAT section, so
-        // the branch offset is just the setup's length.
-        codegen::Selected::Tail(mut t) => {
-            let branch_off = t.len() as u32;
-            t.extend_from_slice(&codegen::encode_tail_branch(branch_off));
-            let callee = f.tail_call().expect("Tail implies tail_call");
-            (
-                t,
-                vec![coff::Call {
-                    reloc_offset: branch_off,
-                    callee,
-                }],
-            )
         }
         // **W-XTEA2 — the whole-body `memcpy` tail branch.** The branch is the
         // ordinary tail call's, word for word; what differs is that the callee is
@@ -1014,16 +1010,35 @@ pub(crate) fn body_of<'a>(
         // has `[16] ?SetKey · [17] memcpy · [18] .text`, and
         // `work/w-xtea2/probe/mcpytail.obj` the same one function over — so the
         // name goes on `calls` alone and `introduced_externals` places it.
-        codegen::Selected::MemcpyTail(mut t) => {
-            let branch_off = t.len() as u32;
-            t.extend_from_slice(&codegen::encode_tail_branch(branch_off));
-            (
-                t,
-                vec![coff::Call {
-                    reloc_offset: branch_off,
-                    callee: codegen::memcpy_tail::MEMCPY_NAME,
-                }],
-            )
+        //
+        // **S1b — the three byte-carrying variants are ONE arm now**, and the
+        // only thing that was ever different between them is the two lines
+        // below: whether a branch is appended, and to what. `Plain` reached
+        // this crate's LAST arm and the two tail shapes reached two arms up;
+        // three arms with the same body and a different callee resolution is
+        // exactly the "one rule, two implementations" shape `docs/GAPS.md` §6
+        // records, and the resolution now lives once in
+        // [`codegen::terminator_callee`], read here and by `PortC2::build`.
+        //
+        // Under `/Gy` each function's text starts at offset 0 of its own COMDAT
+        // section, so the branch offset is just the body's length. (The packed
+        // dispatcher adds the function's `.text` offset; that difference is
+        // real and is why the two arms are not themselves shared.)
+        codegen::Selected::Body { mut text, term } => {
+            match codegen::terminator_callee(term, f) {
+                None => (text, Vec::new()),
+                Some(callee) => {
+                    let branch_off = text.len() as u32;
+                    text.extend_from_slice(&codegen::encode_tail_branch(branch_off));
+                    (
+                        text,
+                        vec![coff::Call {
+                            reloc_offset: branch_off,
+                            callee,
+                        }],
+                    )
+                }
+            }
         }
         codegen::Selected::Float { text, .. } => (text, Vec::new()),
         // **W-BIQUAD — the float-store diamond.** A leaf with two branches: no
@@ -1034,7 +1049,6 @@ pub(crate) fn body_of<'a>(
             fp_refs = consts;
             (text, Vec::new())
         }
-        codegen::Selected::Plain(t) => (t, Vec::new()),
     };
     // Under `/Gy` each function starts at offset 0 of its own COMDAT.
     let data_refs = data_refs_of(f, &text, 0).map_err(ComdatDecline::DataRef)?;
@@ -1471,5 +1485,164 @@ mod inlfence_tests {
                  neither is `__declspec(noinline)`"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod s1b_collapse_tests {
+    //! **S1b — the `Selected::{Plain, Tail, MemcpyTail}` collapse, cross-checked
+    //! against the classification it replaced.**
+    //!
+    //! S1a's pattern (`docs/rungs/2026-08-22-w-s1.md` §2.2): the incumbent is
+    //! kept **verbatim** rather than re-derived from the new field, so the check
+    //! compares two derivations instead of the collapse against itself.
+    //!
+    //! # What these tests DO NOT pin, stated so nobody reads coverage into them
+    //!
+    //! They pin the **published strings** and the **post-body obligation**. They
+    //! do **not** pin the *routing* — which `BodyShape` arm produces which
+    //! terminator — because that is a property of `select_function`'s 24
+    //! producer sites and is graded by the byte judge (real `c2.dll` under wibo)
+    //! and by `census_gate`'s `lowering_of` cross-check, not here. A producer
+    //! site that called `Selected::tail` where it meant `Selected::plain` would
+    //! pass every test in this module and fail the gate, which is the correct
+    //! division of labour and is why the gate is criterion A.
+
+    use super::selected_tag;
+    use crate::codegen::{Selected, Terminator, terminator_callee};
+
+    /// The retired variants, transcribed from `select.rs` **as it stood at base
+    /// `7aa91ff3d`** — deliberately not re-expressed through `Terminator`.
+    ///
+    /// The payloads are never read, and that is deliberate rather than an
+    /// oversight: the incumbent's *shape* is what is being preserved, and an
+    /// `Incumbent::Plain(())` would no longer be a transcription of anything.
+    #[allow(dead_code)]
+    enum Incumbent {
+        Plain(Vec<u8>),
+        MemcpyTail(Vec<u8>),
+        Tail(Vec<u8>),
+    }
+
+    /// `selected_tag`'s three arms, transcribed from the same base revision.
+    fn incumbent_tag(i: &Incumbent) -> &'static str {
+        match i {
+            Incumbent::Plain(_) => "plain",
+            Incumbent::Tail(_) => "tail",
+            Incumbent::MemcpyTail(_) => "memcpy-tail",
+        }
+    }
+
+    /// The three constructors, paired with the incumbent variant each stands
+    /// for. `Vec::new()` is included because an **empty** body is the live case
+    /// that matters: `BodyShape::Tail` with an empty `ops` stream produces
+    /// `Selected::tail(Vec::new())`, and `splice.rs` reads exactly that
+    /// emptiness as a semantic stratum.
+    fn pairs() -> Vec<(Selected, Incumbent)> {
+        let mut v = Vec::new();
+        for body in [Vec::new(), vec![0x4E, 0x80, 0x00, 0x20], vec![0u8; 64]] {
+            v.push((Selected::plain(body.clone()), Incumbent::Plain(body.clone())));
+            v.push((Selected::tail(body.clone()), Incumbent::Tail(body.clone())));
+            v.push((
+                Selected::memcpy_tail(body.clone()),
+                Incumbent::MemcpyTail(body.clone()),
+            ));
+        }
+        v
+    }
+
+    /// **The published interface survived the collapse**, string for string.
+    ///
+    /// `"plain"` / `"tail"` / `"memcpy-tail"` are printed by `c2rs gap` and
+    /// quoted in `docs/FUNCTION_BYTE_MATCH.md`. Renaming a shared predicate
+    /// without a conflict marker is how this repo has erased findings twice;
+    /// this is the assertion that makes that a red test instead.
+    #[test]
+    fn the_three_published_selected_tags_survive_the_collapse() {
+        for (collapsed, incumbent) in pairs() {
+            assert_eq!(
+                selected_tag(&collapsed),
+                incumbent_tag(&incumbent),
+                "the collapsed variant must produce the incumbent's published tag"
+            );
+        }
+    }
+
+    /// The three tags are **distinct**, which is the failure a collapsed
+    /// discriminant makes easy: two terminators mapped to one string loses a
+    /// whole class from every diagnostic that groups on it, silently and with
+    /// every byte still identical.
+    #[test]
+    fn the_three_terminators_map_to_three_distinct_tags() {
+        let tags: Vec<&str> = [Terminator::None, Terminator::TailCall, Terminator::MemcpyCall]
+            .iter()
+            .map(|t| selected_tag(&Selected::Body { text: Vec::new(), term: *t }))
+            .collect();
+        assert_eq!(tags, vec!["plain", "tail", "memcpy-tail"]);
+        let mut sorted = tags.clone();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(sorted.len(), 3, "the three tags must stay distinct");
+    }
+
+    /// The `#[cfg(test)]` views S1 asks for: each reads back exactly where its
+    /// retired variant would have matched, and **nowhere else**. The negative
+    /// half is the point — a view that returned `Some` for every body would
+    /// make every test above vacuous.
+    #[test]
+    fn the_retired_variants_read_back_as_views_and_only_where_they_should() {
+        let body = vec![0x4E, 0x80, 0x00, 0x20];
+        let plain = Selected::plain(body.clone());
+        let tail = Selected::tail(body.clone());
+        let memcpy = Selected::memcpy_tail(body.clone());
+
+        assert_eq!(plain.as_plain(), Some(body.as_slice()));
+        assert_eq!(plain.as_tail(), None);
+        assert_eq!(plain.as_memcpy_tail(), None);
+
+        assert_eq!(tail.as_tail(), Some(body.as_slice()));
+        assert_eq!(tail.as_plain(), None);
+        assert_eq!(tail.as_memcpy_tail(), None);
+
+        assert_eq!(memcpy.as_memcpy_tail(), Some(body.as_slice()));
+        assert_eq!(memcpy.as_plain(), None);
+        assert_eq!(memcpy.as_tail(), None);
+
+        // A variant that is not a `Body` at all reads back as none of the three.
+        let other = Selected::IfCallJoin;
+        assert_eq!(other.as_plain(), None);
+        assert_eq!(other.as_tail(), None);
+        assert_eq!(other.as_memcpy_tail(), None);
+    }
+
+    /// **The post-body obligation, in the one place that now resolves it.**
+    ///
+    /// This is the rule that used to be written out twice — once in
+    /// `comdat::body_of` and once in `PortC2::build` — and the two copies are
+    /// what S1b removed. `Terminator::None` owes no callee; `TailCall` reads the
+    /// IL; `MemcpyCall` mints, because `memcpy` arrives as intrinsic selector
+    /// 172 with **no `.gl` record** and `f.tail_call()` is `None` for it.
+    #[test]
+    fn terminator_callee_resolves_the_three_obligations_from_one_place() {
+        let mut f = crate::codegen::testutil::func_with(vec![0xE3], Vec::new());
+
+        // A body with no tail-call record at all: `None` owes nothing, and
+        // `MemcpyCall` still resolves — that is precisely why it is not a flag
+        // on `TailCall`.
+        assert_eq!(terminator_callee(Terminator::None, &f), None);
+        assert_eq!(
+            terminator_callee(Terminator::MemcpyCall, &f),
+            Some(crate::codegen::memcpy_tail::MEMCPY_NAME)
+        );
+
+        // With a tail-call record, `TailCall` reads the callee out of the IL.
+        f.body = c2_il::BodyShape::Tail("?g@@YAXXZ".into());
+        assert_eq!(terminator_callee(Terminator::TailCall, &f), Some("?g@@YAXXZ"));
+        // …and the other two are unmoved by the record's presence.
+        assert_eq!(terminator_callee(Terminator::None, &f), None);
+        assert_eq!(
+            terminator_callee(Terminator::MemcpyCall, &f),
+            Some(crate::codegen::memcpy_tail::MEMCPY_NAME)
+        );
     }
 }

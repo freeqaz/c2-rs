@@ -61,7 +61,7 @@ const R_S2: u8 = 10;
 
 /// Emit the whole body. No relocation, no pooled constant, no label and no
 /// branch with a target — so the caller takes it as an ordinary
-/// [`crate::codegen::Selected::Plain`].
+/// [`crate::codegen::Terminator::None`].
 pub(crate) fn pool_free_list_text(
     g: &PoolFreeList,
     mode: OptMode,

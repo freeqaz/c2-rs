@@ -1484,7 +1484,7 @@ pub struct CompareLeaf {
 /// There is no label field and no callee: the emitted body takes **no
 /// relocation, mints no symbol and defines no label** — every branch in it is
 /// self-relative. That is why it reaches codegen as an ordinary
-/// `Selected::Plain` and needed no new obj shape.
+/// a `Terminator::None` body and needed no new obj shape.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PtrWalkModLoop {
     /// The two formals, in register order: `params[0]` is the walked pointer's

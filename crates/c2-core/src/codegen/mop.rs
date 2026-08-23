@@ -1104,3 +1104,137 @@ mod tests {
         assert_eq!(encode_op(&m, &EncodeParams::C2).unwrap(), 0x7d69_03a6);
     }
 }
+
+// ---- S1c (i): the op stream ------------------------------------------------
+
+/// **A body under construction, as the ops it is made of rather than the bytes
+/// they render to** — slice S1's `Vec<MachineOp>`.
+///
+/// # Why this type exists at all, when it is a `Vec`
+///
+/// Before S1c a producer's only output was a `Vec<u8>`: `extend_from_slice`
+/// called on the result of an `encode_*`, word after word, with **no
+/// intermediate representation at all**. `w-s1` §6 surveyed it and found 16 of
+/// the 18 `Selected::plain` producers built bytes that way. Once the words are
+/// bytes, the opcode is gone — nothing downstream can ask what instruction a
+/// body contains, only what it looks like.
+///
+/// An `Ops` keeps [`C2Op`], **c2's own opcode number** (S1a, read R2), alive
+/// until the last possible moment. That is what the goal's two named consumers
+/// need (`GOAL_DECISION_2026-08-21.md` § AMENDED): a permuter searching the
+/// port's decision points, and matching-pretext generation, both want the
+/// decisions, not their rendering.
+///
+/// # What it does NOT claim
+///
+/// This is **not** `block_ir`, and wiring `Plain` through `block_ir` is a
+/// **different construct rung** — the correction `w-s1` §6 filed against board
+/// #3365, whose *"13 of the 35 shape arms already share `block_ir`"* is right
+/// about the 13 but counts only **2** on a `Selected::plain` arm. Nor is it
+/// c2's machine tuple: `P_ENCODE.md` §9's bound stands, the tuple stream is
+/// read R5, and these are the **port's own** operands.
+pub type Ops = Vec<MachineOp>;
+
+/// Render an op stream to the bytes the two dispatchers consume.
+///
+/// The single boundary at which an `Ops` becomes a `Vec<u8>`. Every op composes
+/// through [`MachineOp::word`], i.e. through [`encode_op`] at
+/// [`EncodeParams::C2`] — **the default and nowhere else**, which is where
+/// grading happens.
+#[inline]
+pub fn ops_to_bytes(ops: &[MachineOp]) -> Vec<u8> {
+    let mut t = Vec::with_capacity(ops.len() * 4);
+    for m in ops {
+        t.extend_from_slice(&m.word());
+    }
+    t
+}
+
+#[cfg(test)]
+mod ops_tests {
+    use super::*;
+    use crate::codegen::encode::{encode_addis, encode_blr, encode_stw};
+
+    /// **The renderer is exactly concatenated `encode_*` output** — the
+    /// property that makes every S1c producer conversion required-zero by
+    /// construction rather than by measurement.
+    #[test]
+    fn ops_to_bytes_is_concatenated_encoder_output() {
+        let ops: Ops = vec![
+            crate::codegen::encode::mop_addis(11, 0, 0),
+            crate::codegen::encode::mop_stw(3, 11, 0),
+            crate::codegen::encode::mop_blr(),
+        ];
+        let mut want = Vec::new();
+        want.extend_from_slice(&encode_addis(11, 0, 0));
+        want.extend_from_slice(&encode_stw(3, 11, 0));
+        want.extend_from_slice(&encode_blr());
+        assert_eq!(ops_to_bytes(&ops), want);
+    }
+
+    /// An empty stream renders to no bytes — the live case, not a curiosity:
+    /// `BodyShape::Tail` with an empty `ops` stream is a VOID tail call whose
+    /// whole body is the terminator branch, and `splice.rs` reads that
+    /// emptiness as a semantic stratum (SPLICE-P, 0 of 953).
+    #[test]
+    fn an_empty_op_stream_renders_to_no_bytes() {
+        let ops: Ops = Vec::new();
+        assert_eq!(ops_to_bytes(&ops), Vec::<u8>::new());
+        assert!(ops_to_bytes(&ops).is_empty());
+    }
+
+    /// **Every `mop_*` agrees with its `encode_*` over the whole register
+    /// domain**, 0..32 exhaustively rather than a sample — #3379's own lesson,
+    /// whose 46-word probe *"could not distinguish a 4-bit `RB` from a 5-bit
+    /// one, because no word in it used a register >= 16"*.
+    ///
+    /// This is the control on the S1c encoder rewrite: `encode_X` is now
+    /// `mop_X(..).word()`, and if that move changed any composition it changed
+    /// a word here.
+    #[test]
+    fn every_converted_mop_agrees_with_its_encoder_over_the_whole_domain() {
+        use crate::codegen::encode as e;
+        for a in 0..32u8 {
+            for b in 0..32u8 {
+                assert_eq!(e::mop_mr(a, b).word(), e::encode_mr(a, b));
+                assert_eq!(e::mop_extsb(a, b).word(), e::encode_extsb(a, b));
+                for c in 0..32u8 {
+                    assert_eq!(e::mop_add(a, b, c).word(), e::encode_add(a, b, c));
+                    assert_eq!(e::mop_andc(a, b, c).word(), e::encode_andc(a, b, c));
+                    assert_eq!(e::mop_divw(a, b, c).word(), e::encode_divw(a, b, c));
+                    assert_eq!(e::mop_divwu(a, b, c).word(), e::encode_divwu(a, b, c));
+                    assert_eq!(e::mop_mullw(a, b, c).word(), e::encode_mullw(a, b, c));
+                    assert_eq!(e::mop_subf(a, b, c).word(), e::encode_subf(a, b, c));
+                }
+                // Displacements at both signs, both 16-bit boundaries, and a
+                // non-multiple of 4 (which `ld`/`std` are DS-form about).
+                for d in [0i16, 1, -1, 4, -4, 6, i16::MAX, i16::MIN] {
+                    assert_eq!(e::mop_addi(a, b, d).word(), e::encode_addi(a, b, d));
+                    assert_eq!(e::mop_addis(a, b, d).word(), e::encode_addis(a, b, d));
+                    assert_eq!(e::mop_lbz(a, b, d).word(), e::encode_lbz(a, b, d));
+                    assert_eq!(e::mop_lhz(a, b, d).word(), e::encode_lhz(a, b, d));
+                    assert_eq!(e::mop_lwz(a, b, d).word(), e::encode_lwz(a, b, d));
+                    assert_eq!(e::mop_ld(a, b, d).word(), e::encode_ld(a, b, d));
+                    assert_eq!(e::mop_stb(a, b, d).word(), e::encode_stb(a, b, d));
+                    assert_eq!(e::mop_sth(a, b, d).word(), e::encode_sth(a, b, d));
+                    assert_eq!(e::mop_stw(a, b, d).word(), e::encode_stw(a, b, d));
+                    assert_eq!(e::mop_std(a, b, d).word(), e::encode_std(a, b, d));
+                    assert_eq!(e::mop_twi(a, b, d).word(), e::encode_twi(a, b, d));
+                }
+            }
+        }
+        // The rotates, over their own split fields rather than a register pair.
+        for sh in 0..32u8 {
+            for mb in 0..32u8 {
+                assert_eq!(e::mop_rldicl(3, 4, sh, mb).word(), e::encode_rldicl(3, 4, sh, mb));
+                for me in 0..32u8 {
+                    assert_eq!(
+                        e::mop_rlwinm(3, 4, sh, mb, me).word(),
+                        e::encode_rlwinm(3, 4, sh, mb, me)
+                    );
+                }
+            }
+        }
+        assert_eq!(e::mop_blr().word(), e::encode_blr());
+    }
+}

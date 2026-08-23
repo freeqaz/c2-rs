@@ -81,9 +81,9 @@
 use c2_il::DivModLeaf;
 
 use crate::codegen::encode::{
-    encode_addi, encode_andc, encode_blr, encode_divw, encode_divwu, encode_mullw, encode_rlwinm,
-    encode_subf, encode_twi,
+    mop_addi, mop_andc, mop_blr, mop_divw, mop_divwu, mop_mullw, mop_rlwinm, mop_subf, mop_twi,
 };
+use crate::codegen::mop::{ops_to_bytes, Ops};
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
 
@@ -101,7 +101,7 @@ const TO_DIV_BY_ZERO: u8 = 6;
 const TO_OVERFLOW: u8 = 5;
 
 /// Emit the whole body. No relocation, no pooled constant, no label and no
-/// branch — so the caller takes it as an ordinary `Selected::Plain`.
+/// branch — so the caller takes it as an ordinary `Terminator::None`.
 pub(crate) fn div_mod_leaf_text(d: &DivModLeaf, mode: OptMode) -> Result<Vec<u8>, BackendError> {
     // Re-asserted here even though `try_parse_div_mod_leaf` already required
     // it: `select_function` is what `function_gate` runs, so a shape that
@@ -113,12 +113,15 @@ pub(crate) fn div_mod_leaf_text(d: &DivModLeaf, mode: OptMode) -> Result<Vec<u8>
             "div/mod leaf with other than two formals: the register plan is measured at two",
         ));
     }
-    let mut t: Vec<u8> = Vec::with_capacity(36);
+    // S1c (i): an op stream. The `debug_assert` on the body's word count
+    // below is now a count of OPS rather than of bytes/4, which is the same
+    // number said directly.
+    let mut t: Ops = Vec::with_capacity(9);
     match (d.signed, d.is_mod) {
         // ---- unsigned `/` — three words, and byte-identical at both modes ---
         (false, false) => {
-            t.extend_from_slice(&encode_divwu(R_A, R_A, R_B));
-            t.extend_from_slice(&encode_twi(TO_DIV_BY_ZERO, R_B, 0));
+            t.push(mop_divwu(R_A, R_A, R_B));
+            t.push(mop_twi(TO_DIV_BY_ZERO, R_B, 0));
         }
         // ---- unsigned `%` ---------------------------------------------------
         //
@@ -130,10 +133,10 @@ pub(crate) fn div_mod_leaf_text(d: &DivModLeaf, mode: OptMode) -> Result<Vec<u8>
                 OptMode::O1 => 11,
                 OptMode::Ox => 10,
             };
-            t.extend_from_slice(&encode_divwu(q, R_A, R_B));
-            t.extend_from_slice(&encode_twi(TO_DIV_BY_ZERO, R_B, 0));
-            t.extend_from_slice(&encode_mullw(p, q, R_B));
-            t.extend_from_slice(&encode_subf(R_A, p, R_A));
+            t.push(mop_divwu(q, R_A, R_B));
+            t.push(mop_twi(TO_DIV_BY_ZERO, R_B, 0));
+            t.push(mop_mullw(p, q, R_B));
+            t.push(mop_subf(R_A, p, R_A));
         }
         // ---- signed `/` -----------------------------------------------------
         //
@@ -146,12 +149,12 @@ pub(crate) fn div_mod_leaf_text(d: &DivModLeaf, mode: OptMode) -> Result<Vec<u8>
                 OptMode::O1 => 11,
                 OptMode::Ox => 10,
             };
-            t.extend_from_slice(&encode_rlwinm(11, R_A, 1, 0, 31));
-            t.extend_from_slice(&encode_divw(R_A, R_A, R_B));
-            t.extend_from_slice(&encode_addi(11, 11, -1));
-            t.extend_from_slice(&encode_twi(TO_DIV_BY_ZERO, R_B, 0));
-            t.extend_from_slice(&encode_andc(ovf, R_B, 11));
-            t.extend_from_slice(&encode_twi(TO_OVERFLOW, ovf, -1));
+            t.push(mop_rlwinm(11, R_A, 1, 0, 31));
+            t.push(mop_divw(R_A, R_A, R_B));
+            t.push(mop_addi(11, 11, -1));
+            t.push(mop_twi(TO_DIV_BY_ZERO, R_B, 0));
+            t.push(mop_andc(ovf, R_B, 11));
+            t.push(mop_twi(TO_OVERFLOW, ovf, -1));
         }
         // ---- signed `%` — `Sort.cpp`'s own spine, standing on its own -------
         //
@@ -167,26 +170,26 @@ pub(crate) fn div_mod_leaf_text(d: &DivModLeaf, mode: OptMode) -> Result<Vec<u8>
                 OptMode::O1 => 11,
                 OptMode::Ox => 7,
             };
-            t.extend_from_slice(&encode_rlwinm(11, R_A, 1, 0, 31));
-            t.extend_from_slice(&encode_divw(quot, R_A, R_B));
-            t.extend_from_slice(&encode_addi(pred, 11, -1));
-            t.extend_from_slice(&encode_mullw(prod, quot, R_B));
-            t.extend_from_slice(&encode_andc(ovf, R_B, pred));
+            t.push(mop_rlwinm(11, R_A, 1, 0, 31));
+            t.push(mop_divw(quot, R_A, R_B));
+            t.push(mop_addi(pred, 11, -1));
+            t.push(mop_mullw(prod, quot, R_B));
+            t.push(mop_andc(ovf, R_B, pred));
             // MUTATION ANCHOR: swap these two lines and the fixture goes from
             // `Port=Match` to a live `Port=Mismatch @ offset 556`. See the
             // module docs.
-            t.extend_from_slice(&encode_twi(TO_DIV_BY_ZERO, R_B, 0));
-            t.extend_from_slice(&encode_subf(R_A, prod, R_A));
-            t.extend_from_slice(&encode_twi(TO_OVERFLOW, ovf, -1));
+            t.push(mop_twi(TO_DIV_BY_ZERO, R_B, 0));
+            t.push(mop_subf(R_A, prod, R_A));
+            t.push(mop_twi(TO_OVERFLOW, ovf, -1));
         }
     }
-    t.extend_from_slice(&encode_blr());
+    t.push(mop_blr());
     debug_assert_eq!(
         t.len(),
-        4 * expected_words(d),
+        expected_words(d),
         "the class's body length is a constant of (signed, is_mod)"
     );
-    Ok(t)
+    Ok(ops_to_bytes(&t))
 }
 
 /// Word count per shape, stated separately from the emitter so the two have to

@@ -444,9 +444,13 @@ mod tests {
         // `Plain` body of the right length rather than falling through to a leaf
         // pattern-matcher.
         let sel = crate::codegen::select::select_function(&fun, crate::codegen::select::OptMode::O1);
+        // S1b: the retired `Selected::Plain(t)` pattern, read back through the
+        // `#[cfg(test)]` view that stands in for it.
         match sel {
-            Ok(crate::codegen::select::Selected::Plain(t)) => assert_eq!(t.len(), 48),
-            Ok(_) => panic!("the float walk loop routed to a variant other than Plain"),
+            Ok(s) => match s.as_plain() {
+                Some(t) => assert_eq!(t.len(), 48),
+                None => panic!("the float walk loop routed to a variant other than Plain"),
+            },
             Err(e) => panic!("the float walk loop did not route at all: {e:?}"),
         }
     }

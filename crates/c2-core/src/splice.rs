@@ -38,7 +38,7 @@
 //!
 //! | clause | what it requires | the cell that grades it |
 //! |---|---|---|
-//! | **S1** | the selection is [`Selected::Tail`] or [`Selected::Seq`] | `t07` — a **framed** caller. SPLICE-0 is **0 of 123** there, every one a destination-register rename |
+//! | **S1** | the selection is [`Terminator::TailCall`] or [`Selected::Seq`] | `t07` — a **framed** caller. SPLICE-0 is **0 of 123** there, every one a destination-register rename |
 //! | **S2** | exactly **one** call site | `t08` — two calls. SPLICE-N is **0 of 548** |
 //! | **S3** | the port emits **nothing around the call**: for a `Tail`, an empty setup; for a `Seq`, an **identity argument mapping read off the IL** and a tail that is the ABI identity on r3 | `t04` (register move), `t05` (arithmetic), `t06` (pointer offset). Every one of w-seq's 503 SPLICE-0 failures is a **field** of the callee's body rewritten — a source rename (286), a destination rename (123), a displacement fold (~92) — and a non-identity setup is the thing that rewrites it. **A `Seq`'s emitted setup is NOT the test**: 816 of 816 carry the frame's own `mr r31,r3` and none carries a real marshalling, so the clause reads the IL |
 //! | **S4** | the callee is not the caller | `t12`. `INLINE_PREDICATE.md` §4 grades `recurse` **336/336** declined by c2 as well |
@@ -139,7 +139,7 @@
 
 use c2_il::{IlFunction, SeqTail};
 
-use crate::codegen::{OptMode, Selected, opt_mode_of_word};
+use crate::codegen::{OptMode, Selected, Terminator, opt_mode_of_word};
 use crate::comdat::{ComdatBody, ComdatDecline};
 use crate::elide::{Reduction, TuEmptyCallees, drops_tail_call};
 
@@ -459,11 +459,19 @@ pub fn splice_callee_why<'a>(
     let callee: &str = match selected {
         // A tail call with a non-empty setup is SPLICE-P's `port_words > 1`
         // stratum: **0 of 953**, with 1,890 of them diverging at word 0.
-        Selected::Tail(setup) if setup.is_empty() => match f.tail_call() {
-            Some(c) => c,
-            None => return Err("S1-tail-without-callee"),
-        },
-        Selected::Tail(_) => return Err("S3-tail-setup"),
+        // **S1b keeps this clause EXACTLY as it was, and that is load-bearing.**
+        // `setup.is_empty()` is a *semantic* stratum, not a spelling: SPLICE-P's
+        // `port_words > 1` bucket is **0 of 953**, with 1,890 of them diverging
+        // at word 0. Collapsing `Terminator::TailCall` into a terminator had to keep
+        // the emptiness test on the same bytes it always tested — the body
+        // before the branch — and it does: `text` here is what `setup` was.
+        Selected::Body { text: setup, term: Terminator::TailCall } if setup.is_empty() => {
+            match f.tail_call() {
+                Some(c) => c,
+                None => return Err("S1-tail-without-callee"),
+            }
+        }
+        Selected::Body { term: Terminator::TailCall, .. } => return Err("S3-tail-setup"),
         // **S1/S3 — W-CFG1 names TWO callees and has a conditional site**, so it
         // is out on both of the clauses that exclude `CondPair`. Refused
         // explicitly rather than by a catch-all, so a later shape cannot fall
@@ -507,7 +515,7 @@ pub fn splice_callee_why<'a>(
         // have to reproduce a prologue that calls out of the function.
         Selected::XlrcCreateGuard => return Err("S3-xlrc-create-guard"),
         Selected::JsonUtf8Copy => return Err("S3-json-utf8-copy"),
-        Selected::MemcpyTail(_) => return Err("S3-memcpy-tail"),
+        Selected::Body { term: Terminator::MemcpyCall, .. } => return Err("S3-memcpy-tail"),
         Selected::XteaEncryptLoop => return Err("S3-xtea-encrypt-loop"),
         Selected::Seq { setups, .. } => {
             let Some(seq) = f.call_seq() else {
@@ -593,7 +601,11 @@ pub fn splice_callee_why<'a>(
         }
         Selected::Framed { .. } => return Err("S1-framed"),
         Selected::CondPair(_) => return Err("S1-cond-pair"),
-        Selected::Plain(_) | Selected::Float { .. } => return Err("S1-no-call"),
+        // `Terminator::None` is the retired `Terminator::None`: a body that owes
+        // no branch names no callee, which is this clause's whole content.
+        Selected::Body { term: Terminator::None, .. } | Selected::Float { .. } => {
+            return Err("S1-no-call")
+        }
     };
     // **S4.** Self-recursion. c2 declines it too — `INLINE_PREDICATE.md` §4
     // grades the `recurse` family 336/336 — and a rule that took it would

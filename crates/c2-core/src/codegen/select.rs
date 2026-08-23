@@ -17,7 +17,8 @@ use crate::BackendError;
 use crate::codegen::calls;
 use crate::codegen::calls::{call_seq_parts, int_tail_call_text, permute_args_text};
 use crate::codegen::cond_tail::{cond_pair_parts, CondPairParts};
-use crate::codegen::encode::encode_blr;
+use crate::codegen::encode::{encode_blr, mop_blr};
+use crate::codegen::mop::{ops_to_bytes, Ops};
 use crate::codegen::leaf::addr::addr_leaf_text;
 use crate::codegen::leaf::compare::{cmp_shift_or_text, compare_leaf_text};
 use crate::codegen::leaf::float::{
@@ -106,6 +107,125 @@ pub enum OptMode {
 
 // ---- The per-function selector: ONE dispatch, two emitters -----------------
 
+/// **What the caller still owes a [`Selected::Body`] after its text** — the
+/// discriminant the three collapsed variants used to be (S1b, slice S1).
+///
+/// # This is NOT a decision surface, and saying so is the point
+///
+/// `GOAL_DECISION_2026-08-21.md` § AMENDED asks every general layer to ship its
+/// arbitrary choices as named, settable parameters. **This enum has no
+/// arbitrary choice in it.** The terminator is a total function of the
+/// `BodyShape` arm that produced the body — there is no configuration in which
+/// a different value reproduces `c2`, so exposing it as a *parameter* would be
+/// a fake surface, which is worse than a stated null. What it does buy is a
+/// **name**: three post-body obligations that were previously legible only by
+/// diffing [`crate::comdat`]'s dispatcher against [`crate::PortC2::build`]'s.
+///
+/// The real decision surface this slice ships is one layer down and unchanged:
+/// [`super::mop::EncodeParams`] (S1a).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Terminator {
+    /// **Nothing.** The text is the whole body — no relocation, no pooled
+    /// constant. The retired `Terminator::None`.
+    None,
+    /// **A tail call**: `b <callee>` at `text.len()`, with a `REL24` there, the
+    /// callee read out of the IL via [`c2_il::IlFunction::tail_call`]. The
+    /// retired `Terminator::TailCall`.
+    TailCall,
+    /// **W-XTEA2 — the whole-body `memcpy` tail branch.** Exactly
+    /// [`Terminator::TailCall`]'s contract with ONE difference, which is the
+    /// whole reason it is a distinct value and not a flag: the callee is
+    /// **minted**, not read out of the IL. `memcpy` arrives as intrinsic
+    /// selector 172 with no `.gl` record, so `f.tail_call()` is `None` and
+    /// `TailCall`'s `expect` would fire. The retired `Terminator::MemcpyCall`;
+    /// see [`crate::codegen::memcpy_tail`].
+    MemcpyCall,
+}
+
+/// **The callee a [`Terminator`]'s branch points at — the ONE place that
+/// resolves it.**
+///
+/// Before S1b this rule was written out twice, once in each dispatcher, as two
+/// pairs of match arms: `f.tail_call().expect("Tail implies tail_call")` in one
+/// arm and `codegen::memcpy_tail::MEMCPY_NAME` in the next, in
+/// `crates/c2-core/src/comdat.rs` **and** in `crates/c2-core/src/lib.rs`. That
+/// is the "one rule, two implementations" shape `docs/GAPS.md` §6 keeps
+/// recording, and it is the shape that lets two writers disagree with no
+/// conflict marker.
+///
+/// Returns `None` for [`Terminator::None`] — a body that owes no branch owes no
+/// callee. The `expect` on the `TailCall` arm is the incumbent's, kept verbatim:
+/// reaching it means `select_function` produced a `TailCall` terminator for a
+/// body with no `tail_call` record, which is a bug in this crate rather than an
+/// input condition.
+pub fn terminator_callee<'a>(term: Terminator, f: &'a c2_il::IlFunction) -> Option<&'a str> {
+    match term {
+        Terminator::None => None,
+        Terminator::TailCall => Some(f.tail_call().expect("TailCall implies tail_call")),
+        Terminator::MemcpyCall => Some(crate::codegen::memcpy_tail::MEMCPY_NAME),
+    }
+}
+
+impl Selected {
+    /// The retired `Terminator::None` — a complete body, no relocation, no
+    /// pooled constants.
+    #[inline]
+    pub fn plain(text: Vec<u8>) -> Selected {
+        Selected::Body { text, term: Terminator::None }
+    }
+
+    /// The retired `Terminator::TailCall` — the bytes *before* the `b <callee>`.
+    #[inline]
+    pub fn tail(text: Vec<u8>) -> Selected {
+        Selected::Body { text, term: Terminator::TailCall }
+    }
+
+    /// The retired `Terminator::MemcpyCall` — as [`Selected::tail`], with a
+    /// minted callee.
+    #[inline]
+    pub fn memcpy_tail(text: Vec<u8>) -> Selected {
+        Selected::Body { text, term: Terminator::MemcpyCall }
+    }
+}
+
+/// **The retired byte-carrying variants, re-added as read-only views** — S1's
+/// own instruction (`ROADMAP_SLICING_2026-08-21.md` §5 row S1: the incumbent is
+/// *"deleted from the live path and re-added only as `#[cfg(test)]`
+/// cross-checks"*), in the shape S1a used for the 85 encoders.
+///
+/// Nothing outside `cfg(test)` can reach these, so a green identity diff is
+/// evidence that the collapse preserved the dispatch rather than evidence that
+/// nothing was wired up.
+#[cfg(test)]
+impl Selected {
+    /// `Some(text)` exactly where the incumbent would have matched
+    /// `Terminator::None(text)`.
+    pub fn as_plain(&self) -> Option<&[u8]> {
+        match self {
+            Selected::Body { text, term: Terminator::None } => Some(text),
+            _ => None,
+        }
+    }
+
+    /// `Some(text)` exactly where the incumbent would have matched
+    /// `Terminator::TailCall(text)`.
+    pub fn as_tail(&self) -> Option<&[u8]> {
+        match self {
+            Selected::Body { text, term: Terminator::TailCall } => Some(text),
+            _ => None,
+        }
+    }
+
+    /// `Some(text)` exactly where the incumbent would have matched
+    /// `Terminator::MemcpyCall(text)`.
+    pub fn as_memcpy_tail(&self) -> Option<&[u8]> {
+        match self {
+            Selected::Body { text, term: Terminator::MemcpyCall } => Some(text),
+            _ => None,
+        }
+    }
+}
+
 /// What [`select_function`] produced for one function.
 ///
 /// The variants differ only in what the *caller* still has to do — append a
@@ -116,22 +236,30 @@ pub enum OptMode {
 /// a diagnostic that wanted to ask "would the port accept this function?" had to
 /// grow a third (`docs/GAPS.md` §6, "one fact, one locator").
 pub enum Selected {
-    /// A complete body. No relocation, no pooled constants.
-    Plain(Vec<u8>),
-    /// **W-XTEA2 — the whole-body `memcpy` tail branch.** Exactly
-    /// [`Selected::Tail`]'s contract — the bytes are everything before the
-    /// `b <callee>` and the caller appends the branch at `text_offset + len`,
-    /// because the branch word encodes its own `.text` offset — with ONE
-    /// difference, which is the whole reason it is not that variant: the callee
-    /// is **minted**, not read out of the IL. `memcpy` arrives as intrinsic
-    /// selector 172 with no `.gl` record, so `f.tail_call` is `None` and
-    /// `Selected::Tail`'s `expect` would fire. See
-    /// [`crate::codegen::memcpy_tail`].
-    MemcpyTail(Vec<u8>),
-    /// A tail call. The bytes are everything *before* the `b <callee>`; the
-    /// caller appends the branch at `text_offset + len` and registers the REL24
-    /// there, because the branch encodes its own `.text` offset.
-    Tail(Vec<u8>),
+    /// **A body plus what the caller still owes it** — the S1b collapse of the
+    /// three variants `Plain(Vec<u8>)`, `Tail(Vec<u8>)` and
+    /// `MemcpyTail(Vec<u8>)`, which differed in nothing else.
+    ///
+    /// Those three carried the same payload (a `Vec<u8>` of finished words) and
+    /// were told apart only by a post-body obligation that lived, spelled out
+    /// twice, in the two dispatchers. `Selected::Body` carries that obligation
+    /// as a [`Terminator`] **value** instead, so the fact is in the data rather
+    /// than in two matches that a reader has to diff to compare.
+    ///
+    /// Construct them through [`Selected::plain`], [`Selected::tail`] and
+    /// [`Selected::memcpy_tail`], which name the three retired variants; read
+    /// the obligation back through [`terminator_callee`], the one place that
+    /// resolves it.
+    ///
+    /// **`text` is the body BEFORE any terminator branch.** For
+    /// [`Terminator::TailCall`] and [`Terminator::MemcpyCall`] the branch word
+    /// is appended by the caller at `text_offset + text.len()`, because the
+    /// branch encodes its own `.text` offset and only the caller knows where
+    /// the function lands.
+    Body {
+        text: Vec<u8>,
+        term: Terminator,
+    },
     /// A floating-point leaf plus one [`FpConstRef`] per constant reference
     /// site, at offsets relative to the start of this text.
     Float {
@@ -244,7 +372,7 @@ pub enum Selected {
     JsonUtf8Copy,
     /// **W8 — a two-arm conditional tail call.** The body with a zero word at
     /// each of its two tail branches, which the caller fills for the same reason
-    /// [`Selected::Tail`] carries an incomplete text: a `b` to an external
+    /// [`Terminator::TailCall`] carries an incomplete text: a `b` to an external
     /// encodes its own `.text` offset. The **conditional** branch is already
     /// finished — its displacement is self-relative and offset-independent, and
     /// it takes no relocation at all (`docs/CFG_SHAPE.md` §3.3, board #191).
@@ -338,14 +466,14 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         //
         // A single-argument **floating-point** tail call: the argument is in the
         // other register file, so its setup is at most one `fmr`/`frsp`.
-        BodyShape::FpTail { fp, .. } => Ok(Selected::Tail(fp_tail_call_text(&func.params, fp)?)),
+        BodyShape::FpTail { fp, .. } => Ok(Selected::tail(fp_tail_call_text(&func.params, fp)?)),
         // A multi-argument **floating-point** tail call: a permutation of the FP
         // argument file, then the branch.
         BodyShape::FpMultiTail { sources, .. } => {
-            Ok(Selected::Tail(fp_permute_args_text(sources)?))
+            Ok(Selected::tail(fp_permute_args_text(sources)?))
         }
         // Multi-argument (GPR): a register permutation, then the branch.
-        BodyShape::MultiTail { slots, .. } => Ok(Selected::Tail(permute_args_text(slots)?)),
+        BodyShape::MultiTail { slots, .. } => Ok(Selected::tail(permute_args_text(slots)?)),
         // The plain tail call, void vs int split by `ops.is_empty()` exactly
         // where it lived inside the old `tail_call` block: a VOID tail call
         // (`void f(){ g(); }`, and the generated empty destructor) has no
@@ -354,11 +482,17 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         // branch itself, so the setup is its text minus the last word.
         BodyShape::Tail(_) => {
             if func.ops.is_empty() {
-                Ok(Selected::Tail(Vec::new()))
+                // S1c (i): a VOID tail call's setup is the EMPTY op stream. Said
+                // as an `Ops` rather than a bare `Vec::new()` because the
+                // emptiness is load-bearing downstream — `splice.rs` reads it as
+                // SPLICE-P's stratum (0 of 953) — so it is worth spelling as
+                // "no ops" rather than "no bytes".
+                let ops: Ops = Vec::new();
+                Ok(Selected::tail(ops_to_bytes(&ops)))
             } else {
                 let (mut text, _) = int_tail_call_text(func, 0, mode)?;
                 text.truncate(text.len() - 4);
-                Ok(Selected::Tail(text))
+                Ok(Selected::tail(text))
             }
         }
         // The framed whole-body guard/chain shapes. Each is a pure function of
@@ -400,56 +534,58 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
             Ok(Selected::IfCallJoin)
         }
         // **W-POOL2** — the free-list PUSH/POP leaf and the constructor that
-        // builds the chain; both `Selected::Plain` (no relocation, no pooled
+        // builds the chain; both `Terminator::None` (no relocation, no pooled
         // constant, no label). Mode gate in the emitter (board #1638).
-        BodyShape::PoolFreeList(g) => Ok(Selected::Plain(pool_free_list_text(g, mode)?)),
-        BodyShape::PoolCtorChain(c) => Ok(Selected::Plain(pool_ctor_chain_text(c, mode)?)),
+        BodyShape::PoolFreeList(g) => Ok(Selected::plain(pool_free_list_text(g, mode)?)),
+        BodyShape::PoolCtorChain(c) => Ok(Selected::plain(pool_ctor_chain_text(c, mode)?)),
         // **W-XTEA2 — the whole-body `memcpy` tail branch.** Its callee is
         // minted, not read out of the IL, which is why it is its own variant and
         // not `Tail`.
-        BodyShape::MemcpyTail(m) => Ok(Selected::MemcpyTail(memcpy_tail_text(m, mode)?)),
-        // **W-XTEA3 — the two-element 64-bit member run** (`Selected::Plain`,
+        BodyShape::MemcpyTail(m) => Ok(Selected::memcpy_tail(memcpy_tail_text(m, mode)?)),
+        // **W-XTEA3 — the two-element 64-bit member run** (`Terminator::None`,
         // `nrel 0`).
-        BodyShape::NonceAddRun(n) => Ok(Selected::Plain(nonce_add_run_text(n, mode)?)),
-        // **W-XTEA3 — the XTEA round loop** (`Selected::Plain`, `nrel 0`);
+        BodyShape::NonceAddRun(n) => Ok(Selected::plain(nonce_add_run_text(n, mode)?)),
+        // **W-XTEA3 — the XTEA round loop** (`Terminator::None`, `nrel 0`);
         // admits `/O1` alone, gate in the reader (board #1638).
-        BodyShape::XteaRoundLoop(x) => Ok(Selected::Plain(xtea_round_loop_text(x, mode)?)),
+        BodyShape::XteaRoundLoop(x) => Ok(Selected::plain(xtea_round_loop_text(x, mode)?)),
         // **W-XTEA3 — the framed XTEA block loop**, a framed unit variant.
         BodyShape::XteaEncryptLoop(x) => {
             xtea_encrypt_loop_text(x, 0, mode)?;
             Ok(Selected::XteaEncryptLoop)
         }
         // The pointer-walk accumulate loop.
-        BodyShape::PtrWalkLoop(l) => Ok(Selected::Plain(ptr_walk_loop_text(l, mode)?)),
+        BodyShape::PtrWalkLoop(l) => Ok(Selected::plain(ptr_walk_loop_text(l, mode)?)),
         // **W-DATA — the static-array scan loop.** Its COMDAT `.data` object is
         // read off `Function::data_defs` by the obj writer, not decided here.
-        BodyShape::StaticScanLoop(_) => Ok(Selected::Plain(
+        BodyShape::StaticScanLoop(_) => Ok(Selected::plain(
             crate::codegen::static_scan_loop::static_scan_loop_emit(func, mode)?,
         )),
         // **W-WORDWRAP — the file-scope-global store leaf.** No mode gate: GRID G
         // measured identical bytes at every optimize mode; `/Od` is refused
         // upstream by `opt_word_mode`.
-        BodyShape::GlobalStoreLeaf(g) => Ok(Selected::Plain(
+        BodyShape::GlobalStoreLeaf(g) => Ok(Selected::plain(
             crate::codegen::global_store_leaf::global_store_leaf_text(g)?,
         )),
         // **W-BDNZ — the counted-`for` accumulate loop**, accepts both modes on
         // a measurement.
-        BodyShape::CountedAccumLoop(_) => Ok(Selected::Plain(
+        BodyShape::CountedAccumLoop(_) => Ok(Selected::plain(
             crate::codegen::counted_accum_loop::counted_accum_loop_emit(func, mode)?,
         )),
         // **W-BLOCKIR — the float array-walk counted loop.** `/O1` alone (reader
         // gate, board #1638).
-        BodyShape::FloatWalkLoop(_) => Ok(Selected::Plain(
+        BodyShape::FloatWalkLoop(_) => Ok(Selected::plain(
             crate::codegen::float_walk_loop::float_walk_loop_text(func)?,
         )),
         // The body-parameterized pointer-walk loop — variable-length text, so
         // the caller must take the length from the returned bytes.
-        BodyShape::PtrWalkChainLoop(l) => Ok(Selected::Plain(ptr_walk_chain_loop_text(l, mode)?)),
+        BodyShape::PtrWalkChainLoop(l) => Ok(Selected::plain(ptr_walk_chain_loop_text(l, mode)?)),
         // The integer divide/modulo leaf — the straight-line chain refuses its
         // operator outright, so neither can take the other's body.
-        BodyShape::DivModLeaf(d) => Ok(Selected::Plain(div_mod_leaf_text(d, mode)?)),
-        // An empty body: a bare `blr`.
-        BodyShape::EmptyBody => Ok(Selected::Plain(encode_blr().to_vec())),
+        BodyShape::DivModLeaf(d) => Ok(Selected::plain(div_mod_leaf_text(d, mode)?)),
+        // An empty body: a bare `blr`. S1c (i): a one-op stream rather than a
+        // word already turned into bytes — the smallest body in the port, and
+        // the one that shows the op stream costs nothing to adopt.
+        BodyShape::EmptyBody => Ok(Selected::plain(ops_to_bytes(&[mop_blr()]))),
         // The FP leaf. Its op vocabulary (`Load`/`Lit`/`FpLit` + `+ - * /`) is
         // disjoint from the indirect-load and address leaves', which is why it
         // is safe as its own arm.
@@ -462,23 +598,23 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         // empty `ops` stream, so the `Plain` leaf matchers below would return
         // `None` for them (which is exactly why the old ordered chain reached
         // their `is_some` checks only after those matchers declined).
-        BodyShape::CmpShiftOr(cso) => Ok(Selected::Plain(cmp_shift_or_text(cso, mode)?)),
-        BodyShape::Compare(cmp) => Ok(Selected::Plain(compare_leaf_text(cmp, mode)?)),
+        BodyShape::CmpShiftOr(cso) => Ok(Selected::plain(cmp_shift_or_text(cso, mode)?)),
+        BodyShape::Compare(cmp) => Ok(Selected::plain(compare_leaf_text(cmp, mode)?)),
         // **The no-shape body.** Its `ops` stream is spelled by the leaf
         // pattern-matchers IN ORDER — the one place a precedence is still
         // load-bearing, because all three read the same stream — then the
         // ordinary arithmetic selector, which refuses whatever it cannot lower.
         BodyShape::Plain => {
             if let Some(t) = indirect_load_text(func) {
-                return Ok(Selected::Plain(t?));
+                return Ok(Selected::plain(t?));
             }
             if let Some(t) = addr_leaf_text(func) {
-                return Ok(Selected::Plain(t?));
+                return Ok(Selected::plain(t?));
             }
             if let Some(t) = store_leaf_text(func, mode) {
-                return Ok(Selected::Plain(t?));
+                return Ok(Selected::plain(t?));
             }
-            Ok(Selected::Plain(select_text(func, mode)?))
+            Ok(Selected::plain(select_text(func, mode)?))
         }
     }
 }

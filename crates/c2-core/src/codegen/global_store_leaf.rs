@@ -43,7 +43,8 @@
 //! is **not** `/O1`-only, and the emitter asks for no mode at all rather than
 //! restating a gate it does not have.
 
-use crate::codegen::encode::{encode_addis, encode_blr, encode_stb, encode_std, encode_sth, encode_stw};
+use crate::codegen::encode::{mop_addis, mop_blr, mop_stb, mop_std, mop_sth, mop_stw};
+use crate::codegen::mop::{ops_to_bytes, Ops};
 use crate::codegen::select::out_of_class;
 use crate::BackendError;
 use c2_il::GlobalStoreLeaf;
@@ -61,11 +62,18 @@ const R_VALUE: u8 = 3;
 /// and they are located by `crate::data_defs_of` off these very bytes rather
 /// than being asserted here — one fact, one locator.
 pub fn global_store_leaf_text(g: &GlobalStoreLeaf) -> Result<Vec<u8>, BackendError> {
+    Ok(ops_to_bytes(&global_store_leaf_ops(g)?))
+}
+
+/// **The same body as an op stream** — S1c (i). `global_store_leaf_text` is now
+/// this rendered once, so the two cannot disagree: there is no second
+/// derivation, only a `.word()` per op.
+pub fn global_store_leaf_ops(g: &GlobalStoreLeaf) -> Result<Ops, BackendError> {
     let store = match g.width {
-        1 => encode_stb(R_VALUE, R_ADDR, 0),
-        2 => encode_sth(R_VALUE, R_ADDR, 0),
-        4 => encode_stw(R_VALUE, R_ADDR, 0),
-        8 => encode_std(R_VALUE, R_ADDR, 0),
+        1 => mop_stb(R_VALUE, R_ADDR, 0),
+        2 => mop_sth(R_VALUE, R_ADDR, 0),
+        4 => mop_stw(R_VALUE, R_ADDR, 0),
+        8 => mop_std(R_VALUE, R_ADDR, 0),
         // Unreachable from the parser — `global_store_leaf`'s `STORE_WIDTHS`
         // table yields only these four — and stated as a refusal rather than an
         // `unreachable!` because the CLI must degrade cleanly.
@@ -77,11 +85,7 @@ pub fn global_store_leaf_text(g: &GlobalStoreLeaf) -> Result<Vec<u8>, BackendErr
             ))
         }
     };
-    let mut t = Vec::with_capacity(12);
-    t.extend_from_slice(&encode_addis(R_ADDR, 0, 0));
-    t.extend_from_slice(&store);
-    t.extend_from_slice(&encode_blr());
-    Ok(t)
+    Ok(vec![mop_addis(R_ADDR, 0, 0), store, mop_blr()])
 }
 
 #[cfg(test)]

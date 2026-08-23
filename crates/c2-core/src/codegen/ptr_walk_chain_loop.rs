@@ -142,7 +142,7 @@ fn slot_of(i: usize, a: usize, r: usize) -> usize {
 /// Emit the whole function.
 ///
 /// No relocation, no pooled constant, no label and no symbol — every branch is
-/// self-relative — so the caller takes it as an ordinary `Selected::Plain`.
+/// self-relative — so the caller takes it as an ordinary `Terminator::None`.
 pub(crate) fn ptr_walk_chain_loop_text(
     l: &PtrWalkChainLoop,
     mode: OptMode,

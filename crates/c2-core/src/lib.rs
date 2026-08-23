@@ -814,7 +814,7 @@ impl PortC2 {
                 // A framed non-leaf call: the fixed 0x24-byte frame, plus a
                 // `.pdata` record and two `$M` labels (W-UNW-1). Packed, the
                 // `bl` displacement is `-(its own .text offset)`, so the body
-                // has to be built at `off` — the same reason `Selected::Tail`
+                // has to be built at `off` — the same reason `Terminator::TailCall`
                 // hands back an unfinished text. Emitting it at a hardcoded 0
                 // was a live wrong-bytes emit for any framed function that is
                 // not first in the section.
@@ -964,7 +964,9 @@ impl PortC2 {
                 // (board #946) widened the refusal in the same commit and by
                 // the same line. A copy of the predicate here would have had to
                 // be found and changed; there is none.
-                codegen::Selected::Tail(_) if elide::drops_tail_call(f, &tu_empty) => {
+                codegen::Selected::Body { term: codegen::Terminator::TailCall, .. }
+                    if elide::drops_tail_call(f, &tu_empty) =>
+                {
                     return Err(BackendError::NotImplemented(
                         "a call c2 does not emit (its callee is defined in \
                          this TU by a body that reduces to nothing) inside a \
@@ -979,11 +981,25 @@ impl PortC2 {
                 // `b <callee>` (REL24) at this offset; an integer or multi-argument
                 // tail call first puts the arguments in place, then branches (the
                 // branch, not the function start, is the reloc site).
-                codegen::Selected::Tail(setup) => {
+                //
+                // **S1b — one arm for the three collapsed variants**, with the
+                // packed dispatcher's own difference from the COMDAT one intact
+                // and now visible in one line: `branch_off` is `off + len` here
+                // and `len` there, because a packed function does not start at
+                // offset 0 of its section. That difference is exactly why the
+                // two dispatchers keep separate arms while sharing
+                // [`codegen::terminator_callee`].
+                //
+                // **`Terminator::MemcpyCall` is REFUSED here**, and the refusal
+                // is below with its reasons — this arm must not silently serve
+                // it, which is the one thing collapsing three variants into a
+                // field could have made easy to do by accident.
+                codegen::Selected::Body { text: setup, term: codegen::Terminator::TailCall } => {
                     let branch_off = off + setup.len() as u32;
                     text.extend_from_slice(&setup);
                     text.extend_from_slice(&codegen::encode_tail_branch(branch_off));
-                    let callee = f.tail_call().expect("Tail implies tail_call");
+                    let callee = codegen::terminator_callee(codegen::Terminator::TailCall, f)
+                        .expect("TailCall always resolves a callee");
                     (
                         vec![coff::Call {
                             reloc_offset: branch_off,
@@ -1201,7 +1217,7 @@ impl PortC2 {
                 // unreachable as written. A named refusal rather than an
                 // `unreachable!()`, because an unreachable arm that becomes
                 // reachable is how a guessed layout ships.
-                codegen::Selected::MemcpyTail(_) => {
+                codegen::Selected::Body { term: codegen::Terminator::MemcpyCall, .. } => {
                     return Err(BackendError::NotImplemented(
                         "the whole-body `memcpy` tail branch in the PACKED \
                          (non-`/Gy`) layout: the class is `/O1`-only and `/O1` \
@@ -1232,7 +1248,7 @@ impl PortC2 {
                         Vec::new(),
                     )
                 }
-                codegen::Selected::Plain(body) => {
+                codegen::Selected::Body { text: body, term: codegen::Terminator::None } => {
                     text.extend_from_slice(&body);
                     (Vec::new(), Vec::new())
                 }
@@ -1387,7 +1403,7 @@ impl PortC2 {
 /// # W-EXTDATA — the `lis` is no longer required to be the body's FIRST word
 ///
 /// It was, and the clause was right for every class that had reached here: the
-/// `Selected::Tail`/`Seq` setups hoist it to word 0. `_vswprintf_s_l` puts it at
+/// `Terminator::TailCall`/`Selected::Seq` setups hoist it to word 0. `_vswprintf_s_l` puts it at
 /// **word 14**, interleaved into a five-deep argument rotate
 /// (`work/w-extdata/VSWPRNC_BODY.md` §3), so the position rule refuses a body
 /// c2 emits.

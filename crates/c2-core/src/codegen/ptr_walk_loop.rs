@@ -125,7 +125,7 @@ const R_SRC: u8 = 3;
 const R_DIV: u8 = 4;
 
 /// Emit the whole body. Twenty words, no relocation, no pooled constant, no
-/// label — so the caller takes it as an ordinary `Selected::Plain`.
+/// label — so the caller takes it as an ordinary `Terminator::None`.
 pub(crate) fn ptr_walk_loop_text(
     l: &PtrWalkModLoop,
     mode: OptMode,

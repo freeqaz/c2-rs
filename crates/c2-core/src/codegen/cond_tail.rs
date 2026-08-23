@@ -123,7 +123,7 @@ use crate::codegen::select::out_of_class;
 /// they go.
 ///
 /// The two `b` words are the caller's because each encodes **its own `.text`
-/// offset** — the same reason [`crate::codegen::Selected::Tail`] hands back an
+/// offset** — the same reason [`crate::codegen::Terminator::TailCall`] hands back an
 /// unfinished text. Everything else, including the `bc`'s displacement, is
 /// offset-independent and is finished here.
 pub struct CondPairParts {
@@ -301,7 +301,7 @@ pub fn cond_pair_parts(
     // `Terminator::TailCall` leaves a zero word and reports its offset, because
     // each `b` encodes **its own `.text` offset** and takes a `REL24` — it is a
     // relocation, not a label reference, so it never enters the map (board #191,
-    // #290). That is the same reason [`crate::codegen::Selected::Tail`] hands
+    // #290). That is the same reason [`crate::codegen::Terminator::TailCall`] hands
     // back an unfinished text.
     let mut then_text: Vec<u8> = Vec::with_capacity(0x10);
     emit_steps(&plan.then_steps, &mut then_text)?;

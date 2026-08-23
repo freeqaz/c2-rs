@@ -58,7 +58,7 @@
 //! witnesses and which the recognizer refuses.
 //!
 //! No relocation, no pooled constant, no label symbol — the reference obj's
-//! `.text #8` reads `nrel 0`. So this is a [`super::select::Selected::Plain`],
+//! `.text #8` reads `nrel 0`. So this is a [`super::select::Terminator::None`],
 //! and the whole of its label story is
 //! [`c2_il::IlFunction::label_lead`]'s `+2`.
 
