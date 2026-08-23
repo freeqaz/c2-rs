@@ -233,6 +233,35 @@ converge on the same two integers from opposite directions.
 > table — **this lane's own first classifier did**, and only reading the emitted
 > words caught it.
 
+### 4.1a The case list is built by APPEND and is never sorted `[R]`
+
+Load-bearing for §5, so it is quoted rather than summarised. In
+`FUN_10bc2d7a` (`reader.c`'s dispatch):
+
+```c
+case 0x3c:                                    /* IL 0x3C — switch table header */
+    local_4c = FUN_10c2022a(7,0x48);          /* the head node, 0x48 bytes     */
+    DAT_10c6f2a4 = local_4c;                  /* the global case-list head     */
+    local_4c[6] = *(int *)(local_18 + 0x33);  /* +0x18 = the DEFAULT label     */
+    break;
+case 0x3d:                                    /* IL 0x3D — one case entry      */
+    piVar7 = FUN_10c2022a(7,0x48);
+    *local_4c = (int)piVar7;                  /* tail->next = new  <== APPEND  */
+    piVar7[4] = piVar10[6];  piVar7[5] = piVar10[7];   /* hi */
+    piVar7[2] = piVar7[4];   piVar7[3] = piVar7[5];    /* lo */
+    piVar7[6] = *(int *)(local_18 + 0x33);    /* the case's label symbol       */
+    local_4c = piVar7;                        /* advance the tail cursor       */
+    break;
+```
+
+**A running tail cursor and no sort** — so the case list is in **source order**,
+and the lowerings that walk it produce source order for free. There is no
+`qsort` anywhere on this path; the image's only two `qsort` sites are in the
+PGO database code. Three separate places *assume* ascending order instead
+(`FUN_10bd1634`'s span, `FUN_10bd13f5`'s `hi == next.lo - 1` merge,
+`FUN_10c1de06`'s running counter), which is what makes the decision tree's
+value-ordered traversal a **different** traversal rather than a re-sort.
+
 ### 4.2 The `switch` value is compared UNSIGNED because the type is hard-coded `[R]`
 
 `WB_REGALLOC_FINDINGS.md` §7.6 measured *"the switch value is compared
