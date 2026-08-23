@@ -38,6 +38,7 @@ white-box debt.** The *addresses* are Tier 2.
 | **obj writer** | `coff.c` (model), `coffemit.c` (every `fwrite`) | `0x10b281af`–`0x10b2b0dd` | [`P_COFF.md`](P_COFF.md) | 21 / 120 |
 | **section & symbol model** | `p2symtab.c`, `emit.cpp` | `0x10b97dfb`–`0x10b9b8e9`, `0x10be71c9`–`0x10be7e81` | [`P_SECTION.md`](P_SECTION.md) | 24 / 137 |
 | **register allocator** | `color.c` (+ `globregs.c`, `regasg.c`) | `0x10b2c21d`–`0x10b3219f` | [`P_REGALLOC.md`](P_REGALLOC.md) | 33 / 70 |
+| **globregs: the candidate SET, its ORDER, and the tie key** (`P_REGALLOC`'s missing input) | `globregs.c` (+ the symbol-table arena in `p2symtab.c`) | `0x10b550e5`, `0x10b55732`, `0x10b55dbe`, `0x10b55eae`; the phase driver `0x10b57633`; the symbol store `0x10bd2343`/`0x10bd3225` | [`P_GLOBREGS.md`](P_GLOBREGS.md) | 16 code + 10 data |
 | **DAG build + scheduler** | `dag.c`, **and an unnamed TU with no ICE site** | `0x10b3219f`–`0x10b3433f`, `0x10be5cce`–`0x10be663f` | [`P_DAG.md`](P_DAG.md) | 32 / 61 |
 | **inliner** | `inline.c` | `0x10b5b86d`–`0x10b62b00` | [`P_INLINE.md`](P_INLINE.md) | 16 / 93 |
 | **instruction encoder** (tuple → one PPC word, plus the `.text` relocation requests) | `code.c` | `0x10bf96d0`–`0x10bfae2a` | [`P_ENCODE.md`](P_ENCODE.md) | 14 / 14 |
