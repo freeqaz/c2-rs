@@ -443,17 +443,37 @@ def mode_tail(img, path, cg):
           " %#x entries." % ATTR_TABLE_LEN)
     print("  opcodes >= %#x therefore read the SECOND table at %#x."
           % (ATTR_TABLE_LEN, SECOND_TABLE))
-    bad = []
-    for op in range(ATTR_TABLE_LEN, 0x300):
-        a = attr(img, op)
-        if a is not None and (a & CLASS_MASK) in (2, 3):
-            bad.append((op, a))
-    print("  over the tail's own index range %#x..0x2ff, out-of-extent bytes"
-          " decoding to class 2 or 3: %d" % (ATTR_TABLE_LEN, len(bad)))
-    seen_cls = sorted({attr(img, op) & CLASS_MASK
-                       for op in range(ATTR_TABLE_LEN, 0x300)})
-    print("  classes actually seen there: %s -> the tail takes the exit join"
-          " for all of them" % seen_cls)
+    # The BOUND on the safety matters more than the safety.  Report several
+    # ranges: it is benign through every opcode the switch discriminates, and
+    # it stops being benign well before the second table ends.
+    print("  range          classes present                 class-2/3 hits")
+    first_bad = None
+    for hi, label in ((0x300, "%#x..0x2ff" % ATTR_TABLE_LEN),
+                      (0x303, "%#x..0x302" % ATTR_TABLE_LEN),
+                      (0x400, "%#x..0x3ff" % ATTR_TABLE_LEN),
+                      (SECOND_TABLE + ATTR_TABLE_LEN - ATTR_TABLE,
+                       "%#x..end" % ATTR_TABLE_LEN)):
+        hist, bad = {}, 0
+        for op in range(ATTR_TABLE_LEN, hi):
+            a = attr(img, op)
+            if a is None:
+                continue
+            c = a & CLASS_MASK
+            hist[c] = hist.get(c, 0) + 1
+            if c in (2, 3):
+                bad += 1
+                if first_bad is None:
+                    first_bad = op
+        print("  %-14s %-30s %d" % (label, dict(sorted(hist.items())), bad))
+    print()
+    print("  0x302 is the largest opcode this switch discriminates, and through")
+    print("  it the classes landed on are {0,1,4} -> the tail takes the exit")
+    print("  join, so the out-of-extent read changes NO behaviour there.")
+    print("  It stops being benign at opcode %#x, where the second table's"
+          % (first_bad or 0))
+    print("  bytes decode to class 2 and the tail would treat the opcode as a")
+    print("  LOAD.  Whether any opcode that large reaches this switch is NOT")
+    print("  established here (board #2040 puts IR operators above 0x298).")
     print()
     print("## instruction-minting distance")
     print("  a DEPTH-FIRST 'can a constructor be reached' query returns True")

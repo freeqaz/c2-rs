@@ -260,11 +260,29 @@ The tail applies **no bound check**. The table has `0x298` entries; the switch
 dispatches opcodes up to at least `0x302`. Opcodes `≥ 0x298` therefore index
 into the **second** table at `0x10c3b270`.
 
-Measured over `0x298..0x2ff`, the bytes landed on decode to classes `{0, 1, 4}`
-and **never to 2 or 3** — so the tail takes the exit join for all of them and
-the out-of-extent read **changes no behaviour**. It is a latent hazard, not a
-live bug, and a port must not "fix" it into a bound check without noticing that
-the observable result is identical.
+Measured, and the bound on the safety matters more than the safety:
+
+| index range | classes the bytes decode to | class-2/3 hits |
+|---|---|---:|
+| `0x298..0x2ff` (R6's bound) | `{0:4, 1:97, 4:3}` | **0** |
+| `0x298..0x302` (**every opcode this switch discriminates**) | `{0:4, 1:100, 4:3}` | **0** |
+| `0x298..0x3ff` | `{0:5, 1:327, 2:24, 4:4}` | **24** |
+| `0x298..0x52f` (to the second table's end) | `{0:7, 1:627, 2:26, 4:4}` | **26** |
+
+**So the out-of-extent read changes no behaviour for any opcode the switch
+actually dispatches** — through `0x302` the classes landed on are `{0,1,4}` and
+the tail takes the exit join for all of them.
+
+**But it is not benign in general, and the threshold is `0x33c`.** From there
+the second table's bytes decode to **class 2**, and the tail would route such an
+opcode down the *load* path and attach an operand to it. Whether an opcode
+`≥ 0x33c` ever reaches this switch is **not established by this lane** — board
+**#2040** puts machine-independent IR operators above `0x298`, so the question
+is live rather than obviously empty.
+
+A port must not "fix" this into a bound check on the assumption that the
+observable result is identical; through `0x302` it is, past `0x33c` it is not,
+and which of those matters depends on a fact nobody here has measured.
 
 ### 4.3 A caution on the minting evidence
 
