@@ -71,13 +71,26 @@ do {
 | **no sort, no comparator, no ordering key, no block loop, no recursion** | the entire 426-byte body. Its **whole direct callee set is five**: `memset`, `__security_check_cookie`, the encoder `FUN_10bf9f15`, `FUN_10bd456b` and `FUN_10c205f1` — there is nothing present that could sort |
 | a running offset (`local_14`, seeded `-1`) accumulates encoded lengths | `0x10b33997` |
 | the encoder called is `FUN_10bf9f15` — **R2's**, [`P_ENCODE.md`](P_ENCODE.md) | `0x10b33990` |
-| a tuple is a real instruction iff kind `∈ [0x0d, 0x16]` | `0x10b33978` |
+| a tuple is a real instruction iff kind `∈ [0x0d, 0x16]` | `0x10b33978`. The independently-adopted `tuple+0x9` bit-0 predicate (`../DISCLOSURE.md` W-STAGETAP-4) selects the same population |
 
-> **This independently confirms a black-box conclusion the repo already had and
-> could not explain.** Board **#2352** (`w-ifn`, nine cells) concluded *"the
-> emitter therefore needs a running offset and **no ordering pass at all**"*.
-> `local_14` **is** that running offset, and "no ordering pass at all" is now a
-> read fact rather than an inference from nine objs.
+> **Three instruments, three methods, one conclusion — and the other two came
+> first.**
+>
+> * **Black-box objs.** Board **#2352** (`w-ifn`, nine cells) concluded *"the
+>   emitter therefore needs a running offset and **no ordering pass at all**"*.
+>   `local_14` **is** that running offset.
+> * **A live tap.** `../WB_MIDDLE_INTERFACES.md:569` scored its prediction
+>   **P2.1** a **HIT** — *"the final order, restricted to real instructions, is
+>   the emitted order"* — by reading c2's own tuple list at runtime through the
+>   stage tap. **Its fence is 3 functions / 9 words, all frameless leaf**, and
+>   quoting it without that fence repeats `#1459`'s error (`READ_PLAN` §5.5).
+> * **This read**, which supplies the *why*: there is a two-byte advance and
+>   nothing else.
+>
+> A tap, a grid and a disassembly are as independent as this project's
+> instruments get, and the tap's result was sitting in the record already —
+> **unconnected to the block-order question, which is the gap this page
+> closes.**
 
 ### 1.1 The four kinds the walk distinguishes `[R]`
 
@@ -100,7 +113,7 @@ independently-read `tuple+0 next, +0x10 prev` in [`P_DAG.md`](P_DAG.md):
 | `+0x00` | **next** — the only thing the emit walk follows |
 | `+0x04` | opcode (`0x308` label, `0x318` section start, `0x2e8` multiway, …) |
 | `+0x08` | kind byte, stamped by the allocator |
-| `+0x09` | flags; bit 0 = is a real instruction ([`P_ENCODE.md`](P_ENCODE.md)) |
+| `+0x09` | flags; bit 0 = is a real instruction (`../DISCLOSURE.md` **W-STAGETAP-4**, adopted; `../WB_MIDDLE_INTERFACES.md:141`) |
 | `+0x10` | **prev** |
 
 | VA | size | what it is | body |
