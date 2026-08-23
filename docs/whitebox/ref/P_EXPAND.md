@@ -1,0 +1,388 @@
+# `P_EXPAND` — the final-expansion switch, and the pseudo-op word-count table
+
+> **PROVENANCE — DISASSEMBLY-DERIVED.** See [`../DISCLOSURE.md`](../DISCLOSURE.md).
+> Nothing here may enter `crates/` without a `DISCLOSURE.md` row naming the
+> address it came from.
+
+**Read R6** ([`../READ_PLAN_2026-08-21.md`](../READ_PLAN_2026-08-21.md) §3),
+lane `w-read-r6`, board **#3429**–**#3432**. Prereg:
+[`../WB_EXPAND_PREREG.md`](../WB_EXPAND_PREREG.md). Grade:
+[`../WB_EXPAND_FINDINGS.md`](../WB_EXPAND_FINDINGS.md). Tooling:
+[`../scripts/dump_expansion.py`](../scripts/dump_expansion.py),
+[`../scripts/probe_prolog_words.py`](../scripts/probe_prolog_words.py).
+
+**Image.** `compilers/X360/16.00.11886.00/c2.dll`, sha256
+`c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258` — verified
+before any address here was read. Every address below is reproducible from the
+image alone: the tooling disassembles the PE directly and does **not** depend on
+the Ghidra flat export (which is 19 days older than HEAD).
+
+**Provenance legend** ([`README.md`](README.md) §2): `[R]` read, not confirmed
+against any obj; `[O]` obj-confirmed; `[I]` inferred. **`[R]` means "the
+instructions were read correctly", never "this is what c2 does."**
+
+---
+
+## 0. The answer, in one screen
+
+The read plan asked for *"the pseudo-op expansion table — which opcodes expand
+to how many words."* The shape of the answer is not the shape the row expected,
+and that is the finding:
+
+> **The final-expansion switch `FUN_10c0d57e` almost never changes the word
+> count itself.** Of the 29 arm bodies this lane recovered, **24 emit at most
+> one instruction** and **5 are unbounded** (`retaddr`, `nopalign` ×3, `0x2e5`),
+> and the three that produce a whole prologue or epilogue
+> emit **zero words directly — they delegate** to a driver outside the switch.
+> The count-changing work is not spread across the switch; it is concentrated in
+> **four** delegate helpers, and the prologue's own count is **recorded by c2 in
+> the object it emits**, so it never has to be predicted at all.
+
+| question | answer | tier |
+|---|---|---|
+| how many opcodes get a non-default arm? | **69** discriminated opcodes over **29** arm bodies; **767** more reach the dispatch tail | `[R]` |
+| how many words does an arm emit? | **0 or 1** for **24 of 29** bodies; the other **5** are unbounded (§3) | `[R]` |
+| which arms expand 1→many? | **none directly.** `0x2f0`/`0x2f4`/`0x2f6` delegate (§4) | `[R]` |
+| how many words is a prologue? | **1–7**, seven distinct values, **100 % ≤ 8** over 12,610 framed functions | **`[O]`** |
+| is the count a constant? | **no** | **`[O]`** |
+| can a port predict it without simulating the pass? | **yes** — `.pdata`'s `prolog_words` (§4.4) | **`[O]`** |
+
+---
+
+## 1. The dispatch — `FUN_10c0d57e`, 3,899 B  `[R]`
+
+`0x10c0d57e`, 3 callers, 41 callees, 1,255 x86 instructions. Size **verified
+exactly** against the export's function table.
+
+The opcode is `param_2[1]`, loaded into `eax` at **`0x10c0d58f`**
+(`mov eax,DWORD PTR [esi+0x4]`). Dispatch is a **binary search tree**, not a
+jump table — `cmp eax,0x270 / ja / je`, `cmp eax,0x7b / ja / je`, … — which
+reproduces `WB_SELECT_FINDINGS.md:668`'s PARTIAL **from the bytes**.
+
+**Recovering the arm set therefore requires interval propagation, not pattern
+matching.** There is no table to read, and two of the most important arms
+contain no equality test on the opcode at all:
+
+```
+10c0d5c7:  cmp eax,0xb        10c0daab:  lea ecx,[eax-0x26e]
+10c0d5ca:  jb  <default>      10c0dab1:  cmp ecx,0x1
+10c0d5d0:  cmp eax,0xd        10c0dab4:  ja  <default>
+10c0d5d3:  jbe 0x10c0d6fd     10c0dabc:  call 0x10c0a2e2   <- the rlandi expander
+```
+
+`dump_expansion.py --arms` walks the CFG carrying the surviving opcode interval
+along each path; when a path reaches an arm body the interval **is** that arm's
+opcode set.
+
+### 1.1 Denominators, measured — not assumed
+
+```
+opcode bound the tree actually discriminates      0x2ff
+distinct opcodes with a non-default arm              69
+distinct arm bodies                                  29
+opcodes reaching the dispatch TAIL 0x10c0e30b       767
+shared bodies reached with an un-narrowed interval   10
+```
+
+**`ADDR.tsv:1124`'s "41 arms" for this function is not a measurement of it** —
+41 is its *callee* count. No document in this repo had ever counted its arms.
+
+### 1.2 The dispatch tail is a **table**, and it is new  `[R]`
+
+Everything the tree does not discriminate falls to **`0x10c0e30b`**, which is
+not a default at all:
+
+```
+10c0e30b:  mov cl,BYTE PTR [eax+0x10c3afd8]
+10c0e311:  and cl,0x7
+10c0e314:  cmp cl,0x2
+10c0e317:  je  0x10c0e40f
+10c0e31d:  cmp eax,0x281            <- `lea`, the same body
+```
+
+**`0x10c3afd8` is a per-opcode attribute BYTE table whose low 3 bits are an
+opcode class.** Class 2 routes to `0x10c0e40f`, shared with `lea` (`0x281`) and
+`retaddr` (`0x28f`). No document in this repo records this table. It is the
+natural next read for anyone extending this page, and it is why "767 opcodes
+reach the tail" is **not** the same statement as "767 opcodes are unchanged".
+
+---
+
+## 2. The emit alphabet — one call is one word  `[R]`
+
+An instruction is created by exactly one family of functions: those that call
+the list-insert wrapper **`FUN_10bd5732`** (`0x10bd5732`, 43 B), which calls
+`FUN_10bd3824` (`0x10bd3824`, 17 B, **147 callers**, a doubly-linked insert-
+after) and stamps `+0x14` with `DAT_10c2e2ec`.
+
+Inverting the call graph on `0x10bd5732` gives **16 constructors**:
+
+```
+10bd59aa  10bd722e  10bd726d  10bd72b0  10bd72fb  10bd7354  10bd73ac  10bd7413
+10bd748b  10bd74f8  10bd75ff  10bd7652  10bd76e6  10bd7780  10bd77db  10bd7814
+```
+
+Every one allocates via `FUN_10bd3750(kind)`, writes `node[1] = opcode`, and
+**ORs bit 0 into `node+9`**. Read `FUN_10bd72b0` (75 B, 230 callers — the
+commonest) or `FUN_10bd76e6` (154 B) to see it.
+
+> **This independently reproduces R2's invariant.** `P_ENCODE.md` states *"real
+> instruction iff `tuple+0x9` bit 0"* from the **encoder** end; this lane
+> arrived at the same bit from the **constructor** end without looking. Two
+> derivations, one bit.
+
+**Consequence, and it is what makes the deliverable tractable:** "how many words
+does this arm emit" is a *countable* property — the number of constructor calls
+on the arm's paths — not an interpretive one. `dump_expansion.py --words`
+computes it as a (min, max) over CFG paths, reporting **`unbounded`** when a
+back edge makes it data-dependent.
+
+---
+
+## 3. The word-count table  `[R]`
+
+`dump_expansion.py --words`, verbatim. `DELEGATES` names a helper that is itself
+a multi-word emitter, so the arm's own count is not the whole story.
+
+| arm VA | words | opcodes | note |
+|---|---|---|---|
+| `0x10c0d5ec` | 0..0 | `cmpi`, `cmpli` | rewrite in situ |
+| `0x10c0d5f8` | **0..1** | `bc` | **machine-band arm that can ADD a word** |
+| `0x10c0d6a1` | 0..1 | `bc` | second `bc` body |
+| `0x10c0d718` / `0x10c0d72b` | 0..0 | `0x2aa`, `addi`, `addic`, `addic.`, `0x2ab` | the `0x0b..0x0d` range arm |
+| `0x10c0d957` / `0x10c0d967` | 0..1 | `divd`,`divdu` / `divw`,`divwu` | |
+| `0x10c0d9f3` | **1..1** | all four divides | always one extra word |
+| `0x10c0dac6` / `0x10c0db6b` | 0..0 | `xori` | |
+| `0x10c0dfdc` / `0x10c0e103` | 0..0 | `fmr`, `mr` | |
+| `0x10c0e006` | 0..**unbounded** | `retaddr` | delegates to all three prologue helpers |
+| `0x10c0e065/06c/06e` | 0..**unbounded** | `nopalign` | alignment padding — a loop |
+| `0x10c0e146` | 0..**unbounded** | `0x2e5` | |
+| `0x10c0e185`/`0x10c0e1bf`/`0x10c0e1cb`/`0x10c0e1e6` | 0..0 | `0x2e5`,`0x2e1`,`0x2ba` | |
+| `0x10c0e194` | 1..1 | `0x2e4` | |
+| **`0x10c0e283`** | **0..0** | **`0x2f6`** | **DELEGATES `0x10bffb72`** (restore) |
+| **`0x10c0e28f`** | **0..0** | **`0x2f4`** | **DELEGATES `0x10c216f5`** |
+| **`0x10c0e29b`** | **0..0** | **`0x2f0`** | **DELEGATES `0x10c21719`** |
+| `0x10c0e487`/`0x10c0e494` | 0..0 | `0x2ff`, `0x2fe` | |
+| `0x10c0e4a4` | 0..0 | `fmr`,`mr`,`0x2e5`,`0x2f7` | the no-op join |
+| `0x10c0e4ab` | 0..0 | 52 opcodes | the exit join |
+
+**Three readings of this table that matter:**
+
+1. **The switch is overwhelmingly count-preserving.** 24 of 29 bodies emit 0 or
+   1 words. The read plan's mental model — a switch that fans pseudo-ops out
+   into many words — is true of the *system* and false of *this function*.
+2. **`bc` at `0x21` can add a word, and it is a MACHINE-band opcode.** This is
+   the long-branch expansion (`CFG_SHAPE.md:477` — invert the condition and
+   branch over an unconditional `b`). It refutes the tidy claim that all
+   count-increasing arms live above the machine space; see the prereg's P1.3,
+   registered as a prediction and scored a MISS, with `bc` named in advance as
+   the likely falsifier (P1.4).
+3. **`nopalign` (`0x27b`) is genuinely unbounded** — the alignment-padding arm
+   contains a loop, so no constant describes it. Any instrument asserting a
+   word count must special-case it.
+
+---
+
+## 4. The prologue family — five arms, not two  `[R]`/`[O]`
+
+### 4.1 The arms, read from the bytes at `0x10c0e266`
+
+```
+10c0e255:  mov ecx,0x2f8 / cmp eax,ecx / ja 0x10c0e2ed / je 0x10c0e2a7
+10c0e266:  sub ecx,0x2f0 / je 0x10c0e29b   ->  call 0x10c21719
+10c0e26e:  sub ecx,0x4   / je 0x10c0e28f   ->  call 0x10c216f5
+10c0e273:  dec / dec     / je 0x10c0e283   ->  call 0x10bffb72
+10c0e277:  dec           / je 0x10c0e4a4   ->  the no-op join
+```
+
+So the family is **`0x2f0`, `0x2f4`, `0x2f6`, `0x2f7`, `0x2f8`** — five arms.
+`FUN_10bfebf7` additionally scans until it meets **`0x2f1` or `0x2f6`**, so
+those two are the region terminators. **`0x2f5` is not in the switch at all**,
+although `P_ILRECORD.md:254` records IL arm 48 minting it beside `0x2f4`.
+
+### 4.2 The two thunks, and the single argument that separates them
+
+`0x10c216f5` (19 B) and `0x10c21719` (25 B) are the **only two callers** of the
+prologue driver `FUN_10bff95c` (327 B) — a coherence check that closes that
+population. They differ in one argument:
+
+```
+10c216f5:  ... push 1 / push 0            / push [eax+0x33] / call 0x10bff95c
+10c21719:  ... push 0 / push [esi+0x33]   / push [eax+0x33] / call 0x10bff95c
+```
+
+In `FUN_10bff95c` that argument is `param_4`, and `bVar6 = param_4 != 0` gates a
+**second** `FUN_10bfec72` call — i.e. a prologue laid down at a **second entry
+point**, preceded by a minted label and a `b` (opcode `0x1f`) emitted through
+`FUN_10bd76e6`.
+
+> **THIS ARBITRATES A LIVE CONTRADICTION, AND IT SETTLES IT AGAINST BOTH SIDES.**
+> `WB_SELECT_FINDINGS.md:177` says `0x2f0` = prologue / `0x2f4` = epilogue;
+> `WB_SELECT_FINDINGS_R2.md:217` says the reverse; `WB_SELECT_RECONCILED.md`
+> settled which *function* the arms belong to and never touched *which is
+> which*. **Neither is right as stated.** Both `0x2f0` and `0x2f4` reach the
+> **prologue** driver, differing only in whether a second entry point is
+> supplied; the **restore** side is `0x2f6`, which reaches `FUN_10bffb72` →
+> `FUN_10bffaa3`. Do not key an instrument on the prologue/epilogue reading.
+
+### 4.3 What actually emits the words
+
+```
+FUN_10bff95c  (prologue driver, 327 B)
+  ├─ FUN_10bfebf7  0x10bfebf7   saved-GPR mask; scans until opcode 0x2f1 or 0x2f6;
+  │                             counts register numbers n in [0x0f..0x20]
+  │                             (r14..r31 under R2's n = r+1; 0x0c with DAT_10c2e980)
+  ├─ FUN_10bff507  0x10bff507   the flag word: bit0 LR spill, bit2 frame
+  └─ FUN_10bfec72  0x10bfec72   THE WORD EMITTER, 211 B:
+        flags&1  ->  FUN_10c07910(r12, -8, …)      LR spill
+        loop     ->  FUN_10c07910(reg, off, …)     ONE CALL PER SET MASK BIT
+        flags&4  ->  FUN_10c07910(0x53, …)         frame-establish pseudo-register
+                     FUN_10c0b6fa(ip, fn[0x1a] + 8 + 8*nsaved)   frame allocator
+```
+
+`FUN_10c07910` (446 B) splits on the register number: `{0x4c,0x4d} ∪
+[0x51..0x54] ∪ {0x6a}` take a special path emitting `0xe6` (`mfspr`) plus a
+store; everything else emits **one** store whose opcode is looked up **by
+register class** from the table at `DAT_10c6fdd0`, indexed by
+`FUN_10bd7c10(class)` where the class word is `*(u16*)(&DAT_10c2f098 + reg*0x60)`.
+
+So the prologue's word count is, structurally:
+
+```
+prolog_words  =  2·[LR spill]  +  popcount(saved mask)  +  frame_words(size)
+size          =  fn[0x1a] + 8 + 8·popcount(saved mask)
+```
+
+with `frame_words` from `FUN_10c0b6fa` (`WB_FRAME_FINDINGS.md` §3.1): 0 when
+size ≤ 0; one `stwu` (`0x17e`) normally; `stwux` (`0x17f`) plus
+`_RtlCheckStack12` plus **one probe word per page** when `F ≥ 5 × 0x1000`.
+
+**Every input is upstream of the pass** — the frame size and the saved mask are
+decided before the expansion runs. Prereg P3.5 answered: **yes**, an instrument
+can predict the count without simulating the expansion.
+
+### 4.4 …but it does not have to, because c2 writes the number down  `[O]`
+
+Every `.pdata` record's unwind word carries `prolog_words` in its low 8 bits
+(`WB_EH_FINDINGS.md` §5 row W-EH-1; emitter side `crates/c2-core/src/coff/pdata.rs:71`).
+**The expansion's output size is a directly observable field of the object.**
+
+`probe_prolog_words.py` over the already-captured corpus, **12,610 framed
+functions from 6,000 objs**:
+
+```
+1 word    28   0.22 %        5 words  1874  14.86 %
+2 words  196   1.55 %        6 words    58   0.46 %
+3 words 7468  59.22 %        7 words    48   0.38 %
+4 words 2938  23.30 %        ≤ 8 words: 12610/12610 = 100.00 %
+```
+
+Shape sub-population (282 records — only single-`.text` objs whose length
+matches the record, so the words can be attributed without resolving the
+`BeginAddress` relocation):
+
+```
+176  mfspr | stw | stwu                      <- mflr r12; stw r12,-8(r1); stwu
+ 32  std ×7                                  <- FRAMELESS, saves only, no stwu
+ 28  mfspr | stw | std | std | stwu
+ 22  mfspr | bl                              <- the __savegprlr_N helper path
+ 16  mfspr | stw | std | stwu
+  8  mfspr | bl | stwu
+```
+
+**The saves are inline stores, and the count is linear in the save count.** Only
+**30 of 282** prologues contain a `bl` at all. The helper path exists (board
+#1783, #1805) but does **not** dominate this corpus, and the flat 3-word
+common case is "few registers saved", not "a helper absorbs them".
+
+---
+
+## 5. `FUN_10c182b4` is the peephole, and its arm 6 is `fmr`  `[R]`
+
+426 B, one caller `0x10b7dd2c`, gated on `DAT_10c2e2fc`, list walked twice.
+**It is not an expansion pass** — `c2_functions.tsv:4499` (W-TABLES) is right
+and `WB_SELECT_FINDINGS_R2.md` §4 is the superseded reading. Dispatch is the
+opposite shape from §1: an opcode-indexed **byte table** at `0x10c184a8`
+(`0x293` entries, opcodes `0x001..0x293`) into a jump table at `0x10c18460`.
+
+`dump_expansion.py --peephole` reproduces prior art exactly — **659 opcodes over
+18 arms, 445 on the do-nothing arm 17** — and closes the one gap in the only
+published table (`WB_SELECT_FINDINGS_R2.md:436-459`, which omits arm 6):
+
+| arm | target | n | opcodes |
+|---|---|---|---|
+| 0 | `0x10c1841a` | 38 | three-operand ALU |
+| 1 | `0x10c183fb` | 1 | `cmpi` |
+| 2 | `0x10c18407` | 11 | `cmpli`,`neg`,`ori`,`sradi`,`srawi`,`xori`,… |
+| 3/4/5 | `0x10c183b2`/`0x10c183ca`/`0x10c183d8` | 2/2/2 | `extsb`/`extsh`/`extsw` (± record) |
+| **6** | **`0x10c1838b`** | **1** | **`fmr` — the row no prior document has** |
+| 7/8/9 | `0x10c183dc`/`0x10c183ee`/`0x10c183f6` | 4/5/5 | `stb`/`sth`/`stw` families |
+| 10/11/12 | `0x10c18432`/`0x10c18426`/`0x10c1843e` | 108/26/4 | VMX |
+| 13 | `0x10c183a3` | 2 | `rlandi`,`rlandi.` → `FUN_10c1772b` |
+| 14/15/16 | `0x10c18373`/`0x10c18397`/`0x10c1837f` | 1/1/1 | `mr`,`mr.`,`vmr` |
+| 17 | `0x10c18448` | **445** | do nothing |
+
+**`vmr128` (`0x294`) is outside the index**: the bound is `(u32)(op-1) > 0x292`,
+so reading one entry too many invents a bogus "arm 51" whose jump-table word is
+`0x11111111`. That is a trap for the next reader, and it is why the count is
+659 and not 660.
+
+**No arm thunk reaches an instruction constructor directly** (`--peephole`'s
+`no-mint` column, all 18). This bounds but does **not** settle prereg P4.2: the
+check reads the 24-byte thunk, not the handler it tail-calls transitively.
+
+---
+
+## 6. A table that LOOKS like the answer and is not  `[R]`
+
+At `0x10b1d180`, immediately past `_first` (`0x298`) in the mnemonic array,
+there is a **stride-16 table** of rows `{char *name, u32 machine_opcode, u32 BO,
+u32 BI}` — a genuine simplified-mnemonic expansion table, and it decodes
+perfectly: `beq → (bc, BO=12, BI=2)`, `bnl → (bc, 4, 0)`, `bltlr → (0x27, 12,
+0)`, `twlti → (twi, 0, 16)`.
+
+**It is not the codegen expansion table, and a lane that adopted it would be
+wrong.** Its only two references in the whole image are inside `FUN_10c00900`
+and `FUN_10c0174b` (99 B each, one caller each), and both are **string-compare
+loops** — name → encoding. Both are called only from `FUN_10c027d3` (8,796 B),
+itself called only from `FUN_10bbe561`. That is a **name-lookup / assembler**
+path, not the instruction-list rewrite.
+
+The tell that caught it: under the obvious index hypothesis (`op = 0x298 + j`)
+`0x2f0` decodes to the trap mnemonic `twlti`, while `0x2f0`'s arm in §4
+demonstrably calls the prologue driver. **Both cannot be true, so the index
+hypothesis is wrong** — and the mapping from this table's row index to an
+`instr[1]` opcode is **unresolved and deliberately not published here.**
+
+This is the `.bss`-bump failure mode (`C2_MAP_METHOD.md` §7) caught before it
+shipped: a small, clean, correctly-read table that is simply not on the path the
+inputs take.
+
+---
+
+## 7. What this page does NOT claim
+
+* **§3's counts are `[R]`.** They count constructor *calls*, which is a
+  count of nodes, not a proof that each becomes a `.text` word. An opcode with
+  no encoding (`P_ENCODE.md`'s form-0 rows) is a node that is not a word.
+* **Word count is a scalar projection.** The table says *how many*; it does not
+  say *which* words. An arm marked `1..1` whose single word is the wrong
+  instruction scores identically here.
+* **`0x10c3afd8`'s class table is located, not read** (§1.2). 767 opcodes reach
+  it; "reaches the tail" is not "is unchanged".
+* **The 10 shared fall-through bodies are excluded from the 69/29 count** by a
+  width rule, not by reading them. The true arm map is a superset.
+* **No `crates/` byte was changed** and no `DISCLOSURE.md` row is owed — nothing
+  here was adopted.
+* **§4.4's corpus is post-everything.** It cannot separate what the expansion
+  emitted from what the peephole then deleted; only a live tap could, and this
+  lane built none.
+
+## 8. The three follow-ups this read hands over, ranked
+
+1. **Read `0x10c3afd8`** (§1.2) — one byte table, 767 opcodes, closes the
+   largest remaining hole in §1's denominator.
+2. **Resolve the `0x10b1d180` index** (§6) — cheap, and it converts a landmine
+   into a second expansion table.
+3. **`0x2f5`** — minted by IL arm 48 (`P_ILRECORD.md:254`) and handled by no arm
+   of this switch. Either another pass consumes it or it is dead.
