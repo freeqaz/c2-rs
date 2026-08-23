@@ -498,6 +498,17 @@ const FP_CYCLE_SCRATCH: u8 = 0;
 /// The primary gate is the IL parser's, so the census and the emitter cannot
 /// disagree about what is in class; everything here is the backstop.
 pub fn fp_permute_args_text(sources: &[usize]) -> Result<Vec<u8>, BackendError> {
+    Ok(crate::codegen::mop::ops_to_bytes(&fp_permute_args_ops(sources)?))
+}
+
+/// **S1c (i): the FP argument permutation as an op stream**, reachable by a
+/// caller.
+///
+/// Every decision here is taken over `sources` and the cycle decomposition --
+/// never over the text -- so the conversion is a change of what is appended and
+/// of nothing else. The **passthrough** arm returns the EMPTY stream, which is
+/// the same load-bearing emptiness the void-tail arm carries.
+pub fn fp_permute_args_ops(sources: &[usize]) -> Result<crate::codegen::mop::Ops, BackendError> {
     let n = sources.len();
     if n > 13 {
         return Err(out_of_class(
@@ -562,17 +573,17 @@ pub fn fp_permute_args_text(sources: &[usize]) -> Result<Vec<u8>, BackendError> 
     // `f(i+1)` for destination slot `i`, in both roles.
     let reg = |slot: usize| (slot + 1) as u8;
     let lowest = cycle[minima[0]];
-    let mut text = Vec::new();
-    text.extend_from_slice(&encode_fmr(FP_CYCLE_SCRATCH, reg(sources[lowest])));
+    let mut text: crate::codegen::mop::Ops = Vec::new();
+    text.push(crate::codegen::encode::mop_fmr(FP_CYCLE_SCRATCH, reg(sources[lowest])));
     // Walk from the parked source back to the minimum: each step writes a
     // destination whose old value has already been consumed. With one minimum
     // this is a single chain and the order is forced.
     let mut dst = sources[lowest];
     while dst != lowest {
-        text.extend_from_slice(&encode_fmr(reg(dst), reg(sources[dst])));
+        text.push(crate::codegen::encode::mop_fmr(reg(dst), reg(sources[dst])));
         dst = sources[dst];
     }
-    text.extend_from_slice(&encode_fmr(reg(lowest), FP_CYCLE_SCRATCH));
+    text.push(crate::codegen::encode::mop_fmr(reg(lowest), FP_CYCLE_SCRATCH));
     Ok(text)
 }
 
