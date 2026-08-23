@@ -201,7 +201,7 @@ pub enum BlockOrder {
 /// | [`B`](Self::B) | `encode_b_intra`, via [`Form::B`] | `calls`' early return, `labels` |
 /// | [`Bclr`](Self::Bclr) | `encode_bclr` | `pool_free_list`, `counted_accum_loop`, `float_walk_loop` |
 /// | [`Blr`](Self::Blr) | `encode_blr` | every leaf |
-/// | [`TailCall`](Self::TailCall) | a zero placeholder + a `REL24` the caller writes | `cond_tail`, `Selected::Tail` |
+/// | [`TailCall`](Self::TailCall) | a zero placeholder + a `REL24` the caller writes | `cond_tail`, `Terminator::TailCall` |
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Terminator {
     /// Control falls into the next block in emission order. Emits nothing.
@@ -245,7 +245,7 @@ pub enum Terminator {
     /// Emits a **zero placeholder word** whose offset [`FinishedBody`] reports,
     /// and takes a `REL24` — neither of which this IR can finish, because the
     /// word encodes its own `.text` offset and the function's placement is the
-    /// caller's (`CFG_SHAPE.md` §3.3; `Selected::Tail` carries an unfinished
+    /// caller's (`CFG_SHAPE.md` §3.3; `Terminator::TailCall` carries an unfinished
     /// text for the same reason). The callee's *name* is deliberately not
     /// carried: the emitters pair these sites with `IlFunction`'s callees in
     /// block order, and that pairing already has exactly one reader per emitter.

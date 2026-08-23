@@ -33,7 +33,7 @@
 //!   0 and 8, so the two bases are carried separately.
 //!
 //! This body takes **no relocation, defines no label and mints no external** —
-//! the reference obj's `.text #7` has `nrel 0` — so it is a `Selected::Plain`
+//! the reference obj's `.text #7` has `nrel 0` — so it is a `Terminator::None`
 //! and `plan_labels`' ordinary 1 for a non-framed function is already the charge
 //! `work/w-xtea2/LABGRID.txt`'s `x-setnonce` row measures.
 

@@ -832,7 +832,7 @@ pub(crate) const MAX_BLR_STOP_LEVELS: usize = 8;
 /// never re-derived from the `IlFunction`.** A second walk over
 /// `tail_call` / `call_seq` / `cond_pair` / `framed_call` would be a *copy* of
 /// the writer's relocation rule, and the two would drift — mechanism E alone
-/// (`Selected::Tail` with `drops_tail_call`) emits no branch and no `REL24` at
+/// (a `Terminator::TailCall` body with `drops_tail_call`) emits no branch and no `REL24` at
 /// all, so a copy that forgot it would report 1,516 calls that are not there.
 /// `docs/GAPS.md` §6 "one fact, one locator"; the same discipline
 /// `comdat_body_from_selected` is called for rather than reimplemented above.

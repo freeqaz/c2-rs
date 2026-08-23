@@ -50,7 +50,7 @@
 //!   stops predicting an expansion c2 does not perform, so the fence's measured
 //!   reach cost is back to **zero**.
 //! * `w10` goes **`Differs (2, 1, 0)` → `Exact`**: `splice_body_why` gains
-//!   `S7-callee-noinline`, and declining the splice leaves `Selected::Tail` to
+//!   `S7-callee-noinline`, and declining the splice leaves `Selected::tail` to
 //!   emit the branch c2 emits. **Board #1038 is closed.**
 //!
 //! The note below stands unchanged and is the reason both tests are kept rather
@@ -320,7 +320,7 @@ fn c2_does_not_close_a_chain_through_a_noinline_intermediate() {
 /// It is fixed by `c2_core::splice`'s `S7-callee-noinline`, which reads
 /// `c2_il::func::gl::FN_FLAG_INLINABLE` — board **#1039**'s undecoded `.gl`
 /// field, decoded. **The wrong emit is now byte-exact**, because declining to
-/// splice leaves `Selected::Tail` to emit the `b ?g` c2 emits.
+/// splice leaves `Selected::tail` to emit the `b ?g` c2 emits.
 ///
 /// The test is kept and inverted rather than deleted, for the reason it was
 /// written: the 878-TU workload does not exercise this shape
@@ -359,7 +359,7 @@ fn a_noinline_callee_is_no_longer_spliced_through() {
         FnByte::Exact,
         "the port must emit that same branch. A `Differs` of (2, 1, 0) here is \
          the ORIGINAL defect returning — the splice taking `?g`'s body — and a \
-         `Refused` means the attribute is being read but `Selected::Tail` is no \
+         `Refused` means the attribute is being read but `Selected::tail` is no \
          longer picking the branch up behind it"
     );
 }

@@ -40,7 +40,7 @@
 //! # The predicate, exactly as it was measured
 //!
 //! [`drops_tail_call`] is the whole rule. It fires for a function the selector
-//! classified [`crate::codegen::Selected::Tail`] when **all** of:
+//! classified [`crate::codegen::Terminator::TailCall`] when **all** of:
 //!
 //! 1. **same-TU** — some function in *this* IL bundle is named by the tail
 //!    call's callee;
@@ -66,10 +66,10 @@
 //! call vanishes — and the caller keeps **four** words, because `sink++` has a
 //! side effect that survives its argument. So the shipped body is *"one `blr`"*
 //! only for a setup that is a pure computation over formals and literals, which
-//! every `Selected::Tail` setup is by construction. The port **refuses** `f05`'s
+//! every `Terminator::TailCall` setup is by construction. The port **refuses** `f05`'s
 //! caller outright (`expr-call-in-expr-op-0x35`), so no shipped rule depends on
 //! that being true; if a later widening admits a side-effecting argument setup
-//! into `Selected::Tail`, this rule must be re-graded before it may fire there.
+//! into `Terminator::TailCall`, this rule must be re-graded before it may fire there.
 //!
 //! # E IS A FIXPOINT — and this is the part `w-empty` measured on one cell
 //!
@@ -554,7 +554,7 @@ impl TuEmptyCallees {
 /// **The predicate.** Does c2 drop this function's tail call?
 ///
 /// Consult it *only* for a function [`crate::codegen::select_function`]
-/// classified [`crate::codegen::Selected::Tail`] — `framed_call`, `call_seq` and
+/// classified [`crate::codegen::Terminator::TailCall`] — `framed_call`, `call_seq` and
 /// `cond_pair` carry their callees in their own fields and are not modeled here
 /// (`f06_two_calls` and `f08_mixed` grade E in c2 and are `Selected::Seq` in the
 /// port; both keep today's behaviour and stay `fnbyte-differs`, which is the
@@ -581,7 +581,7 @@ pub fn drops_tail_call(f: &IlFunction, tu: &TuEmptyCallees) -> bool {
 /// `Some(callee)` when it is, and this is deliberately the same three conditions
 /// [`drops_tail_call`] imposes on the caller, because it is the same question
 /// asked one level down. The two extra tests are not extra conditions — they are
-/// what makes `select_function` return [`crate::codegen::Selected::Tail`] for
+/// what makes `select_function` return [`crate::codegen::Terminator::TailCall`] for
 /// this body rather than one of the shapes that owns its own branch layout, and
 /// so what makes "its whole emitted body is the call and a pure setup" true:
 ///

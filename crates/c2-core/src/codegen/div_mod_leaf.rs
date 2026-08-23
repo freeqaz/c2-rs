@@ -101,7 +101,7 @@ const TO_DIV_BY_ZERO: u8 = 6;
 const TO_OVERFLOW: u8 = 5;
 
 /// Emit the whole body. No relocation, no pooled constant, no label and no
-/// branch — so the caller takes it as an ordinary `Selected::Plain`.
+/// branch — so the caller takes it as an ordinary `Terminator::None`.
 pub(crate) fn div_mod_leaf_text(d: &DivModLeaf, mode: OptMode) -> Result<Vec<u8>, BackendError> {
     // Re-asserted here even though `try_parse_div_mod_leaf` already required
     // it: `select_function` is what `function_gate` runs, so a shape that

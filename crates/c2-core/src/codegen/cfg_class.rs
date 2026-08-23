@@ -34,7 +34,7 @@
 //!    covers.
 //! 2. [`Lowering`] — one variant per **dispatch arm** of
 //!    [`super::select::select_function`], because the unit of a CFG-class claim
-//!    is a *lowering* and not a `Selected` variant: `Selected::Plain` carries
+//!    is a *lowering* and not a `Selected` variant: `Selected::plain` carries
 //!    [`Lowering::PtrWalkLoop`] (a back edge) **and** every straight-line leaf,
 //!    so a claim keyed on `Selected` cannot be stated without over-claiming.
 //! 3. [`class_of`] — an **exhaustive `match`**. Adding a [`Lowering`] without
@@ -206,7 +206,7 @@ pub enum Lowering {
     CtorForwardCall,
     /// `func.fp_store_diamond` → `Selected::FpStoreDiamond`.
     FpStoreDiamond,
-    /// `func.tail_call` → `Selected::Tail`, all five of its sub-arms.
+    /// `func.tail_call` → `Selected::tail`, all five of its sub-arms.
     TailCall,
     /// `func.guard_chain_shared_tail` → `Selected::GuardChainSharedTail`.
     GuardChainSharedTail,
@@ -224,45 +224,45 @@ pub enum Lowering {
     JsonUtf8Copy,
     /// `func.if_call_join` → `Selected::IfCallJoin`.
     IfCallJoin,
-    /// `func.pool_free_list` → `Selected::Plain`.
+    /// `func.pool_free_list` → `Selected::plain`.
     PoolFreeList,
-    /// `func.pool_ctor_chain` → `Selected::Plain`.
+    /// `func.pool_ctor_chain` → `Selected::plain`.
     PoolCtorChain,
-    /// `func.memcpy_tail` → `Selected::MemcpyTail`.
+    /// `func.memcpy_tail` → `Selected::memcpy_tail`.
     MemcpyTail,
-    /// `func.nonce_add_run` → `Selected::Plain`.
+    /// `func.nonce_add_run` → `Selected::plain`.
     NonceAddRun,
-    /// `func.xtea_round_loop` → `Selected::Plain`.
+    /// `func.xtea_round_loop` → `Selected::plain`.
     XteaRoundLoop,
     /// `func.xtea_encrypt_loop` → `Selected::XteaEncryptLoop`.
     XteaEncryptLoop,
-    /// `func.ptr_walk_loop` → `Selected::Plain`.
+    /// `func.ptr_walk_loop` → `Selected::plain`.
     PtrWalkLoop,
-    /// `func.static_scan_loop` → `Selected::Plain`.
+    /// `func.static_scan_loop` → `Selected::plain`.
     StaticScanLoop,
-    /// `func.global_store_leaf` → `Selected::Plain`.
+    /// `func.global_store_leaf` → `Selected::plain`.
     GlobalStoreLeaf,
-    /// `func.counted_accum_loop` → `Selected::Plain`.
+    /// `func.counted_accum_loop` → `Selected::plain`.
     CountedAccumLoop,
-    /// `func.float_walk_loop` → `Selected::Plain`.
+    /// `func.float_walk_loop` → `Selected::plain`.
     FloatWalkLoop,
-    /// `func.ptr_walk_chain_loop` → `Selected::Plain`.
+    /// `func.ptr_walk_chain_loop` → `Selected::plain`.
     PtrWalkChainLoop,
-    /// `func.div_mod_leaf` → `Selected::Plain`.
+    /// `func.div_mod_leaf` → `Selected::plain`.
     DivModLeaf,
-    /// `func.empty_body()` → `Selected::Plain`, a bare `blr`.
+    /// `func.empty_body()` → `Selected::plain`, a bare `blr`.
     EmptyBody,
     /// `func.float_leaf` → `Selected::Float`.
     FloatLeaf,
-    /// `indirect_load_text` → `Selected::Plain`.
+    /// `indirect_load_text` → `Selected::plain`.
     IndirectLoadLeaf,
-    /// `addr_leaf_text` → `Selected::Plain`.
+    /// `addr_leaf_text` → `Selected::plain`.
     AddrLeaf,
-    /// `store_leaf_text` → `Selected::Plain`.
+    /// `store_leaf_text` → `Selected::plain`.
     StoreLeaf,
-    /// `func.cmp_shift_or` → `Selected::Plain`.
+    /// `func.cmp_shift_or` → `Selected::plain`.
     CmpShiftOr,
-    /// `func.compare` → `Selected::Plain`.
+    /// `func.compare` → `Selected::plain`.
     CompareLeaf,
     /// The fall-through: `select_text`, the ordinary arithmetic selector.
     Straightline,

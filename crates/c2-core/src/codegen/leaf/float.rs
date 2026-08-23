@@ -348,7 +348,7 @@ pub fn float_leaf_text(
 
 /// Select the argument setup for a **single-argument floating-point tail call** —
 /// everything before the `b <callee>`, which the caller appends because the
-/// branch encodes its own `.text` offset (`Selected::Tail`).
+/// branch encodes its own `.text` offset (`Terminator::TailCall`).
 ///
 /// `params` is the FP formals **alone**, in FP-file order, so entry `n` is
 /// `f(n+1)`; `fp.arg` names which of them the call passes. The destination is

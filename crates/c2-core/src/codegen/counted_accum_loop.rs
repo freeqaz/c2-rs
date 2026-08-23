@@ -331,10 +331,13 @@ mod tests {
         f.body = c2_il::BodyShape::CountedAccumLoop(cell(CountedAccumOp::Mul, 1, false));
         let want = counted_accum_loop_words(f.counted_accum_loop().unwrap()).unwrap();
         for mode in [OptMode::O1, OptMode::Ox] {
-            match select_function(&f, mode).expect("the selector must route this shape") {
-                Selected::Plain(t) => assert_eq!(t, want, "at {mode:?}"),
-                _ => panic!("the counted loop is a Plain body, not a tail or a float"),
-            }
+            // S1b: the retired `Selected::Plain(t)` pattern, read back through
+            // the `#[cfg(test)]` view that stands in for it.
+            let sel = select_function(&f, mode).expect("the selector must route this shape");
+            let t = sel
+                .as_plain()
+                .expect("the counted loop is a Plain body, not a tail or a float");
+            assert_eq!(t, want.as_slice(), "at {mode:?}");
         }
     }
 

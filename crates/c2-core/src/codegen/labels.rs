@@ -154,7 +154,7 @@
 //! *"`Selected` still has no variant with a back edge"* was true when written
 //! and is not now: [`super::ptr_walk_loop`] and
 //! [`super::ptr_walk_chain_loop`] both emit a **backward** `bc` and both reach
-//! [`super::select::Selected::Plain`]. There is no contradiction with invariant
+//! [`super::select::Terminator::None`]. There is no contradiction with invariant
 //! 4 — neither carrier routes through this map; each computes its displacement
 //! directly through `encode_bc`, so the map never sees the reference — but the
 //! *argument* "no caller could pass a relaxation" no longer holds, because two
