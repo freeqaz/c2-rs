@@ -78,7 +78,17 @@ read the wrong 1,676 bytes and missed the 1,468 that matter.
 
 Graded against [`WB_GLOBREGS_PREREG.md`](WB_GLOBREGS_PREREG.md) as committed at
 `7330fed41`. **Misses are reported as misses and are not smoothed.**
-**11 HIT · 6 MISS · 3 UNGRADED.**
+**9 HIT · 8 MISS · 2 PARTIAL · 1 UNGRADED**, over 20 graded predictions, plus **P5.3** — the lane's own meta-condition — **satisfied**.
+
+> **A tally this lane got wrong about itself first.** The first draft said
+> *"11 HIT · 6 MISS · 3 UNGRADED"*. Recounted row by row: HIT = P1.1, P1.2,
+> P2.1, P3.1, P3.3, P4.1–P4.4 (**9**); MISS = P1.3, P1.4, P1.5, P2.3, P2.4,
+> P3.2, P3.4, P5.2 (**8**); PARTIAL = P2.2 (2 of 3 clauses) and P5.1 (HIT in
+> substance, MISS in mechanism) (**2**); UNGRADED = P2.5 (**1**). The corrected
+> tally is **worse** for the lane — two more misses and two fewer hits — which
+> is the direction that matters: a prereg whose scorecard is rounded in the
+> lane's favour is not a prereg. The per-row grades below were right all
+> along; only the summary was wrong.
 
 ### P1 — is this the right function, and what shape is it?
 
