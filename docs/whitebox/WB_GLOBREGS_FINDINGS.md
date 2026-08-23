@@ -251,6 +251,20 @@ quotient.
 | `WB_LIVE_FINDINGS.md` | `:682-686` | *"its promotion policy … is not characterized"* | characterized; dated record left as written, pointer added |
 | `WB_ITEMF_FINDINGS.md` | F1, §9 item 3 | *"NOT BUILDABLE"*, *"cannot be priced"* | the policy is read; §6 re-prices the residue |
 
+### 5.0a `ADDR.tsv` is NOT regenerated here, following R1's precedent
+
+This read names roughly thirty addresses that `ref/ADDR.tsv` has never heard
+of — `0x10b55fac`, `0x10b55eb7`, `0x10b55f77`, `0x10b18b28`, `0x10bd2343`,
+`0x10b550e5`'s gate arms, and the rest. **The index is generated**
+(`scripts/build_ref.py`, whose header says *do not hand-edit*) and it is not
+touched by this lane. R1 hit the same thing and recorded the same disposition
+(`WB_CANDID_FINDINGS.md` §6: *"it will pick the label up when the reference is
+next regenerated"*); R2 and R3 likewise regenerated nothing. **The index is
+self-referential** — `ref/README.md` §4 notes that prose naming an address adds
+a row — so regenerating it inside a read lane makes the lane's own coverage
+figures move under it. Left for the next reference-maintenance lane, and
+flagged here rather than silently skipped.
+
 ## 5.1 No `DISCLOSURE.md` row is owed
 
 `DISCLOSURE.md` is the ledger of findings **adopted into `crates/`**. This lane
