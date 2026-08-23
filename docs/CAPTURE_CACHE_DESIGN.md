@@ -165,6 +165,44 @@ OOM is a property of *globbing*, not of the entry count.
 
 ---
 
+## THIRD CORRECTION NOTE (added 2026-08-23 by lane **w-cachereap**)
+
+### [C7] The v1 tree is retired, and a power cut graded the new container
+
+The legacy root held **22,725,537 entries** at retirement (up another ~149 k in
+the day since [C5] measured it). It was **moved out of the checkout**, not
+renamed beside it — `work/capture-cache.DEAD` would have left every entry
+exactly where a `find` rooted at the repo still walks it, which is the footgun
+and not a step toward fixing it. Destination `~/tmp/`, same filesystem, so the
+rename was **0.003 s**; the delete then ran detached under `nice -n 19
+ionice -c3`. Sequence worth copying: one instant rename ends the exposure, and
+the hours-long `rm -rf` is decoupled from it entirely.
+
+**Do not read a byte figure off this.** `/home` is `compress=zstd:3`, so
+`st_blocks` is not post-compression occupancy, and v1 and v2 are unpairable
+populations because `cache-root` is in the key. The inode ratio (9 → 3 per
+entry) is the claim; there is no defensible byte ratio and none should be
+quoted.
+
+**The unplanned experiment.** The box lost power mid-flight on 2026-08-22
+(boot `-1` ends 14:34:59 UTC), with both roots live. At retirement the v1 tree
+carried **161 stranded lockfiles**; the v2 root reports **0 strays, 0 held
+locks** and every entry readable. That is *consistent with* the [C4] claim that
+`TOTAL_LEN` + digest + `rename(2)` is a strict strengthening over
+"`meta.txt` exists" — but it is **not proof**: v2 is ~168× smaller and days
+younger, and `KeyLock` only stale-breaks under contention, so v1's 161 accreted
+over ~18 days of crashes rather than all arriving in this one. What the power
+cut does establish is the weaker, still useful claim that **no v2 entry had to
+be discarded** — a torn `entry.bin` fails its own digest and re-captures, where
+v1's marker could have served a truncated argv as a Hit.
+
+The same power cut truncated five loose objects in this repo's `.git` and cost
+one lane branch its tip commit; `master` was verified fully traversable
+(`git fsck --connectivity-only`, rc=0, no non-dangling findings). Unrelated to
+the cache, recorded here only because it is the same event.
+
+---
+
 ## 0. The headline numbers
 
 | | main cache | the 50 sibling caches | total |
