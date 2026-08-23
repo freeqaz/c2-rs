@@ -319,3 +319,37 @@ untouched.
 `#3437`–`#3441` `w-read-r8` · `#3442`–`#3444` `w-read-r9`.
 
 **Nothing is waiting on the owner.**
+
+## Decision 8 — the implementation wave is dispatched (2026-08-23)
+
+The owner, verbatim: **"Okay let's orchestrate the implementation opus
+subagents now."**
+
+The queue this funds is the one reported at the wave-5 close, and the
+selection rule is decision 5's standing one — build what is high-leverage
+toward results plus validation of the design. Four lanes, dispatched
+concurrently on Opus subagents, disjoint file fences:
+
+| lane | kind | what it buys | price carried in |
+|---|---|---|---|
+| `w-s1c2` | construct | S1c (i)'s remainder: the 63 encoders without a `mop_*` (~2 h mechanical, 5 hand cases) and the producer half — 12 `Selected::plain` producers + 4 `Tail` sites, dominated by `select_text` and `store_leaf_text` (3–6 sessions, the lane's own estimate) | `w-s1bc` rung §6 |
+| `w-4f01` | fixture-claim / defect fix | the contradicted `4F 01` width (#3443): the port reads a fixed byte where c2 reads VI32, latent because every fixture sits below source line 128. R9 shipped the rule, the twin grid that fails on demand, and the exact edit sites | `WB_SUB4F_FINDINGS.md` §5 |
+| `w-pwords` | construct | the `prolog_words` seam (#3431): feed the oracle-side `.pdata` field into the port-side bijection instrument and measure whether S1's demoted equality is recoverable. Three caveats live; the ratio-not-equality amendment binds until measured | `w-s1bc` rung §7 |
+| `w-tailread` | characterization | read `0x10c3afd8` — the 767-opcode class table behind the dispatch tail, R6's top-ranked follow-up; plus the peephole's one unpublished arm (6 = `fmr`) and, if cheap, the `0x10b1d180` index contradiction | R6 rung "Found and not taken" items 1–2 |
+
+**Two lanes edit `crates/` at once, which no previous wave allowed.** Accepted
+deliberately: the crates are disjoint (`c2-core` vs `c2-il`+`c2-reference`),
+each lane carries its own byte-attribution protocol, and merges stay serial
+with a full armed re-gate at each landing. If the fences turn out to touch,
+the later merge eats the conflict and the funnel catches it.
+
+**Deliberately not dispatched:** S1c (ii) (`w-s1bc` §6 says it is not
+priceable from there — it waits for the producer half); the two +24 % cost
+fixtures (a property of the fixtures, parked); `#3444` (bounded, no action
+needed); Phase 1 (unchanged — `#3423`'s gate reasoning stands).
+
+**Board:** `#3446` this decision · `#3447`–`#3451` `w-s1c2` ·
+`#3452`–`#3455` `w-4f01` · `#3456`–`#3459` `w-pwords` ·
+`#3460`–`#3463` `w-tailread`. Next free `#3464`.
+
+**Nothing is waiting on the owner.**

@@ -4690,4 +4690,12 @@ generations --sample 400 | gc --limit 50000` over the live legacy root, and from
 
 ### `#3445` is `w-cachereap2`'s and it is spent above.
 
-### **THE NEXT FREE NUMBER IS `#3446`.**
+## Owner decision, 2026-08-23 (third) — the implementation wave is dispatched
+
+| row | claim | state | evidence | links | consequence |
+|---|---|---|---|---|---|
+| **3446**<sub>coordinator</sub> | **THE IMPLEMENTATION WAVE (SIXTH) IS DISPATCHED: THE S1c REMAINDER, THE `4F 01` WIDTH FIX, THE `prolog_words` SEAM, AND THE 767-OPCODE TAIL READ — AND PHASE 1 REMAINS CLOSED** | **DECIDED by the owner** (*"Okay let's orchestrate the implementation opus subagents now"*), recorded verbatim in `docs/DECISIONS_2026-08-22.md` decision 8. Four lanes, disjoint fences: `w-s1c2` owns `crates/c2-core`; `w-4f01` owns `crates/c2-il` + `crates/c2-reference` tests + new fixtures; `w-pwords` owns the harness instrument seam and may NOT edit `c2-core`; `w-tailread` is docs-only, zero `crates/` bytes | Two lanes edit `crates/` concurrently for the first time — accepted because their crates are disjoint and each carries its own byte-attribution protocol (required-zero for `w-s1c2`; zero-on-existing-corpus for `w-4f01`, whose behavior change is exercised only by its own new fixtures). Merges are serial with a full armed re-gate each, so attribution is re-established at every landing | `docs/DECISIONS_2026-08-22.md` decision 8 · `docs/rungs/2026-08-23-w-s1bc.md` §6 (the S1c pricing) · **#3443** (the width defect) · **#3431** (the `prolog_words` lead, three caveats live) · **#3432** (the tail table named) | **Deliberately NOT dispatched, so absence reads as decision**: S1c (ii) `Plain`-through-`block_ir` (not priceable from `w-s1bc` §6; wait for the producer half to land first); the two +24 % cost fixtures (a property of the fixtures, parked); `#3444` (bounded, no action); Phase 1 (still gated, still closed, `#3423`'s reasoning unchanged) |
+
+### Reservation ledger, 2026-08-23 (sixth wave — implementation), LIVE — **`#3446` spent (this decision) · `#3447`–`#3451` reserved `w-s1c2` · `#3452`–`#3455` reserved `w-4f01` · `#3456`–`#3459` reserved `w-pwords` · `#3460`–`#3463` reserved `w-tailread`.** Live until all four land; per-lane blocks are pointers to THIS line.
+
+### **THE NEXT FREE NUMBER IS `#3464`.**
