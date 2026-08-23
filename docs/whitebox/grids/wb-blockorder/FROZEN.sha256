@@ -1,7 +1,31 @@
+# wb-blockorder — content hashes.  Lane w-read-r8 (read R8).
+#
+# TWO KINDS OF ENTRY, and only the first kind is load-bearing:
+#
+#  (a) PREDICTIVE FREEZES — switch_grid.cpp / cells.tsv / gen_grid.py, and
+#      holdout_grid.cpp / holdout_pred.tsv.  These were hashed and COMMITTED
+#      BEFORE the first `cl.exe`, and holdout_pred.tsv carries predictions made
+#      before anything was compiled.  Their value is that the predictions
+#      cannot have been written after seeing the objs.
+#
+#  (b) REPRODUCIBILITY HASHES — random_corpus.cpp / random_cells.tsv.  The
+#      randomized corpus was generated AFTER the rule was committed and
+#      published, so it is an out-of-sample test of a FIXED rule, not a frozen
+#      prediction.  These hashes only certify that the seeded generator
+#      reproduces the same 240 cells.
+#
+#      Honest note: this corpus was regenerated once.  The first version used
+#      marker constants up to 60,000, which do not fit a signed-16-bit
+#      `li r3,imm` field, so 230 of 240 cells came back UNREADABLE (reported as
+#      such, never scored as passes).  The marker range was narrowed to
+#      1000..30000 and the corpus regenerated.  The rule under test did not
+#      change between the two runs — it was already committed at c1d22e5e9.
+#
+# Verify from the REPO ROOT:  sha256sum -c docs/whitebox/grids/wb-blockorder/FROZEN.sha256
 65c372b6b3a11d8a82d85908af9e5d8c0506a2e508a508456bf7403ac4f54547  docs/whitebox/grids/wb-blockorder/switch_grid.cpp
 b69b36b4ba302f7dcc916206af13fb4645ccc6810ff7ebd3bc2f5bf0c1b96aa1  docs/whitebox/grids/wb-blockorder/cells.tsv
 5e9d6b9cadd0d917c4a2b0b4ecf1ccd062e5c8fdf737cb0cf5b138af1eba0a4e  docs/whitebox/grids/wb-blockorder/gen_grid.py
 380c26f3de1dbc05b914b584f6deb7c9a1acb1f4b729d0840f45e97b64ece2d5  docs/whitebox/grids/wb-blockorder/holdout_grid.cpp
 d0e1e63933864f589e95ccbcc665d438ebadbb47ff7f3316ba60d407e43e7542  docs/whitebox/grids/wb-blockorder/holdout_pred.tsv
-6612723c8fc22a994ef66f5a684bfcf164a5aadf4b47f5da92ad6d9a2855f9ef  docs/whitebox/grids/wb-blockorder/random_corpus.cpp
-dd2e19538ba3ae83ae3649025ed0c466ed12922ea5a004861ab3540e5f4eeae1  docs/whitebox/grids/wb-blockorder/random_cells.tsv
+a78487b0495664ed35736dba5ed1f1cfa962337fb6ae892435513a7d340f1a6e  docs/whitebox/grids/wb-blockorder/random_corpus.cpp
+d23358e25d620a37031bceb35462e7671fabcd35a1a1001e46fe6732e8b76b51  docs/whitebox/grids/wb-blockorder/random_cells.tsv
