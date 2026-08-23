@@ -444,19 +444,39 @@ mapping to publish.**
 
 ### 7.1 Nothing indexes the table by an opcode
 
-Its **only** referencing function is `FUN_10c0174b`, which holds all three
-references in the image (`0x10c0175e`, `0x10c01774`, `0x10c01790`). It is a
-**name lookup**: it starts at row 1 (`xor ebp,ebp / inc ebp`), strides by
-`shl eax,4`, string-compares each row's name, and terminates on the `_last`
-string `0x10b19ce4` — the twin of `FUN_10c00900`, which does the same to the
-*first* table with `imul eax,eax,0xc`.
+The table is referenced **13 times, from 3 functions**, and the split by *which
+field* is referenced is the whole answer:
 
-> **`P_EXPAND.md` §6 says its "only two references are inside `FUN_10c00900` and
-> `FUN_10c0174b`."** `FUN_10c00900` references `0x10b1b260`, the **first** table.
-> This table has **one** referencing function, not two.
+| function | n | what it names | role |
+|---|---:|---|---|
+| `FUN_10c0174b` | 3 | the **base** (`+0x0`) and **row 1** (`+0x10`) | the **name search** |
+| `FUN_10c027d3` | 9 | **`+0x4`** ×1, **`+0x8`** ×1, **`+0xc`** ×7 | the **field reads** |
+| `FUN_10c01f23` | 1 | `+0x790` = row 121, one past `_last` | a table-end pointer |
 
-`ebp` is a **search cursor**. It is never an opcode, and no instruction in the
-image computes `0x298 + j`.
+`FUN_10c0174b` is a **name lookup**: it starts at **row 1**
+(`xor ebp,ebp / inc ebp`), strides by `shl eax,4`, string-compares each row's
+name, and terminates on the `_last` string `0x10b19ce4` — the exact twin of
+`FUN_10c00900`, which does the same to the *first* table with
+`imul eax,eax,0xc`.
+
+**`ebp` is a search cursor.** It is never an opcode, and no instruction in the
+image computes `0x298 + j`. Every use of a row's *contents* goes through the
+field offsets in the second row above — `+0x4` is the opcode, `+0x8` is `BO`,
+`+0xc` is `BI`, which is precisely the shape of a simplified-mnemonic expander.
+
+> **⛔ TWO CORRECTIONS, one to `P_EXPAND.md` §6 and one to an earlier draft of
+> this page.** §6 says the table's *"only two references image-wide are inside
+> `FUN_10c00900` and `FUN_10c0174b`"*. **`FUN_10c00900` references
+> `0x10b1b260`, the FIRST table** — so §6 names a function that does not touch
+> this one, and undercounts the references that exist (13, not 2).
+>
+> **And this page said "one referencing function, not two" until the scan was
+> fixed** — which was wrong in the opposite direction, for a reason worth
+> recording: **both tables live inside `.text`**, so `objdump -d` disassembles
+> their bytes as if they were code and invents branch instructions whose
+> operands land in the table's own address range. A base-literal grep saw 3; a
+> naive range scan saw 20, seven of them phantoms. The scan now keeps only
+> addresses that `FUNCS.tsv` places inside a real function.
 
 ### 7.2 The row index becomes an opcode by reading field `+4`, at one address
 

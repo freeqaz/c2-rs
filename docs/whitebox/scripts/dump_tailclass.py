@@ -549,6 +549,14 @@ def mode_minters(img, path, cg, addr):
     return 0
 
 
+def cg_containing(va):
+    """The FUNCS.tsv function containing `va`, or None."""
+    for lo, hi in load_funcs():
+        if lo <= va < hi:
+            return lo
+    return None
+
+
 def mode_extended(img, path):
     print("# --extended   %#x, the extended-mnemonic table (P_EXPAND §6)"
           % EXTENDED_TABLE)
@@ -592,14 +600,42 @@ def mode_extended(img, path):
     print("## every reference to this table in the image")
     out = subprocess.run(["objdump", "-d", "-M", "intel", path],
                          capture_output=True, text=True, check=True).stdout
-    n = 0
+    # Range test, not a base-literal grep: the walker starts at ROW 1, so two
+    # of the three references name 0x10b1d190 (base + one stride) and a
+    # base-only match reports 1 instead of 3 -- understating the very count
+    # this section is about.
+    n, funcs = 0, set()
+    hi = EXTENDED_TABLE + len(rows) * EXTENDED_STRIDE
     for line in out.splitlines():
         m = LINE.match(line)
-        if m and "0x10b1d180" in m.group(4):
-            print("  %#010x  %-6s %s"
-                  % (int(m.group(1), 16), m.group(3), m.group(4).strip()))
-            n += 1
-    print("  %d references" % n)
+        if not m:
+            continue
+        v = None
+        for h in _HEX.finditer(m.group(4)):
+            x = int(h.group(1), 16)
+            if EXTENDED_TABLE <= x < hi:
+                v = x
+                break
+        if v is None:
+            continue
+        va = int(m.group(1), 16)
+        # BOTH tables live INSIDE .text, so `objdump -d` disassembles their
+        # bytes as if they were code and invents branch instructions whose
+        # operands land in this range.  Only an address that FUNCS.tsv places
+        # inside a real function is a reference.
+        owner = cg_containing(va)
+        if owner is None:
+            continue
+        print("  %#010x  in %#x  %-6s %-34s (table + %#x)"
+              % (va, owner, m.group(3), m.group(4).strip(),
+                 v - EXTENDED_TABLE))
+        funcs.add(owner)
+        n += 1
+    print("  %d references, in %d distinct function(s): %s"
+          % (n, len(funcs), " ".join("%#x" % f for f in sorted(funcs))))
+    print("  P_EXPAND.md §6 says the references are in FUN_10c00900 and")
+    print("  FUN_10c0174b.  FUN_10c00900 references %#x, the FIRST table."
+          % MNEMONIC_TABLE_VA)
     print()
     print("## the trap: indexing the FIRST table past its extent")
     for op in (0x2F0, 0x2F4, 0x2F6, 0x30F):
