@@ -63,14 +63,32 @@ use super::mop::{op, MachineOp};
 /// Rc=0. Returns the 4-byte big-endian instruction word.
 ///
 /// `word = (31<<26) | (rd<<21) | (ra<<16) | (rb<<11) | (266<<1)`.
+/// The [`MachineOp`] form of [`encode_add`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_add` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_add(rd: u8, ra: u8, rb: u8) -> MachineOp {
+    MachineOp::new(op::ADD).s(rd).d0(ra).d1(rb)
+}
+
 pub fn encode_add(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    MachineOp::new(op::ADD).s(rd).d0(ra).d1(rb).word()
+    mop_add(rd, ra, rb).word()
 }
 
 /// Encode `mullw rD, rA, rB` (rD = rA * rB): primary opcode 31, XO 235, OE=0,
 /// Rc=0. Commutative in rA/rB (like `add`), so operand order is match-neutral.
+/// The [`MachineOp`] form of [`encode_mullw`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_mullw` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_mullw(rd: u8, ra: u8, rb: u8) -> MachineOp {
+    MachineOp::new(op::MULLW).s(rd).d0(ra).d1(rb)
+}
+
 pub fn encode_mullw(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    MachineOp::new(op::MULLW).s(rd).d0(ra).d1(rb).word()
+    mop_mullw(rd, ra, rb).word()
 }
 
 /// Encode `subf rD, rA, rB`: primary opcode 31, XO 40, OE=0, Rc=0.
@@ -83,8 +101,17 @@ pub fn encode_mullw(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
 /// exactly the non-commutative hazard the CLAUDE.md correctness boundary names.
 /// This encoder is deliberately separate from `encode_add` and its single
 /// caller ([`select_text`]'s `Sub` arm) documents the mapping at the call site.
+/// The [`MachineOp`] form of [`encode_subf`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_subf` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_subf(rd: u8, ra: u8, rb: u8) -> MachineOp {
+    MachineOp::new(op::SUBF).s(rd).d0(ra).d1(rb)
+}
+
 pub fn encode_subf(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    MachineOp::new(op::SUBF).s(rd).d0(ra).d1(rb).word()
+    mop_subf(rd, ra, rb).word()
 }
 
 /// Encode an **X-form logical / shift** `op rA, rS, rB` — the register-register
@@ -167,14 +194,32 @@ pub fn encode_sraw(dest: u8, lhs: u8, rhs: u8) -> [u8; 4] {
 /// `SI` is a 16-bit signed immediate. Note `addi` special-cases `rA = 0` to
 /// mean the literal 0 (not the contents of r0), so `addi rD, 0, k` is the
 /// canonical `li rD, k`. Used for `reg ± small-constant` and constant loads.
+/// The [`MachineOp`] form of [`encode_addi`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_addi` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_addi(rd: u8, ra: u8, si: i16) -> MachineOp {
+    MachineOp::new(op::ADDI).s(rd).d0(ra).disp(si as i32)
+}
+
 pub fn encode_addi(rd: u8, ra: u8, si: i16) -> [u8; 4] {
-    MachineOp::new(op::ADDI).s(rd).d0(ra).disp(si as i32).word()
+    mop_addi(rd, ra, si).word()
 }
 
 /// Encode `addis rD, rA, SI` (rD = rA + (SI << 16)): primary opcode 15. The
 /// high half of a wide constant / immediate (with rA=0 for the `lis` idiom).
+/// The [`MachineOp`] form of [`encode_addis`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_addis` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_addis(rd: u8, ra: u8, si: i16) -> MachineOp {
+    MachineOp::new(op::ADDIS).s(rd).d0(ra).disp(si as i32)
+}
+
 pub fn encode_addis(rd: u8, ra: u8, si: i16) -> [u8; 4] {
-    MachineOp::new(op::ADDIS).s(rd).d0(ra).disp(si as i32).word()
+    mop_addis(rd, ra, si).word()
 }
 
 /// Encode `ori rA, rS, UI` (rA = rS | UI): primary opcode 24. The low half of
@@ -185,8 +230,17 @@ pub fn encode_ori(ra: u8, rs: u8, ui: u16) -> [u8; 4] {
 
 /// `blr` — branch to link register (function return). `bclr` with BO=20
 /// ("always"), BI=0, LK=0 → the fixed word `0x4E800020`.
+/// The [`MachineOp`] form of [`encode_blr`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_blr` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_blr() -> MachineOp {
+    MachineOp::new(op::BLR)
+}
+
 pub fn encode_blr() -> [u8; 4] {
-    MachineOp::new(op::BLR).word()
+    mop_blr().word()
 }
 
 /// `bclr BO,BI` — a **conditional return**: branch to the link register when the
@@ -291,22 +345,49 @@ pub fn encode_bdnz(disp: i32) -> Option<[u8; 4]> {
 /// `int f(int* p){return *p;}` is `80630000`, `int f(int a,int* p){return *p;}`
 /// is `80640000`, `s->d` (offset 16) is `80630010`, `p[-1]` is `8063fffc` and
 /// `p[8000]` is `80637d00`. See `docs/IL_EXPR_LAYER.md` §3.
+/// The [`MachineOp`] form of [`encode_lwz`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_lwz` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_lwz(rd: u8, ra: u8, d: i16) -> MachineOp {
+    MachineOp::new(op::LWZ).s(rd).d0(ra).disp(d as i32)
+}
+
 pub fn encode_lwz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
-    MachineOp::new(op::LWZ).s(rd).d0(ra).disp(d as i32).word()
+    mop_lwz(rd, ra, d).word()
 }
 
 /// `lbz rD, D(rA)` — load a zero-extended byte: primary opcode 34. Transcribed
 /// from captures: `char f(char* p){return *p;}` is `88630000`, `s->c` at offset 4
 /// is `88630004`, and the r11 target an `extsb` consumes is `89630000`.
+/// The [`MachineOp`] form of [`encode_lbz`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_lbz` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_lbz(rd: u8, ra: u8, d: i16) -> MachineOp {
+    MachineOp::new(op::LBZ).s(rd).d0(ra).disp(d as i32)
+}
+
 pub fn encode_lbz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
-    MachineOp::new(op::LBZ).s(rd).d0(ra).disp(d as i32).word()
+    mop_lbz(rd, ra, d).word()
 }
 
 /// `lhz rD, D(rA)` — load a zero-extended halfword: primary opcode 40.
 /// Captured: `short f(short* p){return *p;}` is `a0630000` (**never `lha`** —
 /// see [`indirect_load_text`]), `s->h` at offset 6 is `a0630006`.
+/// The [`MachineOp`] form of [`encode_lhz`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_lhz` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_lhz(rd: u8, ra: u8, d: i16) -> MachineOp {
+    MachineOp::new(op::LHZ).s(rd).d0(ra).disp(d as i32)
+}
+
 pub fn encode_lhz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
-    MachineOp::new(op::LHZ).s(rd).d0(ra).disp(d as i32).word()
+    mop_lhz(rd, ra, d).word()
 }
 
 /// `ld rD, DS(rA)` — load a doubleword: primary opcode 58, **DS-form**. The low
@@ -314,15 +395,33 @@ pub fn encode_lhz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
 /// displacement is only representable when it is a multiple of 4; callers gate on
 /// that rather than letting it round. Captured: `long long f(long long* p)` is
 /// `e8630000`, `s->q` at offset 16 is `e8630010`.
+/// The [`MachineOp`] form of [`encode_ld`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_ld` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_ld(rd: u8, ra: u8, ds: i16) -> MachineOp {
+    MachineOp::new(op::LD).s(rd).d0(ra).disp(ds as i32)
+}
+
 pub fn encode_ld(rd: u8, ra: u8, ds: i16) -> [u8; 4] {
-    MachineOp::new(op::LD).s(rd).d0(ra).disp(ds as i32).word()
+    mop_ld(rd, ra, ds).word()
 }
 
 /// `extsb rA, rS` — sign-extend byte: opcode 31, XO 954. Captured as
 /// `7d630774` = `extsb r3,r11` (the r11-then-r3 rule; see
 /// [`indirect_load_text`]).
+/// The [`MachineOp`] form of [`encode_extsb`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_extsb` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_extsb(ra: u8, rs: u8) -> MachineOp {
+    MachineOp::new(op::EXTSB).s(ra).d0(rs)
+}
+
 pub fn encode_extsb(ra: u8, rs: u8) -> [u8; 4] {
-    MachineOp::new(op::EXTSB).s(ra).d0(rs).word()
+    mop_extsb(ra, rs).word()
 }
 
 /// `extsb. rA, rS` — the **record form** of the byte sign-extension, opcode 31
@@ -358,21 +457,48 @@ pub fn encode_extsh(ra: u8, rs: u8) -> [u8; 4] {
 /// `void f(S* s,int v){ s->a = v; }` is `90830000`, `s->b` (offset 4) is
 /// `90830004`, `s->arr[2]` (offset 48) is `90830030`, and
 /// `void f(int x,S* s,int v){ s->b = v; }` is `90a40004` — value r5, base r4.
+/// The [`MachineOp`] form of [`encode_stw`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_stw` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_stw(rs: u8, ra: u8, d: i16) -> MachineOp {
+    MachineOp::new(op::STW).d0(rs).s(ra).disp(d as i32)
+}
+
 pub fn encode_stw(rs: u8, ra: u8, d: i16) -> [u8; 4] {
-    MachineOp::new(op::STW).d0(rs).s(ra).disp(d as i32).word()
+    mop_stw(rs, ra, d).word()
 }
 
 /// `stb rS, D(rA)` — store a byte: primary opcode 38. Captured: a `char` member
 /// at offset 12 is `9883000c`, an `unsigned char` at 16 is `98830010`, a `bool`
 /// at 56 is `98830038`, and the literal form's `stb r11` is `99630000`.
+/// The [`MachineOp`] form of [`encode_stb`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_stb` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_stb(rs: u8, ra: u8, d: i16) -> MachineOp {
+    MachineOp::new(op::STB).d0(rs).s(ra).disp(d as i32)
+}
+
 pub fn encode_stb(rs: u8, ra: u8, d: i16) -> [u8; 4] {
-    MachineOp::new(op::STB).d0(rs).s(ra).disp(d as i32).word()
+    mop_stb(rs, ra, d).word()
 }
 
 /// `sth rS, D(rA)` — store a halfword: primary opcode 44. Captured: a `short`
 /// member at offset 14 is `b083000e`.
+/// The [`MachineOp`] form of [`encode_sth`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_sth` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_sth(rs: u8, ra: u8, d: i16) -> MachineOp {
+    MachineOp::new(op::STH).d0(rs).s(ra).disp(d as i32)
+}
+
 pub fn encode_sth(rs: u8, ra: u8, d: i16) -> [u8; 4] {
-    MachineOp::new(op::STH).d0(rs).s(ra).disp(d as i32).word()
+    mop_sth(rs, ra, d).word()
 }
 
 /// `sthu rS, D(rA)` — store a halfword **with update**: primary opcode 45, and
@@ -470,8 +596,17 @@ pub fn encode_neg(rd: u8, ra: u8) -> [u8; 4] {
 
 /// `andc rA, rS, rB` (rA = rS & ¬rB): opcode 31, XO 60. Not symmetric in
 /// rS/rB — the complement applies to rB only.
+/// The [`MachineOp`] form of [`encode_andc`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_andc` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_andc(ra: u8, rs: u8, rb: u8) -> MachineOp {
+    MachineOp::new(op::ANDC).s(ra).d0(rs).d1(rb)
+}
+
 pub fn encode_andc(ra: u8, rs: u8, rb: u8) -> [u8; 4] {
-    MachineOp::new(op::ANDC).s(ra).d0(rs).d1(rb).word()
+    mop_andc(ra, rs, rb).word()
 }
 
 /// `orc rA, rS, rB` (rA = rS | ¬rB): opcode 31, XO 412. Not symmetric.
@@ -498,8 +633,17 @@ pub fn encode_xori(ra: u8, rs: u8, ui: u16) -> [u8; 4] {
 
 /// `rlwinm rA, rS, SH, MB, ME` — rotate left word immediate then AND with mask:
 /// primary opcode 21, Rc=0. The workhorse of bit extraction here.
+/// The [`MachineOp`] form of [`encode_rlwinm`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_rlwinm` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_rlwinm(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> MachineOp {
+    MachineOp::new(op::RLWINM).s(ra).d0(rs).d1(sh).d2(mb).d3(me)
+}
+
 pub fn encode_rlwinm(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> [u8; 4] {
-    MachineOp::new(op::RLWINM).s(ra).d0(rs).d1(sh).d2(mb).d3(me).word()
+    mop_rlwinm(ra, rs, sh, mb, me).word()
 }
 
 /// `rlwimi rA, rS, SH, MB, ME` — rotate left word immediate then mask
@@ -528,8 +672,17 @@ pub fn encode_rlwimi(ra: u8, rs: u8, sh: u8, mb: u8, me: u8) -> [u8; 4] {
 /// `?Encipher@`'s `78890022` as `rA=9, rS=4, SH=32, MB=32` (`srdi r9,r4,32`) —
 /// so the two cells separate the `SH[5]` bit from the `MB[5]` bit, which a
 /// single witness could not.
+/// The [`MachineOp`] form of [`encode_rldicl`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_rldicl` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_rldicl(ra: u8, rs: u8, sh: u8, mb: u8) -> MachineOp {
+    MachineOp::new(op::RLDICL).s(ra).d0(rs).imm_d1(sh as u32).imm_d2(mb as u32)
+}
+
 pub fn encode_rldicl(ra: u8, rs: u8, sh: u8, mb: u8) -> [u8; 4] {
-    MachineOp::new(op::RLDICL).s(ra).d0(rs).imm_d1(sh as u32).imm_d2(mb as u32).word()
+    mop_rldicl(ra, rs, sh, mb).word()
 }
 
 /// `rldimi rA, rS, SH, MB` — **rotate left DOUBLEWORD immediate then mask
@@ -735,8 +888,17 @@ pub fn encode_lfs(double: bool, fd: u8, ra: u8, d: i16) -> [u8; 4] {
 /// `std rS, DS(rA)` — store doubleword, primary opcode 62, DS-form (the low two
 /// bits select the form, so the displacement must be a multiple of 4). Captured
 /// as `fbe1fff0` = `std r31,-16(r1)` in every callee-saved GPR prologue.
+/// The [`MachineOp`] form of [`encode_std`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_std` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_std(rs: u8, ra: u8, ds: i16) -> MachineOp {
+    MachineOp::new(op::STD).d0(rs).s(ra).disp(ds as i32)
+}
+
 pub fn encode_std(rs: u8, ra: u8, ds: i16) -> [u8; 4] {
-    MachineOp::new(op::STD).d0(rs).s(ra).disp(ds as i32).word()
+    mop_std(rs, ra, ds).word()
 }
 
 /// `ld rD, DS(rA)` with a **GPR** destination — the epilogue's reload. Same
@@ -766,8 +928,17 @@ pub fn encode_stwu(rs: u8, ra: u8, d: i16) -> [u8; 4] {
 
 /// `mr rA, rS` — the `or rA, rS, rS` idiom c2 uses for a register-to-register
 /// move (opcode 31, XO 444).
+/// The [`MachineOp`] form of [`encode_mr`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_mr` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_mr(ra: u8, rs: u8) -> MachineOp {
+    MachineOp::new(op::MR).s(ra).d0(rs)
+}
+
 pub fn encode_mr(ra: u8, rs: u8) -> [u8; 4] {
-    MachineOp::new(op::MR).s(ra).d0(rs).word()
+    mop_mr(ra, rs).word()
 }
 
 /// `mr. rA, rS` — the **record form** of the `or` move, opcode 31 XO 444 with
@@ -807,15 +978,33 @@ pub fn encode_lbzu(rd: u8, ra: u8, d: i16) -> [u8; 4] {
 
 /// `divw rD, rA, rB` — signed word divide, opcode 31 XO 491.
 /// Captured: `7ce823d6` = `divw r7,r8,r4`.
+/// The [`MachineOp`] form of [`encode_divw`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_divw` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_divw(rd: u8, ra: u8, rb: u8) -> MachineOp {
+    MachineOp::new(op::DIVW).s(rd).d0(ra).d1(rb)
+}
+
 pub fn encode_divw(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    MachineOp::new(op::DIVW).s(rd).d0(ra).d1(rb).word()
+    mop_divw(rd, ra, rb).word()
 }
 
 /// `divwu rD, rA, rB` — **unsigned** word divide, opcode 31 XO 459.
 /// Captured: `7c632396` = `divwu r3,r3,r4` (`work/w-divmod/twigrid.py`, row
 /// `u-div-var`, byte-identical at `/O1` and `/Ox`).
+/// The [`MachineOp`] form of [`encode_divwu`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_divwu` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_divwu(rd: u8, ra: u8, rb: u8) -> MachineOp {
+    MachineOp::new(op::DIVWU).s(rd).d0(ra).d1(rb)
+}
+
 pub fn encode_divwu(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
-    MachineOp::new(op::DIVWU).s(rd).d0(ra).d1(rb).word()
+    mop_divwu(rd, ra, rb).word()
 }
 
 /// `twi TO, rA, SIMM` — **trap word immediate**, primary opcode 3. The
@@ -861,8 +1050,17 @@ pub fn encode_divwu(rd: u8, ra: u8, rb: u8) -> [u8; 4] {
 /// grid observed no fourth value across 161 cells. None of this is shipped —
 /// `div_mod_leaf` refuses every constant divisor — but the `TO` axis is
 /// recorded here so a later rung does not rediscover it as an anomaly.
+/// The [`MachineOp`] form of [`encode_twi`] — the value S1c's op streams
+/// carry, before any word exists. See `encode_twi` for the evidence note
+/// behind the opcode and the operand roles; this function adds nothing to
+/// it but the missing `.word()`.
+#[inline(always)]
+pub fn mop_twi(to: u8, ra: u8, simm: i16) -> MachineOp {
+    MachineOp::new(op::TWI).s(to).d0(ra).disp(simm as i32)
+}
+
 pub fn encode_twi(to: u8, ra: u8, simm: i16) -> [u8; 4] {
-    MachineOp::new(op::TWI).s(to).d0(ra).disp(simm as i32).word()
+    mop_twi(to, ra, simm).word()
 }
 
 // ---- W8: the conditional-branch family ------------------------------------

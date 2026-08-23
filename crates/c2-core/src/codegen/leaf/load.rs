@@ -5,14 +5,8 @@
 
 use c2_il::{IlFunction, IlOp};
 use crate::BackendError;
-use crate::codegen::encode::{
-    encode_blr,
-    encode_extsb,
-    encode_lbz,
-    encode_ld,
-    encode_lhz,
-    encode_lwz,
-};
+use crate::codegen::encode::{mop_blr, mop_extsb, mop_lbz, mop_ld, mop_lhz, mop_lwz};
+use crate::codegen::mop::{ops_to_bytes, Ops};
 use crate::codegen::select::{ARG_REGS, RET_REG, SCRATCH_REG, out_of_class};
 
 /// Lower an **indirect-load leaf** — `return *p;` / `return s->m;` /
@@ -66,15 +60,16 @@ pub fn indirect_load_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendEr
             )))
         }
     };
-    let mut text = Vec::with_capacity(12);
+    // S1c (i): an op stream, rendered once at the return.
+    let mut ops: Ops = Vec::with_capacity(3);
     // A load that feeds a sign-extension targets r11 and the `exts*` produces r3;
     // an unextended load targets r3 directly.
     let dest = if sext { SCRATCH_REG } else { RET_REG };
     match (width, sext) {
-        (1, _) => text.extend_from_slice(&encode_lbz(dest, base, d)),
-        (2, false) => text.extend_from_slice(&encode_lhz(dest, base, d)),
-        (4, false) => text.extend_from_slice(&encode_lwz(dest, base, d)),
-        (8, false) if d % 4 == 0 => text.extend_from_slice(&encode_ld(dest, base, d)),
+        (1, _) => ops.push(mop_lbz(dest, base, d)),
+        (2, false) => ops.push(mop_lhz(dest, base, d)),
+        (4, false) => ops.push(mop_lwz(dest, base, d)),
+        (8, false) if d % 4 == 0 => ops.push(mop_ld(dest, base, d)),
         (8, false) => {
             return Some(Err(out_of_class(
                 "8-byte indirect load whose offset is not a multiple of 4 (ld is DS-form)",
@@ -88,10 +83,10 @@ pub fn indirect_load_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendEr
         }
     }
     if sext {
-        text.extend_from_slice(&encode_extsb(RET_REG, dest));
+        ops.push(mop_extsb(RET_REG, dest));
     }
-    text.extend_from_slice(&encode_blr());
-    Some(Ok(text))
+    ops.push(mop_blr());
+    Some(Ok(ops_to_bytes(&ops)))
 }
 
 #[cfg(test)]

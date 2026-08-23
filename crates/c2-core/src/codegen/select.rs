@@ -17,7 +17,8 @@ use crate::BackendError;
 use crate::codegen::calls;
 use crate::codegen::calls::{call_seq_parts, int_tail_call_text, permute_args_text};
 use crate::codegen::cond_tail::{cond_pair_parts, CondPairParts};
-use crate::codegen::encode::encode_blr;
+use crate::codegen::encode::{encode_blr, mop_blr};
+use crate::codegen::mop::{ops_to_bytes, Ops};
 use crate::codegen::leaf::addr::addr_leaf_text;
 use crate::codegen::leaf::compare::{cmp_shift_or_text, compare_leaf_text};
 use crate::codegen::leaf::float::{
@@ -481,7 +482,13 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         // branch itself, so the setup is its text minus the last word.
         BodyShape::Tail(_) => {
             if func.ops.is_empty() {
-                Ok(Selected::tail(Vec::new()))
+                // S1c (i): a VOID tail call's setup is the EMPTY op stream. Said
+                // as an `Ops` rather than a bare `Vec::new()` because the
+                // emptiness is load-bearing downstream — `splice.rs` reads it as
+                // SPLICE-P's stratum (0 of 953) — so it is worth spelling as
+                // "no ops" rather than "no bytes".
+                let ops: Ops = Vec::new();
+                Ok(Selected::tail(ops_to_bytes(&ops)))
             } else {
                 let (mut text, _) = int_tail_call_text(func, 0, mode)?;
                 text.truncate(text.len() - 4);
@@ -575,8 +582,10 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         // The integer divide/modulo leaf — the straight-line chain refuses its
         // operator outright, so neither can take the other's body.
         BodyShape::DivModLeaf(d) => Ok(Selected::plain(div_mod_leaf_text(d, mode)?)),
-        // An empty body: a bare `blr`.
-        BodyShape::EmptyBody => Ok(Selected::plain(encode_blr().to_vec())),
+        // An empty body: a bare `blr`. S1c (i): a one-op stream rather than a
+        // word already turned into bytes — the smallest body in the port, and
+        // the one that shows the op stream costs nothing to adopt.
+        BodyShape::EmptyBody => Ok(Selected::plain(ops_to_bytes(&[mop_blr()]))),
         // The FP leaf. Its op vocabulary (`Load`/`Lit`/`FpLit` + `+ - * /`) is
         // disjoint from the indirect-load and address leaves', which is why it
         // is safe as its own arm.

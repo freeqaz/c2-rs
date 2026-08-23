@@ -3,7 +3,8 @@
 
 use c2_il::{IlFunction, IlOp};
 use crate::BackendError;
-use crate::codegen::encode::{encode_addi, encode_blr, encode_mr};
+use crate::codegen::encode::{mop_addi, mop_blr, mop_mr};
+use crate::codegen::mop::{ops_to_bytes, Ops};
 use crate::codegen::select::{ARG_REGS, RET_REG, out_of_class};
 
 /// Lower an **address leaf** — `return &s->m;` / `return &p->Base::m;` /
@@ -56,18 +57,20 @@ pub fn addr_leaf_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendError>
             )))
         }
     };
-    let mut text = Vec::with_capacity(8);
+    // S1c (i): built as an op stream and rendered once at the return, so the
+    // opcode survives until the last possible moment.
+    let mut ops: Ops = Vec::with_capacity(2);
     if d != 0 {
-        text.extend_from_slice(&encode_addi(RET_REG, base, d));
+        ops.push(mop_addi(RET_REG, base, d));
     } else if base != RET_REG {
         // A zero-offset address from a non-first argument is the same one
         // register move `select_text` makes for `return b;` — `int* f(int k,
         // S* s){ return &s->a; }` is `mr r3,r4`, measured, the same word as the
         // pointer identity beside it. Two spellings, one instruction.
-        text.extend_from_slice(&encode_mr(RET_REG, base));
+        ops.push(mop_mr(RET_REG, base));
     }
-    text.extend_from_slice(&encode_blr());
-    Some(Ok(text))
+    ops.push(mop_blr());
+    Some(Ok(ops_to_bytes(&ops)))
 }
 
 #[cfg(test)]
