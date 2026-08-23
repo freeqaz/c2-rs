@@ -457,9 +457,13 @@ refuted allocation keys, "wrong on 5 to 42 each"**, and `alloc.rs:29-36`'s
 
 > ### They now HAVE an explanation, and it is a mechanism with an address.
 >
-> The tie key is **`cand+0x44`**, written at **`0x10b55fac`**: an ordinal in a
-> **blocks-forward × tuples-backward** walk of the whole function, taken at the
-> candidate's **last visit**, and sorted **descending**. Every one of the ten
+> The tie key is **`cand+0x44`**, written at **`0x10b55fac`** `[R]` — a
+> monotone tuple-visit ordinal, sorted **descending** by `0x10b2b82d` `[R]`.
+> *(That much is verified at the bytes, twice-sourced. The further reading that
+> the walk composes to **blocks-forward × tuples-backward** and that the value
+> is taken at the candidate's **last visit** is `[R]` **only**, and §7.1 states
+> why — the cell built to take it to `[O]` never reached the tier.)* Every one
+> of the ten
 > refuted keys is a function of a **source-level property of a variable** —
 > declaration order, use count, live-range length, first-use position. None of
 > them is that ordinal, and three structural reasons make it impossible for any
