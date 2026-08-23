@@ -94,6 +94,15 @@ text is left alone.
 | [`WB_MIDDLE_INTERFACES.md`](WB_MIDDLE_INTERFACES.md) | the opaque middle's **two edges**, addressed, with `[R]` marking every claim read but not yet confirmed. Prereg: [`WB_MIDDLE_PREREG.md`](WB_MIDDLE_PREREG.md) |
 | [`WB_CHOOSER_FINDINGS.md`](WB_CHOOSER_FINDINGS.md) | the one-witness-per-side blockers. **Mixed provenance and the split matters** — §5's mechanism readings are disassembly-derived, the rest is not. Prereg: [`WB_CHOOSER_PREREG.md`](WB_CHOOSER_PREREG.md) |
 | [`WB_ITEMF_FINDINGS.md`](WB_ITEMF_FINDINGS.md) | item F **priced**: 7 steps, a ceiling of 17 lanes, and **a buy of zero on every population the goal is written in**. A read whose deliverable is a NO. Prereg: [`WB_ITEMF_PREREG.md`](WB_ITEMF_PREREG.md) |
+| [`WB_GLOBREGS_FINDINGS.md`](WB_GLOBREGS_FINDINGS.md) | read **R4**: the allocator's tie key **`cand+0x44` is written** — a tuple-visit ordinal at `0x10b55fac` — so the tie tier is a sort on program position and the hash-bucket walk is the **third** tier. **The ten fitted-then-refuted allocation keys finally have a mechanism**, and the 52,416-config null was structurally guaranteed. Spec page: [`ref/P_GLOBREGS.md`](ref/P_GLOBREGS.md). Prereg: [`WB_GLOBREGS_PREREG.md`](WB_GLOBREGS_PREREG.md) |
+
+> ⚠ **THIS TABLE IS STALE FOR THE 2026-08-22/23 FUNDED READ WAVE.** `w-read-r4`
+> added its own row above and deliberately did **not** backfill the other three:
+> **`WB_CANDID_FINDINGS.md` (R1), `WB_ENCODE_FINDINGS.md` (R2) and
+> `WB_LABELCHARGE_FINDINGS.md` (R3) are all missing from it**, as are their
+> preregs, and R5's are pending. Writing rows for three other lanes' findings
+> would put this lane's summary of their work in the index; flagging the gap is
+> the honest version. Whoever next maintains this file: those are the four.
 
 ## Campaigns, proposals, data
 
