@@ -216,7 +216,7 @@ a multi-word emitter, so the arm's own count is not the whole story.
 | `0x10c0e065/06c/06e` | 0..**unbounded** | `nopalign` | alignment padding — a loop |
 | `0x10c0e146` | 0..**unbounded** | `0x2e5` | |
 | `0x10c0e185`/`0x10c0e1bf`/`0x10c0e1cb`/`0x10c0e1e6` | 0..0 | `0x2e5`,`0x2e1`,`0x2ba` | |
-| `0x10c0e194` | 1..1 | `0x2e4` | |
+| `0x10c0e194` | 1..1 | `0x2e4` | **the one word is `emit 0x7d084378` = `mr r8,r8`** — see the beside-amendment under this table |
 | **`0x10c0e283`** | **0..0** | **`0x2f6`** | **DELEGATES `0x10bffb72`** (restore) |
 | **`0x10c0e28f`** | **0..0** | **`0x2f4`** | **DELEGATES `0x10c216f5`** |
 | **`0x10c0e29b`** | **0..0** | **`0x2f0`** | **DELEGATES `0x10c21719`** |
@@ -238,6 +238,30 @@ a multi-word emitter, so the arm's own count is not the whole story.
 3. **`nopalign` (`0x27b`) is genuinely unbounded** — the alignment-padding arm
    contains a loop, so no constant describes it. Any instrument asserting a
    word count must special-case it.
+
+> **⛔ AMENDED BESIDE — lane `w-r8idiom`, 2026-08-24, board #3481. THE ROW
+> `0x10c0e194 | 1..1 | 0x2e4` IS THE `mr r8,r8` IDIOM, AND THE WORD WAS ONE
+> LINE AWAY THE WHOLE TIME.** `[R]`. The arm is eleven instructions: it builds
+> a literal operand from the **baked constant `0x7d084378`** (`push` at
+> `0x10c0e1a1`, builder `0x10bd575d`) and an instruction of opcode **`0x290`**
+> — which this image's own mnemonic table calls **`emit`**, the raw-word
+> emitter — via `0x10bd726d` at `0x10c0e1b5`. `0x7d084378` is `or r8,r8,r8`,
+> i.e. **`mr r8,r8`**, the 3,792-instance population `P_OPATTR.md` §6 recorded
+> as unexplained and `dump_tailclass.py:496` uses as a mint CONTROL.
+>
+> Two consequences for *this* page rather than that one:
+>
+> * **This row's `1..1` was right and is now also meaningful.** The arm is
+>   count-preserving in the sense of reading 3 above — one pseudo-op in, one
+>   inert word out — and it is the clearest case in the table of the switch
+>   giving a marker an *address* rather than an instruction.
+> * **`0x2e4` reaches this arm and nothing else does**, checked against the
+>   recovered tree (`0x2e1` → `0x10c0e1bf`, `0x2e5` → `0x10c0e185`). It is
+>   minted at, among others, `0x10be3fdf`/`0x10be40d8`/`0x10be41ba`/`0x10be42a4`
+>   in `FUN_10be3e4c` (`ehexcept.c`), inside a list walk. **What `0x2e4` IS is
+>   NOT read** — see `WB_R8IDIOM_FINDINGS.md` §6, which refuses to name it.
+>
+> Full record: [`WB_R8IDIOM_FINDINGS.md`](../WB_R8IDIOM_FINDINGS.md).
 
 > **⛔ AMENDED — lane `w-tailread`, 2026-08-23, board #3463. THIS TABLE IS
 > ONE-SIDED: IT COUNTS ADDITIONS AND CANNOT SEE DELETIONS.** The counts above

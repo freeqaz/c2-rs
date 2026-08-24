@@ -199,6 +199,36 @@ because a reimplementation wants them as functions:
 **`0x10bfafe9`, 9 entries**, `opcode + 0xfffffd89` bounded at `8`. So the
 encoder has **two** jump tables, not one. `[R]`
 
+> **⛔ AMENDED BESIDE — lane `w-r8idiom`, 2026-08-24, board #3482. THE NINE
+> ENTRIES, DECODED.** `[R]`. Each arm ORs its own register fields into the base
+> word, so the base-word table alone does **not** give what a pseudo-nop emits:
+>
+> | opcode | mnemonic | arm | emits | = |
+> |---|---|---|---|---|
+> | `0x277` | `nopmthigh` | `0x10bfa203` | `0x7c631b78` | `or r3,r3,r3` |
+> | `0x278` | `nopmtmed` | `0x10bfa20e` | `0x7c421378` | `or r2,r2,r2` |
+> | `0x279` | `nopmtlow` | `0x10bfa219` | `0x7c210b78` | `or r1,r1,r1` |
+> | `0x27a` | `nopstall` | `0x10bfa1db` | *computed* | `or r28..r31` (below) |
+> | `0x27b` | `nopalign` | join `0x10bfae1b` | `0x7c000378` | `or r0,r0,r0` |
+> | `0x27c` | `nopvmxperm` | `0x10bfa224` | `0x181b021a` | VMX; falls back to `0x60000000` when `DAT_10c2e978 == 0` — §7's escape flag |
+> | `0x27d` | `nopvmxsimp` | `0x10bfa242` | `0x11ef7c84` | `vor v15,v15,v15` |
+> | `0x27e` | `nopcapenter` | `0x10bfa24d` | `0x7dad6b78` | `or r13,r13,r13` |
+> | `0x27f` | `nopcapexit` | `0x10bfa258` | `0x7dce7378` | `or r14,r14,r14` |
+>
+> **`nopstall` is the only data-driven one.** Arm `0x10bfa1db` reads
+> `operand[0x18]`, caps it at `0xf` (out of range → `0x1f`), indexes the
+> **16-byte table `0x10c37dcc`** = `28 ×10, 29, 29, 30, 30, 31, 31`, and
+> splices the value into all three register fields
+> (`x<<5 | x`, `<<5 | x`, `<<11`) — the Xenon delay-nop encodings, selected by
+> requested stall in cycles. **`0x10c37dcc` is recorded here for the first
+> time.**
+>
+> The reason this decode was worth doing: it **excludes** the family. Not one
+> of the nine is `or r8,r8,r8`, so the `mr r8,r8` in
+> [`WB_R8IDIOM_FINDINGS.md`](../WB_R8IDIOM_FINDINGS.md) is not a c2 nop — it is
+> an `emit` (`0x290`) of a baked literal. Tool:
+> `dump_movearms.py --nops`.
+
 ---
 
 ## 5. The arm rules

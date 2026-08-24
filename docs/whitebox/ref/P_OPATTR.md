@@ -453,6 +453,46 @@ and deliberately declines to guess in the record.
 > lane that did the reading, by the obj check the `[R]`/`[O]` split exists to
 > demand.
 
+> **⛔ AMENDED BESIDE — lane `w-r8idiom`, 2026-08-24, board #3481/#3482/#3483.
+> SETTLED: the survivor was never a `mr`, so nothing here was ever in
+> conflict.** Full record:
+> [`WB_R8IDIOM_FINDINGS.md`](../WB_R8IDIOM_FINDINGS.md). **§6.1's read stands
+> unchanged and §6.2's measurement stands unchanged** — the third sentence of
+> the box above is the one that needed the answer, and it is *"not subject to
+> it"*.
+>
+> * `[R]` **`mr r8,r8` is `emit 0x7d084378`.** Final-expansion arm
+>   `0x10c0e194` (`lower.c`), reached by **pseudo-opcode `0x2e4`** and nothing
+>   else, builds an instruction of opcode **`0x290` = `emit`** carrying the
+>   **baked literal** `0x7d084378` (`push` at `0x10c0e1a1`, `mov ecx,0x290` at
+>   `0x10c0e1b0`). There is no register allocation in it.
+> * `[R]` **The peephole never sees it.** `FUN_10c182b4` bounds its opcode at
+>   `0x295` twice (`0x10c182df`, `0x10c18330`) and at `0x292` once
+>   (`0x10c1835a`) before indexing `0x10c184a8` / `0x10c18460`. `0x2e4` is
+>   above all three.
+> * `[R]` **Arm 14 has NO guard**, so *"satisfies none of the handler's
+>   guards"* is not the answer either. `FUN_10c16d83`, 214 B, read in full:
+>   same-register test → two flag-clears → **unconditional** tail-call to
+>   `0x10c16cde`. Measured (`dump_movearms.py --arms`): **0** conditional
+>   branches on the equal path can skip the unlink, on arms 6, 14 **and** 16
+>   alike. Arm 15 (`mr.`, `0x10c1707c`) has **no path to the unlink at all**.
+> * `[O]` **One sentence of §6.2 is wrong as a population claim.** *"The unit
+>   was compiled `/Ox`"* is true of the unit and false of the 3,792: bearing
+>   objs span **`/Od`, `/O1`, `/O2`, `/Ox`**, with and without `/EHsc` and
+>   `/GR`. The inference `/Ox` supported (a disabled peephole does not explain
+>   them) is now supported by §5's read instead, and better.
+> * `[O]` **Do not quote `3,792`.** It reproduces exactly at `--limit 120000`,
+>   and the **disjoint** slice (objs 120,001…240,000, no member in common)
+>   reports **13,307 in 2,044 objs** — 3.5×. The number is a property of
+>   `os.walk` order over a cache many lanes write, not of c2. The invariants
+>   that do replicate: **`r8` on all of them**, **0 bearing objs without C++
+>   EH** (3,250 bearing objs, 240,000 objs, 0 counterexamples), runs bracketing
+>   a call, and **run length == `__catch$` count on 95.19 %**.
+> * The thunk addresses in §6.1 are **handlers**, and §6.1 never claimed
+>   otherwise — but a lane that read them as thunks got two of four wrong. The
+>   four class-1 thunks are consecutive: `0x10c18373` `mr`, `0x10c1837f`
+>   `vmr`, `0x10c1838b` `fmr`, `0x10c18397` `mr.`.
+
 ---
 
 ## 7. `0x10b1d180` — SETTLED, and the contradiction was a malformed question
