@@ -103,6 +103,43 @@ prints the design, both count tables, and the verdict.
 Seven arms is a **refusal, not a degradation** — the script does not fall back
 to a cyclic rotation, because a silent fallback is the exact defect #3495 filed.
 
+### 2.1 THE OLD DEFECT GETS LINEARLY WORSE WITH MORE ARMS — meet this BEFORE choosing an arm count
+
+Closed form for the cyclic rotation, `arms[r%n:] + arms[:r%n]`, over one
+`n`-round cycle. Round `r` is `(r, r+1, …, r+n-1)`, so every within-round
+adjacency has the form `a→a+1`; there are `n(n-1)` of them spread over the `n`
+distinct such pairs. Each round ends on `r-1` and the next begins on `r+1`, so
+every boundary has the form `a→a+2`, one per pair. Everything else is **zero**:
+
+| pair | occurrences per cycle |
+|---|---|
+| `a → a+1` | **`n − 1`** |
+| `a → a+2` | 1 |
+| every other ordered pair | **0** |
+| `a → a` | 0 |
+
+| arms | counts printed by `--show-design N --rotation cyclic` |
+|---|---|
+| 3 | 2 / 1 / 0 — and here `a+2 = a-1`, so the reverse pair gets the 1 |
+| 4 | **3 / 1 / 0** |
+| 5 | **4 / 1 / 0** |
+| 6 | **5 / 1 / 0** |
+
+**For `n ≥ 4` the reverse pair is exactly 0.** The arm declared immediately
+after another runs directly after it `n-1` times per cycle and directly before
+it **never** — and the position table is a perfect `1/1/…/1` throughout, which
+is the only thing #3468's criterion ever looked at.
+
+So `w-s1bc`'s four-arm configuration was **the worst in the record by
+construction**, not by bad luck: its `nulldup` sat in slot 2 and therefore
+followed `base` on three of every four rounds and preceded it on none.
+
+**This is actionable before a run, not after it.** A lane choosing an arm count
+under the old rotation was choosing how large an artefact to accept, and had no
+way to see it. Under the new rotation the count is 2-and-2 at every `n` the
+script accepts, so the choice is free — and `--show-design N` prints it either
+way, which is how this table was produced rather than argued.
+
 **One adjacency in `rounds·n` is necessarily unbalanced, and it is the last
 one.** The cycle balances as a *circle*; a run is a *line*, so the wrap from the
 final arm back to the first never happens. `rounds·n − 1` adjacencies cannot
@@ -133,6 +170,33 @@ taken at** (`w-s1c3` run 2, `w-permute` runs 1–3).
 `--rotation cyclic` still accepts 9, deliberately — it exists to reproduce a
 prior reading as a control and prints a warning saying its numbers are not
 comparable to a balanced run's.
+
+### 3.1 `--self-test`, and why HALF of it is a negative case
+
+`cost_arms.py --self-test` checks the rotation for 2–6 arms and exits non-zero
+on any failure. **It also checks that the CYCLIC rotation is correctly
+REJECTED at every one of those arm counts, and that half is not decoration.**
+
+> A self-test in which every case passes cannot distinguish a working verifier
+> from one that returns `True`.
+
+That is #1524's lesson and the `/FAsc` control's lesson in one sentence: an
+acceptance-only suite is exactly as green when `verify_design` is right as when
+it is broken open. The rejection cases are what give the acceptance cases
+content — and they are also where §2.1's table comes from, since the rejection
+report prints the offending counts.
+
+**Anyone extending this to `n = 7` must add a rejection case, not only an
+acceptance case.** Stated here because the acceptance case is the one that looks
+like the test.
+
+This is the #1406 tension (*"an instrument whose output is quoted as evidence
+should run under `cargo test` or `scripts/gate.sh`"*) **partly** paid. The
+timing half still cannot, for the reason the module doc already gives. The
+design half is pure arithmetic with a known answer, and now it can — in one
+command. It is **not** wired into `scripts/gate.sh`, because that file is
+`w-joint`'s fence this wave; that is a fence, not a judgement, and it is the
+obvious next step.
 
 ---
 
