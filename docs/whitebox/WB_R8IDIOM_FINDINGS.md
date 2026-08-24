@@ -255,6 +255,32 @@ this 32-bit constant"*.
 What no document said is **which word**. That is the whole gap, and it is one
 line long.
 
+### 4.1 The other three sites are a SECOND idiom, and it is not this one `[R]`
+
+Read, because "four sites, one matters" is the kind of sentence that hides a
+finding. All three `cgintrin.c` sites build the same `emit` (`0x290`) of the
+same literal, and **two of them precede it with two `nop`s**:
+
+```
+0x10bf12b4  (fn 0x10bf1233)   mov ecx,0x276 / call 0x10bd59aa   <- nop
+                              mov ecx,0x276 / call 0x10bd59aa   <- nop
+                              push 0x7d084378 … mov ecx,0x290    <- mr r8,r8
+0x10bf1a43  (fn 0x10bf19da)   the same, then `call 0x10bd5516`   <- and DELETES
+                                                                    the original
+0x10bf80cc  (fn 0x10bf7c59)   push 0x10bd3815  (a DIFFERENT callback from the
+                              0x10bd3824 the other three pass) … mr r8,r8
+```
+
+So c2 has a **three-word `nop / nop / mr r8,r8` sequence** in its intrinsics
+code generator, distinct from the EH-side single word, and at `0x10bf1a43` it
+*replaces* an instruction with it. `0x10bf1a71` is worth one line on its own:
+the opcode is computed as `lea ecx,[ebp+0x1a]` where `ebp` is still `0x276`
+(`nop`) — i.e. **`0x276 + 0x1a = 0x290`**, `emit`, reached by arithmetic on the
+`nop` opcode rather than by a literal.
+
+**What intrinsic this is, is not read**, and the corpus cannot help: no fixture
+in it uses one. Ranked as follow-up 3 in the rung.
+
 **Who mints `0x2e4`** (`mov ecx,imm32` sites only — a lower bound, since other
 registers carry the opcode elsewhere):
 
