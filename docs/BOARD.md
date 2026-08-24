@@ -4749,4 +4749,12 @@ generations --sample 400 | gc --limit 50000` over the live legacy root, and from
 
 ### `#3465` is `w-wtriage`'s and it is spent above.
 
-### **THE NEXT FREE NUMBER IS `#3466`.**
+## Decision 9 — wave 7 funded and Phase 1 unlocked (2026-08-24)
+
+| row | claim | state | evidence | links | consequence |
+|---|---|---|---|---|---|
+| **3466**<sub>coordinator</sub> | **WAVE 7 IS FUNDED AND PHASE 1 IS UNLOCKED BY THE OWNER — C1 OPENS IT, AND THE BYTE JUDGE, THE WRONG-EMIT RULE, AND REQUIRED-ZERO ARE UNCHANGED BECAUSE NONE OF THEM WAS EVER THE GATE** | **DECIDED by the owner** (*"continue and lets get both done. use opus subagents and drive coordination"*), recorded verbatim in `docs/DECISIONS_2026-08-22.md` decision 9. Supersedes `#3423`'s closure of Phase 1; `#3423`'s reasoning stands as history (S0 never asked §5's question; blind-differs 96.1 % prices the naive widening). Four lanes: `w-s1c3` (S1c (i) remainder per `w-s1c2` §6.2), `w-c1` (Phase 1 slice C1 — the `designator.rs` promotion, byte-judged on new fixtures), `w-ordid` (close `#3459`, function identity through the funcwalk tap), `w-r8idiom` (the `mr r8,r8` idiom + arm 14 `0x10c16d83`, docs-only) | Same-crate concurrency accepted for the first time (`w-s1c3` + `w-c1` both in `c2-core`) under an asymmetric file fence: `w-s1c3` owns every existing `codegen/` file; `w-c1` creates new files only and STOPS AND REPORTS if a shared file (e.g. `mop.rs`) must change. Serial merges, full armed re-gate each | `docs/DECISIONS_2026-08-22.md` decision 9 · `ROADMAP_SLICING_2026-08-21.md` §5 Phase 1 · `#3423` · `w-s1c2` §6.2 · `#3459` · `#3451` | **Deliberately not dispatched, so absence reads as decision**: C2–C10 (C1 reports the real slice cost first; C4 additionally fenced by the inverse-trap note); S1c (ii) except as `w-s1c3`'s registered stretch; the +24 % fixtures; the `P_EXPAND.md` §3 signed re-score (priceable after arm 14 is read); the maintenance debt (`#3381`, phantom §5.2, `DIFF_STRUCTURE.md`) |
+
+### Reservation ledger, 2026-08-24 (seventh wave — Phase 0 remainder + Phase 1 opens), LIVE — **`#3466` spent (this decision) · `#3467`–`#3471` reserved `w-s1c3` · `#3472`–`#3476` reserved `w-c1` · `#3477`–`#3480` reserved `w-ordid` · `#3481`–`#3484` reserved `w-r8idiom`.** Live until all four land; per-lane blocks are pointers to THIS line.
+
+### **THE NEXT FREE NUMBER IS `#3485`.**

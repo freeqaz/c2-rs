@@ -353,3 +353,67 @@ needed); Phase 1 (unchanged — `#3423`'s gate reasoning stands).
 `#3460`–`#3463` `w-tailread`. Next free `#3464`.
 
 **Nothing is waiting on the owner.**
+
+## Decision 9 — wave 7 is funded AND Phase 1 is unlocked (2026-08-24)
+
+The owner, verbatim: **"continue and lets get both done. use opus subagents
+and drive coordination."** — in reply to the wave-6 close, whose final
+paragraph framed exactly two options: *"fund wave 7 within Phase 0, unlock
+Phase 1, or both."* The owner chose both.
+
+**Phase 1 is UNLOCKED, by the owner.** This supersedes `#3423`'s closure.
+`#3423`'s two reasons stand as written and as history — S0 never asked §5's
+question, and blind-differs 96.1 % prices the naive widening as bad — but the
+gate they argued for was a *default*, and the owner has now decided over it.
+What does **not** change, because none of it was ever the gate:
+
+- **The one correctness rule.** Byte-judged by real c2 on new fixtures, per
+  `ROADMAP_SLICING` §5 Phase 1's own row definition. No blind widening ships:
+  a Phase-1 slice earns coverage through fixtures the byte judge grades, and
+  outside its fenced class the port still returns `NotImplemented`.
+- **A wrong emit scores strictly below the refusal it replaced**
+  (`PROGRESS_METRIC.md`) — which is precisely why unlocking Phase 1 does NOT
+  mean re-running S0's relaxed decode as an emitter.
+- **Required-zero identity on the incumbent gate table** for every slice, and
+  **two-sided pricing** (§6 rule 2) for every admission widening inside it.
+
+**Phase 1 opens with C1 alone**, per the slicing doc's own ordering rule:
+*"C1 is a promotion, not a construction — `designator.rs` already resolves
+the offset and width for four consumers. Largest row, cheapest work; take it
+first."* C2–C10 stay undispatched until C1 reports what a slice actually
+costs; C4 is additionally fenced by §5's inverse-trap note (never schedule it
+off its decode number).
+
+Four lanes, dispatched concurrently on Opus subagents:
+
+| lane | kind | what it buys | price carried in |
+|---|---|---|---|
+| `w-s1c3` | construct | the S1c (i) remainder as `w-s1c2` §6.2 priced it: 5 producers (~2 sessions: `pool_ctor_chain`, `xtea_round_loop`, `float_walk_loop`, `compare_leaf_text`, `select_text`) + `store_leaf_text` (~1, moves two files) + `permute_args_text` (~1, UNVERIFIED — must be re-priced by reading before converting). S1c (ii) only as a registered stretch (only 2 of 13 `block_ir` arms are `Plain`). May adopt the mop generator + cost harness into `scripts/` as a named, two-sided-priced deliverable closing `#3451` — never smuggled | `w-s1c2` rung §6.2, §6.3 |
+| `w-c1` | Phase 1 slice C1 (fixture-claim + construct) | off-add (`0x27`, 33.3 % of the residue): promote `designator.rs`'s existing offset/width resolution to one value-type variant + its type resolution + one general lowering, byte-judged on NEW fixtures, required-zero identity on the incumbent gate table | `ROADMAP_SLICING` §5 Phase 1 · §3 |
+| `w-ordid` | construct | close `#3459`: carry a function identity through the funcwalk tap so ordinals stop being paired to `.text` address order on faith — the hazard affects every funcwalk instrument in the tree | `w-pwords` rung §4 |
+| `w-r8idiom` | characterization | the `mr r8,r8` idiom (3,792 instances, all r8, unexplained — `w-tailread`'s top-ranked follow-up, obj-visible) plus arm 14's handler `0x10c16d83`, where the self-move exception lives — the same question from its two sides; and, if cheap, the second byte table `0x10c3b270` | `w-tailread` rung "Found and not taken" 1, 6, 3 |
+
+**Concurrency acceptance, sharper than decision 8's.** `w-s1c3` and `w-c1`
+both touch `crates/c2-core` — same crate, which decision 8 did not allow. The
+fence is file-level and asymmetric: `w-s1c3` owns every existing `codegen/`
+file it converts; `w-c1` may create NEW files in `c2-core` and edit
+`crates/c2-il` (designator/decode), but may not modify any existing `c2-core`
+file — if its lowering needs one (a new opcode in `mop.rs`, a dispatcher arm),
+it STOPS and reports, per the `w-seedgap`/`w-pwords` precedent. The repo's own
+record (decision 7) is that same-crate concurrent lanes erase each other
+through shared predicates with no textual conflict; the stop-and-report rule
+plus serial merges with a full re-gate at each landing is the answer this
+wave carries.
+
+**Deliberately not dispatched:** C2–C10 (C1 reports first); the two +24 %
+cost fixtures (still a property of the fixtures); R8's open items and R6's
+`0x2f5` orphan (queued behind the funded characterization); the
+`P_EXPAND.md` §3 signed-word-delta re-score (needs the delete oracle,
+priceable after `w-r8idiom` reads arm 14); the maintenance debt (`#3381`,
+the phantom `PROGRESS_METRIC.md` §5.2 citation, `DIFF_STRUCTURE.md`).
+
+**Board:** `#3466` this decision · `#3467`–`#3471` `w-s1c3` ·
+`#3472`–`#3476` `w-c1` · `#3477`–`#3480` `w-ordid` ·
+`#3481`–`#3484` `w-r8idiom`. Next free `#3485`.
+
+**Nothing is waiting on the owner.**
