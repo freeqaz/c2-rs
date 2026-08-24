@@ -396,6 +396,19 @@ pushes no `IlOp`.
    whose default reproduces c2 byte-exactly — and it is the first one in this
    tree.
 
+   **It gates TWO consumers, not one, and they must not be settable apart**
+   (`w-3475`, board **#3497**): the emitter's arm in `parse_expr_classed` and
+   the *measure* of that arm in `mcall::eat_int_operands`
+   (`Vocab::CallArg`). C1 shipped only the first, so for the interval between
+   the two lanes the completeness walker was **narrower than its own emitter**
+   at this byte and charged the difference as a granted `Blocker::OffAdd` —
+   #139's shape, 26,300 bodies and 1,000 blocked emitted functions named
+   `off-add` by a walker whose emitter decodes the token. A configuration in
+   which the correspondence is false is a configuration in which every
+   `-whole{k}` figure is wrong and nothing says so, which is why the second
+   consumer reads the same `off_add_admitted()` rather than a parameter of its
+   own.
+
    The other half of `C2RS_SINK_OFF_ADD_ARG` is **untouched and still a
    sink**: its `honest`/`ceiling`/`zero` modes drive
    `shapes::calls::off_add_arg_sink`, the *call-argument* off-add (board
