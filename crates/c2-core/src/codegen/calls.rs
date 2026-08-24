@@ -12,11 +12,13 @@ use c2_il::{IlFunction, IlOp};
 use crate::BackendError;
 use crate::codegen::cond_tail::branch_sense;
 use crate::codegen::encode::{
-    cr_bi, encode_addi, encode_addis, encode_blr, encode_cmplwi,
-    encode_cmpwi, encode_mr, BO_FALSE, BO_TRUE, CR_COMPARE,
+    cr_bi, encode_addi, encode_blr, encode_cmplwi,
+    encode_cmpwi, encode_mr, mop_addi, mop_addis, mop_mr,
+    BO_FALSE, BO_TRUE, CR_COMPARE,
 };
 use crate::codegen::frame::FrameLayout;
 use crate::codegen::labels::{Form, LabelMap};
+use crate::codegen::mop::{ops_to_bytes, MachineOp, Ops};
 use c2_il::LINK_FIRST_SLOT;
 use crate::codegen::select::{ARG_REGS, OptMode, RET_REG, SCRATCH_REG, out_of_class};
 use crate::codegen::straightline::select_text;
@@ -1597,24 +1599,30 @@ pub fn int_tail_call_text(
 
 /// Lower an **argument permutation** for a multi-argument tail call: emit the
 /// register moves that put each argument register's wanted value in place, with
-/// `r11` as the single break temp.
+/// `r11` as the single break temp — as **bytes**.
 ///
-/// `sources[i]` is the parameter index whose value argument slot `i` wants, so
-/// slot `i` must end up holding what `ARG_REGS[sources[i]]` holds on entry.
-/// `sources` being the identity is the passthrough case and emits nothing.
-///
-/// The rule, from the captures in `fixtures/cpp/il_call_multi.cpp`: decompose the
-/// permutation into cycles; for each cycle save the source of its **lowest**
-/// destination into the temp, then assign along the cycle in the order forced by
-/// clobbering, filling that lowest destination from the temp last.
-///
-/// Only a **single** non-trivial cycle is accepted. Two disjoint cycles do both
-/// saves up front (r11 then r10) and then have several clobber-free orders to
-/// choose between, and the one capture available does not determine which — see
-/// `rev4` in that fixture. A repeated argument is also refused: `dup3` emits a
-/// *dead* `mr r11,r4`, which no live-value-driven solver would produce.
+/// **The class record — the cycle rule, its four refusals and the
+/// `il_call_multi.cpp` captures behind them — is on
+/// [`permute_args_parts_ops`], the producer whose arms it describes.**
+/// It sat here, on a three-line wrapper, from `d2c3917a4` (2026-07-30) until
+/// this lane moved it: that commit split the body out into
+/// `permute_args_parts`, wrote a *new* doc for the extracted function, and left
+/// the original record behind. Board **#3469** filed this failure mode against
+/// the `_text`/`_ops` split; this instance predates the filing by twenty-five
+/// days and came from a `_text`/`_parts` split, so the mechanism is **any**
+/// producer extraction and not that one conversion.
 pub fn permute_args_text(sources: &[c2_il::SlotArg]) -> Result<Vec<u8>, BackendError> {
-    permute_args_parts(sources).map(|(text, _)| text)
+    Ok(ops_to_bytes(&permute_args_ops(sources)?))
+}
+
+/// **S1c (i): the argument permutation as an op stream**, reachable by a caller.
+///
+/// The moves-only view of [`permute_args_parts_ops`] — the same single cycle
+/// decomposition, with the write set dropped. A permuter and a
+/// matching-pretext generator need to *read* the schedule, not to know it
+/// briefly existed as bytes.
+pub fn permute_args_ops(sources: &[c2_il::SlotArg]) -> Result<Ops, BackendError> {
+    permute_args_parts_ops(sources).map(|(ops, _)| ops)
 }
 
 /// A slot list of nothing but formals, for the tests that spell a permutation
@@ -1672,7 +1680,7 @@ fn formal_slots(sources: &[usize]) -> Vec<c2_il::SlotArg> {
 /// `mr r11,r5 ; mr r4,r3 ; li r5,7 ; mr r3,r11`, with the `li` *inside* the
 /// break walk. Any rule fitted to the first two mis-emits the third. The IL
 /// parser is the gate (`call-arg-lit-permuted`); this is the backstop.
-fn one_moved_formal_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
+fn one_moved_formal_ops(slots: &[c2_il::SlotArg]) -> Result<(Ops, Vec<u8>), BackendError> {
     let [c2_il::SlotArg::Formal(pi), c2_il::SlotArg::Lit(k)] = slots else {
         return Err(out_of_class(
             "a literal argument beside a formal that has to move, in a list that \
@@ -1685,17 +1693,17 @@ fn one_moved_formal_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>),
     })?;
     let k = i16::try_from(*k)
         .map_err(|_| out_of_class("a literal argument wider than an addi immediate"))?;
-    let mv = encode_mr(ARG_REGS[0], src);
-    let li = encode_addi(ARG_REGS[1], 0, k);
-    let mut w = Vec::with_capacity(8);
+    let mv = mop_mr(ARG_REGS[0], src);
+    let li = mop_addi(ARG_REGS[1], 0, k);
+    let mut w: Ops = Vec::with_capacity(2);
     // The hoist, stated as the dependence it is: the `li` writes slot 1's
     // register, and the move reads it.
     if src == ARG_REGS[1] {
-        w.extend_from_slice(&mv);
-        w.extend_from_slice(&li);
+        w.push(mv);
+        w.push(li);
     } else {
-        w.extend_from_slice(&li);
-        w.extend_from_slice(&mv);
+        w.push(li);
+        w.push(mv);
     }
     Ok((w, vec![ARG_REGS[0], ARG_REGS[1]]))
 }
@@ -1780,7 +1788,7 @@ fn one_moved_formal_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>),
 /// The gate is `c2_il`'s `sym_addr_tail_call`; the checks below are the backstop
 /// (`docs/GAPS.md` §6 #9 — one fact, and the second copy is the one that drifts,
 /// so this one only ever *refuses*).
-fn sym_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
+fn sym_slots_ops(slots: &[c2_il::SlotArg]) -> Result<(Ops, Vec<u8>), BackendError> {
     if slots.iter().filter(|a| matches!(a, c2_il::SlotArg::SymAddr)).count() != 1 {
         return Err(out_of_class(
             "two or more data-symbol addresses in one call: c2 materializes only \
@@ -1811,14 +1819,16 @@ fn sym_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Backen
     // The hoisted high half. Its `.text` offset is 0 within this body, which is
     // what lets the caller register REFHI/REFLO at the function's own start
     // without codegen threading an offset back — and `crate::PortC2` checks the
-    // first word against this encoding rather than assuming it.
-    let mut w = Vec::with_capacity(4 * (slots.len() + 1));
-    w.extend_from_slice(&encode_addis(SCRATCH_REG, 0, 0));
+    // first word against this encoding rather than assuming it. **It is the
+    // first OP, and a slot boundary here has always been an instruction
+    // boundary**, so "offset 0" survives the change of representation exactly.
+    let mut w: Ops = Vec::with_capacity(slots.len() + 1);
+    w.push(mop_addis(SCRATCH_REG, 0, 0));
     let mut writes = vec![SCRATCH_REG];
     // The non-address slots, descending destination — the same walk
-    // [`lit_slots_text`] makes, and the address is not part of it.
+    // [`lit_slots_ops`] makes, and the address is not part of it.
     let mut sym_dst: Option<u8> = None;
-    let mut walk: Vec<(u8, [u8; 4])> = Vec::with_capacity(slots.len());
+    let mut walk: Vec<(u8, MachineOp)> = Vec::with_capacity(slots.len());
     for (i, a) in slots.iter().enumerate().rev() {
         let dst = *ARG_REGS.get(i).ok_or_else(|| {
             out_of_class("a call argument past the eight register slots")
@@ -1828,7 +1838,7 @@ fn sym_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Backen
             c2_il::SlotArg::Lit(k) => {
                 let k = i16::try_from(*k)
                     .map_err(|_| out_of_class("a literal argument wider than an addi immediate"))?;
-                walk.push((dst, encode_addi(dst, 0, k)));
+                walk.push((dst, mop_addi(dst, 0, k)));
             }
             c2_il::SlotArg::SymAddr => {
                 sym_dst = Some(dst);
@@ -1848,19 +1858,36 @@ fn sym_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Backen
     // …and the low half **immediately after the FIRST word of that walk** — see
     // the rule stated above. `sym@l` is 0 before the linker patches it, exactly
     // as the pooled-FP-constant `lfs`'s displacement is.
-    let emit = |reg: u8, word: [u8; 4], w: &mut Vec<u8>, writes: &mut Vec<u8>| {
-        w.extend_from_slice(&word);
+    let emit = |reg: u8, op: MachineOp, w: &mut Ops, writes: &mut Vec<u8>| {
+        w.push(op);
         writes.push(reg);
     };
     let mut it = walk.into_iter();
-    if let Some((r, word)) = it.next() {
-        emit(r, word, &mut w, &mut writes);
+    if let Some((r, op)) = it.next() {
+        emit(r, op, &mut w, &mut writes);
     }
-    emit(dst, encode_addi(dst, SCRATCH_REG, 0), &mut w, &mut writes);
-    for (r, word) in it {
-        emit(r, word, &mut w, &mut writes);
+    emit(dst, mop_addi(dst, SCRATCH_REG, 0), &mut w, &mut writes);
+    for (r, op) in it {
+        emit(r, op, &mut w, &mut writes);
     }
     Ok((w, writes))
+}
+
+/// [`sym_slots_ops`] rendered, for the tests that read this class's schedule as
+/// **words** off the byte stream.
+///
+/// `#[cfg(test)]` from the commit that created it, not from a later lane
+/// reading a build warning. Board **#3428**: a `_text` wrapper is alive only
+/// while it has a production caller, this one never had one after the split,
+/// and nothing but `cargo`'s dead-code warning would ever have said so
+/// (`w-s1c3` §1.2, §8.2 — the same defect twice in one lane). The nine call
+/// sites are all in `mod tests` and every one of them chunks the result into
+/// four-byte words, which is a claim about the **encoding** and is therefore
+/// right to ask on bytes; converting them to ops would weaken exactly what they
+/// pin. Same reasoning as [`formal_slots`] above.
+#[cfg(test)]
+fn sym_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
+    sym_slots_ops(slots).map(|(ops, writes)| (ops_to_bytes(&ops), writes))
 }
 
 /// **W-VSNPRNC — the formals in order with ONE LITERAL SPLICED IN.**
@@ -1883,9 +1910,9 @@ fn sym_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Backen
 /// `Ok(None)` means "not this shape", so the caller can fall through to the WLB
 /// cell. The two are disjoint by construction: WLB's `[Formal(1), Lit]` drops a
 /// formal and this requires every formal, in order.
-fn lit_insert_shift_text(
+fn lit_insert_shift_ops(
     slots: &[c2_il::SlotArg],
-) -> Result<Option<(Vec<u8>, Vec<u8>)>, BackendError> {
+) -> Result<Option<(Ops, Vec<u8>)>, BackendError> {
     // The literal's slot, and the check that the rest is the identity with a
     // hole in it. Written here as well as in the parser for the reason every
     // backstop in this file is: `select_function` is what `function_gate` runs,
@@ -1918,42 +1945,46 @@ fn lit_insert_shift_text(
     }
     let k = i16::try_from(k)
         .map_err(|_| out_of_class("a literal argument wider than an addi immediate"))?;
-    let mut w = Vec::with_capacity(4 * (slots.len() - j));
+    let mut w: Ops = Vec::with_capacity(slots.len() - j);
     let mut writes = Vec::new();
     // Descending destination, from the top slot down to the one just above the
     // literal. Each move reads the register the next one writes, so this order
     // is the only clobber-free one; the `li` then lands in the register the last
     // move read.
     for dst in (j + 1..slots.len()).rev() {
-        w.extend_from_slice(&encode_mr(ARG_REGS[dst], ARG_REGS[dst - 1]));
+        w.push(mop_mr(ARG_REGS[dst], ARG_REGS[dst - 1]));
         writes.push(ARG_REGS[dst]);
     }
-    w.extend_from_slice(&encode_addi(ARG_REGS[j], 0, k));
+    w.push(mop_addi(ARG_REGS[j], 0, k));
     writes.push(ARG_REGS[j]);
     Ok(Some((w, writes)))
 }
 
-fn lit_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
+/// **The literal argument slots of a call, `li r<3+i>,k` each — as ops.**
+///
+/// The walk is **descending destination**; that direction is one of the
+/// decision points named on [`permute_args_parts_ops`].
+fn lit_slots_ops(slots: &[c2_il::SlotArg]) -> Result<(Ops, Vec<u8>), BackendError> {
     let in_place = slots.iter().enumerate().all(|(i, a)| match a {
         c2_il::SlotArg::Lit(_) => true,
         c2_il::SlotArg::Formal(pi) => *pi == i,
-        // Unreachable: `permute_args_parts` dispatches a symbol-bearing list to
-        // [`sym_slots_text`] before this one is reached.
+        // Unreachable: `permute_args_parts_ops` dispatches a symbol-bearing list
+        // to [`sym_slots_ops`] before this one is reached.
         c2_il::SlotArg::SymAddr => false,
         // **W42** — likewise never produced here; see `link_setup_text`.
         c2_il::SlotArg::ShiftMask { .. } => false,
     });
     if !in_place {
         // **W-VSNPRNC — the inserted literal**, asked ahead of the WLB two-slot
-        // cell because the two are disjoint (see `lit_insert_shift_text`) and
+        // cell because the two are disjoint (see `lit_insert_shift_ops`) and
         // this one is the wider list. A list that is neither still lands on
-        // `one_moved_formal_text`'s refusal, unchanged.
-        if let Some(w) = lit_insert_shift_text(slots)? {
+        // `one_moved_formal_ops`'s refusal, unchanged.
+        if let Some(w) = lit_insert_shift_ops(slots)? {
             return Ok(w);
         }
-        return one_moved_formal_text(slots);
+        return one_moved_formal_ops(slots);
     }
-    let mut w = Vec::new();
+    let mut w: Ops = Vec::new();
     let mut writes = Vec::new();
     // Descending destination: walk the slots from the top.
     for (i, a) in slots.iter().enumerate().rev() {
@@ -1963,22 +1994,61 @@ fn lit_slots_text(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Backen
         })?;
         let k = i16::try_from(*k)
             .map_err(|_| out_of_class("a literal argument wider than an addi immediate"))?;
-        // `li rD,k` is `addi rD,0,k` — the same encoder the leaf selector's bare
+        // `li rD,k` is `addi rD,0,k` — the same op the leaf selector's bare
         // constant goes through, at a register it cannot name.
-        w.extend_from_slice(&encode_addi(dst, 0, k));
+        w.push(mop_addi(dst, 0, k));
         writes.push(dst);
     }
     Ok((w, writes))
 }
 
-/// [`permute_args_text`] plus **the registers its moves write**, which Class B
-/// needs in order to decide whether a callee-saved copy has to be hoisted in
-/// front of the marshalling (`c2_il`'s `plan_saved_gprs`). It is one function
-/// returning two views of one cycle decomposition rather than a second walk of
-/// the same permutation: a write set derived independently would be the "two
-/// implementations of one rule" shape `docs/GAPS.md` §6 #9 records, and this one
-/// cannot drift from the bytes because it is computed beside them.
+/// [`permute_args_parts_ops`] rendered, for [`call_seq_parts`], which splices
+/// the text of a marshalling into a framed sequence.
+///
+/// The rule, the refusals and the captures are on the producer. This is the
+/// render step and nothing else.
 fn permute_args_parts(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), BackendError> {
+    permute_args_parts_ops(slots).map(|(ops, writes)| (ops_to_bytes(&ops), writes))
+}
+
+/// **The argument permutation, as ops plus the registers its moves write** —
+/// which Class B needs in order to decide whether a callee-saved copy has to be
+/// hoisted in front of the marshalling (`c2_il`'s `plan_saved_gprs`). It is one
+/// function returning two views of one cycle decomposition rather than a second
+/// walk of the same permutation: a write set derived independently would be the
+/// "two implementations of one rule" shape `docs/GAPS.md` §6 #9 records, and
+/// this one cannot drift from the moves because it is computed beside them.
+///
+/// **The write set is the one output no byte compare of this function can
+/// grade.** Only the first element is instructions; the second is consumed by
+/// `call_seq_parts`' interleaving, so a dropped `writes.push` beside correct
+/// moves shows up as wrong bytes somewhere else entirely, in the Class B shapes
+/// that consult it.
+///
+/// ---
+///
+/// `sources[i]` is the parameter index whose value argument slot `i` wants, so
+/// slot `i` must end up holding what `ARG_REGS[sources[i]]` holds on entry.
+/// `sources` being the identity is the passthrough case and emits nothing.
+///
+/// The rule, from the captures in `fixtures/cpp/il_call_multi.cpp`: decompose the
+/// permutation into cycles; for each cycle save the source of its **lowest**
+/// destination into the temp, then assign along the cycle in the order forced by
+/// clobbering, filling that lowest destination from the temp last.
+///
+/// Only a **single** non-trivial cycle is accepted. Two disjoint cycles do both
+/// saves up front (r11 then r10) and then have several clobber-free orders to
+/// choose between, and the one capture available does not determine which — see
+/// `rev4` in that fixture. A repeated argument is also refused: `dup3` emits a
+/// *dead* `mr r11,r4`, which no live-value-driven solver would produce.
+///
+/// **The decision points this class contains**, named for the permuter rather
+/// than shipped as knobs (`docs/rungs/README.md`, the DECISION-SURFACE CLAUSE;
+/// none is a fitted constant, so none owes a read pointer): the break scratch
+/// [`SCRATCH_REG`]; which destination the temp serves (the **lowest**); the
+/// direction the cycle is then walked; and, in the two dispatch targets below,
+/// the descending literal walk and the address's position within it.
+fn permute_args_parts_ops(slots: &[c2_il::SlotArg]) -> Result<(Ops, Vec<u8>), BackendError> {
     // **WLA** — a list carrying a literal is asked FIRST, because everything
     // below reads a slot as a formal index and a `Lit` has none. The two forms
     // do not mix in class (`c2_il`'s `lit_arg_tail_call` admits a literal only
@@ -1987,12 +2057,12 @@ fn permute_args_parts(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Ba
     // **WR1** — a list carrying a data symbol's address is asked FIRST, ahead of
     // the literal path, because the symbol's `lis` is hoisted in front of the
     // whole setup and the literals then take their ordinary descending place
-    // beside it. `lit_slots_text` has never seen one and must not be handed it.
+    // beside it. `lit_slots_ops` has never seen one and must not be handed it.
     if slots.iter().any(|a| matches!(a, c2_il::SlotArg::SymAddr)) {
-        return sym_slots_text(slots);
+        return sym_slots_ops(slots);
     }
     if slots.iter().any(|a| matches!(a, c2_il::SlotArg::Lit(_))) {
-        return lit_slots_text(slots);
+        return lit_slots_ops(slots);
     }
     let mut sources = Vec::with_capacity(slots.len());
     for a in slots {
@@ -2067,7 +2137,11 @@ fn permute_args_parts(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Ba
     }
 
     if cycles.is_empty() {
-        return Ok((Vec::new(), Vec::new())); // passthrough
+        // Passthrough: the EMPTY op stream. The emptiness is load-bearing and is
+        // worth spelling as "no ops" rather than "no bytes" — `select.rs`'s void
+        // tail-call arm carries the same one.
+        let none: Ops = Vec::new();
+        return Ok((none, Vec::new()));
     }
     if cycles.len() > 1 {
         return Err(out_of_class(
@@ -2105,20 +2179,20 @@ fn permute_args_parts(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Ba
     let cycle = &cycles[0];
     let lowest = *cycle.iter().min().expect("non-empty cycle");
     let reg = |slot: usize| ARG_REGS[slot];
-    let mut t = Vec::new();
+    let mut t: Ops = Vec::new();
     let mut writes = vec![SCRATCH_REG];
-    t.extend_from_slice(&encode_mr(SCRATCH_REG, reg(sources[lowest])));
+    t.push(mop_mr(SCRATCH_REG, reg(sources[lowest])));
     // Walk backwards from `lowest`: each step writes a destination whose old
     // value has already been consumed. This is the unique clobber-free order,
     // and it runs in whichever direction the cycle happens to go — which is why
     // `rot3` emits r4-then-r5 and `rot3b` emits r5-then-r4.
     let mut dst = sources[lowest];
     while dst != lowest {
-        t.extend_from_slice(&encode_mr(reg(dst), reg(sources[dst])));
+        t.push(mop_mr(reg(dst), reg(sources[dst])));
         writes.push(reg(dst));
         dst = sources[dst];
     }
-    t.extend_from_slice(&encode_mr(reg(lowest), SCRATCH_REG));
+    t.push(mop_mr(reg(lowest), SCRATCH_REG));
     writes.push(reg(lowest));
     Ok((t, writes))
 }
@@ -2129,6 +2203,12 @@ mod tests {
     // `use super::*;`; the glob keeps that reach.
     #[allow(unused_imports)]
     use super::*;
+    // `encode_addis` has no PRODUCTION caller in this file since `sym_slots_ops`
+    // became an op stream — `mop_addis` is what emits the hoisted high half now.
+    // It is imported HERE rather than at the module head so the non-test build
+    // does not carry an unused import: an unused `use` is #3428's other half,
+    // and the module-head version warned on the very first build of this lane.
+    use crate::codegen::encode::encode_addis;
 
     /// **The generated thunk body must be the reference payload, byte for
     /// byte.** `docs/OBJ_DYNINIT_SHAPE.md` §3.3/§7.2: this exact 0x18 is what
