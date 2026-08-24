@@ -41,9 +41,39 @@ static CENSUS_SPEC: Spec = Spec::new(
         ("--flags-file", Arity::Value),
         ("--cwd", Arity::Value),
         ("--fn", Arity::Value),
+        ("--tsv", Arity::Value),
+        ("--relax", Arity::Value),
     ],
 )
 .requires(CPP_PROFILE_REQUIRES);
+
+/// Parse `--relax N` into a [`c2_il::Relax`], **refusing loudly** on a value
+/// that does not parse.
+///
+/// The refusal is the point, and it is copied from
+/// [`crate::gap::blind::level_from_env`], which states the reason: a run that
+/// quietly graded at a depth other than the one asked for publishes a number
+/// against the wrong denominator. A ladder is the instrument where that is
+/// worst — a rung that silently ran at depth 0 reads as *"lifting this clause
+/// changed nothing"*, which is a substantive and completely wrong conclusion
+/// rather than an obvious error (board **#3470**'s shape, one level up).
+///
+/// `None` means the flag was absent, which is [`c2_il::Relax::STRICT`] — the
+/// incumbent census exactly, pinned equal to `census_functions()` by a unit
+/// test in `c2-il`.
+fn relax_from(arg: Option<&str>) -> Result<c2_il::Relax, String> {
+    match arg {
+        None => Ok(c2_il::Relax::STRICT),
+        Some(v) => match v.trim().parse::<u32>() {
+            Ok(n) => Ok(c2_il::Relax::level(n)),
+            Err(_) => Err(format!(
+                "--relax {v:?} does not parse as a ladder depth (0..{}); refusing rather than \
+                 silently censusing at STRICT",
+                c2_il::Relax::LEVELS - 1
+            )),
+        },
+    }
+}
 
 pub(crate) fn cmd_census(rest: &[String]) -> ExitCode {
     let args = match Args::parse(&CENSUS_SPEC, rest) {
@@ -88,6 +118,17 @@ pub(crate) fn cmd_census(rest: &[String]) -> ExitCode {
         eprintln!("--flags-file names no flags; refusing to census at an unknown profile");
         return ExitCode::from(2);
     }
+    // Validated BEFORE the toolchain is located, for the reason `--flags-file`
+    // above is: `args.toolchain()` returns `None` and exits 0 on a machine with
+    // no compilers, so a usage error checked after it is a usage error no
+    // portable test can pin.
+    let relax = match relax_from(args.get("--relax")) {
+        Ok(r) => r,
+        Err(m) => {
+            eprintln!("{m}");
+            return ExitCode::from(2);
+        }
+    };
     let Some(tc) = args.toolchain() else {
         return ExitCode::SUCCESS;
     };
@@ -139,10 +180,56 @@ pub(crate) fn cmd_census(rest: &[String]) -> ExitCode {
             println!("kept IL bundle in {}", dir.display());
         }
     }
-    let Some(rows) = bundle.census_functions() else {
+    let Some(rows) = bundle.census_functions_relaxed(relax) else {
         eprintln!("census unavailable: bundle is missing .ex/.gl");
         return ExitCode::FAILURE;
     };
+    // `--tsv PATH` — the per-slot machine-readable dump a LADDER needs, and the
+    // reason it exists rather than being scraped out of the human listing.
+    //
+    // A ladder asks, per **function slot**, what the head key becomes when a
+    // clause is lifted. Board **#3131**: the port stops at the first refusal BY
+    // DESIGN, so a slot reports exactly one blocker however many it has, and the
+    // *sequence* of a slot's head keys across rungs is the only route to its
+    // complete set. That requires slot IDENTITY, which the histogram at the
+    // bottom of this command throws away and which the unconditional listing
+    // above prints only for TUs of 64 functions or fewer.
+    //
+    // The `completeness` column is carried beside the key because the two say
+    // different things and the ladder needs both: `complete-whole:*` claims the
+    // named construct FINISHES the body (`docs/GAPS.md` §6 — such a row is
+    // "directly sizeable"), and a lift that exposes a second blocker under a
+    // `complete-whole` row is that claim being tested rather than trusted.
+    if let Some(p) = args.path("--tsv") {
+        let mut out = String::new();
+        out.push_str("# c2rs census --tsv · relax=");
+        out.push_str(relax.name());
+        out.push_str(" · src=");
+        out.push_str(&cpp.to_string_lossy());
+        out.push('\n');
+        out.push_str("index\tin_class\tkey\tcompleteness\tcflow\tseg_len\tname\n");
+        for (f, _) in &rows {
+            out.push_str(&format!(
+                "{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+                f.index,
+                u8::from(f.verdict.in_class()),
+                f.verdict.key(),
+                f.verdict.completeness().name(),
+                f.cflow,
+                f.seg_len,
+                f.name.as_deref().unwrap_or(""),
+            ));
+        }
+        if let Err(e) = std::fs::write(&p, out) {
+            eprintln!("cannot write --tsv {}: {e}", p.display());
+            return ExitCode::FAILURE;
+        }
+        // The DENOMINATOR, printed beside the file it just wrote. A ladder rung
+        // that graded nothing must not be indistinguishable from a clause that
+        // moved nothing, so the row count is stated positively and a zero is
+        // visible at the call site rather than inferred from an empty file.
+        println!("  --tsv {} rows -> {}", rows.len(), p.display());
+    }
     // The census/gate cross-check, per TU (roadmap #44): a function the census
     // calls in class that `PortC2`'s own selector refuses. `c2rs census` is the
     // instrument a widening step is developed against, so it has to show this —

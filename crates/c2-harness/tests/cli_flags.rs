@@ -1531,3 +1531,82 @@ fn the_corpus_verdict_guard_covers_exactly_the_three_whole_corpus_rows() {
          `corpus_verdict_kind` or extend this list and say why."
     );
 }
+
+/// **The census LADDER seam refuses a depth it cannot honour** (lane `w-joint`,
+/// board **#3506**+). No toolchain needed.
+///
+/// `c2rs census --relax N` drives the shipped [`c2_il::Relax`] ladder, and
+/// `--tsv PATH` writes the per-**slot** dump a blocker ladder reads. Both are
+/// instrument-only seams, and both are on the path where this repo's most
+/// expensive failure family lives: **a run that quietly graded at a depth other
+/// than the one asked for publishes a number against the wrong denominator.**
+///
+/// For a scan that is an obvious error. For a **ladder** it is not: every rung's
+/// output is a judgement of the form *"did lifting this clause move anything?"*,
+/// so a rung that silently ran at `STRICT` reads as **"lifting this clause
+/// changed nothing"** — a substantive and completely wrong conclusion that looks
+/// exactly like a real negative result. That is board **#3470**'s shape
+/// (`SKIP: toolchain absent` exits 0 and grades nothing) one level up, and it is
+/// why the parse is a hard refusal rather than a fallback.
+///
+/// Checked **without** a toolchain deliberately: `args.toolchain()` returns
+/// `None` and exits 0 on a machine with no compilers, so a usage check placed
+/// after it is one no portable lane can pin — the exact ordering bug
+/// [`an_empty_flags_file_is_refused`] records for `--flags-file`.
+#[test]
+fn a_relax_depth_that_does_not_parse_is_refused_not_defaulted() {
+    let cpp = s(&fixture());
+    for bad in ["bogus", "", "-1", "1.5"] {
+        let out = run(&["census", cpp.as_str(), "--relax", bad]);
+        assert_eq!(
+            out.status.code(),
+            Some(2),
+            "`c2rs census --relax {bad:?}` must exit 2. Falling back to STRICT would make a \
+             ladder rung that graded at depth 0 indistinguishable from a clause that moved \
+             nothing.\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr),
+        );
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            err.contains("--relax"),
+            "the refusal must NAME --relax as the argument it could not honour; got: {err}"
+        );
+    }
+}
+
+/// **The relaxation ladder has a stated depth, and a caller cannot silently
+/// select one that does not exist.**
+///
+/// `Relax::level` saturates at the last defined level *by design* — so a
+/// `--relax 99` is not an error. What must hold is that the ladder's advertised
+/// arity and the enum's own `LEVELS` are the same number, because the refusal
+/// message above quotes `LEVELS` as the legal range. A `LEVELS` that grew
+/// without the message following it would tell an operator that a depth is
+/// illegal when it is not — and an operator who believes that never runs the
+/// rung.
+#[test]
+fn the_relax_ladder_names_every_level_it_has() {
+    let names: Vec<&str> = (0..c2_il::Relax::LEVELS)
+        .map(|n| c2_il::Relax::level(n).name())
+        .collect();
+    assert_eq!(
+        names,
+        vec!["strict", "name-from-gl"],
+        "the shipped relaxation ladder changed. `c2rs census --relax N`'s refusal message \
+         quotes `Relax::LEVELS` as the legal range and `scripts/joint_ladder.py` treats \
+         level 1 as the whole post-parse NAME family; both need re-reading if this moves."
+    );
+    assert_eq!(
+        c2_il::Relax::level(0),
+        c2_il::Relax::STRICT,
+        "level 0 must BE the incumbent census, or the ladder's rung 0 is not a control"
+    );
+    assert_ne!(
+        c2_il::Relax::level(1),
+        c2_il::Relax::STRICT,
+        "level 1 must DIFFER from level 0, or the ladder's first rung is green by \
+         construction — trap 0's stronger form (#3454): ask what the control would do if \
+         the effect were total"
+    );
+}
