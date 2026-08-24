@@ -110,6 +110,17 @@ fn body_op(op: CountedAccumOp) -> MachineOp {
 /// The rendered form of [`body_op`], kept because the injectivity pin below is
 /// a statement about **words**: two opcodes must not collapse onto one
 /// encoding, which is a property of the composition and not of the op value.
+///
+/// **`#[cfg(test)]` because the pin is its only caller and has been since S1c
+/// (i) converted the producer** (`c7f0ff73b`). Before that this had a
+/// production caller; after it the crate warned `function body_word is never
+/// used` on every build, and the warning stood on the tree `w-s1c2` gated and
+/// merged. Its own §8.3 item 5 reported finding no defect of the "byte-
+/// identical and fully green" class its P4 predicted; this was one, and the
+/// thing that caught it was reading a `cargo` warning in a gate log rather than
+/// any test. Attributed rather than deleted: the pin below is real and is the
+/// reason the function exists.
+#[cfg(test)]
 fn body_word(op: CountedAccumOp) -> [u8; 4] {
     body_op(op).word()
 }
