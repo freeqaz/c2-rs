@@ -121,8 +121,9 @@
 
 use c2_il::IlFunction;
 
-use super::encode::encode_mr;
+use super::encode::mop_mr;
 use super::leaf::store::scheduled_gpr_run;
+use super::mop::{ops_to_bytes, Ops};
 use super::select::out_of_class;
 use crate::BackendError;
 
@@ -237,6 +238,28 @@ pub fn store_run_prefix_text(
     prefix: &c2_il::StoreRunPrefix,
     saved_reg: u8,
 ) -> Result<Vec<u8>, BackendError> {
+    Ok(ops_to_bytes(&store_run_prefix_ops(params, prefix, saved_reg)?))
+}
+
+/// **S1c (i): [`store_run_prefix_text`] as an op stream**, reachable by a
+/// caller — and the composition seam is now an op-level seam end to end.
+///
+/// It moves in the same commit as `leaf::store` because it is the *other*
+/// consumer of [`ScheduledRun::slots`](super::leaf::store::ScheduledRun), which
+/// exists in slot form precisely so the run is scheduled once and the two
+/// consumers differ only in what they do with it. A slots field that one
+/// consumer read as ops while the other read as bytes would be that seam split
+/// in half.
+///
+/// **The splice's own argument is unchanged and is now enforced by the type.**
+/// *"a producer is one slot, so the copy can never split a `lis`/`ori` pair"* —
+/// the loop below places `mr rSaved,r3` at a slot boundary, and a slot boundary
+/// was always an instruction boundary. It is one now in the representation too.
+pub fn store_run_prefix_ops(
+    params: &[u32],
+    prefix: &c2_il::StoreRunPrefix,
+    saved_reg: u8,
+) -> Result<Ops, BackendError> {
     // **THE TRANSFER GATE — board #866 is not true in general, and this is where
     // that costs.** See [`LIVE_ARG_STORED`] and the module doc: a store whose
     // value is a formal the call keeps alive is scheduled differently in the
@@ -306,8 +329,8 @@ pub fn store_run_prefix_text(
     //
     // The splice below places the copy BETWEEN slots and a producer is one slot,
     // so it can never split a pair — it would emit `lis ; ori` contiguous and be
-    // two right words in the wrong place. `fits_i16` is `emit_load_imm`'s own
-    // predicate, shared rather than restated, exactly as the leaf shares it.
+    // two right words in the wrong place. `fits_i16` is `emit_load_imm_ops`'s
+    // own predicate, shared rather than restated, exactly as the leaf shares it.
     if run_ops
         .iter()
         .any(|o| matches!(o, c2_il::IlOp::Lit(k) if !super::select::fits_i16(*k)))
@@ -334,7 +357,7 @@ pub fn store_run_prefix_text(
         ));
     }
 
-    let mut text = Vec::with_capacity(4 * (run.slots.len() + 1));
+    let mut text: Ops = Vec::with_capacity(run.slots.len() + 1);
     let mut placed = false;
     let mut seen = 0usize;
     for (is_store, words) in &run.slots {
@@ -343,20 +366,20 @@ pub fn store_run_prefix_text(
         // `PM…` cell in GRID S (`sa_pL1_w0_c0`: `li r11,0 ; mr r31,r3 ;
         // stw r11,20(r3)`) has the producer ahead of the copy at slot 0.
         if *is_store && seen == slot && !placed {
-            text.extend_from_slice(&encode_mr(saved_reg, super::select::RET_REG));
+            text.push(mop_mr(saved_reg, super::select::RET_REG));
             placed = true;
         }
         if *is_store {
             seen += 1;
         }
-        text.extend_from_slice(words);
+        text.extend(words.iter().copied());
     }
     if !placed {
         // `slot == nstores`: the copy trails the whole run. Reached by every
         // `nprod - 1 + min(u,2) == nstores` cell, e.g. GRID S's `sa_p0_w1_*`
         // family's neighbours; emitted here rather than special-cased above so
         // the loop has one placement rule.
-        text.extend_from_slice(&encode_mr(saved_reg, super::select::RET_REG));
+        text.push(mop_mr(saved_reg, super::select::RET_REG));
     }
     Ok(text)
 }
@@ -546,7 +569,7 @@ mod tests {
         // `save_slot` fed the count would have put it third.
         assert_eq!(
             &text[4..8],
-            &encode_mr(31, 3)[..],
+            &crate::codegen::encode::encode_mr(31, 3)[..],
             "the copy lands after ZERO stores"
         );
         // What the two readings say about this exact run, kept beside the

@@ -5,24 +5,25 @@
 use c2_il::{IlFunction, IlOp, FP_SCRATCH};
 use crate::BackendError;
 use crate::codegen::encode::{
-    encode_addi,
-    encode_blr,
-    encode_lbz,
-    encode_ld,
-    encode_lfs,
-    encode_lhz,
-    encode_lwz,
-    encode_stb,
-    encode_std,
-    encode_stfs,
-    encode_sth,
-    encode_stw,
+    mop_addi,
+    mop_blr,
+    mop_lbz,
+    mop_ld,
+    mop_lfs,
+    mop_lhz,
+    mop_lwz,
+    mop_stb,
+    mop_std,
+    mop_stfs,
+    mop_sth,
+    mop_stw,
 };
+use crate::codegen::mop::{ops_to_bytes, Ops};
 use crate::codegen::alloc;
 use crate::codegen::order;
 use crate::codegen::schedule;
 use crate::codegen::select::{ARG_REGS, OptMode, SCRATCH_REG, fits_i16, out_of_class};
-use crate::codegen::straightline::emit_load_imm;
+use crate::codegen::straightline::emit_load_imm_ops;
 
 // `encode_std` has TWO independent witnesses and exactly one definition, in
 // [`crate::codegen::encode`] with every other word encoder: the frame model
@@ -33,6 +34,10 @@ use crate::codegen::straightline::emit_load_imm;
 // §2.1 split a second copy would be a compile error in `encode.rs` rather than
 // a duplicate 2,000 lines away, which is what happened to `encode_std` once
 // already (`docs/ARCHITECTURE_SEAMS.md` §1, class 4).
+//
+// S1c (i) routes this file through `mop_std` instead. That does not weaken the
+// paragraph above: `encode_std` IS `mop_std(..).word()`, so there is still one
+// definition and it still carries both witnesses.
 
 /// Lower a **store leaf** — `void f(S* s, int v){ s->m = v; }` /
 /// `void D::set(int v){ Base::m = v; }` / `void f(S* s){ s->m = 7; }` — to one
@@ -410,12 +415,12 @@ fn parse_simple_gpr_run(
 /// emitted permutations to each other over 18 cases spanning both killer-cell
 /// families, the interleaved layouts and the pool boundary: **18 of 18 the
 /// same**. Board **#641**.
-fn scheduled_gpr_run_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendError>> {
+fn scheduled_gpr_run_ops(func: &IlFunction) -> Option<Result<Ops, BackendError>> {
     match scheduled_gpr_run(&func.params, &func.ops)? {
         Err(e) => Some(Err(e)),
         Ok(run) => {
-            let mut text: Vec<u8> = run.slots.into_iter().flat_map(|(_, w)| w).collect();
-            text.extend_from_slice(&encode_blr());
+            let mut text: Ops = run.slots.into_iter().flat_map(|(_, w)| w).collect();
+            text.push(mop_blr());
             Some(Ok(text))
         }
     }
@@ -433,8 +438,16 @@ fn scheduled_gpr_run_text(func: &IlFunction) -> Option<Result<Vec<u8>, BackendEr
 /// what that costs.
 pub(crate) struct ScheduledRun {
     /// One entry per emitted slot in emission order: `(this slot is a STORE,
-    /// its words)`. Producers are `false`.
-    pub(crate) slots: Vec<(bool, Vec<u8>)>,
+    /// its ops)`. Producers are `false`.
+    ///
+    /// **S1c (i): [`Ops`], not bytes.** The seam positions are what both
+    /// consumers read — the leaf concatenates and the #844 composition splices
+    /// `mr rSaved,r3` between two of them — and a slot boundary is an
+    /// instruction boundary, never a byte offset. Nothing indexes into a slot's
+    /// contents, which is why the representation is free to change and why
+    /// `store_run_call`'s "a producer is one slot, so the splice can never split
+    /// a `lis`/`ori` pair" argument reads exactly as it did before.
+    pub(crate) slots: Vec<(bool, Ops)>,
     /// Distinct producers — equal literals CSE to one `li`, so equal `k` is one
     /// producer, which is the identity [`alloc::allocate`] is handed.
     pub(crate) nprod: usize,
@@ -779,9 +792,9 @@ pub(crate) fn scheduled_gpr_run(
         }
     }
 
-    let mut out: Vec<(bool, Vec<u8>)> = Vec::with_capacity(slots.len());
+    let mut out: Vec<(bool, Ops)> = Vec::with_capacity(slots.len());
     for slot in &slots {
-        let mut text = Vec::with_capacity(8);
+        let mut text: Ops = Vec::with_capacity(2);
         match *slot {
             schedule::Slot::Producer(id) => {
                 // The statement this producer materialises for — any of them,
@@ -793,7 +806,7 @@ pub(crate) fn scheduled_gpr_run(
                 };
                 match s.prod {
                     Some(Prod::Lit(k)) => {
-                        if let Err(e) = emit_load_imm(&mut text, s.src, k) {
+                        if let Err(e) = emit_load_imm_ops(&mut text, s.src, k) {
                             return Some(Err(e));
                         }
                     }
@@ -810,7 +823,7 @@ pub(crate) fn scheduled_gpr_run(
                                 "interior address beyond a 16-bit displacement",
                             )));
                         };
-                        text.extend_from_slice(&encode_addi(s.src, base_reg, d));
+                        text.push(mop_addi(s.src, base_reg, d));
                     }
                     None => {
                         return Some(Err(out_of_class(
@@ -832,10 +845,10 @@ pub(crate) fn scheduled_gpr_run(
                     )));
                 };
                 match s.width {
-                    1 => text.extend_from_slice(&encode_stb(s.src, s.base_reg, d)),
-                    2 => text.extend_from_slice(&encode_sth(s.src, s.base_reg, d)),
-                    4 => text.extend_from_slice(&encode_stw(s.src, s.base_reg, d)),
-                    8 => text.extend_from_slice(&encode_std(s.src, s.base_reg, d)),
+                    1 => text.push(mop_stb(s.src, s.base_reg, d)),
+                    2 => text.push(mop_sth(s.src, s.base_reg, d)),
+                    4 => text.push(mop_stw(s.src, s.base_reg, d)),
+                    8 => text.push(mop_std(s.src, s.base_reg, d)),
                     _ => return Some(Err(out_of_class("store of an unmodeled width"))),
                 }
                 out.push((true, text));
@@ -858,6 +871,29 @@ pub fn store_leaf_text(
     func: &IlFunction,
     mode: OptMode,
 ) -> Option<Result<Vec<u8>, BackendError>> {
+    match store_leaf_ops(func, mode)? {
+        Ok(ops) => Some(Ok(ops_to_bytes(&ops))),
+        Err(e) => Some(Err(e)),
+    }
+}
+
+/// **S1c (i): the store leaf as an op stream**, reachable by a caller.
+///
+/// Three-valued exactly as [`store_leaf_text`] is — `None` is *"not this
+/// class"*, `Some(Err)` is *"this class, refused"* — because that distinction
+/// is what routes a body to the ordinary selector rather than to a gap, and it
+/// is orthogonal to the representation.
+///
+/// **Nothing in the walk below reads a byte position.** The predecessor arm
+/// that did (`rest.len() == 3 && text.is_empty()`, the "a literal is only
+/// lowered for a run of ONE" rule) was already gone before this conversion —
+/// the scheduled path claims a one-group all-literal stream first — and the
+/// comment recording that is left in place, because it is the note that says
+/// why this file has no such condition left to break.
+pub fn store_leaf_ops(
+    func: &IlFunction,
+    mode: OptMode,
+) -> Option<Result<Ops, BackendError>> {
     let reg_of = |tok: u32| -> Option<u8> {
         func.params
             .iter()
@@ -891,11 +927,11 @@ pub fn store_leaf_text(
     // source order. See [`scheduled_gpr_run_text`]. Anything else (a
     // load-valued group, an FP group, a residue) falls through to the walk
     // below unchanged.
-    if let Some(t) = scheduled_gpr_run_text(func) {
+    if let Some(t) = scheduled_gpr_run_ops(func) {
         return Some(t);
     }
     let mut rest = func.ops.as_slice();
-    let mut text = Vec::with_capacity(16);
+    let mut text: Ops = Vec::with_capacity(4);
     let mut written: Vec<(u32, i32, u8)> = Vec::new();
     // How many store GROUPS have been emitted. **Not `written.len()`**: a
     // load-valued group deliberately records nothing there (see below), so using
@@ -965,7 +1001,7 @@ pub fn store_leaf_text(
                         "FP store whose base is not a register argument",
                     )));
                 };
-                text.extend_from_slice(&encode_stfs(*double, *src, base, d));
+                text.push(mop_stfs(*double, *src, base, d));
                 written.push((*b, *off, if *double { 8 } else { 4 }));
                 groups += 1;
                 rest = tail;
@@ -1045,15 +1081,15 @@ pub fn store_leaf_text(
                     (r, r)
                 };
                 if lfp {
-                    text.extend_from_slice(&encode_lfs(lwidth == 8, lreg, sbase, sd));
+                    text.push(mop_lfs(lwidth == 8, lreg, sbase, sd));
                 } else {
                     match lwidth {
-                        1 => text.extend_from_slice(&encode_lbz(lreg, sbase, sd)),
-                        2 => text.extend_from_slice(&encode_lhz(lreg, sbase, sd)),
-                        4 => text.extend_from_slice(&encode_lwz(lreg, sbase, sd)),
+                        1 => text.push(mop_lbz(lreg, sbase, sd)),
+                        2 => text.push(mop_lhz(lreg, sbase, sd)),
+                        4 => text.push(mop_lwz(lreg, sbase, sd)),
                         // `ld` is DS-form, exactly as `std` is.
                         8 if sd % 4 == 0 => {
-                            text.extend_from_slice(&encode_ld(lreg, sbase, sd))
+                            text.push(mop_ld(lreg, sbase, sd))
                         }
                         8 => {
                             return Some(Err(out_of_class(
@@ -1087,14 +1123,14 @@ pub fn store_leaf_text(
                     )));
                 };
                 if sfp {
-                    text.extend_from_slice(&encode_stfs(width == 8, sreg, base, d));
+                    text.push(mop_stfs(width == 8, sreg, base, d));
                 } else {
                     match width {
-                        1 => text.extend_from_slice(&encode_stb(sreg, base, d)),
-                        2 => text.extend_from_slice(&encode_sth(sreg, base, d)),
-                        4 => text.extend_from_slice(&encode_stw(sreg, base, d)),
+                        1 => text.push(mop_stb(sreg, base, d)),
+                        2 => text.push(mop_sth(sreg, base, d)),
+                        4 => text.push(mop_stw(sreg, base, d)),
                         8 if d % 4 == 0 => {
-                            text.extend_from_slice(&encode_std(sreg, base, d))
+                            text.push(mop_std(sreg, base, d))
                         }
                         8 => {
                             return Some(Err(out_of_class(
@@ -1167,10 +1203,10 @@ pub fn store_leaf_text(
                     _ => return None,
                 };
                 match width {
-                    1 => text.extend_from_slice(&encode_stb(src, base, d)),
-                    2 => text.extend_from_slice(&encode_sth(src, base, d)),
-                    4 => text.extend_from_slice(&encode_stw(src, base, d)),
-                    8 if d % 4 == 0 => text.extend_from_slice(&encode_std(src, base, d)),
+                    1 => text.push(mop_stb(src, base, d)),
+                    2 => text.push(mop_sth(src, base, d)),
+                    4 => text.push(mop_stw(src, base, d)),
+                    8 if d % 4 == 0 => text.push(mop_std(src, base, d)),
                     8 => {
                         return Some(Err(out_of_class(
                             "8-byte store whose offset is not a multiple of 4 (std is DS-form)",
@@ -1204,7 +1240,7 @@ pub fn store_leaf_text(
             }
         }
     }
-    text.extend_from_slice(&encode_blr());
+    text.push(mop_blr());
     Some(Ok(text))
 }
 
@@ -1851,7 +1887,7 @@ mod tests {
     /// This test pins the leaf side of three of those cells against the
     /// reference bytes, and pins the **structural** fact that makes them
     /// unreachable from a framed body: [`scheduled_gpr_run_text`] appends
-    /// [`encode_blr`] unconditionally, so its text is a whole body and nothing
+    /// [`mop_blr`] unconditionally, so its text is a whole body and nothing
     /// can bracket it with a frame. A lane that composes the two has to change
     /// that line and will land here.
     #[test]
@@ -1928,7 +1964,7 @@ mod tests {
         // it in the middle of a framed one (board #844).
         assert_eq!(
             &t[t.len() - 4..],
-            &encode_blr()[..],
+            &crate::codegen::encode::encode_blr()[..],
             "the run text is leaf-only by construction"
         );
     }

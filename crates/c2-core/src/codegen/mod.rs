@@ -133,4 +133,4 @@ pub(crate) use encode::encode_ldr;
 #[allow(unused_imports)]
 pub(crate) use select::{ARG_REGS, RET_REG, SCRATCH_REG, fits_i16, out_of_class};
 #[allow(unused_imports)]
-pub(crate) use straightline::{Base, emit_load_imm};
+pub(crate) use straightline::Base;

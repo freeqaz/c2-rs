@@ -50,16 +50,6 @@ fn emit_add_imm(text: &mut Ops, dest: u8, reg: u8, k: i32) {
     }
 }
 
-/// [`emit_load_imm_ops`] rendered — the `&mut Vec<u8>` form `leaf::store`'s
-/// wide-constant store value still calls. The rule it emits, including the
-/// `lis`-alone case, is documented on the op form below.
-pub(crate) fn emit_load_imm(text: &mut Vec<u8>, dest: u8, k: i32) -> Result<(), BackendError> {
-    let mut ops: Ops = Vec::with_capacity(2);
-    emit_load_imm_ops(&mut ops, dest, k)?;
-    text.extend_from_slice(&ops_to_bytes(&ops));
-    Ok(())
-}
-
 /// **S1c (i): emit a constant load `dest = k` as ops.**
 ///
 /// `li` (`addi dest,r0,k`) for a 16-bit value,
@@ -89,16 +79,18 @@ pub(crate) fn emit_load_imm(text: &mut Vec<u8>, dest: u8, k: i32) -> Result<(), 
 ///
 /// ---
 ///
-/// The byte form above is kept rather than converted because it has **one**
-/// caller outside this file — `leaf::store`'s wide-constant store value — and
-/// that caller is a `&mut Vec<u8>` producer this lane did not move. Keeping the
-/// wrapper is what makes the two independent: the rule (the `lis`-alone case
-/// among them) is read once, here, and `leaf::store` gets exactly the bytes it
-/// got before. When that file converts, this wrapper is what goes.
+/// **There was a `&mut Vec<u8>` wrapper here for exactly one commit**, kept
+/// because `leaf::store`'s wide-constant store value was still a byte producer.
+/// That file converted in the next commit, `cargo` reported the wrapper dead,
+/// and it is deleted rather than left — the same defect §1.2 of this lane's
+/// prereg found `w-s1c2` shipping, caught the same way, one commit after
+/// creating it. Recorded here because the *pattern* is the finding: a
+/// `_text`/`_ops` split leaves a wrapper alive only as long as it has a caller,
+/// and nothing but the build warning says when that stops being true.
 ///
-/// **The `ori`-by-zero clause is why this must not be duplicated instead.** It
-/// was a live wrong-bytes emit for as long as the function existed, and it is
-/// invisible to any caller that only checks a length.
+/// **The `ori`-by-zero clause is why the rule was never duplicated instead.**
+/// It was a live wrong-bytes emit for as long as this function has existed, and
+/// it is invisible to any caller that only checks a length.
 pub(crate) fn emit_load_imm_ops(text: &mut Ops, dest: u8, k: i32) -> Result<(), BackendError> {
     if fits_i16(k) {
         text.push(mop_addi(dest, 0, k as i16));
