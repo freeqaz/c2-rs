@@ -103,11 +103,38 @@ if [ -z "${C2RS_WIBO:-}" ]; then
 fi
 export C2RS_COMPILERS C2RS_WIBO
 
-# ---- the workload stamp: HEAD **and** the dirty digest ----------------------
+# ---- the workload stamp: HEAD, the path set, **and** the CONTENT ------------
+#
+# Three components, and the third exists because the second is not enough.
+#
+# `git status --porcelain -uno` is the SET OF MODIFIED PATHS. It moves on
+# clean -> dirty and on one dirty file set -> another. It does **not** move when
+# a file that is ALREADY listed as modified is edited again: the porcelain line
+# is byte-identical either way. That is exactly lane `w-3475`'s hazard — HEAD
+# stable across all four reads while the bytes being compiled changed — and a
+# path-set digest cannot see it.
+#
+# Demonstrated on `../dc3-decomp`, two appends to one already-modified file:
+#
+#     after edit 1   porcelain 183619428431   content  344768490326
+#     after edit 2   porcelain 183619428431   content 2974227181337
+#                              ^^ UNCHANGED            ^^ MOVED
+#
+# `git diff HEAD | cksum` costs **0.004 s** on this workload, so there is no
+# reason to run the weak version. Untracked files stay excluded, deliberately
+# and for `-uno`'s own reason: they are build scratch and cannot change a
+# compile.
+#
+# STRONGER STILL, and NOT built here: pin the corpus instead of observing it —
+# `cp --reflink=auto` the workload into `work/<lane>/dc3-pin` and scan that, so
+# a mid-pair edit is impossible rather than merely detected (`w-3475`'s valid
+# pair). Priced at ~14 GB CoW-shared and a reap step; the detection below is
+# what this script offers, and a lane that wants immutability should pin.
 stamp() {
     _h=$(git -C "$dc3" rev-parse HEAD 2>/dev/null | cut -c1-12 || echo UNVERSIONED)
-    _d=$(git -C "$dc3" status --porcelain -uno 2>/dev/null | sort | cksum | tr -d ' ' || echo '?')
-    printf '%s+%s' "$_h" "$_d"
+    _p=$(git -C "$dc3" status --porcelain -uno 2>/dev/null | sort | cksum | tr -d ' ' || echo '?')
+    _c=$(git -C "$dc3" diff HEAD 2>/dev/null | cksum | tr -d ' ' || echo '?')
+    printf '%s+%s+%s' "$_h" "$_p" "$_c"
 }
 
 # ---- one arm ---------------------------------------------------------------
