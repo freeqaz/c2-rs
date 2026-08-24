@@ -587,6 +587,12 @@ the coordinator's call, and for a reason that is about evidence rather than
 budget: with the acceptance test unpowered, re-running three more configurations
 of the same instrument produces more numbers with no established cause.
 
+**And the price is not the binding constraint — see §7.3.1.** All three re-takes
+would run against binaries **this lane rebuilt at this lane's path length**, so
+each inherits §4.6's unbounded confound. **They are blocked on experiment F, not
+on budget**, and taking them first would produce numbers in the same category as
+the ones they are meant to audit.
+
 **None of it "cannot be re-derived."** That claim was this lane's own prereg's,
 and it is withdrawn.
 
@@ -637,6 +643,30 @@ the reading has no stable value at this resolution.
 **F FIRST.** G mixes *build* and *change* in one comparison, so several stories
 survive any result it returns. And if F already shows three builds of **one**
 commit disagreeing by a point, **G has nothing left to discriminate.**
+
+#### 7.3.1 AND P4 — THE #3468 RE-TAKE — IS BLOCKED ON F TOO. On F, not on budget.
+
+§6 scores P4 **NOT DONE** and §7.2 prices it at ~13 minutes with the binaries
+already on disk. **That price is real and it is not the reason it should stay
+unrun**, and this subsection exists so the next reader does not pick it up as
+cheap unfinished work.
+
+**#3468's binaries are on disk because THIS LANE REBUILT THEM, in THIS
+directory.** So a re-take would compare two arms whose layout is a function of a
+path length that differs from the one #3468 measured under — **the identical
+confound §4.6 measured and could not bound.** It would produce a number in the
+same category as the number it is meant to check, and **a number that cannot be
+compared to the reading it is auditing is not an audit.**
+
+| if F reports | then P4 |
+|---|---|
+| floor ≈ **±0.1 %** | is meaningful and cheap — take it |
+| floor ≈ **±1.5 %** | **should never be run at all**: #3468's reading and its re-take would both be inside the noise of their own builds, and **that** is the finding, not the re-take |
+
+**This is the same shape as the padding objection in §4.6.1**: doing the
+cheap-looking thing before the enabling measurement produces something that
+*looks* like an answer. The ordering is **F → then P4 becomes interpretable**,
+and it is a dependency rather than a queue position.
 
 ### 7.4 `--self-test` is not wired into `scripts/gate.sh`
 
