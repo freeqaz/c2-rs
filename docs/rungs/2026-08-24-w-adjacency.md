@@ -193,12 +193,38 @@ And the 4-arm case is the worse one. `--show-design 4 --rotation cyclic` on
 sat in slot 2, immediately after `base`, on **three of every four rounds and
 never before it** — a stronger version of exactly the relation `w-permute`
 reversed. Its two runs are the pair with the largest disagreement in the table
-(+0.47 % vs −0.08 %), and this is the first account of that disagreement that is
-about the instrument rather than about the box.
+(+0.47 % vs −0.08 %).
 
-**This is filed beside #3468, never over it** (`w-r8idiom`'s convention, the
-same one #3495 used). #3468 is merged and pushed; its measurement and its
-controlled comparison stand.
+### 5.1 THIS SECTION REFUTES AND DEFERS — it establishes no cause, and must not be cited as if it did
+
+**What §5 shows:** a complete cyclic rotation is **not sufficient** for a null
+arm to read zero. That is a clean refutation and it rests on arithmetic anyone
+can recheck (`8 % 4 == 0`, `6 % 3 == 0`).
+
+**What §5 does NOT show, and is not evidence for:** that *adjacency* is what
+explains the spread. Those nine runs differ in **many ways at once** — different
+lanes, binaries, corpora, box loads, arm counts, dates — and **nothing in the
+table varies adjacency alone**. The adjacency tables above explain how each
+configuration *could* carry an order artefact; they do not measure that it did.
+
+This is **#3483's sharpening in its exact shape**: a comparison can prove a
+property is not sufficient without licensing any claim about what is. The
+generalisation this lane is taking apart — #3468's sweep of two predecessor runs
+into an explanation that did not fit them — was built by exactly this move, and
+repeating it one level up is the failure mode, not the finding.
+
+**The positive claim is carried by §4 and by §4 only**: runs A and B differ in
+`--rotation` and in nothing else — same binaries, same box, same 157-fixture
+population, same round count, minutes apart. Everything §5 offers is a reason to
+have run that control, not a substitute for it.
+
+**If run A comes back clean**, the registered UNPOWERED verdict covers this
+section too: §5 would then be a **live anomaly with no established cause**, and
+it is labelled that way rather than quietly retained as support.
+
+**Filed beside #3468, never over it** (`w-r8idiom`'s convention, the same one
+#3495 used). #3468 is merged and pushed; its measurement and its controlled
+comparison stand untouched.
 
 ---
 

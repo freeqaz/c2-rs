@@ -14,7 +14,10 @@ retyped every time.
     scripts/cost_arms.py --arm base=/path/c2rs-base \\
                          --arm nulldup=/path/c2rs-base-copy \\
                          --arm tip=/path/c2rs-tip \\
-                         --rounds 9 --port-iters 2000
+                         --rounds 12 --port-iters 2000
+
+`--rounds 9` was this example until 2026-08-24 and is now REFUSED: see the
+rotation section below.
 
 # The protocol, and why each clause is here
 
@@ -66,6 +69,20 @@ retyped every time.
   as an adjacency exactly as often as every other**, so no first-order
   carryover of any sign or shape can prefer one arm.
 
+* **The estimator is the per-fixture MINIMUM over rounds**, not the mean of
+  medians. Interference only ever makes a run slower, so the minimum is the
+  least-contaminated estimate of the same quantity, and it is what `ir0` used.
+* **Pairing is per fixture.** Fixtures span three orders of magnitude in
+  absolute time; an unpaired mean is a measurement of which fixtures ran.
+* **The reference column never enters.** `c2rs perf` prints a reference median
+  too. It is real `c2.dll` under wibo and has nothing to do with the port's
+  cost; including it would put a 1000x-slower number in the denominator.
+* **The SIGN SPLIT is published beside the mean.** An effect of exactly zero
+  must split its sign about 50/50. `w-s1c2`'s null arm split **40 %**, and this
+  lane's unbalanced run split **76 %** — in both cases the split, not the mean,
+  is what said the run could not answer its own question. A mean alone hides
+  this, and it is the reason the defect above was findable at all.
+
 # The rotation, and why `--rounds` must be a multiple of TWICE the arm count
 
 The execution order is one flat sequence of arm runs — round boundaries are not
@@ -94,19 +111,6 @@ For 3 arms that makes **6** the smallest legal `--rounds` and 12 the next —
 9 is now REFUSED, and it is the count three of this protocol's four prior
 readings were taken at. See `--rotation cyclic`, which reproduces the old
 behaviour for controlled comparison only.
-* **The estimator is the per-fixture MINIMUM over rounds**, not the mean of
-  medians. Interference only ever makes a run slower, so the minimum is the
-  least-contaminated estimate of the same quantity, and it is what `ir0` used.
-* **Pairing is per fixture.** Fixtures span three orders of magnitude in
-  absolute time; an unpaired mean is a measurement of which fixtures ran.
-* **The reference column never enters.** `c2rs perf` prints a reference median
-  too. It is real `c2.dll` under wibo and has nothing to do with the port's
-  cost; including it would put a 1000x-slower number in the denominator.
-* **The SIGN SPLIT is published beside the mean.** An effect of exactly zero
-  must split its sign about 50/50. `w-s1c2`'s null arm split **40 %**, and this
-  lane's unbalanced run split **76 %** — in both cases the split, not the mean,
-  is what said the run could not answer its own question. A mean alone hides
-  this, and it is the reason the defect above was findable at all.
 
 # What it CANNOT do, stated so it is not overread
 
@@ -392,6 +396,45 @@ def show_design(n, rotation):
     return 0 if ok else 1
 
 
+def self_test(max_arms=6):
+    """Check the rotation for every arm count the script will realistically see.
+
+    #1406 says an instrument whose output is quoted as evidence should run under
+    `cargo test` or `scripts/gate.sh`. The *timing* half of this script cannot
+    (see the module doc) — but the *design* half is pure arithmetic with a known
+    answer, so it can, and this is it. Exit non-zero on any failure.
+    """
+    bad = 0
+    for n in range(2, max_arms + 1):
+        try:
+            cycle = carryover_cycle(n)
+        except DesignSearchExhausted as exc:
+            print(f"  n={n}: FAIL — {exc}")
+            bad += 1
+            continue
+        ok, report = verify_design(cycle, n)
+        want = {"rounds": 2 * n, "cross_each": 2, "self_each": 2, "pos_each": 2}
+        if ok and report == want:
+            print(f"  n={n}: ok — {report}")
+        else:
+            print(f"  n={n}: FAIL — got {report}, want {want}")
+            bad += 1
+        # And the CONTROL: the cyclic rotation must NOT verify for n >= 3. A
+        # self-test in which every case passes cannot distinguish a working
+        # verifier from one that returns True.
+        if n >= 3:
+            cok, creport = verify_design(cyclic_cycle(n), n)
+            if cok:
+                print(f"  n={n}: FAIL — the CYCLIC rotation verified as balanced "
+                      f"({creport}); the verifier cannot tell the defect from "
+                      f"the fix and nothing it says is worth anything")
+                bad += 1
+            else:
+                print(f"  n={n}: ok — cyclic correctly rejected: {creport}")
+    print(f"self-test: {'PASS' if bad == 0 else f'FAIL ({bad})'}")
+    return 1 if bad else 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--arm", action="append", metavar="NAME=PATH",
@@ -401,6 +444,9 @@ def main():
     ap.add_argument("--rotation", choices=("balanced", "cyclic"), default="balanced",
                     help="balanced (default) = carryover-balanced, #3521; "
                          "cyclic = #3468's position-only rotation, a CONTROL ONLY")
+    ap.add_argument("--self-test", action="store_true",
+                    help="verify the rotation for 2..6 arms (and that the "
+                         "CYCLIC one is correctly rejected) and exit")
     ap.add_argument("--show-design", type=int, metavar="N", default=None,
                     help="print the rotation for N arms with its balance "
                          "certificate and exit; runs nothing")
@@ -413,6 +459,8 @@ def main():
                     help="the arm asserted byte-identical to the baseline")
     args = ap.parse_args()
 
+    if args.self_test:
+        return self_test()
     if args.show_design is not None:
         return show_design(args.show_design, args.rotation)
     if not args.arm:
