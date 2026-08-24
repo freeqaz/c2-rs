@@ -40,7 +40,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use c2_obj::ObjImage;
-use c2_reference::stage::STAGE_SITES;
+use c2_reference::stage::{OrdinalVerdict, STAGE_SITES};
 use c2_reference::Toolchain;
 
 /// The capture profile. Identical to the one the bijection itself uses
@@ -412,15 +412,35 @@ enum Stratum {
     /// Has a record **and** ≥1 of `nopalign`/`0x2e5`/`retaddr`.
     FramedUnbounded,
     /// **The tap's function ordinal could not be verified against `.text`
-    /// address order.** This instrument pairs funcwalk `func == i+1` with the
-    /// i-th function in `.text` address order. That is an *assumption*: c2's
-    /// ordinal is its own processing order, and nothing in the funcwalk payload
-    /// carries a name to check it with. When the TU's funcwalk count and its
-    /// `.text` function count disagree, the pairing is provably unsafe and
-    /// every row of that TU goes here rather than into a hold-rate.
+    /// address order.** Under [`Pairing::Ordinal`] this instrument pairs
+    /// funcwalk `func == i+1` with the i-th function in `.text` address order,
+    /// which is an *assumption*: c2's ordinal is its own processing order.
+    /// Before **#3459** nothing in the payload could check it, so the fence was
+    /// the TU's funcwalk count against its `.text` function count.
+    ///
+    /// **Since #3459 this stratum means one thing only: the payload carried NO
+    /// IDENTITY** (an old tap, or the tap refusing the read on every function).
+    /// It is kept rather than deleted so that a run against an identity-free
+    /// payload degrades to the old, honestly-labelled behaviour instead of
+    /// silently pairing on nothing.
     OrdinalUnverified,
     /// Record↔function match did not verify. Not guessed at.
     Unattributable,
+}
+
+/// How a `.text` function is bound to a funcwalk.
+///
+/// **Both arms are kept live, and the reason is the evidence**: `Ordinal` is
+/// exactly the pre-#3459 rule, so the two can be run back to back on ONE
+/// binary and ONE corpus and the difference attributed to the pairing rule
+/// alone. A base-binary-versus-tip-binary diff could not say that.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Pairing {
+    /// `funcwalk.func == i + 1` against `.text` address order. The assumption
+    /// board #3459 is about.
+    Ordinal,
+    /// `funcwalk.identity() == .text symbol name`. The read.
+    Identity,
 }
 
 #[derive(Clone, Debug)]
@@ -482,12 +502,96 @@ enum Perturb {
     NoInsnFilter,
 }
 
+/// One fixture's result: the rows, plus everything #3459 needs said ABOUT the
+/// pairing rather than folded into it.
+#[derive(Default)]
+struct Measured {
+    rows: Vec<Row>,
+    /// `pair_by_identity`'s verdict label at [`PHASE`].
+    verdict: String,
+    /// `Some(true/false)` when the verdict was `Verified` — did c2's ordinal
+    /// order actually equal `.text` address order on this TU? **This is the
+    /// pre-#3459 assumption, now measured per TU.**
+    ord_agrees: Option<bool>,
+    /// `.text` functions the tap named nothing for. Counted and NAMED, never
+    /// folded into a denominator.
+    unpaired: Vec<String>,
+    /// Funcwalk identities with no `.text` function of that name.
+    only_in_tap: Vec<String>,
+    /// F2a fired: a deliberately corrupted expected-name list was REFUSED.
+    fence_wrongname_fired: bool,
+    /// F2b fired: a rotated expected-name list turned a `Verified{agrees:true}`
+    /// into `Verified{agrees:false}`.
+    fence_rotate_fired: bool,
+}
+
+/// **The live fence (prereg §3 F2), run on every fixture at no extra capture
+/// cost.**
+///
+/// The prereg registered ONE check here — *"the rotated verdict MUST NOT be
+/// `Verified`"* — and it is **wrong about the design it was fencing**, in
+/// exactly the way `w-pwords` §6.1 warns a registered check can be. A rotation
+/// is a permutation of the SAME name set, and `pair_by_identity` is
+/// order-independent by construction, so the rotated verdict is `Verified` and
+/// *must* be: that is the fix working. The rotation's real signal is
+/// `ordinal_order_agrees` flipping to false.
+///
+/// So the check splits in two, and both are watched:
+///
+/// * **F2a** — corrupt one expected NAME. The verdict must stop being
+///   `Verified`. This is the fence on the pairing itself.
+/// * **F2b** — ROTATE the expected names. The pairing must survive (`Verified`)
+///   and `ordinal_order_agrees` must go false. This is the fence on the ordinal
+///   check, i.e. on the thing #3459 is actually about.
+fn run_pairing_fences(
+    rep: &c2_reference::stage::TapReport,
+    text_names: &[String],
+    m: &mut Measured,
+) {
+    if text_names.len() < 2 {
+        return; // a rotation of one element is the identity map: nothing to read
+    }
+    // F2a — one name replaced by a fiction.
+    let mut wrong = text_names.to_vec();
+    wrong[0] = format!("{}$W-ORDID-NOT-A-REAL-NAME", wrong[0]);
+    let vw = rep.verify_ordinals(PHASE, &wrong);
+    assert!(
+        !vw.is_verified(),
+        "FENCE F2a DID NOT REFUSE: a fabricated function name verified as {vw:?}. The \
+         identity check is absorbing wrong input, so every `verified` above is worthless."
+    );
+    m.fence_wrongname_fired = true;
+
+    // F2b — the names rotated by one.
+    if m.ord_agrees == Some(true) {
+        let mut rot = text_names.to_vec();
+        rot.rotate_left(1);
+        match rep.verify_ordinals(PHASE, &rot) {
+            OrdinalVerdict::Verified { ordinal_order_agrees, .. } => {
+                assert!(
+                    !ordinal_order_agrees,
+                    "FENCE F2b DID NOT REFUSE: the expected names were ROTATED and the \
+                     ordinal check still reported agreement. `ordinal_order_agrees` is a \
+                     rubber stamp, which is precisely the defect #3459 names."
+                );
+                m.fence_rotate_fired = true;
+            }
+            other => panic!(
+                "FENCE F2b is MISCONFIGURED: rotating a permutation of the same name set \
+                 must still PAIR (the pairing is order-independent — that is the fix), but \
+                 the verdict was {other:?}"
+            ),
+        }
+    }
+}
+
 fn measure_one(
     tc: &Toolchain,
     cpp: &Path,
     work: &Path,
     perturb: Perturb,
-) -> Result<Vec<Row>, String> {
+    pairing: Pairing,
+) -> Result<Measured, String> {
     let abs = cpp.canonicalize().map_err(|e| e.to_string())?;
     let flags: Vec<String> = FLAGS.iter().map(|s| (*s).to_string()).collect();
     let cap = tc
@@ -533,21 +637,59 @@ fn measure_one(
         }
     }
 
-    // The ordinal fence. `func == i+1` is paired with the i-th `.text`
-    // function in address order; if c2 walked a different NUMBER of functions
-    // than `.text` contains, that pairing is provably unsafe for this TU.
-    // Measured, not anticipated: `wkg_splice_pos.cpp` produced six "failures"
-    // with mismatches in both directions (T=73 against W=14 beside T=6 against
-    // W=72) — the signature of a permuted pairing, not of a compiler that
-    // sometimes emits 59 extra words.
+    // ---- THE PAIRING (board #3459) ----
+    //
+    // Before this, the only available fence was a COUNT: `func == i+1` was
+    // paired with the i-th `.text` function in address order, and if c2 walked
+    // a different NUMBER of functions than `.text` contains the whole TU was
+    // quarantined. Measured, not anticipated: `wkg_splice_pos.cpp` produced six
+    // "failures" with mismatches in both directions (T=73 against W=14 beside
+    // T=6 against W=72) — the signature of a permuted pairing, not of a
+    // compiler that sometimes emits 59 extra words.
+    //
+    // The payload now carries the function's own name, so the pairing is READ.
+    let text_names: Vec<String> = funcs.iter().map(|f| f.name.clone()).collect();
+    let (by_identity, verdict) = rep.pair_by_identity(PHASE, &text_names);
+    let mut m = Measured { verdict: verdict.label().to_string(), ..Default::default() };
+    if let OrdinalVerdict::Verified { ordinal_order_agrees, .. } = verdict {
+        m.ord_agrees = Some(ordinal_order_agrees);
+    }
+    if let OrdinalVerdict::Unmatched { only_in_tap, .. } = &verdict {
+        m.only_in_tap = only_in_tap.clone();
+    }
+    run_pairing_fences(&rep, &text_names, &mut m);
+
+    // The one case where the ordinal rule is still the honest answer: the
+    // payload offered NO identity at all (a tap without #3459's field). Falling
+    // back is correct; falling back SILENTLY is not, so every row of such a TU
+    // is labelled `OrdinalUnverified` exactly as it was before.
+    let no_identity = matches!(verdict, OrdinalVerdict::NoIdentity { .. } | OrdinalVerdict::Empty);
     let n_walks = rep.funcs.iter().filter(|x| x.phase == PHASE).count();
-    let ordinals_verified = n_walks == funcs.len();
+    let ordinals_verified = match pairing {
+        // EXACTLY the pre-#3459 rule, kept executable so the two pairings can
+        // be diffed on one binary and one corpus.
+        Pairing::Ordinal => n_walks == funcs.len(),
+        Pairing::Identity => !no_identity,
+    };
+
+    let by_ordinal = |fi: usize| {
+        rep.funcs.iter().find(|x| x.phase == PHASE && x.func == (fi + 1) as u32)
+    };
 
     let mut out_rows = Vec::new();
     for (fi, tf) in funcs.iter().enumerate() {
         let (name, w, pad) = (&tf.name, &tf.words, &tf.pad);
-        let f = (fi + 1) as u32;
-        let Some(fw) = rep.funcs.iter().find(|x| x.phase == PHASE && x.func == f) else {
+        let chosen = match pairing {
+            Pairing::Ordinal => by_ordinal(fi),
+            Pairing::Identity if no_identity => by_ordinal(fi),
+            Pairing::Identity => by_identity[fi],
+        };
+        let Some(fw) = chosen else {
+            // Counted and NAMED. Under `Identity` an absent pairing is a real
+            // finding about this TU; under `Ordinal` it is the old rule running
+            // off the end of the walk list, which is the same finding wearing
+            // the old rule's clothes.
+            m.unpaired.push(name.clone());
             continue;
         };
         let rows = fw.rows();
@@ -594,10 +736,20 @@ fn measure_one(
             n_pro,
             pad: *pad,
             t_by_phase: {
+                // The cross-phase selection is the same question one level up:
+                // under `Identity` a phase's walk belongs to this function when
+                // it CARRIES ITS NAME, not when its ordinal happens to match.
+                // `sched1` is where `g_fn` is incremented, so a phase-indexed
+                // selection by ordinal is exactly where a skipped `sched1`
+                // would misattribute an upstream count.
+                let mine = |x: &c2_reference::stage::FuncWalk| match pairing {
+                    Pairing::Identity if !no_identity => x.identity() == Some(name.as_str()),
+                    _ => x.func == fw.func,
+                };
                 let mut v: Vec<(String, usize)> = rep
                     .funcs
                     .iter()
-                    .filter(|x| x.func == f)
+                    .filter(|x| mine(x))
                     .map(|x| {
                         (
                             x.phase.clone(),
@@ -620,7 +772,8 @@ fn measure_one(
             pseudo: tuples.iter().filter(|x| !x.is_instruction()).map(|x| x.opcode).collect(),
         });
     }
-    Ok(out_rows)
+    m.rows = out_rows;
+    Ok(m)
 }
 
 // ---------------------------------------------------------------------------
@@ -642,15 +795,35 @@ fn all_fixtures() -> Vec<PathBuf> {
     v
 }
 
+#[derive(Default)]
 struct Corpus {
     rows: Vec<Row>,
     /// `(fixture, reason)` — captures/replays that did not produce rows.
     excluded: Vec<(String, String)>,
+    /// `(fixture, verdict label)` from `pair_by_identity` at [`PHASE`].
+    verdicts: Vec<(String, String)>,
+    /// `(fixture, did c2's ordinal order equal `.text` address order?)` —
+    /// **the pre-#3459 assumption, measured**.
+    ord_agrees: Vec<(String, bool)>,
+    /// `(fixture, .text function name)` the tap named nothing for.
+    unpaired: Vec<(String, String)>,
+    /// `(fixture, tap identity)` with no `.text` function of that name.
+    only_in_tap: Vec<(String, String)>,
+    /// Fixtures on which F2a / F2b were exercised and refused.
+    fence_wrongname: usize,
+    fence_rotate: usize,
 }
 
-fn run_corpus(tc: &Toolchain, fixtures: &[PathBuf], perturb: Perturb, jobs: usize) -> Corpus {
+fn run_corpus(
+    tc: &Toolchain,
+    fixtures: &[PathBuf],
+    perturb: Perturb,
+    jobs: usize,
+    pairing: Pairing,
+) -> Corpus {
     let rows = Mutex::new(Vec::new());
     let excluded = Mutex::new(Vec::new());
+    let meta: Mutex<Corpus> = Mutex::new(Corpus::default());
     let next = AtomicUsize::new(0);
     // The work root must be unique per CALL, not per process. Keyed on the pid
     // alone, the two tests in this file — which cargo runs as parallel threads
@@ -668,7 +841,7 @@ fn run_corpus(tc: &Toolchain, fixtures: &[PathBuf], perturb: Perturb, jobs: usiz
     ));
     std::thread::scope(|s| {
         for j in 0..jobs {
-            let (rows, excluded, next, base) = (&rows, &excluded, &next, &base);
+            let (rows, excluded, next, base, meta) = (&rows, &excluded, &next, &base, &meta);
             s.spawn(move || {
                 let w = base.join(format!("j{j}"));
                 loop {
@@ -678,11 +851,29 @@ fn run_corpus(tc: &Toolchain, fixtures: &[PathBuf], perturb: Perturb, jobs: usiz
                     }
                     let _ = std::fs::remove_dir_all(&w);
                     let name = fixtures[i].file_name().unwrap().to_string_lossy().to_string();
-                    match measure_one(tc, &fixtures[i], &w, perturb) {
-                        Ok(r) if r.is_empty() => {
-                            excluded.lock().unwrap().push((name, "no graded function".into()))
+                    match measure_one(tc, &fixtures[i], &w, perturb, pairing) {
+                        Ok(m) => {
+                            {
+                                let mut g = meta.lock().unwrap();
+                                g.verdicts.push((name.clone(), m.verdict.clone()));
+                                if let Some(a) = m.ord_agrees {
+                                    g.ord_agrees.push((name.clone(), a));
+                                }
+                                for u in &m.unpaired {
+                                    g.unpaired.push((name.clone(), u.clone()));
+                                }
+                                for u in &m.only_in_tap {
+                                    g.only_in_tap.push((name.clone(), u.clone()));
+                                }
+                                g.fence_wrongname += usize::from(m.fence_wrongname_fired);
+                                g.fence_rotate += usize::from(m.fence_rotate_fired);
+                            }
+                            if m.rows.is_empty() {
+                                excluded.lock().unwrap().push((name, "no graded function".into()))
+                            } else {
+                                rows.lock().unwrap().extend(m.rows);
+                            }
                         }
-                        Ok(r) => rows.lock().unwrap().extend(r),
                         Err(e) => excluded.lock().unwrap().push((name, e)),
                     }
                 }
@@ -695,7 +886,14 @@ fn run_corpus(tc: &Toolchain, fixtures: &[PathBuf], perturb: Perturb, jobs: usiz
     let mut excluded = excluded.into_inner().unwrap();
     excluded.sort();
     let _ = std::fs::remove_dir_all(&base);
-    Corpus { rows, excluded }
+    let mut c = meta.into_inner().unwrap();
+    c.rows = rows;
+    c.excluded = excluded;
+    c.verdicts.sort();
+    c.ord_agrees.sort();
+    c.unpaired.sort();
+    c.only_in_tap.sort();
+    c
 }
 
 fn ready() -> Option<Toolchain> {
@@ -721,6 +919,43 @@ fn jobs() -> usize {
 /// evidence run sets `C2RS_PWORDS_LIMIT=0` and the rung quotes that command.
 fn limit() -> usize {
     std::env::var("C2RS_PWORDS_LIMIT").ok().and_then(|v| v.parse().ok()).unwrap_or(48)
+}
+
+/// **Fixtures that EXHIBIT board #3459's hazard, named so a test cannot read
+/// nothing and call it a pass.**
+///
+/// Measured, not chosen: at `C2RS_PWORDS_LIMIT=0` these are the fixtures where
+/// c2 walks a function it never emits into `.text`, so its funcwalk ordinals
+/// count a superset of the obj's functions and every later pairing is offset.
+/// `wkg_splice_pos.cpp` is the extreme case (offset 2, seven rows); the
+/// destructor fixture supplies the other mechanism — a compiler-generated
+/// `??_G…` scalar-deleting destructor c2 processes and declines to emit.
+///
+/// **This is not a criterion fitted to its own failures.** They are inputs, not
+/// thresholds, and the assertion they feed is a PRECONDITION: without one of
+/// them in the population the ordinal-vs-identity comparison has nothing to
+/// compare and must say so. `w-pwords` §6.1 records the same repair in the same
+/// file — a fence keyed to *where the stride happened to land* is not keyed to
+/// anything.
+const HAZARD_FIXTURES: [&str; 2] = ["wkg_splice_pos.cpp", "w14_dtor_delegate_neg.cpp"];
+
+/// [`population`] with the hazard fixtures guaranteed present.
+///
+/// The default `C2RS_PWORDS_LIMIT=48` stride does not contain one — measured:
+/// the armed suite came back `EXIT=101` with the comparison test dying on
+/// exactly this precondition, which is the second time the gate has caught this
+/// file's own control being empty.
+fn population_with_hazard() -> Vec<PathBuf> {
+    let mut pop = population();
+    let dir = repo_root().join("fixtures/cpp");
+    for h in HAZARD_FIXTURES {
+        let p = dir.join(h);
+        if p.exists() && !pop.iter().any(|q| q.file_name() == p.file_name()) {
+            pop.push(p);
+        }
+    }
+    pop.sort();
+    pop
 }
 
 fn population() -> Vec<PathBuf> {
@@ -760,6 +995,46 @@ fn report(c: &Corpus) {
         c.rows.iter().map(|r| &r.fixture).collect::<std::collections::BTreeSet<_>>().len(),
         c.excluded.len()
     );
+
+    // ---- #3459: the pairing, reported rather than assumed ----
+    eprintln!("\n-- the ordinal->function pairing (board #3459) --");
+    let mut vk: BTreeMap<&str, usize> = BTreeMap::new();
+    for (_f, v) in &c.verdicts {
+        *vk.entry(v.as_str()).or_default() += 1;
+    }
+    for (k, n) in &vk {
+        eprintln!("  verdict {:<14} {:>4}/{:<4} fixtures", k, n, c.verdicts.len());
+    }
+    let agree = c.ord_agrees.iter().filter(|(_, a)| *a).count();
+    eprintln!(
+        "  ordinal order == .text address order on {}/{} verified fixtures ({:.1}%)",
+        agree,
+        c.ord_agrees.len(),
+        pct(agree, c.ord_agrees.len())
+    );
+    if agree < c.ord_agrees.len() {
+        eprintln!("  ... where it does NOT (the pre-#3459 assumption, live):");
+        for (f, _) in c.ord_agrees.iter().filter(|(_, a)| !*a) {
+            eprintln!("      {f}");
+        }
+    }
+    eprintln!(
+        "  FENCE: F2a (fabricated name refused) fired on {} fixtures; \
+         F2b (rotation caught) on {}",
+        c.fence_wrongname, c.fence_rotate
+    );
+    // Counted and NAMED, never folded into a denominator.
+    eprintln!(
+        "  unpaired .text functions: {}   tap identities with no .text function: {}",
+        c.unpaired.len(),
+        c.only_in_tap.len()
+    );
+    for (f, n) in c.unpaired.iter().take(20) {
+        eprintln!("      UNPAIRED {f}  {n}");
+    }
+    for (f, n) in c.only_in_tap.iter().take(20) {
+        eprintln!("      TAP-ONLY {f}  {n}");
+    }
 
     eprintln!("\n-- strata --");
     for (s, v) in &by {
@@ -955,7 +1230,14 @@ fn report(c: &Corpus) {
         eprintln!("\n-- per-function rows (H0 failures first) --");
         let mut v: Vec<&Row> = c.rows.iter().collect();
         v.sort_by_key(|r| (r.h0(), r.fixture.clone(), r.func.clone()));
-        for r in v.iter().take(120) {
+        // The cap is a print budget, not a measurement bound, so it is a knob.
+        // At 120 it silently truncated the alphabetical tail, which is why the
+        // base run of this lane could not extract a per-row baseline at all.
+        let cap: usize = std::env::var("C2RS_PWORDS_DUMP_MAX")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(120);
+        for r in v.iter().take(cap) {
             eprintln!(
                 "  {} {:<28} {:<16?} T={:<4} W={:<4} I={} P={:<5} pad={} epi={} pro={} {}",
                 if r.h0() { "  " } else { "H0" },
@@ -1002,8 +1284,11 @@ fn report(c: &Corpus) {
 #[test]
 fn pwords_corrected_bijection_over_the_fixture_corpus() {
     let Some(tc) = ready() else { return };
-    let pop = population();
-    let c = run_corpus(&tc, &pop, Perturb::None, jobs());
+    // `population_with_hazard`, not `population`: this test asserts #3459 is
+    // CLOSED (`OrdinalUnverified == 0`), and on a population containing no
+    // fixture that exhibits the hazard that assertion reads nothing.
+    let pop = population_with_hazard();
+    let c = run_corpus(&tc, &pop, Perturb::None, jobs(), Pairing::Identity);
     report(&c);
 
     assert!(
@@ -1020,6 +1305,127 @@ fn pwords_corrected_bijection_over_the_fixture_corpus() {
          block's 3-function fence describes"
     );
     assert!(leaf > 0, "ZERO leaf functions — the baseline stratum is missing");
+
+    // ---- board #3459 ----
+    //
+    // Positive by construction: the pairing must have been READ, not assumed.
+    // `OrdinalUnverified` now means one thing only — the payload carried no
+    // identity — so any row in it is the tap failing to answer, and a run that
+    // reported the pairing as verified while grading nothing would be exactly
+    // the vacuous green this family of instruments exists not to print.
+    let unverified = c.rows.iter().filter(|r| r.stratum == Stratum::OrdinalUnverified).count();
+    assert_eq!(
+        unverified, 0,
+        "{unverified} functions still have NO identity in the funcwalk payload — \
+         board #3459 is not closed for them"
+    );
+    assert!(
+        !c.ord_agrees.is_empty(),
+        "no fixture reached a `Verified` pairing, so the identity is not being read at all"
+    );
+    // The fence must have been EXERCISED, not merely present. `w-pwords` §6.1
+    // is the priced example of a check that passed while reading nothing.
+    assert!(
+        c.fence_wrongname >= 5,
+        "the wrong-name fence fired on only {} fixtures — too few to call it watched",
+        c.fence_wrongname
+    );
+    assert!(
+        c.fence_rotate >= 5,
+        "the rotation fence fired on only {} fixtures — too few to call it watched",
+        c.fence_rotate
+    );
+}
+
+/// **Board #3459's own evidence: the SAME binary and the SAME corpus, once
+/// under each pairing rule.**
+///
+/// A base-binary-versus-tip-binary diff cannot attribute a difference to the
+/// pairing, because everything else moved too. Running `Pairing::Ordinal` — a
+/// faithful replay of the pre-#3459 rule, count-quarantine included — beside
+/// `Pairing::Identity` on one process isolates it exactly.
+///
+/// **What this asserts is a DIRECTION, not a number**: the quarantine must
+/// empty, and every row the old rule already graded must survive unchanged.
+/// A hold-rate is not pinned here; that would turn the measurement into a gate.
+#[test]
+fn the_identity_pairing_empties_the_quarantine_and_moves_nothing_else() {
+    let Some(tc) = ready() else { return };
+    // NOT `population()`. The default 48-fixture stride contains no fixture the
+    // old rule quarantines, so this test died on its own precondition in the
+    // first armed suite run (`EXIT=101`) — the same defect `w-pwords` §6.1
+    // records one function above, and the same repair: key the control to a
+    // population that contains the property by construction.
+    let pop = population_with_hazard();
+    let old = run_corpus(&tc, &pop, Perturb::None, jobs(), Pairing::Ordinal);
+    let new = run_corpus(&tc, &pop, Perturb::None, jobs(), Pairing::Identity);
+
+    let key = |r: &Row| (r.fixture.clone(), r.func.clone());
+    let val = |r: &Row| (r.stratum, r.t, r.w, r.i, r.p, r.pad);
+    let om: BTreeMap<_, _> = old.rows.iter().map(|r| (key(r), val(r))).collect();
+    let nm: BTreeMap<_, _> = new.rows.iter().map(|r| (key(r), val(r))).collect();
+
+    let old_q: std::collections::BTreeSet<_> = old
+        .rows
+        .iter()
+        .filter(|r| r.stratum == Stratum::OrdinalUnverified)
+        .map(key)
+        .collect();
+
+    eprintln!(
+        "\n===== #3459: ordinal pairing vs identity pairing, one binary, one corpus =====\n\
+         rows: ordinal {} / identity {}   quarantined by the OLD rule: {}",
+        old.rows.len(),
+        new.rows.len(),
+        old_q.len()
+    );
+
+    // 1. Every row the old rule graded OUTSIDE its quarantine must be
+    //    bit-identical under the new one. This is the required-zero.
+    let mut moved: Vec<String> = Vec::new();
+    for (k, v) in &om {
+        if old_q.contains(k) {
+            continue;
+        }
+        match nm.get(k) {
+            Some(nv) if nv == v => {}
+            Some(nv) => moved.push(format!("{} {}: {v:?} -> {nv:?}", k.0, k.1)),
+            None => moved.push(format!("{} {}: DROPPED", k.0, k.1)),
+        }
+    }
+    for m in moved.iter().take(20) {
+        eprintln!("  MOVED {m}");
+    }
+    assert!(
+        moved.is_empty(),
+        "{} rows outside the old quarantine changed under the identity pairing — the \
+         pairing rule was supposed to touch ONLY the rows the old rule could not \
+         verify",
+        moved.len()
+    );
+
+    // 2. The quarantine must actually empty, and its rows must come back.
+    assert!(
+        !old_q.is_empty(),
+        "the OLD rule quarantined nothing on this population, so this test read \
+         nothing. #3459's hazard is not exhibited here — widen the population or \
+         say so rather than banking a pass"
+    );
+    let new_q = new.rows.iter().filter(|r| r.stratum == Stratum::OrdinalUnverified).count();
+    assert_eq!(new_q, 0, "the identity pairing left {new_q} rows unverified");
+    for k in &old_q {
+        let Some(nv) = nm.get(k) else { continue };
+        let ov = om.get(k).unwrap();
+        eprintln!("  RECOVERED {} {}: {ov:?} -> {nv:?}", k.0, k.1);
+    }
+    let recovered = old_q.iter().filter(|k| nm.contains_key(*k)).count();
+    eprintln!(
+        "  {recovered} of {} quarantined rows recovered; identity-pairing left {} \
+         .text functions unpaired",
+        old_q.len(),
+        new.unpaired.len()
+    );
+    eprintln!("=============================================================================\n");
 }
 
 /// **The fence, watched refusing** (prereg §3; `CLAUDE.md`'s formatter rule).
@@ -1043,9 +1449,9 @@ fn the_instrument_fails_on_deliberately_broken_input() {
     // asserts `framed > 0` over `population()`, so keying this test to the
     // same population is what makes the precondition hold by construction
     // rather than by luck of where the stride landed.
-    let pop: Vec<PathBuf> = population();
+    let pop: Vec<PathBuf> = population_with_hazard();
 
-    let base = run_corpus(&tc, &pop, Perturb::None, jobs());
+    let base = run_corpus(&tc, &pop, Perturb::None, jobs(), Pairing::Identity);
     let h1_ok = |c: &Corpus| {
         let d: Vec<&Row> = c.rows.iter().filter(|r| r.h1().is_some()).collect();
         (d.iter().filter(|r| r.h1() == Some(true)).count(), d.len())
@@ -1070,7 +1476,7 @@ fn the_instrument_fails_on_deliberately_broken_input() {
         v.sort();
         v
     };
-    let plus = run_corpus(&tc, &pop, Perturb::PlusOneP, jobs());
+    let plus = run_corpus(&tc, &pop, Perturb::PlusOneP, jobs(), Pairing::Identity);
     let (rb, rp) = (resid(&base), resid(&plus));
     eprintln!(
         "BROKEN-INPUT  P+=1  : residuals {} -> {} (first few {:?} -> {:?})",
@@ -1091,7 +1497,7 @@ fn the_instrument_fails_on_deliberately_broken_input() {
         );
     }
 
-    let noflag = run_corpus(&tc, &pop, Perturb::NoInsnFilter, jobs());
+    let noflag = run_corpus(&tc, &pop, Perturb::NoInsnFilter, jobs(), Pairing::Identity);
     let (n0, nn0) = h0_ok(&noflag);
     eprintln!("BROKEN-INPUT no-flag: H0 {n0}/{nn0}  (control {b0}/{bn0})");
     assert!(
