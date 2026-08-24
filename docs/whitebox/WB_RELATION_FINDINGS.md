@@ -32,6 +32,7 @@ that transform it. The tables are adjacent in `.data`, stride `0x14`:
 |---|---|---|
 | **`0x10b189a4`** | **signedness remap** — signed → unsigned | idempotent; **EQ and NE are FIXED POINTS** |
 | **`0x10b189b8`** | **strictness flip** — `<` ↔ `<=`, `>` ↔ `>=` | involution; EQ/NE fixed |
+| ⚠ | **AMENDED — `0x10b189b8` is OPERAND EXCHANGE (reflection), not a strictness flip.** The addresses and the byte contents in this table are correct; this one row's *name* is not, and §2 uses that name as a premise. See §2's banner and `WB_RELREAD_FINDINGS.md` §3 · **#3518** | |
 | **`0x10b189cc`** | **negation** — `!rel` | involution; EQ ↔ NE |
 
 Read out of the image (20 entries each; index is `code & 0x1f`):
@@ -43,6 +44,93 @@ Read out of the image (20 entries each; index is `code & 0x1f`):
 ```
 
 ## 2. The relation code, recovered — and it is **the IL opcode minus `0x1E`**
+
+> ## ⚠ AMENDED 2026-08-24 by `w-relread` — **THIS SECTION'S CODE→MNEMONIC MAP IS WRONG ON 8 OF ITS 10 CODES, AND SO IS THIS HEADING**
+>
+> **Amended beside, not edited.** Nothing below this banner has been altered;
+> the dated record stands as written. See
+> [`WB_RELREAD_FINDINGS.md`](WB_RELREAD_FINDINGS.md) §1–§3 and board
+> **#3517**–**#3520**.
+>
+> c2 carries its own **19-entry name array** for this enum at **`0x10c38690`**
+> (null-bounded, pointer array into a `.text` string pool). Read out of the
+> pinned image:
+>
+> ```text
+>  0 ILLEGAL   1 EQ    2 NE    3 LT    4 GT    5 LE    6 GE
+>  7 ULT       8 UGT   9 ULE  10 UGE  11 SO   12 NSO  13 S    14 NS
+> 15 VALL     16 NVALL 17 VNONE 18 NVNONE
+> ```
+>
+> **§2's table reads `3 <=, 4 <, 5 >=, 6 >` and the image reads
+> `3 LT, 4 GT, 5 LE, 6 GE`** — the two orderings within each pair are swapped,
+> and the same swap propagates through 7–10 via `unsigned = signed + 4`.
+>
+> **The heading is wrong too: `code = IL opcode − 0x1E` is FALSE.** It holds for
+> `EQ` and `NE` and fails on all four orderings. Against the port's own
+> `Rel::from_opcode` (`crates/c2-il/src/func/mod.rs:1411`, byte-graded, `[O]`)
+> the map is a **permutation**: `0x21 Le → 5`, `0x22 Lt → 3`, `0x23 Ge → 6`,
+> `0x24 Gt → 4`. The site that performs it is **still unnamed** — this lane's
+> prereg W2 missed it, and `w-relread` missed it again after eliminating the
+> contiguous-byte-table form image-wide.
+>
+> ### What SURVIVES this amendment — most of the document does
+>
+> The enum's **labels** are wrong. The **mechanism** is right, and every one of
+> these was re-verified by `w-relread` at the addresses §1–§3 give:
+>
+> * **the three tables at `0x10b189a4` / `0x10b189b8` / `0x10b189cc`** — their
+>   addresses, their 20-byte contents, their stride and their adjacency: **all
+>   correct**;
+> * **`a4` is the signedness remap and `cc` is negation**: **correct**;
+> * **EQ and NE are FIXED POINTS of `a4`** — §3.1, and it *is* `#1788`: **correct
+>   and label-independent**, because codes 1 and 2 are `EQ`/`NE` under both the
+>   wrong assignment and the right one;
+> * **§3.2 — `#423`'s "three-way interaction" is two table lookups and a zero
+>   test in `FUN_10c1a908`**, with the lookups at `0x10c1a947` (`a4`),
+>   `0x10c1a96d` and `0x10c1a98f` (`cc`, once per constant-zero operand, the
+>   second with an exchange): **all three addresses VERIFY exactly**;
+> * **§3.3's two field-replace sites** `FUN_10bd50b7` / `FUN_10bd507f`:
+>   **correct**, and `0x10bd507f`'s flip of the `+0xb` flag byte really is
+>   *"invert this branch"*.
+>
+> **What is wrong is the mapping from code to mnemonic, and one table's NAME:**
+>
+> * **`0x10b189b8` is OPERAND EXCHANGE (reflection), not a "strictness flip".**
+>   §1's table row and §2's constraint 4 both name it strictness. Its 2-cycles
+>   are `(3 4)(5 6)(7 8)(9 10)` = `LT↔GT, LE↔GE, ULT↔UGT, ULE↔UGE`, and
+>   `FUN_10c1a908`'s general block implements each pair as **one emitter called
+>   with the operand slots exchanged** (`0x10c1ac34`).
+> * **§2's claim that codes 11–18 are "left *fixed* by both `a4` and `b8`" is
+>   wrong for 11–14**: `a4[11..14] = b8[11..14] = 00`, and `00` is `ILLEGAL`.
+>   Only 15–18 are fixed points of both.
+> * **§5's `FUN_10c198d2`/`FUN_10c19bc0` is not the "(default)" arm** — it is
+>   code **1 `EQ`**, shared with code **9 `ULE`**. `FUN_10c1a908` has **no
+>   default arm and no bound check**; Ghidra's rendering of it is unusable and
+>   says so.
+>
+> ### HOW it went wrong — neither a transcription slip nor an off-by-one
+>
+> §2 states the assignment is *"over-determined, which is why it can be stated
+> without a probe"*, on four constraints. **Three of the four are satisfied by
+> both candidate assignments.** Only constraint 4 discriminates — and it
+> discriminates by **assuming what `b8` is**: *"`b8` pairs `(3 4)` and `(5 6)` —
+> a **strictness** flip within one direction — which fixes the assignment the
+> rest of the way."* The name "strictness flip" is a *finding* in §1 and a
+> *premise* in §2. Both candidate readings of `b8` are involutions fixing
+> `{1,2}`, so the tables alone cannot separate them.
+>
+> **And the fourth "confirmation" was constructed, not observed.** Constraint 4
+> ends *"and lands it exactly on the IL's own `0x1F`..`0x24` order"* — but the
+> IL opcode is a **different namespace**, and an assignment chosen to make the
+> map a subtraction will land on that order by construction. A coincidence with
+> another namespace was counted as evidence about this one.
+>
+> The general lesson, which is the transferable part: *the algebra of a
+> permutation table determines the labelling only up to the **automorphisms** of
+> that algebra.* This lattice has an order-2 automorphism (exchange ↔ strictness
+> on `{3,4,5,6}`) that no amount of table-reading breaks. **A consumer or a name
+> is required** — `w-relread` needed both.
 
 | code | relation | IL opcode | `c2_il::Rel` |
 |---:|---|---|---|
@@ -213,6 +301,33 @@ lane to bake `0x10b189a4`/`0x10b189b8`/`0x10b189cc` into a port table owes three
 rows, not one.
 
 ## 5. Ranked follow-ons
+
+> ## ⚠ AMENDED 2026-08-24 — **follow-ons 1 and 2 were TAKEN by `w-relread`; follow-on 3 was named but its meanings refused**
+>
+> Amended beside, not edited. See [`WB_RELREAD_FINDINGS.md`](WB_RELREAD_FINDINGS.md)
+> and board **#3517**–**#3520**.
+>
+> 1. **`FUN_10c1a908`'s arms: READ.** Two jump tables, `T1` @ **`0x10c1ac0c`**
+>    (against zero) and `T2` @ **`0x10c1ac34`** (general), each **exactly 10
+>    entries indexed `code − 1`**, dispatched **with no bound check**.
+>    `FUN_10c198d2`/`FUN_10c19bc0` is **code 1 `EQ`, not the default** — there is
+>    no default arm. The unidentified within-pair flag is **whether the value to
+>    produce when the relation is TRUE is the constant `+1`** (`−1` and every
+>    non-constant share the other arm), so `FUN_10c1a908` is the lowering of
+>    `rel ? A : 0`. **`#423`'s grid is retired as a DISPATCH question and NOT as
+>    a byte prediction** — the emitters' bodies are unread, so a grid measuring
+>    emitted size or relocations per cell still has work to do. *"Would retire
+>    `#423`'s grid entirely"* was too strong.
+> 2. **`#2102` vs §2: SETTLED, and against a pair that did not contain the
+>    answer.** `FUN_10c1ac5c`'s terminal code is **8** (`0x10c1ac c1 / je
+>    0x10c1ad10`) and **8 is `UGT`**. `#2102`'s *"ULE"* is wrong; §2's
+>    *"unsigned LT"* is wrong (unsigned LT is code **7**, which `0x10c1acde`
+>    converts away by exchanging the operands); **board `#2207` was right, and it
+>    was already on the board when this document was written.**
+> 3. **Codes 11–18: NAMED, meanings REFUSED.** `11 SO, 12 NSO, 13 S, 14 NS,
+>    15 VALL, 16 NVALL, 17 VNONE, 18 NVNONE`. They are **not** "the FP
+>    ordered/unordered set" as §2 calls them, and `w-relread` declines to say
+>    what they *mean*: every consumer it read dispatches codes 1–10 only.
 
 1. **Read `FUN_10c1a908`'s ten switch arms** (~½ day) — turns §3.2's "READ but
    not interpreted" into the full guard-position lowering rule, and would
