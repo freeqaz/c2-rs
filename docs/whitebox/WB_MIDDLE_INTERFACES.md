@@ -140,6 +140,17 @@ zero counterexamples** (`the_opcode_space_is_c2s_own_mnemonic_table`):
 
 * **`+0x9` bit 0 clear** ⇒ the opcode is **above `0x297`** — a structural
   pseudo-op, no mnemonic. Seen: `0x309`, `0x30a`, `0x30b`, `0x30d`, `0x30f`.
+
+> **⛔ SCOPED BESIDE — lane `w-2e4`, 2026-08-24, board #3504. THIS RULE IS
+> TRUE AT `sched0`/`after0` AND FALSE EARLIER, AND THE MEASUREMENT DOES NOT
+> SAY SO.** `[R]`. **All 16 tuple constructors set `+0x9 |= 1`
+> unconditionally**, whatever the opcode — `0x10bd59c3`, `0x10bd7243`,
+> `0x10bd7282`, `0x10bd7700`. `0x10bd76e6` sets it on `0x2dd`, `0x2de` and
+> `0x2e4`, all above `0x297`. The rule holds where it was measured because
+> those snapshots are taken **after final expansion**, which has already
+> replaced every such pseudo-op with a machine opcode. **Do not use bit 0 as
+> an "is this a machine opcode" test on the pre-expansion tuple list.**
+> See [`WB_2E4_FINDINGS.md`](WB_2E4_FINDINGS.md) §5.4.
   (`0x30f` at category `0x17` is the region terminator the region finder tests
   at `0x10be5d55` — the layout predicts a value the code branches on.)
 * **`+0x9` bit 0 set, at `sched0`/`after0`** ⇒ the opcode is a **machine

@@ -67,9 +67,19 @@ the real string **`twle`**.
 
 > **A reader who indexes the mnemonic table by `0x2e4` gets a plausible PPC
 > trap mnemonic and no warning at all.** This is prereg P2.5's registered
-> failure mode, and it fired on the first command of the lane. It is the reason
-> `dump_pseudoop.py --names` exists as a *control-checked* search rather than
-> as one array lookup.
+> failure mode, and it fired on the first command of the lane.
+>
+> **And this trap was already documented, by name, before this lane ran.**
+> [`WB_MIDDLE_INTERFACES.md`](WB_MIDDLE_INTERFACES.md) §2.2 records walking
+> into the identical thing at a different index (*"read as a continuation of
+> the first table at index `0x298`, it decodes tuple opcode `0x30f` as
+> `tdlngi` — a trap instruction — in a function that is `return a+b+c`"*), and
+> [`ref/P_ENCODE.md`](ref/P_ENCODE.md) §2.1 tabulates three more of its
+> phantoms. **I hit it anyway**, because a trap recorded in prose two pages
+> away does not stop a `u32` read. That is the argument for putting the control
+> **in the tool**: `dump_pseudoop.py --names` is a control-checked search
+> rather than one array lookup, and it prints `covers? no` where a lookup would
+> print `twle`.
 
 ### 1.3 The search, and the control that makes it a search `[R]`
 
@@ -88,8 +98,9 @@ NOT NAMED: no table in this image both covers index 0x2e4 and passes the control
 **Exactly one table names opcodes, and it stops 75 rows short of `0x2e4`.**
 The other 33 are the register-name table (`0x10b181c0`), the
 `__savegprlr_*`/`__restfpr_*` helper-name tables, the `/Qfast_transcendentals`
-and loop-classifier enum names, `__PogoProbeVector*`, and phase-shifted
-aliases of those. None passes a single control row.
+and loop-classifier enum names, `__PogoProbeVector*`, the extended-mnemonic
+table `0x10b1d180` (§1.4), and phase-shifted aliases of those. **None passes a
+single control row.**
 
 **The control was watched failing before any of this was quoted**
 (`--names-selftest`): it scores 4/4 at the true base `0x10b1b260` and **0/4**
@@ -97,37 +108,67 @@ at base ± one stride, at base + 4, and at base + `0x1000`. A classifier that
 returns the same verdict everywhere is measuring itself — `w-r8idiom` defect 1,
 four-for-four being the tell.
 
-### 1.4 A table this record did not have: `0x10b1d180`, the extended-mnemonic aliases `[R]`
+### 1.4 The table the coincidence lives in — ALREADY IN THE RECORD `[R]`
 
-The array that produced the `twle` coincidence is worth naming on its own.
-**`0x10b1d180`, stride 16, rows 0…120 `_first` … `_last`**, is c2's
-**assembler alias table** — `{char *name, u32 base_opcode, u32 BO, u32 BI}`.
-A *second*, differently shaped alias block (`extldi`, `extrdi`, `insrdi`,
-`rotldi`, `rotrdi`, `rotld`, `sldi`, `srdi`, `clrldi`, `clrrdi`, base opcodes
-`0x125`–`0x12f`) follows immediately at row 121 with a two-row-per-entry
-layout; it is **not** read here beyond noting that it exists.
+**`0x10b1d180` is not a new address and this lane very nearly published it as
+one.** It is c2's **extended / simplified-mnemonic table**, stride 16,
+`{char *name, u32 real_opcode, u32 BO, u32 BI}`, and the record already holds:
 
-| row | name | base opcode | field 2 | field 3 |
+* [`WB_MIDDLE_INTERFACES.md`](WB_MIDDLE_INTERFACES.md) §2.2 — *"a SECOND table
+  nobody had named"*, with ten rows decoded and the trap it sets;
+* [`ref/P_EXPAND.md`](ref/P_EXPAND.md) §6 — *"a table that LOOKS like the
+  answer and is not"*, with the refusal to publish an index mapping;
+* [`ref/P_OPATTR.md`](ref/P_OPATTR.md) §7 (`w-tailread`, board `#3463`) —
+  **settled**: nothing indexes it by an opcode; 13 references in 3 functions;
+  the row index becomes an opcode only through field `+4` at `0x10c0299c`.
+
+> **This is the standing "check the record before claiming novelty" rule, and
+> it caught me between the read and the commit.** The first draft of this
+> section was headed *"a table this record did not have"*. It had it three
+> times over. Recorded rather than quietly deleted, because a re-discovery
+> published as a discovery is how a record starts disagreeing with itself.
+
+**Two small things this re-read does add**, and they are the only claims here:
+
+1. **The complete row grouping**, which no page carries (the three above give
+   ten rows between them):
+
+| rows | names | base opcode | field `+8` (BO) | field `+0xc` (BI) |
 |---|---|---|---|---|
 | 0 | `_first` | — | — | — |
 | 1–6 | `subi`, `subis`, `subic`, `subic.`, `sub`, `subc` | `0x0b`,`0x0e`,`0x0c`,`0x0d`,`0x181`,`0x183` | 0 | 0 |
 | 7–14 | `blt`,`ble`,`beq`,`bge`,`bgt`,`bnl`,`bne`,`bng` | **`0x21` (`bc`)** | `0xc`/`0x4` | `0`/`1`/`2` |
 | 15–20 | `b{lt,ne,gt,le,ge,eq}ctr` | `0x23` | `0xc`/`0x4` | 0–2 |
 | 21–26 | `b{lt,ne,gt,le,ge,eq}lr` | `0x27` | `0xc`/`0x4` | 0–2 |
-| 27–34 | `cmpd`,`cmpw`,`cmpdi`,`cmpwi`,`cmpld`,`cmplw`,`cmpldi`,`cmplwi` | `0x2d`–`0x30` | 0 | L bit |
-| 35–54 | `mftbu`…`mfdabr` | `0xe9`/`0xf8`/`0xe6` | 0 | SPR number |
-| 55–119 | `trap`, `tw*`, `td*` | `0x19c`/`0x197`/`0x19d`/`0x198` | 0 | TO field |
-| 120 | `_last` | `0x295` | 0 | 0 |
+| 27–34 | `cmpd`,`cmpw`,`cmpdi`,`cmpwi`,`cmpld`,`cmplw`,`cmpldi`,`cmplwi` | `0x2d`–`0x30` | 0 | the `L` bit |
+| 35–45 | `mftbu`,`mftbl`,`mtxer`,`mtlr`,`mtctr`,`mtsrr0`,`mtsrr1`,`mtdar`,`mttbl`,`mttbu`,`mtdabr` | `0xe9` / `0xf8` (`mtspr`) | 0 | SPR number |
+| 46–54 | `mfxer`…`mfdabr` | `0xe6` (`mfspr`) | 0 | SPR number |
+| 55–71 | `trap`, `twlt`…`twlng` | `0x19c` | 0 | the `TO` field |
+| 72–87 | `tdlt`…`tdlng` | `0x197` | 0 | `TO` |
+| 88–103 | `twlti`…`twlngi` | `0x19d` | 0 | `TO` |
+| 104–119 | `tdlti`…`tdlngi` | `0x198` | 0 | `TO` |
+| **120** | **`_last`** | `0x295` | 0 | 0 |
 
-
-This is **`inlnasm.c`'s** table — the extended mnemonics an `__asm` block may
-write. It is a *machine*-opcode table; it says nothing about `0x2e4` except
-that it is where the coincidence lives.
+2. **A correction to `P_OPATTR.md` §7.1.** That table calls `FUN_10c01f23`'s
+   reference to `0x10b1d180 + 0x790` (row **121**, VA `0x10b1d910`) *"a
+   table-end pointer"*. **Row 121 is not past the end** — it is the first row
+   of a **second alias block with 32-byte entries**: `extldi`(`0x12d`),
+   `extrdi`(`0x12b`), `insrdi`(`0x12f`), `rotldi`, `rotrdi`, `rotld`(`0x125`),
+   `sldi`, `srdi`, `clrldi`, `clrrdi` — the rotate/mask simplified mnemonics,
+   which need more than `(BO, BI)` to expand. `FUN_10c0174b` terminates on the
+   `_last` **string** and so never reaches them with its stride-16 walk, which
+   is consistent with §7.1's read that this is a *different* consumer.
+   **What that consumer does is not read here.**
 
 ### 1.5 What is therefore refused, in one sentence
 
 > **The identifier c2's own source used for `0x2e4` is not recoverable from
-> this binary.** It is a compile-time enumerator with no runtime string: the
+> this binary.** [`WB_MIDDLE_INTERFACES.md`](WB_MIDDLE_INTERFACES.md) §2.3
+> already said *"tuple opcodes above `0x297` are structural pseudo-ops with no
+> mnemonic at all"* — as an `[O]` observation over four fixtures. **What this
+> section adds is that it is also true as an `[R]` property of the whole
+> image**, established by an enumeration with a control rather than by
+> sampling, so it now covers every opcode and not only the five that appeared. It is a compile-time enumerator with no runtime string: the
 > release image contains no tuple-opcode dumper (there is no `dmp.c` in the
 > 53-TU list — see [`c2_tus.tsv`](c2_tus.tsv)), and the only two opcode strings
 > in the diagnostics path, `"Unknown opcode"` and
@@ -489,7 +530,29 @@ extent — recorded, not swept): `dag.c`, `ehexcept.c`, `except.c`, `factor.c`, 
 **`0x2e4` is one of the most widely tested constants in this backend.** A port
 that models the tuple space at all has to carry it from the first pass onward.
 
-### 5.4 `WB_DAGCLIENTS_FINDINGS.md` grey-zone item 5 is closed `[R]`
+### 5.4 `+0x9` bit 0 is NOT an "opcode ≤ `0x297`" predicate before expansion `[R]`
+
+[`WB_MIDDLE_INTERFACES.md`](WB_MIDDLE_INTERFACES.md) §2.3 measures, over 4
+fixtures and 288 tuples with zero counterexamples: *"`+0x9` bit 0 clear ⇒ the
+opcode is above `0x297`"*, and its converse at `sched0`/`after0`.
+
+**Every one of c2's 16 tuple constructors sets `+0x9 |= 1` unconditionally**,
+regardless of opcode — checked at `0x10bd59c3`, `0x10bd7243`, `0x10bd7282` and
+`0x10bd7700`. `0x10bd76e6` sets it on `0x2dd`, `0x2de` and `0x2e4` alike, all
+of which are **above** `0x297`.
+
+> **There is no contradiction, and the reason is the STAGE.** §2.3's snapshots
+> are `sched0`/`after0` — *after* final expansion, by which point every `0x2e4`
+> has already become an `emit` (`0x290`). The rule is sound where it was
+> measured and **must not be carried back to the pre-expansion tuple list.**
+> Anyone using bit 0 as a "is this a machine opcode" test on IL as `fg.c` or
+> `ehexcept.c` sees it will classify every branch tuple wrongly.
+
+(Incidentally: the other three constructors read here allocate kind **`0x0d`**,
+not `0x12` — so `0x0d` is the ordinary tuple kind and `0x12` the branch kind,
+which is why `0x10bd76e6` is the only constructor a `0x2e4` can come from.)
+
+### 5.5 `WB_DAGCLIENTS_FINDINGS.md` grey-zone item 5 is closed `[R]`
 
 *"those opcode numbers were not decoded"* — `0x21` is `bc`, `0x22` is `bca`,
 `0x2e4` is the subject of this page, and §4.1 gives the predicate they form.
@@ -546,7 +609,8 @@ a reader will construct one anyway and it is better to have it labelled. It is
 | **`0x10b372ea`** | `fg.c`'s **block builder** — the `0x2e4` block-exemption at `0x10b374c3` and the skip-loop at `0x10b373c1`…`0x10b373d1` | named by `w-r8idiom` as a minter; **read here, and it is not one** |
 | **`0x10b39937`** | `fg.c`'s branch folder — the **PGO-only** mint at `0x10b39acc`, gated on `0x10c3de20 == 2` and `0x10c3dd78 != 0`, rewriting the folded tuple to `0x2de` | here |
 | **`0x10b6e99b`, `0x10b9f04e`** | the **canonical `PLAIN_CONDITIONAL` predicate**, written out verbatim | here |
-| **`0x10b1d180`** | the **extended-mnemonic (assembler alias) table**, stride 16, 121 rows `_first`…`_last`, `{name, base opcode, BO, BI}` — `inlnasm.c` | here |
+| `0x10b1d180` | the extended-mnemonic table — **NOT new**: `WB_MIDDLE_INTERFACES.md` §2.2, `P_EXPAND.md` §6, `P_OPATTR.md` §7. Complete 121-row grouping added here | already recorded |
+| **`0x10b1d910`** | **row 121 — a SECOND alias block, 32-byte entries** (`extldi`…`clrrdi`), which `P_OPATTR.md` §7.1 calls "a table-end pointer" | here |
 | `0x10b1d15c` / `0x10b1d168` | the mnemonic table's `_last` (`0x295`) and `illegal` (`0x296`) rows — **the true end of the table** | here |
 | `0x10be5c5a` / `0x10be5c92` | `except.c`'s opcode jump table + byte index, covering `0x2dd`…`0x308`; `0x2e4` takes the **default** arm `0x10be5976` | here |
 | `0x10c28862` | the `memset` import thunk (`MSVCR100.dll`), resolved through the import directory | here |

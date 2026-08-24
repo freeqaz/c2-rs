@@ -368,6 +368,25 @@ not guarded, not weakened, and not wrong — **it is not reached.**
 
 ## 6. What is NOT settled, and is deliberately not guessed
 
+> **⛔ AMENDED BESIDE — lane `w-2e4`, 2026-08-24, board #3501/#3502. THIS
+> REFUSAL IS NOW MOSTLY CLOSED, AND IT WAS THE RIGHT REFUSAL.** `[R]`. `0x2e4`
+> is a **kind-`0x12` branch tuple with exactly one operand, and that operand is
+> a LABEL**; minting one **adds a real predecessor edge** to that label
+> (`0x10bd3f62`, a kind-`0x1d` record in `label[+0x28]`). Its contract, written
+> out verbatim in two TUs, is
+> `PLAIN_CONDITIONAL(t) := kind == 0x12 && t[+0x34] == 0 && opcode ∉ {0x2e4, bc, bca}`,
+> and `fg.c`'s block builder **does not split a block on it** (`0x10b374c3`).
+> **The NAME is still refused, and now as a measurement**: 34 char* arrays in
+> the image, exactly one passes a control, and it stops 75 rows short.
+>
+> **Two corrections to this page**, neither of which touches §0's claims:
+> the table below captioned *"who mints `0x2e4`"* has **4 non-mints among its
+> 8 rows** (including `0x10b372ea`, which is a consumer); and claim B's
+> *"the mnemonic table ends at `0x295`"* is one row off — it ends at `0x296`
+> (`illegal`), as `ref/P_ENCODE.md` §2.1 already tabulated.
+>
+> Full record: [`WB_2E4_FINDINGS.md`](WB_2E4_FINDINGS.md).
+
 **What `0x2e4` IS.** Three things are read and one is not:
 
 * `[R]` it is above the machine opcode space and has **no mnemonic**;

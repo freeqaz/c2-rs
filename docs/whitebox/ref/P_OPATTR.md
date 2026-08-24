@@ -345,6 +345,24 @@ used is the point:
 0x10bd5516  unlink         401 direct calls     <- deletion is the COMMONER operation
 ```
 
+> **⛔ AMENDED BESIDE — lane `w-2e4`, 2026-08-24, board #3503. `0x10bd3824` IS
+> INSERT-*BEFORE*, AND THE WRAPPER DOES NOT CALL IT.** `[R]`. The counts and
+> the mint/delete asymmetry above stand; two labels do not.
+>
+> * **Direction.** `+0x00` is *next*, `+0x10` is *prev*, so `0x10bd3824`
+>   (which links on the `+0x10` side) inserts **before** and `0x10bd3815`
+>   inserts **after**. [`P_BLOCKORDER.md`](P_BLOCKORDER.md) already reads it
+>   this way with both bodies printed; this page and
+>   [`P_EXPAND.md`](P_EXPAND.md) §2 say "insert-after". **A third independent
+>   read agrees with `P_BLOCKORDER.md`** — see
+>   [`WB_2E4_FINDINGS.md`](../WB_2E4_FINDINGS.md) §2.2 for the three pieces of
+>   evidence. **The dual `0x10bd5516` is unaffected**: an unlink has no
+>   direction.
+> * **`0x10bd5732` calls an indirect callback, not `0x10bd3824`**, and the
+>   callback may be null (tuple built, not linked). §5's sentence *"which calls
+>   the doubly-linked insert-after `0x10bd3824`"* is inherited from
+>   `P_EXPAND.md` §2 and is wrong at the same place.
+
 ### 5.1 So `P_EXPAND.md` §3's word counts are one-sided
 
 `dump_expansion.py --words` counts constructor calls. **It has no notion of
