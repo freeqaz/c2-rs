@@ -1,4 +1,4 @@
-# The cost protocol's rotation now balances ADJACENCY — and #3468's *sweep* was wrong about five of the runs it explained, which reading alone shows
+# The cost protocol's rotation now balances ADJACENCY — and the control that was meant to prove it came back clean, which is the larger finding
 
     Tag:       w-adjacency
     Slug:      w-adjacency
@@ -8,14 +8,14 @@
     Fixtures:  none — instrument lane: `scripts/cost_arms.py` only; `crates/` untouched
     Census:    +0 — nothing in `crates/` moved; this lane's fence forbids it
     Record:    this file; prereg `docs/rungs/_2026-08-24-w-adjacency-prereg.md`
-    Base:      67f276409   Board: #3521–#3524
+    Base:      67f276409   Board: #3521–#3525
 
 > **What this lane can fail on, named before it started.** It is an instrument
 > lane, so its failure axes are (i) shipping a design that does not actually
 > balance, (ii) shipping a guard that does not refuse, and (iii) claiming a
 > validation whose control did not fire. §2 answers (i) by re-deriving the
 > counts from the flat sequence rather than from the generator, §3 answers (ii)
-> by watching four refusals, and §4's registered P3a answers (iii) by requiring
+> by watching five refusals, and §4's registered P3a answers (iii) by requiring
 > the *old* rotation to reproduce the artefact on the same binaries before any
 > credit is taken for the new one.
 
@@ -60,6 +60,14 @@
   rotation" (`w-s1bc` 8-over-**4**, `w-s1c2` 6-over-3) were **not instances of
   it**. This **refutes and defers**: it shows completeness is not sufficient and
   establishes no cause. §5, §5.1, board **#3522**.
+* **`#3525` — THREE BUILDS OF ONE COMMIT ARE THREE BINARIES**, and the size
+  rises **monotonically with the build directory's name length** (+32 B at +2
+  characters, +48 at +6). Site: `crates/c2-reference/src/lib.rs:81` bakes
+  `env!("CARGO_MANIFEST_DIR")` — **the same line as #3470**, which produces an
+  arm that grades nothing and exits 0. Two lanes, two unrelated-looking defects,
+  one line. Every lane builds at a path of a different length **by
+  construction**, so this has been varying across every cross-lane cost
+  comparison ever made here. §4.6. **Measured in 42 seconds with no box.**
 * **Outcome: `built`.** The design half — rotation, closed form, self-test with
   its negative case, five watched refusals — is pure arithmetic with known
   answers and stands on its own. The measurement half **declined to claim**, in
@@ -517,9 +525,27 @@ comparison stand untouched.
 
 ---
 
-## 6. Gate evidence
+## 6. PREREG SCORECARD — every registered prediction, scored by the rule it was registered under
 
-*(filled below.)*
+| # | prediction | outcome |
+|---|---|---|
+| **P1** | `--show-design N` verifies `BALANCED` with `cross = self = pos = 2` and `rounds = 2N`, for N = 2…6 | **HIT.** All five. Deterministic, no box involved, and claimed as nothing more than arithmetic. |
+| **P2** | four guards watched refusing on deliberately broken input, each exit non-zero, message naming the legal count | **HIT, and one better — five.** `--rounds 9` (names 12), `--rounds 8` (names 6), `--rounds 0` (names 6), non-identical null, and `--show-design 7`. All exit 1. §3. |
+| **P3a** | run A reproduces the artefact: null **> +0.15 %** with split **≥ 60 %** | **MISS.** −0.00 %, split 43 %. §4.2. |
+| **P3b** | runs B and C both give `\|mean\| ≤ 0.20 %`, CI containing zero, split in [42 %, 58 %] | **NOT TAKEN.** The registered consequence of a P3a miss is that B and C prove nothing; they were not run. Recorded as not-taken, **not** as unscored. |
+| **P3c** | `\|null(B) − null(C)\| ≤ 0.20` points | **NOT TAKEN**, same reason. |
+| **P4** | *"I will re-take `w-s1c3`/#3468's reading only, and decline the other two with a price"*; tip stays positive in [+0.5 %, +1.5 %] | **NOT DONE.** Run E was not taken — the UNPOWERED verdict made a fourth reading of the same instrument worth less than the box time, and the coordinator stopped the sequence. **The binaries are built and pinned** (`e85253cda` / `4d04ee59e`), so the run is ~13 minutes whenever it is wanted. Scored as **not done**, because a prediction about what this lane would do is a prediction. |
+| **P5** | run F's build-to-build floor lands in ±0.2–0.7 % | **REGISTERED, NOT RUN** (prereg §8). Its `cmp` precondition **was** checked and the experiment is live — §4.6. Whoever funds it inherits a prediction they cannot fit after the fact. |
+
+**The one prediction this lane made about the world and could test came back
+against it.** P3a is the MISS that governs everything downstream, and it was
+registered with its consequence attached, so the consequence executed instead of
+being argued about afterwards.
+
+**A note on P4, because "not done" is the honest word and "declined" is not.**
+The prereg said this lane *would* re-take #3468's reading. It did not. That is a
+failure to deliver a registered intention, not a considered decline, and it is
+recorded in those terms — the price is in §7.2 and the binaries are on disk.
 
 ---
 
@@ -632,3 +658,51 @@ is a disagreement between a rebuild and a published number rather than between
 two binaries. Worth a convention: a lane publishing a cost reading should record
 the **md5 and the build directory** of every arm, which costs one line and would
 have made this an answerable question instead of an open one.
+
+---
+
+### 7.7 A NAMED, PRICED RECOMMENDATION TO WHOEVER HOLDS `crates/c2-reference`: resolve `repo_root()` at RUNTIME, and close TWO board rows from one site
+
+**Not attempted — `crates/` is outside this lane's fence.** Handed over as a
+two-defect fix rather than a tidy-up, because that is what it is.
+
+```rust
+// crates/c2-reference/src/lib.rs:81
+fn repo_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")   // captured at COMPILE time
+}
+```
+
+| closes | what the compile-time capture does today |
+|---|---|
+| **#3470** | a binary built in a scratch tree resolves `compilers/` relative to *that* tree, prints `SKIP: toolchain absent`, and **exits 0** — an arm that graded nothing while every stamp read was correct |
+| **#3525** | the captured string sets `.rodata` size, so **binary layout is a function of build-directory path length** (§4.6) |
+
+**Shape of the fix**: resolve at runtime — from `C2RS_REPO_ROOT` if set, else by
+walking up from `std::env::current_exe()` (or `current_dir()`) for a marker such
+as `Cargo.toml` + `crates/` — keeping the `env!` value only as a last-resort
+fallback. It must keep `CLAUDE.md`'s degrade-cleanly rule: absent toolchain
+still means `SKIP: toolchain absent`, never a panic.
+
+**Price**: one function, plus the tests that assert a relocated binary still
+finds the toolchain — which is exactly the case #3470 discovered by accident and
+nothing currently covers. **The hard part is not the code, it is deciding the
+search rule**, and it should be decided by whoever owns that crate rather than
+by a lane that cannot run its tests.
+
+**Why it is worth funding above the mitigations in §4.6.1**: it is the only
+option that removes the *cause*. Everything else this lane did or proposed —
+printing arm identity, building arms in one directory, padding paths — manages a
+symptom, and the padding option additionally rests on an **untested uniqueness
+assumption** (that `CARGO_MANIFEST_DIR` is the only path-length-sensitive
+capture in the binary). **A mitigation resting on an untested uniqueness
+assumption is worse than no mitigation, because it looks like the problem is
+handled** — and that generalises well past this instance.
+
+---
+
+## 8. Gate evidence
+
+*(filled below.)*
+
+---
