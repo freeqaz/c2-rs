@@ -125,6 +125,11 @@ fn print_usage() {
          \n\
          perf options: --port-iters N --ref-iters N --fixtures a.cpp,b.cpp\n\
          census: c2rs census <cpp> — per-function in-class/blocked verdict (P2b)\n\
+         \x20        [--tsv PATH] per-SLOT machine-readable dump (index, key,\n\
+         \x20        completeness) — slot identity is what a LADDER needs, and the\n\
+         \x20        histogram throws it away (#3131: one refusal per body by design)\n\
+         \x20        [--relax N] the shipped census relaxation ladder (0 strict,\n\
+         \x20        1 name-from-gl). INSTRUMENT ONLY — licenses no emit, ever.\n\
          perf-scale options: --fixture X.cpp --conc 1,2,4,8 --port-secs F --ref-secs F --csv PATH\n\
          corpus gen options: --seed N --count N --out DIR --timeout SECS\n\
          gap options: --list FILE --flags-file FILE [--cwd DIR] [--limit N] [--jobs N]\n\
