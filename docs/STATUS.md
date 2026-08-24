@@ -86,37 +86,37 @@ a read attached to it.
 > 63,335 graded**.
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-23 · tree `1cb1526b9` · binary `cfb6daf1cae9` · workload `e5aef017d`
+Collected 2026-08-24 · tree `b814d1db2` · binary `c5e1e52d8a9b` · workload `a29f559d0`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 1830 passed, 0 failed, 53 targets |
-| Oracle self-test (c2rs selftest) | 386 PASS, 0 FAIL |
-| Fixture port gate (c2rs perf) | 153 port Match, 0 mismatch, 233 not-implemented (of 386) |
-| Port speedup, geomean over matched fixtures | 619x geomean over matched fixtures |
-| 878-TU dc3 workload scan (c2rs gap) | match 26, mismatch 0, codegen-gap 0, vocab-gap 844, capture-fail 8 |
-| Per-function census (driver, not target) | 706944/2416152 functions in class (29.26%) |
-| Emitted-function census | 39339/162161 emitted functions in class (24.26%) |
-| Emitted-census residue | residue 9265: 1955 compiler-generated (no IL body), 7310 unexplained  (5.71% of the denominator) |
-| TU distance to match, blocked functions | ≤0: 17, ≤1: 20, ≤10: 27, ≤100: 34, ≤1000: 269 |
-| TU distance to match, blocked emitted functions | ≤0: 18, ≤1: 27, ≤10: 92, ≤100: 454, ≤1000: 859 |
-| Emit-set ceiling, LO-anchored (segments == COMDATs) | 27 of 870 graded TUs |
-| Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes) | 28 of 870 graded TUs |
-| Emit-set MODEL ceiling (today / repaired / wall) | 321 today / 416 repaired / 454 wall |
-| .gl binding invariants (records / arity / conflicts) | 1458527 records, 255 nameless, 0 before the first row, 38983 row-conflicts, 648 name-conflicts, 0 accounting breaks, 0 unreadable objs |
-| Phase-7 factors over the graded TUs (A / B / C / D / E) | A 28 (LO 27) · B 321 · C 170 · D 24 · E 4, of 870 graded |
-| Joint ceilings (B∧C, A∧B∧C) | B∧C 148 · A∧B∧C 27 · A∧B∧C∧D 22 |
-| Pre-Phase-7 FRONTIER (codegen breadth alone / if A were free) | 2 reachable by codegen breadth alone; 121 if factor A were free |
-| Emit-predicate worth, B∧C − A∧B∧C (board #213) | +121 TUs (B∧C − A∧B∧C) |
+| Workspace tests (cargo test --workspace --release) | 1864 passed, 0 failed, 54 targets |
+| Oracle self-test (c2rs selftest) | 391 PASS, 0 FAIL |
+| Fixture port gate (c2rs perf) | 157 port Match, 0 mismatch, 234 not-implemented (of 391) |
+| Port speedup, geomean over matched fixtures | 664x geomean over matched fixtures |
+| 878-TU dc3 workload scan (c2rs gap) | match 25, mismatch 0, codegen-gap 0, vocab-gap 845, capture-fail 8 |
+| Per-function census (driver, not target) | 707728/2417794 functions in class (29.27%) |
+| Emitted-function census | 39369/162205 emitted functions in class (24.27%) |
+| Emitted-census residue | residue 9255: 1952 compiler-generated (no IL body), 7303 unexplained  (5.71% of the denominator) |
+| TU distance to match, blocked functions | ≤0: 17, ≤1: 20, ≤10: 29, ≤100: 35, ≤1000: 268 |
+| TU distance to match, blocked emitted functions | ≤0: 18, ≤1: 27, ≤10: 92, ≤100: 455, ≤1000: 860 |
+| Emit-set ceiling, LO-anchored (segments == COMDATs) | 26 of 870 graded TUs |
+| Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes) | 29 of 870 graded TUs |
+| Emit-set MODEL ceiling (today / repaired / wall) | 322 today / 416 repaired / 454 wall |
+| .gl binding invariants (records / arity / conflicts) | 1459242 records, 254 nameless, 0 before the first row, 38928 row-conflicts, 676 name-conflicts, 0 accounting breaks, 0 unreadable objs |
+| Phase-7 factors over the graded TUs (A / B / C / D / E) | A 29 (LO 26) · B 322 · C 169 · D 23 · E 4, of 870 graded |
+| Joint ceilings (B∧C, A∧B∧C) | B∧C 148 · A∧B∧C 26 · A∧B∧C∧D 21 |
+| Pre-Phase-7 FRONTIER (codegen breadth alone / if A were free) | 2 reachable by codegen breadth alone; 122 if factor A were free |
+| Emit-predicate worth, B∧C − A∧B∧C (board #213) | +122 TUs (B∧C − A∧B∧C) |
 | Factor-C section ladder (writer names / workload names / next step) | 10 writer names of 13 workload names; 3 steps left, next +.rdata$r → C = 590 |
-| PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC.md) | P = 0.20979 · emitted in class 39339/162161 · mismatch-zeroed TUs 0 |
-| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.22135 · 35891 exact + 3 whole-TU of 162161 emitted functions, over 864 TUs (21 at 100%); 36421 are byte-exact before relocations are graded |
-| FBM partition (the under-report, and the controls) | partial 10 (FBM under-reports by this) · differs 1963 · reloc-differs 530 · reloc-unknown 0 (UNGRADED residue) · refused 114502 · unbound 9265 · 3984 credited fns relocate, every record graded · controls: partition-broken 0, reloc-reach-broken 0, match-TU differs 0, match-TU reloc-differs 0, census disagree 945 |
-| Per-TU FBM (how close is the other 870) | 21 of 864 TUs with emitted functions are 100% byte-exact per function |
-| OBJECT PLAN — emit set (both components WITHDRAWN; the seed is characterization) | components (BOTH WITHDRAWN — control red, prereg §3): members observable 870 | known 0 | exact 0 ;; order observable 870 | known 0 | exact 0 ;; CHARACTERIZATION — the 0x20 seed names 294 against 109310 emitted over the same 707 TUs (162161 over all graded), empty on 609 TUs, subset on 705, over-claims 2, closure owes 109018, equals c2 on 33 TUs of which 27 are substantive (the rest compare the empty set to the empty set) ;; .gl-record order agrees 18 of 707 ;; bounds-violations 0 of 707 checks reached |
-| OBJECT PLAN — the NAMED control on the byte-exact TUs, WITH ITS OWN SIZE | 26 pinned | 26 found | set-diff 0 | 26 present | 0 exact on every shipped component | 52 shortfall cell(s) = 0 differs + 52 unknown (only differs reds) | SIZE: 46 emitted name(s) over the pinned TUs, 6 of them comparing an EMPTY set, 9 comparing >= 2 names |
-| OBJECT PLAN — reference-side inventory (weak / COMDAT / undef) | weak 4008 records over 674 TUs | COMDAT sections 350535 (101110 associative over 846 TUs; 0 of UNKNOWN selection) | undefined externals 70143 over 856 TUs | sections 353047 (854 distinct attribute sequences) | relocation records 1323420 |
-| OBJECT PLAN — coverage and bit histogram of the .gl attribute reader | gl_function_attrs names 22994 record(s), 2802 of which c2 emitted; the framing-free reader names 882272 run(s), 70124 of which c2 emitted | bit histogram 0:2 1:0 2:959 3:22994 4:0 5:294(SEED) 6:22991(INLINABLE) 7:22273, byte==0x00 0 | observe vs text_comdat_functions over 870 TUs: 0 disagreement(s) |
+| PROGRESS MASS (driver, not target — docs/PROGRESS_METRIC.md) | P = 0.21010 · emitted in class 39369/162205 · mismatch-zeroed TUs 0 |
+| FUNCTION BYTE MATCH (driver, not target — docs/FUNCTION_BYTE_MATCH.md) | FBM = 0.22142 · 35912 exact + 3 whole-TU of 162205 emitted functions, over 865 TUs (21 at 100%); 36443 are byte-exact before relocations are graded |
+| FBM partition (the under-report, and the controls) | partial 10 (FBM under-reports by this) · differs 1968 · reloc-differs 531 · reloc-unknown 0 (UNGRADED residue) · refused 114529 · unbound 9255 · 3990 credited fns relocate, every record graded · controls: partition-broken 0, reloc-reach-broken 0, match-TU differs 0, match-TU reloc-differs 0, census disagree 948 |
+| Per-TU FBM (how close is the other 870) | 21 of 865 TUs with emitted functions are 100% byte-exact per function |
+| OBJECT PLAN — emit set (both components WITHDRAWN; the seed is characterization) | components (BOTH WITHDRAWN — control red, prereg §3): members observable 870 | known 0 | exact 0 ;; order observable 870 | known 0 | exact 0 ;; CHARACTERIZATION — the 0x20 seed names 305 against 109044 emitted over the same 704 TUs (162205 over all graded), empty on 606 TUs, subset on 702, over-claims 2, closure owes 108741, equals c2 on 32 TUs of which 27 are substantive (the rest compare the empty set to the empty set) ;; .gl-record order agrees 17 of 704 ;; bounds-violations 0 of 704 checks reached |
+| OBJECT PLAN — the NAMED control on the byte-exact TUs, WITH ITS OWN SIZE | 26 pinned | 25 found | set-diff 1 | 26 present | 0 exact on every shipped component | 52 shortfall cell(s) = 0 differs + 52 unknown (only differs reds) | SIZE: 59 emitted name(s) over the pinned TUs, 5 of them comparing an EMPTY set, 10 comparing >= 2 names |
+| OBJECT PLAN — reference-side inventory (weak / COMDAT / undef) | weak 4008 records over 675 TUs | COMDAT sections 350656 (101130 associative over 848 TUs; 0 of UNKNOWN selection) | undefined externals 70214 over 857 TUs | sections 353168 (855 distinct attribute sequences) | relocation records 1323798 |
+| OBJECT PLAN — coverage and bit histogram of the .gl attribute reader | gl_function_attrs names 22913 record(s), 2802 of which c2 emitted; the framing-free reader names 882980 run(s), 70147 of which c2 emitted | bit histogram 0:2 1:0 2:961 3:22913 4:0 5:305(SEED) 6:22910(INLINABLE) 7:22186, byte==0x00 0 | observe vs text_comdat_functions over 870 TUs: 0 disagreement(s) |
 
 <!-- END GENERATED -->
 
