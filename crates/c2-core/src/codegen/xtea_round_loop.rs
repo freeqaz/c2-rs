@@ -63,9 +63,10 @@
 //! [`c2_il::IlFunction::label_lead`]'s `+2`.
 
 use crate::codegen::encode::{
-    encode_add, encode_addi, encode_addis, encode_bdnz, encode_blr, encode_lwzx, encode_mtctr,
-    encode_rldicl, encode_rldimi, encode_rlwinm, encode_xor,
+    mop_add, mop_addi, mop_addis, mop_bdnz, mop_blr, mop_lwzx, mop_mtctr,
+    mop_rldicl, mop_rldimi, mop_rlwinm, mop_xor,
 };
+use crate::codegen::mop::{ops_to_bytes, MachineOp, Ops};
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
 use c2_il::XteaRoundLoop;
@@ -97,19 +98,37 @@ const BACK_EDGE: i32 = -80;
 
 /// `slwi rA,rS,k` is `rlwinm rA,rS,k,0,31-k`; `srwi rA,rS,k` is
 /// `rlwinm rA,rS,32-k,k,31`. Written out rather than shared with
-/// [`encode_rlwinm`]'s callers because the two forms differ only in their field
+/// [`mop_rlwinm`]'s callers because the two forms differ only in their field
 /// arithmetic and a single helper for both is how a mask ends up one bit wide.
-fn slwi(ra: u8, rs: u8, k: u8) -> [u8; 4] {
-    encode_rlwinm(ra, rs, k, 0, 31 - k)
+///
+/// **S1c (i): both build a [`MachineOp`] rather than a word.** They are the
+/// file's only obstruction to an op stream and the conversion is exactly the
+/// return type — the field arithmetic, which is the part the doc above warns
+/// about, is untouched.
+fn slwi(ra: u8, rs: u8, k: u8) -> MachineOp {
+    mop_rlwinm(ra, rs, k, 0, 31 - k)
 }
-fn srwi(ra: u8, rs: u8, k: u8) -> [u8; 4] {
-    encode_rlwinm(ra, rs, 32 - k, k, 31)
+fn srwi(ra: u8, rs: u8, k: u8) -> MachineOp {
+    mop_rlwinm(ra, rs, 32 - k, k, 31)
 }
 
 /// The whole body, `blr` included. Nothing is left for the caller: this class
 /// has no branch word that encodes its own `.text` offset — the `bdnz` is
 /// self-relative and takes no relocation.
 pub fn xtea_round_loop_text(x: &XteaRoundLoop, mode: OptMode) -> Result<Vec<u8>, BackendError> {
+    Ok(ops_to_bytes(&xtea_round_loop_ops(x, mode)?))
+}
+
+/// **S1c (i): the same twenty-nine words as an op stream**, reachable by a
+/// caller.
+///
+/// The header calls this body a TRANSCRIPTION of c2's software-pipelined
+/// schedule — the `addis`/`addi` pair split around an unrelated `xor`, the
+/// second half-round's index word hoisted above the first half's last use of
+/// r11. That schedule is the content of the class, and an op stream is the form
+/// in which it is *readable*: the goal's permuter searches orderings, and it
+/// can only search an ordering it can see.
+pub fn xtea_round_loop_ops(x: &XteaRoundLoop, mode: OptMode) -> Result<Ops, BackendError> {
     // **The mode gate is asked here as well as in the parser** (board #1638). At
     // `/Ox` this source is 1,352 bytes with a `__savegprlr_28` frame, six
     // relocations and the loop fully unrolled.
@@ -140,45 +159,45 @@ pub fn xtea_round_loop_text(x: &XteaRoundLoop, mode: OptMode) -> Result<Vec<u8>,
     // thing that moves them, and it moves exactly these two fields.
     let (ret_lo, ret_hi) = if x.swapped { (R_V2, R_V1) } else { (R_V1, R_V2) };
 
-    let mut t = Vec::with_capacity(116);
+    let mut t: Ops = Vec::with_capacity(29);
     // -- prologue ----------------------------------------------------------
-    t.extend_from_slice(&encode_addi(R_T8, 0, x.trips as i16)); // li r8,<trips>
-    t.extend_from_slice(&slwi(R_V1, R_NONCE, 0)); // slwi r10,r4,0
-    t.extend_from_slice(&encode_rldicl(R_V2, R_NONCE, 32, 32)); // rldicl r9,r4,32,32
-    t.extend_from_slice(&encode_addi(R_SUM, 0, 0)); // li r11,0
-    t.extend_from_slice(&encode_mtctr(R_T8));
+    t.push(mop_addi(R_T8, 0, x.trips as i16)); // li r8,<trips>
+    t.push(slwi(R_V1, R_NONCE, 0)); // slwi r10,r4,0
+    t.push(mop_rldicl(R_V2, R_NONCE, 32, 32)); // rldicl r9,r4,32,32
+    t.push(mop_addi(R_SUM, 0, 0)); // li r11,0
+    t.push(mop_mtctr(R_T8));
     // -- the round ---------------------------------------------------------
     // `(sum & 3) * 4`: rotate left 2 with a mask of bits 28..29 does the AND and
     // the scale in one word.
-    t.extend_from_slice(&encode_rlwinm(R_T8, R_SUM, 2, 28, 29));
-    t.extend_from_slice(&slwi(R_T6, R_V2, 4));
-    t.extend_from_slice(&srwi(R_T7, R_V2, 5));
-    t.extend_from_slice(&encode_xor(R_T7, R_T7, R_T6));
-    t.extend_from_slice(&encode_lwzx(R_T8, R_T8, R_KEY));
-    t.extend_from_slice(&encode_add(R_T7, R_T7, R_V2));
-    t.extend_from_slice(&encode_add(R_T8, R_T8, R_SUM));
-    t.extend_from_slice(&encode_addis(R_SUM, R_SUM, hi));
-    t.extend_from_slice(&encode_xor(R_T8, R_T7, R_T8));
-    t.extend_from_slice(&encode_addi(R_SUM, R_SUM, lo as i16));
-    t.extend_from_slice(&encode_add(R_V1, R_T8, R_V1));
+    t.push(mop_rlwinm(R_T8, R_SUM, 2, 28, 29));
+    t.push(slwi(R_T6, R_V2, 4));
+    t.push(srwi(R_T7, R_V2, 5));
+    t.push(mop_xor(R_T7, R_T7, R_T6));
+    t.push(mop_lwzx(R_T8, R_T8, R_KEY));
+    t.push(mop_add(R_T7, R_T7, R_V2));
+    t.push(mop_add(R_T8, R_T8, R_SUM));
+    t.push(mop_addis(R_SUM, R_SUM, hi));
+    t.push(mop_xor(R_T8, R_T7, R_T8));
+    t.push(mop_addi(R_SUM, R_SUM, lo as i16));
+    t.push(mop_add(R_V1, R_T8, R_V1));
     // `((sum >> 11) & 3) * 4`: `32 - 11 + 2 == 23`, and the same 28..29 mask.
-    t.extend_from_slice(&encode_rlwinm(R_T7, R_SUM, 23, 28, 29));
-    t.extend_from_slice(&srwi(R_T8, R_V1, 5));
-    t.extend_from_slice(&slwi(R_T6, R_V1, 4));
-    t.extend_from_slice(&encode_xor(R_T8, R_T8, R_T6));
-    t.extend_from_slice(&encode_lwzx(R_T7, R_T7, R_KEY));
-    t.extend_from_slice(&encode_add(R_T8, R_T8, R_V1));
-    t.extend_from_slice(&encode_add(R_T7, R_T7, R_SUM));
-    t.extend_from_slice(&encode_xor(R_T8, R_T8, R_T7));
-    t.extend_from_slice(&encode_add(R_V2, R_T8, R_V2));
-    t.extend_from_slice(&encode_bdnz(BACK_EDGE).ok_or_else(|| {
+    t.push(mop_rlwinm(R_T7, R_SUM, 23, 28, 29));
+    t.push(srwi(R_T8, R_V1, 5));
+    t.push(slwi(R_T6, R_V1, 4));
+    t.push(mop_xor(R_T8, R_T8, R_T6));
+    t.push(mop_lwzx(R_T7, R_T7, R_KEY));
+    t.push(mop_add(R_T8, R_T8, R_V1));
+    t.push(mop_add(R_T7, R_T7, R_SUM));
+    t.push(mop_xor(R_T8, R_T8, R_T7));
+    t.push(mop_add(R_V2, R_T8, R_V2));
+    t.push(mop_bdnz(BACK_EDGE).ok_or_else(|| {
         out_of_class("an XTEA round loop whose back edge does not fit a `bdnz`")
     })?);
     // -- the returned pair -------------------------------------------------
-    t.extend_from_slice(&encode_rldicl(R_RET, ret_lo, 0, 32));
-    t.extend_from_slice(&encode_rldimi(R_RET, ret_hi, 32, 0));
-    t.extend_from_slice(&encode_blr());
-    debug_assert_eq!(t.len(), 116);
+    t.push(mop_rldicl(R_RET, ret_lo, 0, 32));
+    t.push(mop_rldimi(R_RET, ret_hi, 32, 0));
+    t.push(mop_blr());
+    debug_assert_eq!(t.len(), 29, "the class's body length is a constant");
     Ok(t)
 }
 
@@ -265,8 +284,16 @@ mod tests {
 
     /// `rldimi`'s own measured word, which is what separates its extended
     /// opcode from `rldicl`'s.
+    ///
+    /// **Still asked of the ENCODER, not of the twin, after S1c (i) moved the
+    /// body to `mop_rldimi`.** `encode_rldimi` is `mop_rldimi(..).word()`, so
+    /// the two cannot disagree — but this assertion's subject is the *word*,
+    /// and rewriting it as `mop_rldimi(..).word()` would restate the definition
+    /// instead of checking the measurement. The import is explicit for the same
+    /// reason the emitter's is not.
     #[test]
     fn the_rldimi_encoder_reproduces_the_measured_word() {
+        use crate::codegen::encode::encode_rldimi;
         assert_eq!(encode_rldimi(3, 9, 32, 0), [0x79, 0x23, 0x00, 0x0e]);
         assert_eq!(encode_rldimi(3, 10, 32, 0), [0x79, 0x43, 0x00, 0x0e]);
     }

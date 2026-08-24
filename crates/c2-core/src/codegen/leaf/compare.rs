@@ -3,27 +3,28 @@
 
 use crate::BackendError;
 use crate::codegen::encode::{
-    encode_adde,
-    encode_addi,
-    encode_addic,
-    encode_addze,
-    encode_andc,
-    encode_blr,
-    encode_clrlwi31,
-    encode_cntlzw,
-    encode_eqv,
-    encode_neg,
-    encode_orc,
-    encode_rlwinm,
-    encode_srawi,
-    encode_srwi31,
-    encode_subf,
-    encode_subfc,
-    encode_subfe,
-    encode_subfic,
-    encode_subfze,
-    encode_xori,
+    mop_adde,
+    mop_addi,
+    mop_addic,
+    mop_addze,
+    mop_andc,
+    mop_blr,
+    mop_clrlwi31,
+    mop_cntlzw,
+    mop_eqv,
+    mop_neg,
+    mop_orc,
+    mop_rlwinm,
+    mop_srawi,
+    mop_srwi31,
+    mop_subf,
+    mop_subfc,
+    mop_subfe,
+    mop_subfic,
+    mop_subfze,
+    mop_xori,
 };
+use crate::codegen::mop::{ops_to_bytes, Ops};
 use crate::codegen::select::{OptMode, RET_REG, out_of_class};
 
 /// **"Is the difference already in r11 zero?"** — the two words that turn a
@@ -47,14 +48,40 @@ use crate::codegen::select::{OptMode, RET_REG, out_of_class};
 /// exactly the one-fact-two-implementations drift `docs/GAPS.md` §6 records, and
 /// the mode axis is the field that would have silently diverged.
 pub fn eq_zero_of_difference_in_r11(mode: OptMode) -> Vec<u8> {
+    ops_to_bytes(&eq_zero_of_difference_in_r11_ops(mode))
+}
+
+/// **S1c (i): the same two words as an op stream.**
+///
+/// The split exists so that the locator stays ONE locator across the
+/// conversion: both consumers — [`compare_leaf_ops`]'s `Rel::Eq` arms and
+/// [`cmp_of_two_call_results_ops`]'s — splice this stream directly rather than
+/// each rendering it and concatenating bytes. The mode axis, which the doc
+/// above names as the field that would have silently diverged had the two words
+/// been copied, is still read in exactly one place.
+pub fn eq_zero_of_difference_in_r11_ops(mode: OptMode) -> Ops {
     let d = if mode == OptMode::O1 { 11 } else { 10 };
-    let mut t = Vec::with_capacity(8);
-    t.extend_from_slice(&encode_cntlzw(d, 11));
-    t.extend_from_slice(&encode_rlwinm(RET_REG, d, 27, 31, 31));
+    let mut t: Ops = Vec::with_capacity(2);
+    t.push(mop_cntlzw(d, 11));
+    t.push(mop_rlwinm(RET_REG, d, 27, 31, 31));
     t
 }
 
-/// **WCR — the two-call comparator's spine**: `return a->m() <rel> b->n();`
+/// **WCR — the two-call comparator's spine**, rendered.
+///
+/// The class's own record — the three spines, why `<` is `>` with the operands
+/// exchanged, and why this is NOT the leaf spine with the `li` deleted — is on
+/// [`cmp_of_two_call_results_ops`], which is the function that emits them.
+pub fn cmp_of_two_call_results(
+    cmp: c2_il::SeqCmp,
+    lhs_first: bool,
+    first: Option<u8>,
+    mode: OptMode,
+) -> Result<Vec<u8>, BackendError> {
+    Ok(ops_to_bytes(&cmp_of_two_call_results_ops(cmp, lhs_first, first, mode)?))
+}
+
+/// **S1c (i) — WCR, the two-call comparator's spine**: `return a->m() <rel> b->n();`
 /// lowered to a 0/1 in r3, with both operands in registers.
 ///
 /// `first` is the callee-saved register holding the **first** call's result;
@@ -76,7 +103,7 @@ pub fn eq_zero_of_difference_in_r11(mode: OptMode) -> Vec<u8> {
 /// ```
 ///
 /// **`<` is `>` with the two operands exchanged and nothing else** — the same
-/// relationship [`compare_leaf_text`]'s `Rel::Lt` arm has to its `Rel::Gt` arm,
+/// relationship [`compare_leaf_ops`]'s `Rel::Lt` arm has to its `Rel::Gt` arm,
 /// so it is one spine here rather than two, and the exchange composes with
 /// `lhs_first`'s.
 ///
@@ -94,55 +121,77 @@ pub fn eq_zero_of_difference_in_r11(mode: OptMode) -> Vec<u8> {
 /// a non-zero literal; over two call results the same two relations diverge (and
 /// are refused in the IL parser for exactly that reason), while `>`, `<`, `==`
 /// and `!=` are byte-identical in `int`, `bool` and `unsigned` in all four modes.
-pub fn cmp_of_two_call_results(
+///
+/// ---
+///
+/// **S1c (i): an op stream, reachable by a caller.** It moves with [`compare_leaf_ops`] rather than on its own schedule because
+/// the two share [`eq_zero_of_difference_in_r11_ops`], and a shared locator
+/// that one caller splices as ops while the other renders it as bytes is the
+/// one-fact-two-implementations drift the byte version's doc was written to
+/// prevent.
+pub fn cmp_of_two_call_results_ops(
     cmp: c2_il::SeqCmp,
     lhs_first: bool,
     first: Option<u8>,
     mode: OptMode,
-) -> Result<Vec<u8>, BackendError> {
+) -> Result<Ops, BackendError> {
     let first = first.ok_or_else(|| {
         out_of_class("a comparison of two call results needs a callee-saved register for the first")
     })?;
     let (lhs, rhs) = if lhs_first { (first, RET_REG) } else { (RET_REG, first) };
     let o1 = mode == OptMode::O1;
-    let mut t: Vec<u8> = Vec::with_capacity(24);
+    let mut t: Ops = Vec::with_capacity(6);
     match cmp {
         // The difference, then "is it zero" — the two words shared with the
         // comparison leaf's `==` arm.
         c2_il::SeqCmp::Eq => {
-            t.extend_from_slice(&encode_subf(11, lhs, rhs));
-            t.extend_from_slice(&eq_zero_of_difference_in_r11(mode));
+            t.push(mop_subf(11, lhs, rhs));
+            t.extend(eq_zero_of_difference_in_r11_ops(mode));
         }
         // `a > b` (and `a < b`, which is `b > a`). The `subfc` result is dead —
         // only its carry is read — but its register number is byte-visible.
         c2_il::SeqCmp::Order { greater, signed } => {
             let (a, b) = if greater { (lhs, rhs) } else { (rhs, lhs) };
-            t.extend_from_slice(&encode_subfc(11, a, b));
+            t.push(mop_subfc(11, a, b));
             if signed {
                 // /O1 collapses the two temps *after* the `eqv` onto r11; /Ox
                 // keeps allocating descending. The `eqv` itself takes r10 in
                 // both, which is what makes this not a one-line substitution of
                 // the leaf's `(11,11,11)` / `(9,8,7)` triple.
                 let (e, f, g) = if o1 { (10, 11, 11) } else { (10, 9, 8) };
-                t.extend_from_slice(&encode_eqv(e, a, b));
-                t.extend_from_slice(&encode_srwi31(f, e));
-                t.extend_from_slice(&encode_addze(g, f));
-                t.extend_from_slice(&encode_clrlwi31(RET_REG, g));
+                t.push(mop_eqv(e, a, b));
+                t.push(mop_srwi31(f, e));
+                t.push(mop_addze(g, f));
+                t.push(mop_clrlwi31(RET_REG, g));
             } else {
                 // The don't-care `subfe` source, same numbers as the leaf's
                 // unsigned `>` arm — there the `subfic` occupies r11, here the
                 // `subfc` does, so the descending allocation is in step.
                 let (d, src) = if o1 { (11, 11) } else { (9, 10) };
-                t.extend_from_slice(&encode_subfe(d, src, src));
-                t.extend_from_slice(&encode_clrlwi31(RET_REG, d));
+                t.push(mop_subfe(d, src, src));
+                t.push(mop_clrlwi31(RET_REG, d));
             }
         }
     }
     Ok(t)
 }
 
-/// Select `.text` for a **W6 comparison leaf** (`return a <rel> k;`), returning
-/// the spine plus its trailing `blr`.
+/// Select `.text` for a **W6 comparison leaf** (`return a <rel> k;`) — the
+/// spine plus its trailing `blr`, rendered.
+///
+/// The class's own record — why c2 materializes these branchlessly, why the
+/// `k == 0` folds are dispatched first and are not optional, and which
+/// temporary collapses where at `/O1` — is on [`compare_leaf_ops`], which is
+/// the function whose arms those paragraphs describe.
+pub fn compare_leaf_text(
+    cmp: &c2_il::CompareLeaf,
+    mode: OptMode,
+) -> Result<Vec<u8>, BackendError> {
+    Ok(ops_to_bytes(&compare_leaf_ops(cmp, mode)?))
+}
+
+/// **S1c (i): the W6 comparison leaf (`return a <rel> k;`) as an op stream**,
+/// reachable by a caller — the spine plus its trailing `blr`.
 ///
 /// c2 materializes these branchlessly — it emits no `cmpw`/`cmplw` at all for
 /// this shape — using carry-bit and bit-extraction idioms. Every sequence below
@@ -166,10 +215,24 @@ pub fn cmp_of_two_call_results(
 /// registers, and it schedules — numbering order is not emission order), so this
 /// function accepts exactly the characterized shapes and returns
 /// `NotImplemented` for the rest.
-pub fn compare_leaf_text(
+///
+/// ---
+///
+/// The largest producer S1c (i) converts — nineteen match arms over
+/// relation × signedness × literal — and the one with the most to say to the
+/// goal's two named consumers. Every arm's *content* is a register-allocation
+/// decision read off a live capture: which temp collapses onto r11 at `/O1`,
+/// which don't-care source is byte-visible, which spine emits its two sign
+/// shifts in source order. Those are exactly the decisions a permuter would
+/// search and a matching-pretext generator would narrate, and until now they
+/// existed only as bytes.
+///
+/// **No arm's register numbers, immediates, operand order or op count moved.**
+/// This builds the same sequence one representation earlier.
+pub fn compare_leaf_ops(
     cmp: &c2_il::CompareLeaf,
     mode: OptMode,
-) -> Result<Vec<u8>, BackendError> {
+) -> Result<Ops, BackendError> {
     use c2_il::Rel;
     // The relational spines below are `/Ox` shapes. `/O1` reallocates them — 14 of
     // `w6_rel_k`'s 19 leaves differ in their register fields (never in an opcode) —
@@ -184,7 +247,7 @@ pub fn compare_leaf_text(
     // its own substitution, because which temps can collapse depends on what is
     // still live at that point in that spine.
     let o1 = mode == OptMode::O1;
-    let mut t: Vec<u8> = Vec::with_capacity(28);
+    let mut t: Ops = Vec::with_capacity(7);
     let a = RET_REG; // the compared formal is the first argument, r3
 
     if cmp.k == 0 {
@@ -192,14 +255,14 @@ pub fn compare_leaf_text(
         match (cmp.rel, cmp.signed) {
             // `a == 0` — same bytes signed and unsigned.
             (Rel::Eq, _) => {
-                t.extend_from_slice(&encode_cntlzw(11, a));
-                t.extend_from_slice(&encode_rlwinm(RET_REG, 11, 27, 31, 31));
+                t.push(mop_cntlzw(11, a));
+                t.push(mop_rlwinm(RET_REG, 11, 27, 31, 31));
             }
             // `a != 0` — same bytes signed and unsigned. `~(x-1) == -x`, so the
             // register terms cancel and r3 is exactly the carry.
             (Rel::Ne, _) => {
-                t.extend_from_slice(&encode_addic(11, a, -1));
-                t.extend_from_slice(&encode_subfe(RET_REG, 11, a));
+                t.push(mop_addic(11, a, -1));
+                t.push(mop_subfe(RET_REG, 11, a));
             }
             // signed `a > 0` → (-a) & ~a, sign bit.
             (Rel::Gt, true) => {
@@ -207,41 +270,41 @@ pub fn compare_leaf_text(
                 // r11. Ten of the twelve zero folds are mode-identical; this and
                 // `<=` are the two that are not, for exactly that reason.
                 let d = if o1 { 11 } else { 10 };
-                t.extend_from_slice(&encode_neg(11, a));
-                t.extend_from_slice(&encode_andc(d, 11, a));
-                t.extend_from_slice(&encode_srwi31(RET_REG, d));
+                t.push(mop_neg(11, a));
+                t.push(mop_andc(d, 11, a));
+                t.push(mop_srwi31(RET_REG, d));
             }
             // unsigned `a > 0` is exactly `a != 0`.
             (Rel::Gt, false) => {
-                t.extend_from_slice(&encode_addic(11, a, -1));
-                t.extend_from_slice(&encode_subfe(RET_REG, 11, a));
+                t.push(mop_addic(11, a, -1));
+                t.push(mop_subfe(RET_REG, 11, a));
             }
             // signed `a < 0` is just the sign bit.
-            (Rel::Lt, true) => t.extend_from_slice(&encode_srwi31(RET_REG, a)),
+            (Rel::Lt, true) => t.push(mop_srwi31(RET_REG, a)),
             // unsigned `a < 0` is constant false.
-            (Rel::Lt, false) => t.extend_from_slice(&encode_addi(RET_REG, 0, 0)),
+            (Rel::Lt, false) => t.push(mop_addi(RET_REG, 0, 0)),
             // signed `a <= 0` → a | ~(-a), sign bit.
             (Rel::Le, true) => {
                 // /O1: as for `>` above — the `orc` consumes the dying `neg`.
                 let d = if o1 { 11 } else { 10 };
-                t.extend_from_slice(&encode_neg(11, a));
-                t.extend_from_slice(&encode_orc(d, a, 11));
-                t.extend_from_slice(&encode_srwi31(RET_REG, d));
+                t.push(mop_neg(11, a));
+                t.push(mop_orc(d, a, 11));
+                t.push(mop_srwi31(RET_REG, d));
             }
             // unsigned `a <= 0` is exactly `a == 0`.
             (Rel::Le, false) => {
-                t.extend_from_slice(&encode_cntlzw(11, a));
-                t.extend_from_slice(&encode_rlwinm(RET_REG, 11, 27, 31, 31));
+                t.push(mop_cntlzw(11, a));
+                t.push(mop_rlwinm(RET_REG, 11, 27, 31, 31));
             }
             // signed `a >= 0` → !sign.
             (Rel::Ge, true) => {
-                t.extend_from_slice(&encode_srwi31(11, a));
-                t.extend_from_slice(&encode_xori(RET_REG, 11, 1));
+                t.push(mop_srwi31(11, a));
+                t.push(mop_xori(RET_REG, 11, 1));
             }
             // unsigned `a >= 0` is constant true.
-            (Rel::Ge, false) => t.extend_from_slice(&encode_addi(RET_REG, 0, 1)),
+            (Rel::Ge, false) => t.push(mop_addi(RET_REG, 0, 1)),
         }
-        t.extend_from_slice(&encode_blr());
+        t.push(mop_blr());
         return Ok(t);
     }
 
@@ -303,14 +366,14 @@ pub fn compare_leaf_text(
             // /O1: the `cntlzw` is the difference's last use, so it lands in r11.
             // Both words are [`eq_zero_of_difference_in_r11`]'s, shared with the
             // two-call comparator, whose difference is a `subf` instead.
-            t.extend_from_slice(&encode_addi(11, a, -k16));
-            t.extend_from_slice(&eq_zero_of_difference_in_r11(mode));
+            t.push(mop_addi(11, a, -k16));
+            t.extend(eq_zero_of_difference_in_r11_ops(mode));
         }
         // `a != k` → the `!= 0` spine applied to the difference.
         (Rel::Ne, _) => {
-            t.extend_from_slice(&encode_addi(11, a, -k16));
-            t.extend_from_slice(&encode_addic(10, 11, -1));
-            t.extend_from_slice(&encode_subfe(RET_REG, 10, 11));
+            t.push(mop_addi(11, a, -k16));
+            t.push(mop_addic(10, 11, -1));
+            t.push(mop_subfe(RET_REG, 10, 11));
         }
         // unsigned `a > k`: CA of `k - a` is `a <= k`, so the answer is !CA.
         // `subfe r9,r10,r10` reads r10, which is never defined — the register
@@ -320,9 +383,9 @@ pub fn compare_leaf_text(
             // /O1 names the don't-care `subfe` source r11 as well as its dest, so
             // unlike /Ox it reads a *defined* (if dead) register here.
             let (d, src) = if o1 { (11, 11) } else { (9, 10) };
-            t.extend_from_slice(&encode_subfic(11, a, k16));
-            t.extend_from_slice(&encode_subfe(d, src, src));
-            t.extend_from_slice(&encode_clrlwi31(RET_REG, d));
+            t.push(mop_subfic(11, a, k16));
+            t.push(mop_subfe(d, src, src));
+            t.push(mop_clrlwi31(RET_REG, d));
         }
         // signed `a > k`: the 5-instruction spine. p = a (the greater side),
         // q = k. The final clrlwi exists solely to kill the `2` case.
@@ -331,12 +394,12 @@ pub fn compare_leaf_text(
             // but the `eqv` is r11's last use and every temp from there on collapses
             // onto it.
             let (e, f, g) = if o1 { (11, 11, 11) } else { (9, 8, 7) };
-            t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
-            t.extend_from_slice(&encode_subfc(10, a, 11)); // r10 dead; CA is the point
-            t.extend_from_slice(&encode_eqv(e, a, 11));
-            t.extend_from_slice(&encode_srwi31(f, e));
-            t.extend_from_slice(&encode_addze(g, f));
-            t.extend_from_slice(&encode_clrlwi31(RET_REG, g));
+            t.push(mop_addi(11, 0, k16)); // li r11,k
+            t.push(mop_subfc(10, a, 11)); // r10 dead; CA is the point
+            t.push(mop_eqv(e, a, 11));
+            t.push(mop_srwi31(f, e));
+            t.push(mop_addze(g, f));
+            t.push(mop_clrlwi31(RET_REG, g));
         }
         // signed `a < k`: the signed `>` spine with the two operand roles
         // swapped, and *only* that — the register numbers, the instruction count
@@ -348,12 +411,12 @@ pub fn compare_leaf_text(
             // /O1: same collapse as signed `>`; only the two swapped operand
             // roles distinguish this spine from it.
             let (e, f, g) = if o1 { (11, 11, 11) } else { (9, 8, 7) };
-            t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
-            t.extend_from_slice(&encode_subfc(10, 11, a)); // r10 dead; CA is the point
-            t.extend_from_slice(&encode_eqv(e, 11, a));
-            t.extend_from_slice(&encode_srwi31(f, e));
-            t.extend_from_slice(&encode_addze(g, f));
-            t.extend_from_slice(&encode_clrlwi31(RET_REG, g));
+            t.push(mop_addi(11, 0, k16)); // li r11,k
+            t.push(mop_subfc(10, 11, a)); // r10 dead; CA is the point
+            t.push(mop_eqv(e, 11, a));
+            t.push(mop_srwi31(f, e));
+            t.push(mop_addze(g, f));
+            t.push(mop_clrlwi31(RET_REG, g));
         }
         // unsigned `a < k`. Unlike unsigned `>`, the literal cannot ride in the
         // `subfic` immediate: the borrow wanted here is the one out of `a - k`,
@@ -366,10 +429,10 @@ pub fn compare_leaf_text(
             // above, and the clearest evidence that the rule is about consumption
             // rather than about the instruction's kind.
             let (c, d, src) = if o1 { (11, 11, 11) } else { (10, 8, 9) };
-            t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
-            t.extend_from_slice(&encode_subfc(c, 11, a)); // dead; CA is the point
-            t.extend_from_slice(&encode_subfe(d, src, src)); // terms cancel
-            t.extend_from_slice(&encode_clrlwi31(RET_REG, d));
+            t.push(mop_addi(11, 0, k16)); // li r11,k
+            t.push(mop_subfc(c, 11, a)); // dead; CA is the point
+            t.push(mop_subfe(d, src, src)); // terms cancel
+            t.push(mop_clrlwi31(RET_REG, d));
         }
         // signed `a >= k`. Two sign terms plus the unsigned borrow, summed by one
         // `adde`: `srawi` broadcasts the sign of the *left* side of the `>=` as
@@ -382,11 +445,11 @@ pub fn compare_leaf_text(
             // /O1: only the `subfc` moves — it is r11's last use, and the two sign
             // temps must both stay live for the `adde`.
             let d = if o1 { 11 } else { 8 };
-            t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
-            t.extend_from_slice(&encode_srawi(10, a, 31)); // sign(a) as 0/-1
-            t.extend_from_slice(&encode_srwi31(9, 11)); // sign(k) as 0/1
-            t.extend_from_slice(&encode_subfc(d, 11, a)); // dead; CA is the point
-            t.extend_from_slice(&encode_adde(RET_REG, 9, 10));
+            t.push(mop_addi(11, 0, k16)); // li r11,k
+            t.push(mop_srawi(10, a, 31)); // sign(a) as 0/-1
+            t.push(mop_srwi31(9, 11)); // sign(k) as 0/1
+            t.push(mop_subfc(d, 11, a)); // dead; CA is the point
+            t.push(mop_adde(RET_REG, 9, 10));
         }
         // signed `a <= k` is `k >= a`, so the roles invert: the 0/1 shift now
         // applies to `a` and the 0/−1 one to `k`. Emission still follows source
@@ -394,33 +457,33 @@ pub fn compare_leaf_text(
         (Rel::Le, true) => {
             // /O1: as for `>=` — only the `subfc` dest collapses.
             let d = if o1 { 11 } else { 8 };
-            t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
-            t.extend_from_slice(&encode_srwi31(10, a)); // sign(a) as 0/1
-            t.extend_from_slice(&encode_srawi(9, 11, 31)); // sign(k) as 0/-1
-            t.extend_from_slice(&encode_subfc(d, a, 11)); // dead; CA is the point
-            t.extend_from_slice(&encode_adde(RET_REG, 10, 9));
+            t.push(mop_addi(11, 0, k16)); // li r11,k
+            t.push(mop_srwi31(10, a)); // sign(a) as 0/1
+            t.push(mop_srawi(9, 11, 31)); // sign(k) as 0/-1
+            t.push(mop_subfc(d, a, 11)); // dead; CA is the point
+            t.push(mop_adde(RET_REG, 10, 9));
         }
         // unsigned `a >= k`: CA out of `a - k` *is* the answer, so all that is
         // left is to materialize it. `subfze rD,rA` computes `~rA + CA`, so
         // against a preloaded −1 it yields CA alone. Note `subfc` writes its
         // (dead) difference back over r11 rather than taking a fresh register.
         (Rel::Ge, false) => {
-            t.extend_from_slice(&encode_addi(11, 0, k16)); // li r11,k
-            t.extend_from_slice(&encode_addi(10, 0, -1)); // li r10,-1
-            t.extend_from_slice(&encode_subfc(11, 11, a)); // r11 reused; CA is the point
-            t.extend_from_slice(&encode_subfze(RET_REG, 10));
+            t.push(mop_addi(11, 0, k16)); // li r11,k
+            t.push(mop_addi(10, 0, -1)); // li r10,-1
+            t.push(mop_subfc(11, 11, a)); // r11 reused; CA is the point
+            t.push(mop_subfze(RET_REG, 10));
         }
         // unsigned `a <= k` is the one shape where the literal *can* ride in the
         // `subfic` immediate — the borrow wanted is the one out of `k - a`. So no
         // `li r11,k`, three instructions, and the −1 is emitted **first** even
         // though it takes the lower register number.
         (Rel::Le, false) => {
-            t.extend_from_slice(&encode_addi(10, 0, -1)); // li r10,-1
-            t.extend_from_slice(&encode_subfic(11, a, k16)); // r11 dead; CA is the point
-            t.extend_from_slice(&encode_subfze(RET_REG, 10));
+            t.push(mop_addi(10, 0, -1)); // li r10,-1
+            t.push(mop_subfic(11, a, k16)); // r11 dead; CA is the point
+            t.push(mop_subfze(RET_REG, 10));
         }
     }
-    t.extend_from_slice(&encode_blr());
+    t.push(mop_blr());
     Ok(t)
 }
 

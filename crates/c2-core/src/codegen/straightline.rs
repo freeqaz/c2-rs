@@ -1,6 +1,6 @@
 //! The straight-line integer selector: one unit, deliberately.
 //!
-//! `select_text`, `combine`, the `Plan`/`Base`/`Operand` machinery and
+//! `select_ops`, `combine`, the `Plan`/`Base`/`Operand` machinery and
 //! `try_select_depth2_tree` are internally coupled — the r11→r9 cursor and the
 //! depth-2 tree rule live and die together, and the `OptMode` split (a chain
 //! intermediate whose predecessor is already dead) is one rule spanning all of
@@ -9,21 +9,22 @@
 use c2_il::{IlFunction, IlOp};
 use crate::BackendError;
 use crate::codegen::encode::{
-    encode_add,
-    encode_addi,
-    encode_addis,
-    encode_and,
-    encode_blr,
-    encode_mr,
-    encode_mullw,
-    encode_or,
-    encode_ori,
-    encode_slw,
-    encode_sraw,
-    encode_srw,
-    encode_subf,
-    encode_xor,
+    mop_add,
+    mop_addi,
+    mop_addis,
+    mop_and,
+    mop_blr,
+    mop_mr,
+    mop_mullw,
+    mop_or,
+    mop_ori,
+    mop_slw,
+    mop_sraw,
+    mop_srw,
+    mop_subf,
+    mop_xor,
 };
+use crate::codegen::mop::{ops_to_bytes, Ops};
 use crate::codegen::select::{
     ARG_REGS,
     OptMode,
@@ -38,18 +39,20 @@ use crate::codegen::select::{
 /// sign-extended low half: `lo = (i16)k`, `hi = (k − lo) >> 16` (so the `addi`'s
 /// sign extension is absorbed). Verified: `a+70000` → `addis r3,r3,1 ; addi
 /// r3,r3,4464`; `a-70000` → `addis r3,r3,-1 ; addi r3,r3,-4464`.
-fn emit_add_imm(text: &mut Vec<u8>, dest: u8, reg: u8, k: i32) {
+fn emit_add_imm(text: &mut Ops, dest: u8, reg: u8, k: i32) {
     if fits_i16(k) {
-        text.extend_from_slice(&encode_addi(dest, reg, k as i16));
+        text.push(mop_addi(dest, reg, k as i16));
     } else {
         let lo = (k & 0xFFFF) as u16 as i16;
         let hi = ((k - lo as i32) >> 16) as i16;
-        text.extend_from_slice(&encode_addis(dest, reg, hi));
-        text.extend_from_slice(&encode_addi(dest, dest, lo));
+        text.push(mop_addis(dest, reg, hi));
+        text.push(mop_addi(dest, dest, lo));
     }
 }
 
-/// Emit a constant load `dest = k`: `li` (`addi dest,r0,k`) for a 16-bit value,
+/// **S1c (i): emit a constant load `dest = k` as ops.**
+///
+/// `li` (`addi dest,r0,k`) for a 16-bit value,
 /// else the `lis`+`ori` idiom (`addis dest,r0,hi ; ori dest,dest,lo`, unsigned
 /// halves). Verified: `return 70000` → `addis r3,r0,1 ; ori r3,r3,4464`.
 ///
@@ -73,15 +76,30 @@ fn emit_add_imm(text: &mut Vec<u8>, dest: u8, reg: u8, k: i32) {
 /// negative wide case stays refused rather than being widened alongside: c2
 /// emits a bare `lis r11,-1` for `-65536`, which this could serve, but `-70000`
 /// is unwitnessed here and a fail-closed refusal is not a bug.
-pub(crate) fn emit_load_imm(text: &mut Vec<u8>, dest: u8, k: i32) -> Result<(), BackendError> {
+///
+/// ---
+///
+/// **There was a `&mut Vec<u8>` wrapper here for exactly one commit**, kept
+/// because `leaf::store`'s wide-constant store value was still a byte producer.
+/// That file converted in the next commit, `cargo` reported the wrapper dead,
+/// and it is deleted rather than left — the same defect §1.2 of this lane's
+/// prereg found `w-s1c2` shipping, caught the same way, one commit after
+/// creating it. Recorded here because the *pattern* is the finding: a
+/// `_text`/`_ops` split leaves a wrapper alive only as long as it has a caller,
+/// and nothing but the build warning says when that stops being true.
+///
+/// **The `ori`-by-zero clause is why the rule was never duplicated instead.**
+/// It was a live wrong-bytes emit for as long as this function has existed, and
+/// it is invisible to any caller that only checks a length.
+pub(crate) fn emit_load_imm_ops(text: &mut Ops, dest: u8, k: i32) -> Result<(), BackendError> {
     if fits_i16(k) {
-        text.extend_from_slice(&encode_addi(dest, 0, k as i16));
+        text.push(mop_addi(dest, 0, k as i16));
     } else if k >= 0 {
         let hi = ((k >> 16) & 0xFFFF) as i16;
         let lo = (k & 0xFFFF) as u16;
-        text.extend_from_slice(&encode_addis(dest, 0, hi));
+        text.push(mop_addis(dest, 0, hi));
         if lo != 0 {
-            text.extend_from_slice(&encode_ori(dest, dest, lo));
+            text.push(mop_ori(dest, dest, lo));
         }
     } else {
         return Err(out_of_class("negative wide constant load not yet modeled"));
@@ -192,7 +210,7 @@ enum PlanOp {
 fn try_select_depth2_tree(
     func: &IlFunction,
     reg_of: &dyn Fn(u32) -> Option<u8>,
-) -> Option<Vec<u8>> {
+) -> Option<Ops> {
     // Which shape this is — and whether it is a shape at all — is decided by
     // `c2_il::chain_form`, the SAME predicate the IL parser gates on. The four
     // distinct-formal / N1 / N2 / division rules used to be spelled out twice,
@@ -220,24 +238,44 @@ fn try_select_depth2_tree(
         (SCRATCH_REG, SCRATCH_REG - 1) // r11, r10
     };
 
-    let emit = |out: &mut Vec<u8>, op: IlOp, dest: u8, lhs: u8, rhs: u8| match op {
-        IlOp::Add => out.extend_from_slice(&encode_add(dest, lhs, rhs)),
-        IlOp::Mul => out.extend_from_slice(&encode_mullw(dest, lhs, rhs)),
+    let emit = |out: &mut Ops, op: IlOp, dest: u8, lhs: u8, rhs: u8| match op {
+        IlOp::Add => out.push(mop_add(dest, lhs, rhs)),
+        IlOp::Mul => out.push(mop_mullw(dest, lhs, rhs)),
         // `subf` computes rB − rA, so `lhs − rhs` needs rA=rhs, rB=lhs.
-        IlOp::Sub => out.extend_from_slice(&encode_subf(dest, rhs, lhs)),
+        IlOp::Sub => out.push(mop_subf(dest, rhs, lhs)),
         _ => unreachable!("gated above"),
     };
 
-    let mut text = Vec::with_capacity(16);
+    let mut text: Ops = Vec::with_capacity(4);
     // Left child first, always — only the register assignment swaps.
     emit(&mut text, op1, left_reg, regs[0], regs[1]);
     emit(&mut text, op2, right_reg, regs[2], regs[3]);
     emit(&mut text, root, RET_REG, left_reg, right_reg);
-    text.extend_from_slice(&encode_blr());
+    text.push(mop_blr());
     Some(text)
 }
 
 pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendError> {
+    Ok(ops_to_bytes(&select_ops(func, mode)?))
+}
+
+/// **S1c (i): the straight-line integer selector as an op stream**, reachable
+/// by a caller.
+///
+/// This is the file the module header calls *"one unit, deliberately"*, and the
+/// op form is where that unit becomes legible. Its whole content is a
+/// **decision**: `plan` is a symbolic instruction list whose destinations are
+/// resolved in the loop at the bottom, and `Base::Prev` exists precisely so
+/// operands stay symbolic until the accumulator rule (`chain_has_add`, and the
+/// `/O1` collapse) has been applied. That is a register-allocation decision
+/// point of exactly the kind `GOAL_DECISION_2026-08-21.md` § AMENDED names for
+/// a permuter — and until now the only thing it produced was bytes.
+///
+/// **`plan.len()` is a PLAN INDEX and never a text length**, which is what
+/// makes this conversion a re-expression rather than a re-layout: `last` is the
+/// index of the entry that targets r3, and no byte offset is computed anywhere
+/// in the function.
+pub fn select_ops(func: &IlFunction, mode: OptMode) -> Result<Ops, BackendError> {
     // Out-of-class, not a pass failure. As `BackendError::Pass` this landed in the
     // harness's `port-error` bucket while every other refusal in `codegen` landed in
     // `codegen-gap`, and `differential` coerced it to `NotImplemented` anyway — so
@@ -451,8 +489,8 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
     // `Base::Prev` therefore resolves to the previous entry's ACTUAL destination
     // rather than to a fixed r11; that is why plan operands stay symbolic until
     // here.
-    // Every plan entry emits at most 8 bytes (wide immediates), plus the `blr`.
-    let mut text: Vec<u8> = Vec::with_capacity(plan.len() * 8 + 4);
+    // Every plan entry emits at most 2 ops (wide immediates), plus the `blr`.
+    let mut text: Ops = Vec::with_capacity(plan.len() * 2 + 1);
     let last = plan.len().saturating_sub(1);
     let mut next_scratch: u8 = SCRATCH_REG;
     let mut prev_reg: u8 = SCRATCH_REG;
@@ -517,24 +555,24 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
             PlanOp::Bin { op, lhs, rhs } => {
                 let (l, r) = (resolve(lhs), resolve(rhs));
                 match op {
-                    IlOp::Add => text.extend_from_slice(&encode_add(dest, l, r)),
-                    IlOp::Mul => text.extend_from_slice(&encode_mullw(dest, l, r)),
+                    IlOp::Add => text.push(mop_add(dest, l, r)),
+                    IlOp::Mul => text.push(mop_mullw(dest, l, r)),
                     // `subf` computes rB − rA, so realizing `lhs − rhs` needs
                     // rA=rhs, rB=lhs (the load-bearing reversed order — see
-                    // [`encode_subf`]).
-                    IlOp::Sub => text.extend_from_slice(&encode_subf(dest, r, l)),
+                    // [`mop_subf`]).
+                    IlOp::Sub => text.push(mop_subf(dest, r, l)),
                     // The bitwise/shift six (`lane w-build`). Every one is an
                     // X-form whose DESTINATION is the RA field, not the RT
-                    // field the three above use — see [`encode_and`]. `l` is
+                    // field the three above use — see [`mop_and`]. `l` is
                     // the left operand and `r` the right, and for the three
                     // shifts that order is load-bearing in the same way
-                    // `encode_subf`'s is.
-                    IlOp::And => text.extend_from_slice(&encode_and(dest, l, r)),
-                    IlOp::Or => text.extend_from_slice(&encode_or(dest, l, r)),
-                    IlOp::Xor => text.extend_from_slice(&encode_xor(dest, l, r)),
-                    IlOp::Shl => text.extend_from_slice(&encode_slw(dest, l, r)),
-                    IlOp::ShrS => text.extend_from_slice(&encode_sraw(dest, l, r)),
-                    IlOp::ShrU => text.extend_from_slice(&encode_srw(dest, l, r)),
+                    // `mop_subf`'s is.
+                    IlOp::And => text.push(mop_and(dest, l, r)),
+                    IlOp::Or => text.push(mop_or(dest, l, r)),
+                    IlOp::Xor => text.push(mop_xor(dest, l, r)),
+                    IlOp::Shl => text.push(mop_slw(dest, l, r)),
+                    IlOp::ShrS => text.push(mop_sraw(dest, l, r)),
+                    IlOp::ShrU => text.push(mop_srw(dest, l, r)),
                     // `combine` never records a Div plan entry (it rejects
                     // first), so reaching here would be an internal error.
                     IlOp::Div
@@ -558,13 +596,13 @@ pub fn select_text(func: &IlFunction, mode: OptMode) -> Result<Vec<u8>, BackendE
                 }
             }
             PlanOp::AddImm { src, k } => emit_add_imm(&mut text, dest, resolve(src), k),
-            PlanOp::LoadImm { k } => emit_load_imm(&mut text, dest, k)?,
-            PlanOp::RegMove { src } => text.extend_from_slice(&encode_mr(dest, src)),
+            PlanOp::LoadImm { k } => emit_load_imm_ops(&mut text, dest, k)?,
+            PlanOp::RegMove { src } => text.push(mop_mr(dest, src)),
         }
         prev_reg = dest;
     }
 
-    text.extend_from_slice(&encode_blr());
+    text.push(mop_blr());
     Ok(text)
 }
 

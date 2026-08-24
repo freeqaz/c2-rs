@@ -87,10 +87,11 @@
 //! exactly as open as `w-bdnz` left it.
 
 use super::encode::{
-    encode_addi, encode_bclr, encode_bdnz, encode_blr, encode_cmplwi, encode_fadd, encode_fmul,
-    encode_lfs, encode_lfsx, encode_mr, encode_mtctr, encode_stfs, encode_stfsu, encode_stfsx,
-    encode_subf, BO_TRUE, CR_BIT_EQ, CR_COMPARE, cr_bi,
+    mop_addi, mop_bclr, mop_bdnz, mop_blr, mop_cmplwi, mop_fadd, mop_fmul,
+    mop_lfs, mop_lfsx, mop_mr, mop_mtctr, mop_stfs, mop_stfsu, mop_stfsx,
+    mop_subf, BO_TRUE, CR_BIT_EQ, CR_COMPARE, cr_bi,
 };
+use super::mop::{ops_to_bytes, MachineOp, Ops};
 use crate::BackendError;
 use c2_il::{FloatWalkLoop, FloatWalkOp, FloatWalkShape, IlFunction};
 
@@ -123,17 +124,23 @@ const F_SCALAR: u8 = 1;
 /// `float` is four bytes: the induction step and shape B's displacement.
 const STEP: i16 = 4;
 
-/// The A-form word the body performs, `fD = fA OP fB` in single precision.
+/// The A-form op the body performs, `fD = fA OP fB` in single precision.
 ///
 /// Injective by construction — the `#[test]` at the bottom is the pin that two
 /// operations cannot collapse onto one encoding — and note the asymmetry the
 /// encoders already carry: `fmuls` puts its multiplier in the **C** field where
 /// `fadds` uses **B**, so this is a match rather than one call with a varying
 /// XO.
-fn body_word(op: FloatWalkOp, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
+///
+/// **S1c (i): a [`MachineOp`], and the injectivity pin below still compares
+/// WORDS.** The claim it makes is that two operations must not collapse onto
+/// one *encoding*, which is a property of the composition rather than of the op
+/// value — so the pin renders both sides and would still fail if a future
+/// [`EncodeParams`](super::mop::EncodeParams) change made them collide.
+fn body_op(op: FloatWalkOp, fd: u8, fa: u8, fb: u8) -> MachineOp {
     match op {
-        FloatWalkOp::Add => encode_fadd(false, fd, fa, fb),
-        FloatWalkOp::Mul => encode_fmul(false, fd, fa, fb),
+        FloatWalkOp::Add => mop_fadd(false, fd, fa, fb),
+        FloatWalkOp::Mul => mop_fmul(false, fd, fa, fb),
     }
 }
 
@@ -142,9 +149,9 @@ fn body_word(op: FloatWalkOp, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
 /// (reader clause 10). There is no forward-branch arm, and it is absent rather
 /// than unreachable: an arm no cell grades is an arm that will be wrong when
 /// something finally reaches it.
-fn guard(out: &mut Vec<u8>) {
-    out.extend_from_slice(&encode_cmplwi(CR_COMPARE, R_BOUND, 0));
-    out.extend_from_slice(&encode_bclr(BO_TRUE, cr_bi(CR_COMPARE, CR_BIT_EQ)));
+fn guard(out: &mut Ops) {
+    out.push(mop_cmplwi(CR_COMPARE, R_BOUND, 0));
+    out.push(mop_bclr(BO_TRUE, cr_bi(CR_COMPARE, CR_BIT_EQ)));
 }
 
 /// `sub rD, rA, rB` — the base difference `other − walker`.
@@ -152,15 +159,27 @@ fn guard(out: &mut Vec<u8>) {
 /// `subf rD,rA,rB` computes `rB − rA`, so the operands read in the order that
 /// looks wrong and is right; `?Add_InPlace`'s own word is `7d452050`, which is
 /// `subf r10, r5, r4` = `r4 − r5` = `f1 − f2`.
-fn base_diff(out: &mut Vec<u8>, rd: u8, other: u8, walker: u8) {
-    out.extend_from_slice(&encode_subf(rd, walker, other));
+fn base_diff(out: &mut Ops, rd: u8, other: u8, walker: u8) {
+    out.push(mop_subf(rd, walker, other));
 }
 
-/// Select `.text` for one accepted body.
+/// Select `.text` for one accepted body — [`float_walk_loop_ops`] rendered.
+pub(crate) fn float_walk_loop_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
+    Ok(ops_to_bytes(&float_walk_loop_ops(func)?))
+}
+
+/// **S1c (i): the same body as an op stream**, reachable by a caller.
 ///
 /// Every register below is derived from a **formal index**, never carried, so
 /// the positional formal→register map lives in exactly one expression.
-pub(crate) fn float_walk_loop_text(func: &IlFunction) -> Result<Vec<u8>, BackendError> {
+///
+/// The one computed field in the file — the latch displacement — is
+/// `-4 * body_words`, a **word count** scaled to bytes, and it carries over
+/// untouched: it is derived from how many ops the shape's arm pushed, never
+/// from `out.len()` as a byte length. That is the distinction `w-s1c2` §6.1
+/// drew between this class and the three it declined as S1c (ii), and it is
+/// what makes this conversion a re-expression rather than a re-layout.
+pub(crate) fn float_walk_loop_ops(func: &IlFunction) -> Result<Ops, BackendError> {
     let l = func
         .float_walk_loop()
         .ok_or(BackendError::NotImplemented("not a float array-walk loop".into()))?;
@@ -175,7 +194,7 @@ pub(crate) fn float_walk_loop_text(func: &IlFunction) -> Result<Vec<u8>, Backend
         Ok(r as u8)
     };
     let walker = reg(l.walker)?;
-    let mut out: Vec<u8> = Vec::with_capacity(52);
+    let mut out: Ops = Vec::with_capacity(13);
 
     match l.shape {
         // ---- A: `b[i] OP= a[i]` -------------------------------------------
@@ -187,17 +206,17 @@ pub(crate) fn float_walk_loop_text(func: &IlFunction) -> Result<Vec<u8>, Backend
             // number of preheader `sub`s, and the register test this lane
             // registered in advance is refuted by `c5`, `c6` and `d5`. Shipped
             // as a per-shape constant rather than as a rule (PREREG §5.2's P2).
-            out.extend_from_slice(&encode_mr(R_WALK, walker));
+            out.push(mop_mr(R_WALK, walker));
             guard(&mut out);
-            out.extend_from_slice(&encode_mtctr(R_BOUND));
+            out.push(mop_mtctr(R_BOUND));
             base_diff(&mut out, R_DIFF1, other, walker);
             // The commutative op loads the OTHER array first. `-=`/`/=` swap
             // these two words and are refused by the reader.
-            out.extend_from_slice(&encode_lfsx(F_ACC, R_DIFF1, R_WALK));
-            out.extend_from_slice(&encode_lfs(false, F_OTHER, R_WALK, 0));
-            out.extend_from_slice(&body_word(l.op, F_ACC, F_ACC, F_OTHER));
-            out.extend_from_slice(&encode_stfs(false, F_ACC, R_WALK, 0));
-            out.extend_from_slice(&encode_addi(R_WALK, R_WALK, STEP));
+            out.push(mop_lfsx(F_ACC, R_DIFF1, R_WALK));
+            out.push(mop_lfs(false, F_OTHER, R_WALK, 0));
+            out.push(body_op(l.op, F_ACC, F_ACC, F_OTHER));
+            out.push(mop_stfs(false, F_ACC, R_WALK, 0));
+            out.push(mop_addi(R_WALK, R_WALK, STEP));
         }
         // ---- B: `b[i] OP= s` ----------------------------------------------
         FloatWalkShape::Scalar => {
@@ -206,26 +225,26 @@ pub(crate) fn float_walk_loop_text(func: &IlFunction) -> Result<Vec<u8>, Backend
             // The pre-bias, which is what makes the update form legal: every
             // access on the walking pointer is D-form here, so the write-back
             // has nothing to move out from under.
-            out.extend_from_slice(&encode_addi(R_WALK, walker, -STEP));
-            out.extend_from_slice(&encode_mtctr(R_BOUND));
-            out.extend_from_slice(&encode_lfs(false, F_ACC, R_WALK, STEP));
-            out.extend_from_slice(&body_word(l.op, F_ACC, F_ACC, F_SCALAR));
-            out.extend_from_slice(&encode_stfsu(F_ACC, R_WALK, STEP));
+            out.push(mop_addi(R_WALK, walker, -STEP));
+            out.push(mop_mtctr(R_BOUND));
+            out.push(mop_lfs(false, F_ACC, R_WALK, STEP));
+            out.push(body_op(l.op, F_ACC, F_ACC, F_SCALAR));
+            out.push(mop_stfsu(F_ACC, R_WALK, STEP));
         }
         // ---- C: `c[i] = a[i] OP b[i]` -------------------------------------
         FloatWalkShape::Binary => {
             let [src, dst] = shape_others::<2>(l)?;
             let (src, dst) = (reg(src)?, reg(dst)?);
             guard(&mut out);
-            out.extend_from_slice(&encode_mr(R_WALK, walker));
-            out.extend_from_slice(&encode_mtctr(R_BOUND));
+            out.push(mop_mr(R_WALK, walker));
+            out.push(mop_mtctr(R_BOUND));
             base_diff(&mut out, R_DIFF1, src, walker);
             base_diff(&mut out, R_DIFF2, dst, walker);
-            out.extend_from_slice(&encode_lfsx(F_ACC, R_DIFF1, R_WALK));
-            out.extend_from_slice(&encode_lfs(false, F_OTHER, R_WALK, 0));
-            out.extend_from_slice(&body_word(l.op, F_ACC, F_ACC, F_OTHER));
-            out.extend_from_slice(&encode_stfsx(F_ACC, R_DIFF2, R_WALK));
-            out.extend_from_slice(&encode_addi(R_WALK, R_WALK, STEP));
+            out.push(mop_lfsx(F_ACC, R_DIFF1, R_WALK));
+            out.push(mop_lfs(false, F_OTHER, R_WALK, 0));
+            out.push(body_op(l.op, F_ACC, F_ACC, F_OTHER));
+            out.push(mop_stfsx(F_ACC, R_DIFF2, R_WALK));
+            out.push(mop_addi(R_WALK, R_WALK, STEP));
         }
     }
 
@@ -239,9 +258,9 @@ pub(crate) fn float_walk_loop_text(func: &IlFunction) -> Result<Vec<u8>, Backend
     };
     let disp = -4 * (body_words as i32);
     let latch =
-        encode_bdnz(disp).ok_or(BackendError::NotImplemented("float walk loop: back edge".into()))?;
-    out.extend_from_slice(&latch);
-    out.extend_from_slice(&encode_blr());
+        mop_bdnz(disp).ok_or(BackendError::NotImplemented("float walk loop: back edge".into()))?;
+    out.push(latch);
+    out.push(mop_blr());
     Ok(out)
 }
 
@@ -360,10 +379,16 @@ mod tests {
     /// The two operations do not collapse onto one encoding, and `fmuls` puts
     /// its operand in a different field from `fadds` — which is why the body is
     /// a `match` and not one call with a varying extended opcode.
+    ///
+    /// **The claim is about the ENCODING, so both sides are rendered.** After
+    /// S1c (i) `body_op` returns a [`MachineOp`], and asserting `a != m` on the
+    /// op values would be a strictly weaker statement: two distinct ops that
+    /// composed to one word would pass it and are exactly what this pin exists
+    /// to forbid.
     #[test]
     fn the_two_operations_are_injective_and_use_different_fields() {
-        let a = body_word(FloatWalkOp::Add, 0, 0, 13);
-        let m = body_word(FloatWalkOp::Mul, 0, 0, 13);
+        let a = body_op(FloatWalkOp::Add, 0, 0, 13).word();
+        let m = body_op(FloatWalkOp::Mul, 0, 0, 13).word();
         assert_ne!(a, m);
         assert_eq!(a, [0xec, 0x00, 0x68, 0x2a]);
         assert_eq!(m, [0xec, 0x00, 0x03, 0x72]);
@@ -467,7 +492,7 @@ mod tests {
             let walker = if shape == FloatWalkShape::Scalar { 1 } else { 2 };
             let text = float_walk_loop_text(&f(shape, FloatWalkOp::Mul, walker, others)).unwrap();
             let latch = &text[disp_at..disp_at + 4];
-            assert_eq!(latch, encode_bdnz(want).unwrap());
+            assert_eq!(latch, crate::codegen::encode::encode_bdnz(want).unwrap());
             // …and the word it names is a load, i.e. the body and not a
             // preheader instruction.
             let target = (disp_at as i32 + want) as usize;
