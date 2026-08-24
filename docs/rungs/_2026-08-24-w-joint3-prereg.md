@@ -6,14 +6,20 @@
 > references in `docs/BOARD.md`**. That lane measured the emit-set data+code
 > fixpoint and has nothing to do with this one. This lane's scratch is
 > therefore `work/w-joint9/` (its files are still on disk in `work/w-joint/`
-> and are NOT touched), and its rung is dated `2026-08-24-w-joint.md`.
+> and are NOT touched), and its rung is dated `2026-08-24-w-joint.md`
+> **[amended beside, merge review: the rung is
+> `2026-08-24-w-joint3.md` — this pointer named a file that no longer
+> exists. The sentence is left standing because a prereg's value is that
+> it is not edited; only the NAVIGATION is repaired, never a prediction,
+> a probability or a belief]**.
 > **This lane was renamed `w-joint` -> `w-joint3` at merge review**, following
 > the precedent `w-joint2` set, because the bare name already carries 172
 > citations to the 2026-08-04 lane. **This prereg was also first committed as
 > `work/w-joint9/PREREG.md` and moved here at the same review** — `/work` is gitignored, and a prereg that is not
 > where preregs live is a prereg the next audit will not count. Content is
 > unchanged from `77dc81022`; only the path moved. Anyone
-> citing "`w-joint`" without a date is citing two different lanes.
+> citing "`w-joint`" without a date is citing two different lanes
+> **[amended beside: three, now — see the rung's banner for the counts]**.
 
 Committed as this lane's **first commit**, before any measurement is run.
 Registered per `CLAUDE.md` "Method discipline" and decision 11 / board **#3505**.
