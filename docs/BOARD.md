@@ -4804,6 +4804,14 @@ generations --sample 400 | gc --limit 50000` over the live legacy root, and from
 
 ### Reservation ledger, 2026-08-24 (eighth wave — Phase 1 slice 2 + the S1c (i) tail), CLOSED — all four lanes landed (`w-c7`, `w-permute`, `w-3475`, `w-2e4`); every number `#3485`–`#3504` is spent. Next free `#3505`.
 
+## Decision 11 — wave 9, 2026-08-24
+
+| row | claim | state | evidence | links | consequence |
+|---|---|---|---|---|---|
+| **3505** | **PHASE 1 IS HELD PENDING EVIDENCE, NOT STOPPED AND NOT CONTINUED — THE STOP CASE IS MADE ENTIRELY OF MARGINALS AND `w-loo` ALREADY MEASURED THAT ZEROS DO NOT COMPOSE** | **DECIDED by the owner**, choosing *"measure the joint blocker set first"* over stop / take-the-one-arm-variant / continue | Two slices measured: C1 **+8 functions, 0 TUs**; C7 **declined** (its lowering was built, byte-graded on 552 cells, measured `+0` and reverted 2026-07-31; ceiling today **6 functions, 0 TUs**). Every SINGLE-key closure measured here substitutes a successor — **#150** (7+ confirmations), **#420**, **#1593**, **#440**, **#3094** (−2,694 byte-exact functions, −1 matching TU for one token). **But `w-loo` `#3140` measured its own blind spot: two margin-0 tokens BOTH removed = 7,378, and 15 margin-0 tokens JOINTLY worth 40,917 (46.1 %).** Ten slices each at ~0 is consistent with Phase 1 being worthless AND with it being worth 46 % jointly; marginals cannot separate those | `docs/DECISIONS_2026-08-22.md` decision 11 · **#3140** · **#3131** · **#150** · **#3094** · `w-c7` §8 · `w-c1` §8 | **THE METHOD IS PRESCRIBED, NOT INVENTED: a LADDER built by lifting the clause in a scratch tree, reporting SUBSET STRUCTURE, never marginals** — because the port stops at the first refusal BY DESIGN, so every blocked body reports exactly one blocker however many it has (`#3131`; the coordinator once narrated a first-blocker key as *"one refusal left"* for hours before a ladder found three more beneath it). `w-joint` MUST NOT produce another ranking — that rule has now bound **five times** — and must interrogate its own denominator first: `STATUS.md` reads distance `≤0: 17` while `match` is 25, and **#3364** already found `FBM` refusing bodies of byte-exact TUs |
+
+### Reservation ledger, 2026-08-24 (ninth wave — the joint blocker set), LIVE — **`#3505` spent (this decision) · `#3506`–`#3511` reserved `w-joint` · `#3512`–`#3516` reserved `w-latent` · `#3517`–`#3520` reserved `w-relread` · `#3521`–`#3524` reserved `w-adjacency`.** Live until all four land; per-lane blocks are pointers to THIS line.
+
 ### **THE NEXT FREE NUMBER IS `#3485`.**
 
 ## `w-r8idiom` — the `mr r8,r8` idiom, from both sides (2026-08-24)

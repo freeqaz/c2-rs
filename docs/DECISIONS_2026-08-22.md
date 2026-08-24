@@ -498,3 +498,81 @@ citation, `DIFF_STRUCTURE.md`).
 **Board:** `#3485` this decision · `#3486`–`#3490` `w-c7` ·
 `#3491`–`#3495` `w-permute` · `#3496`–`#3500` `w-3475` ·
 `#3501`–`#3504` `w-2e4`. Next free `#3505`.
+
+## Decision 11 — wave 9: measure the JOINT blocker set before ruling on Phase 1 (2026-08-24)
+
+The owner, asked directly whether wave 9 should stop Phase 1, take C7's
+one-arm variant, continue as planned, or measure the joint blocker set first,
+chose: **measure the joint blocker set first.** Phase 1 is therefore **neither
+stopped nor continued** — it is **held pending evidence**, and decision 9's
+unlock stands unchanged in the meantime. No Phase-1 slice is dispatched in
+this wave.
+
+**Why the question is open rather than already answered.** Wave 8 closed with
+two slices measured: C1 (+8 functions, 0 TUs, ~1 session) and C7 (declined —
+its lowering was already built, byte-graded on 552 cells, measured `+0` and
+reverted on 2026-07-31; ceiling today **6 emitted functions, 0 TUs**). Every
+*single*-key closure this project has measured substitutes a successor rather
+than converting: `#150` has seven-plus confirmations, `#420`, `#1593`, `#440`,
+and `#3094` (which measures **−2,694 byte-exact functions and −1 matching TU**
+for admitting one token). That is a strong case for stopping — **and it is
+made entirely of marginals.**
+
+**The prior that makes the joint question worth funding is already on the
+board and was measured, not guessed.** `w-loo` (`#3135`–`#3140`) published its
+own blind spot in the same breath as its result: two tokens each at margin 0,
+**both removed = 7,378**, and the **15 margin-0 tokens jointly worth 40,917
+(46.1 %)**. **ZEROS DO NOT COMPOSE.** So the grammar steps a marginal re-score
+would most confidently demote are exactly the ones the re-scorer is *proven
+blind to*. Ten slices each measuring ~0 is consistent with Phase 1 being
+worthless **and** with it being worth 46 % jointly; the marginals cannot
+separate those, and the whole stop/continue decision turns on which is true.
+
+**The method is prescribed, not invented here.** `w-loo`'s standing
+instruction: *"do not dispatch off any ranking — greedy or LOO. If you need to
+size work, use a **ladder built by lifting the clause in a scratch tree**
+(three compiles) and report **subset structure**, not marginals — and state
+the **denominator in the same breath as the numerator**, in the prereg, before
+the run."* And the reason a ladder is mandatory rather than a histogram:
+**the port stops at the first refusal BY DESIGN, so every blocked body reports
+exactly one blocker no matter how many it has** — a first-blocker key is not a
+distance, and the coordinator has previously narrated one as "one refusal
+left" for hours before `w-mixed`'s ladder found three more beneath it.
+
+Four lanes, dispatched concurrently on Opus subagents:
+
+| lane | kind | what it buys | price carried in |
+|---|---|---|---|
+| `w-joint` | characterization + instrument (**primary**) | the FULL blocker set per blocked function on the nearest TUs, by **ladder**, reported as **subset structure**. Answers: is there any TU whose complete blocker set lies within a bounded construct set, and does closure COMPOSE? Commits the ladder tool — `w-mixed`'s and `w-loo`'s both died in gitignored `work/`, the third such loss after `#3451` | `w-loo` `#3140` · `#3131` · `w-mixed` · `w-c7` §2 |
+| `w-latent` | construct | `#3493` found a surface where **three mutations that gut or poison it are byte-identical across 627 unit tests AND 391 fixtures against real c2**. Hunt for others: which shipped axes can be arbitrarily wrong with nothing able to observe it? | `w-permute` `#3493` |
+| `w-relread` | characterization | `WB_RELATION_FINDINGS.md` §5's three ranked reads, the first at ~½ day, which retires `#423`'s 36-cell probe grid entirely — read-before-probe applied to a grid that was already priced | `w-c7` §5 |
+| `w-adjacency` | instrument | build the adjacency-balanced rotation `w-permute` diagnosed and deliberately did not build, and pay the re-run it owes to `w-s1bc`, `w-s1c2`, `w-s1c3` | `w-permute` `#3495` |
+
+**`w-joint` must not produce another ranking.** The standing rule has now
+bound **five times**, most recently *before* dispatch in decision 10. Its
+deliverable is subset structure and a composition verdict, never an ordered
+list of keys to work on. It must also interrogate the distance instrument it
+starts from: `STATUS.md` reads `TU distance to match, blocked functions ≤0:
+17` while `match` is 25, and `#3364` already found `FBM` refusing bodies of
+TUs that match byte-exact — so the denominator is suspect before it is used.
+
+**Concurrency fences.** `w-joint` owns `crates/c2-harness` (instrument +
+tests) and `scripts/` for its ladder tool. `w-latent` is analysis-first: it
+may add tests in NEW files only and must STOP-AND-REPORT before modifying any
+existing `crates/` file. `w-adjacency` owns `scripts/cost_arms.py`.
+`w-relread` is docs-only, zero `crates/` bytes.
+
+**Deliberately not dispatched:** every Phase-1 slice (held pending `w-joint`);
+C7's one-arm `select.rs:435` variant (a live option the owner did not take,
+recorded so it stays takeable); `#3492`'s T3 checklist over prior extractions;
+corpus pinning (~14 GB CoW, named and priced by `w-permute`, not built);
+`0x10c3b270`; `nopcapenter`/`nopcapexit`; the three `cgintrin.c` sites (now
+declined by three lanes); `tuple[+9]` bit 3 and `tuple[+0x34]`; the generated
+`STATUS.md` block's missing workload identity; `WB_EXPAND_FINDINGS.md:79` and
+`#3432`'s stale "unrecorded" sentence — **three lanes have declined it now**;
+the maintenance debt (`#3381`, the phantom `PROGRESS_METRIC.md` §5.2 citation,
+`DIFF_STRUCTURE.md`).
+
+**Board:** `#3505` this decision · `#3506`–`#3511` `w-joint` ·
+`#3512`–`#3516` `w-latent` · `#3517`–`#3520` `w-relread` ·
+`#3521`–`#3524` `w-adjacency`. Next free `#3525`.
