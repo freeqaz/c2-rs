@@ -297,6 +297,7 @@ the header block this table is read from.
 | 2026-08-23 | w-tailread | [w-tailread](2026-08-23-w-tailread.md) | 7 | unchanged → unchanged (+0) |
 | 2026-08-24 | w-2e4 | [w-2e4](2026-08-24-w-2e4.md) | 7 | unchanged → unchanged (+0) |
 | 2026-08-24 | w-3475 | [w-3475](2026-08-24-w-3475.md) | 25 | +0  (in-class bodies 707728/2417794 at BOTH ends — 0 moved) |
+| 2026-08-24 | w-adjacency | [w-adjacency](2026-08-24-w-adjacency.md) | 8 | +0 — nothing in `crates/` moved; this lane's fence forbids it |
 | 2026-08-24 | w-c1 | [w-c1](2026-08-24-w-c1.md) | 2 | 707716/2417794 → 707728/2417794 (29.27% → 29.27%), +12 |
 | 2026-08-24 | w-c7 | [w-c7](2026-08-24-w-c7.md) | 12 | +0 (no `crates/` byte changed) |
 | 2026-08-24 | w-joint3 | [w-joint3](2026-08-24-w-joint3.md) | 11 | **+0.** No `crates/` change touches acceptance: the only |
