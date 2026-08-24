@@ -68,6 +68,14 @@
   one line. Every lane builds at a path of a different length **by
   construction**, so this has been varying across every cross-lane cost
   comparison ever made here. §4.6. **Measured in 42 seconds with no box.**
+* **ALL THREE GATES GREEN AND THE IDENTITY DIFF IS 0 LINES OVER 21 ROWS.**
+  `PARTEST_EXIT=0` (1,866 / 0 / 1 over 54 targets), `GATE_EXIT=0` (18/18 lanes,
+  7,038 fixture-verdicts, sweep 19,460 of 19,556, cross 90,424 of 90,812, debug
+  18/18 at 0 panics, `mismatch 0` everywhere), `AUDIT_EXIT=0` (2,119 rows, 0
+  cited-but-not-on-the-board). **`crates/` is untouched, so the diff was run to
+  prove an identity rather than to pass a check** — and it is a stronger
+  statement than the exit code, because `mismatch 0` is not `match unchanged`.
+  §8.
 * **Outcome: `built`.** The design half — rotation, closed form, self-test with
   its negative case, five watched refusals — is pure arithmetic with known
   answers and stands on its own. The measurement half **declined to claim**, in
@@ -731,8 +739,84 @@ handled** — and that generalises well past this instance.
 
 ---
 
-## 8. Gate evidence
+## 8. Gate evidence — and the identity diff is **0 lines over 21 rows**
 
-*(filled below.)*
+`crates/` is untouched by this lane (`git diff --stat 67f276409..HEAD -- crates/`
+is **empty**), so every count-bearing row is *expected* identical to base. It was
+run to **prove** that rather than assume it: an expected-identical result that is
+measured is evidence, one that is assumed is a gap.
+
+| gate | result |
+|---|---|
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **`PARTEST_EXIT=0`** — **1,866 passed / 0 failed / 1 ignored** over **54 targets**, and **0** `SKIP: toolchain absent` lines. Per #3341 the zero is recorded so the number exists and is **explicitly not the evidence**; the evidence is exit 0 under a flag that makes a toolchain-less run fail. |
+| `sh scripts/gate.sh --jobs 4 --require-graded` | **`GATE: PASS (HATCH-RED REFUSED)`**, **`GATE_EXIT=0`**. 18 lanes in the registry — **18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT**. **7,038** fixture-verdicts, **391/391** on every fixture lane. Sweep **19,460** graded of **19,556** (96 ungraded: the reference rejects the source), **0 mismatch**, corpus 19,556. Cross **90,424** of **90,812** cells, **0 mismatch**. Debug **18/18** lanes through a DEBUG-profile `c2rs`, 7,038 more verdicts, **0 panics**. **`mismatch 0` everywhere.** Graded tree **`1b9559e2d8da`**, 778 files. |
+| `sh scripts/board_audit.sh` | **`AUDIT_EXIT=0`** — **2,119** board rows, **259** distinct ROADMAP citations, **CITED BUT NOT ON THE BOARD: 0**, unresolved §-anchors **0**, raw line-number anchors **0**, rows-behind-the-prose **0**, duplicate row numbers **0**. Nine suppressed numbers, each with its printed reason. |
+
+### 8.1 The strict identity diff — denominator printed at BOTH ends
+
+Per `work/coordinator/gatebase/HOWTO_DIFF.md`: cut to `LANE VERDICT
+graded/total match` before diffing, normalise `/tmp/c2rs-gate-<pid>` to
+`RUNDIR`, drop the two `n/a`-mismatch rows (`hatch-red`, `ladder-red`).
+
+    base count-bearing rows: 21
+    tip  count-bearing rows: 21
+    diff lines: 0
+
+**0 lines over 21 rows.** The 21 are **enumerated, not asserted** — 18 mode
+lanes (`O1`, `O1-EHsc`, `O1-Oi`, `O1-Oi-EHsc`, `Ox`, `Ox-EHsc`, `Ox-Gy`,
+`Ox-Gy-EHsc`, `O2`, `O2-EHsc`, `Od`, `Od-EHsc`, `O1-Oi-GR`, `O1-Oi-EHsc-GR`,
+`Ox-GR`, `Ox-EHsc-GR`, `Od-GR`, `Od-EHsc-GR`) plus `expr-sweep`, `mode-cross`
+and `debug-lane`.
+
+**This is a stronger statement than `GATE_EXIT=0`**, and after #3515 it is the
+one that means something: `mismatch 0` is **not** `match unchanged`, and a change
+can be `GATE: PASS`, exit 0, mismatch 0 and still cost matched TUs. The exit code
+cannot see that class; only this diff can.
+
+### 8.2 Two things in the gate output that are NOT this lane's, named so they are not inherited as ones
+
+* **`hatch-red` REFUSED.** `hatch.py` patches only `crates/c2-il/*`, which this
+  lane has not touched — `crates/` is untouched entirely. Board **#3219** /
+  `w-joint3` measured this wave that it has been REFUSED for **22 consecutive
+  runs since 2026-08-20**. The gate's own liveness counter printed *"1
+  consecutive run (first seen 2026-08-24)"* here because `work/` does not follow
+  `git worktree add`, so the history file is fresh in a worktree — **the counter
+  under-reports from a worktree, and its own text already says an `N` is a floor
+  on the true age, never the age.** Not this lane's, and not evidence of
+  anything about this lane's tree.
+* **The graded tree hash moved: `a33ca5dca59b` (base) → `1b9559e2d8da`.** It
+  **must**, and it is not a contradiction of the identity diff. The gate
+  content-hashes `crates fixtures scripts`, and this lane changed
+  `scripts/cost_arms.py`. `crates/` and `fixtures/` are byte-identical to base.
+  **A hash that did not move would have been the finding**, since it would mean
+  the gate was not hashing the file this lane exists to change.
+
+### 8.3 A method note this lane owes back to the wave: use a STREAK predicate, and know what it does not buy
+
+Both false "box is drained" reads on 2026-08-24 — the coordinator's at load 31,
+and this lane's own at 20:52 — were **instantaneous** samples landing in a gap
+between one process exiting and the next starting. The fix is four lines:
+
+```sh
+q=0
+for i in $(seq 1 N); do
+  busy=$(( $(pgrep -xc cargo) + $(ps -eo cmd | grep -c '[g]ate\.sh --jobs') ))
+  if [ "$busy" -eq 0 ]; then q=$((q+1)); else q=0; fi     # RESET on any hit
+  [ "$q" -ge 12 ] && break                                 # 2 min sustained
+  sleep 10
+done
+```
+
+It distinguishes *"nothing is running right now"* from *"nothing has been
+running for two minutes"*, and it would have caught both false reads.
+
+**And the caveat is the more important half, so it travels with the shell:** a
+streak predicate proves quiet **over its window, not going forward.** It makes
+the *observation* sound; only the queue makes the *window* sound. This lane
+measured that directly — a 2-minute sustained-quiet read at **22:11:42** that
+`w-latent` invalidated by starting a gate at **22:15**. Had the lane started on
+its own correct read it would have collided within four minutes. **Adopt both or
+neither**; the predicate is not a substitute for asking the process that can see
+the queue.
 
 ---
