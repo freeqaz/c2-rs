@@ -229,8 +229,22 @@ disassembled as code):
 
 The last one is the one that matters. `FUN_10c0d57e` is the switch
 `dump_expansion.py` reads; its opcode tree sends **`0x2e4`, and only `0x2e4`**,
-to arm **`0x10c0e194`** (`0x2e1` → `0x10c0e1bf`, `0x2e5` → `0x10c0e185`). The
-arm is eleven instructions:
+to arm **`0x10c0e194`**.
+
+**That is checked at the byte level and not taken from the tool.** `w-tailread`
+showed that this tool's *domain* claims can be artifacts of its walk, so the
+edge is verified directly: **exactly one branch in the entire image targets
+`0x10c0e194`**, and the subtract chain that guards it is unambiguous —
+
+```
+10c0e146  mov ecx,eax                  ; ecx = the opcode
+10c0e148  sub ecx,0x2ba / je 0x10c0e1cb        -> 0x2ba
+10c0e150  sub ecx,0x27  / je 0x10c0e1bf        -> 0x2ba+0x27 = 0x2e1
+10c0e155  sub ecx,0x3   / je 0x10c0e194        -> 0x2e1+0x03 = 0x2e4   <== HERE
+10c0e15a  dec ecx       / jne 0x10c0e30b       -> 0x2e5 falls through
+```
+
+The arm is eleven instructions:
 
 ```
 0x10c0e194  push esi
