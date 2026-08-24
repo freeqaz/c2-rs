@@ -1,0 +1,9 @@
+src/ChecksumData_xbox.cpp
+src/system/rndobj/wordwrap.cpp
+src/xdk/nuiapi/nuidetroit.cpp
+src/system/net/JsonMemory.cpp
+src/system/math/Rand2.cpp
+src/system/synth_xbox/GainEffect.cpp
+src/system/synth_xbox/HeadsetXferEffect.cpp
+src/system/synth_xbox/MeterEffect.cpp
+src/system/oggvorbis/VorbisMem.cpp
