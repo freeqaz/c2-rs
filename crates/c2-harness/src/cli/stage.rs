@@ -728,6 +728,29 @@ fn cmd_snap(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], raw: u32, cw
             let pick = |phase: &str, f: u32| -> Option<&c2_reference::stage::FuncWalk> {
                 c.armed.funcs.iter().find(|w| w.phase == phase && w.func == f)
             };
+            // #3459 — WHICH function each ordinal is. `stage snap`'s own
+            // comparisons below are TAP-INTERNAL (funcwalk against funcwalk,
+            // funcwalk against the region walk, both at the same ordinal in the
+            // same run), so the hazard #3459 names — pairing the ordinal to an
+            // obj's `.text` address order — does not reach them and none of
+            // these numbers moves. What DOES change is that the reader of this
+            // dump can now see which function a row is about, which is the
+            // difference between a report and a report you can act on.
+            let idof = |f: u32| -> String {
+                phases
+                    .iter()
+                    .find_map(|p| pick(p, f))
+                    .and_then(|w| w.identity().map(|s| s.to_string()))
+                    .unwrap_or_else(|| "<no identity: #3459 open>".to_string())
+            };
+            for f in 1..=fw_funcs {
+                println!("  FW-ID fn{f} = {}", idof(f));
+            }
+            let named = (1..=fw_funcs)
+                .filter(|f| phases.iter().any(|p| pick(p, *f).is_some_and(|w| w.identity().is_some())))
+                .count();
+            println!("  gap-metric stage-fw-identified {named}");
+
             let mut spine_diff = 0usize;
             let mut full_diff = 0usize;
             let mut ops_only = 0usize;
@@ -744,13 +767,22 @@ fn cmd_snap(tc: &Toolchain, fixtures: &[PathBuf], flags: &[String], raw: u32, cw
                     if !s_same { spine_diff += 1; }
                     if !r_same { full_diff += 1; }
                     if s_same && !r_same { ops_only += 1; }
+                    // The two legs are the SAME function only if the identity
+                    // says so. `g_fn` is incremented at `sched1`; a phase pair
+                    // that straddled a skipped `sched1` would otherwise be
+                    // diffed as one function and reported as a spine change.
+                    let same_fn = match (x.identity(), y.identity()) {
+                        (Some(i), Some(j)) => i == j,
+                        _ => true, // no identity: the old behaviour, honestly
+                    };
                     println!(
-                        "  FW {a}->{b} fn{f}: rows {}->{}  spine {}  full {}{}",
+                        "  FW {a}->{b} fn{f}: rows {}->{}  spine {}  full {}{}{}",
                         ra.len(),
                         rb.len(),
                         if s_same { "IDENTICAL" } else { "DIFFERS  " },
                         if r_same { "IDENTICAL" } else { "DIFFERS" },
                         if s_same && !r_same { "   <-- OPERAND-ONLY WRITE" } else { "" },
+                        if same_fn { "" } else { "   <-- DIFFERENT FUNCTIONS (#3459)" },
                     );
                 }
             }

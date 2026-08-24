@@ -952,6 +952,33 @@ fn the_final_tuple_order_reproduces_the_text_words() {
         );
         let (fname, real) = &funcs[ord];
 
+        // ---- board #3459: the ordinal-to-function pairing is CHECKED ----
+        //
+        // The `(fixture, funcwalk ordinal, .text ordinal)` cells above are a
+        // hand-written pairing, and until the funcwalk payload carried a name
+        // there was nothing to check them against. A wrong cell would not have
+        // failed here as "wrong pairing"; it would have failed as a word
+        // mismatch and been read as an encoder defect — which is exactly how
+        // `w-pwords` first read the same hazard on its own corpus.
+        let walk = rep
+            .funcs
+            .iter()
+            .find(|f| f.phase == "after0" && f.func == func)
+            .unwrap_or_else(|| panic!("{name} fn{func}: no after0 funcwalk"));
+        match walk.identity() {
+            Some(id) => assert_eq!(
+                id, fname,
+                "{name}: cell (fn{func}, .text[{ord}]) pairs c2's walk of `{id}` with the \
+                 obj's `{fname}`. The cell is WRONG, not the encoder"
+            ),
+            None => panic!(
+                "{name} fn{func}: the funcwalk payload carries no function identity \
+                 (`sym` = {:?}), so this cell's pairing cannot be checked — board #3459 \
+                 is open for this run",
+                walk.sym
+            ),
+        }
+
         // P2.1: the real-instruction tuples, in order, are the emitted words.
         let insns: Vec<(Tuple, Operands)> = rows
             .iter()
@@ -1032,6 +1059,20 @@ fn the_probe_levers_never_move_the_obj_at_this_lanes_profile() {
         rep1.total_hits()
     );
     assert!(!rep1.funcs.is_empty(), "the function walk emitted nothing");
+    // #3459 added THREE more foreign pointer hops per function inside a live c2
+    // call frame (`func+0x00` -> symbol -> `+0x04` -> `char *`), and a string
+    // walk is the least bounded read this tap does. The obj compare below is
+    // what says it did not disturb the compiler; this says the read actually
+    // happened, so that compare is not passing because the new code was inert.
+    let named = rep1.funcs.iter().filter(|f| f.identity().is_some()).count();
+    assert_eq!(
+        named,
+        rep1.funcs.len(),
+        "{} of {} function walks carried no identity — the obj identity below would \
+         then be free for the new read",
+        rep1.funcs.len() - named,
+        rep1.funcs.len()
+    );
     assert_eq!(
         ObjImage::diff(&disarmed, &armed),
         ObjDiff::Identical,

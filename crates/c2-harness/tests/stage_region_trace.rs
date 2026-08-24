@@ -139,13 +139,32 @@ fn a_port_cannot_emit_c2s_region_trace_because_the_two_have_no_common_coordinate
     // Per function: c2's tuple count at the EARLIEST phase (`sched1`, before
     // any scheduler run has touched the list) against the port's emitted
     // instruction count. Both are counts of "the thing a boundary indexes".
+    // ---- board #3459: pair BY NAME, not by ordinal. ----
+    //
+    // This loop used to read `rep.funcs.find(func == i + 1)` against the port's
+    // COMDAT list in address order. The funcwalk ordinal is `g_fn`, a count of
+    // `sched1` entries, and c2 walks functions it never emits into `.text` at
+    // all (`w-ordid`: eight such on the fixture corpus), so the two indexes
+    // shift apart the moment one of those appears. The payload now carries the
+    // function's own name; the pairing is read from it and the ordinal
+    // agreement is reported instead of assumed.
+    let want: Vec<String> = port_fns.iter().map(|(n, _)| n.clone()).collect();
+    let (paired, verdict) = rep.pair_by_identity("sched1", &want);
+    eprintln!("  PROBE-C pairing verdict at sched1: {verdict:?}");
+    assert!(
+        !matches!(verdict, c2_reference::stage::OrdinalVerdict::NoIdentity { .. }),
+        "the funcwalk payload carries no function identity, so this probe would be \
+         pairing c2's walks to the port's functions by position — board #3459"
+    );
+
     let mut compared = 0usize;
     let mut differing = 0usize;
     for (i, (name, bytes)) in port_fns.iter().enumerate() {
-        let f = (i + 1) as u32;
-        let Some(w1) = rep.funcs.iter().find(|x| x.phase == "sched1" && x.func == f) else {
+        let Some(w1) = paired[i] else {
+            eprintln!("  PROBE-C {name}: c2 walked no function of this name at sched1");
             continue;
         };
+        let f = w1.func;
         let tuples = w1.rows().len();
         let insns = bytes.len() / 4;
         compared += 1;
