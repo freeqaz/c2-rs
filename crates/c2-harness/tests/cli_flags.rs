@@ -1532,7 +1532,7 @@ fn the_corpus_verdict_guard_covers_exactly_the_three_whole_corpus_rows() {
     );
 }
 
-/// **The census LADDER seam refuses a depth it cannot honour** (lane `w-joint`,
+/// **The census LADDER seam refuses a depth it cannot honour** (lane `w-joint3`,
 /// board **#3506**+). No toolchain needed.
 ///
 /// `c2rs census --relax N` drives the shipped [`c2_il::Relax`] ladder, and
