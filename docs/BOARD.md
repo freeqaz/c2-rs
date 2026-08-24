@@ -4784,6 +4784,14 @@ generations --sample 400 | gc --limit 50000` over the live legacy root, and from
 
 ### Reservation ledger, 2026-08-24 (seventh wave — Phase 0 remainder + Phase 1 opens), CLOSED — all four lanes landed (`w-s1c3`, `w-c1`, `w-ordid`, `w-r8idiom`); every number `#3466`–`#3484` is spent. Next free `#3485`.
 
+## Decision 10 — wave 8, 2026-08-24
+
+| row | claim | state | evidence | links | consequence |
+|---|---|---|---|---|---|
+| **3485** | **WAVE 8 IS FUNDED AND C7 IS DISPATCHED AS A COST PROBE, NOT A COVERAGE PLAY — ITS COVERAGE WAS ALREADY MEASURED AT ZERO BY `#420`** | **DECIDED by the owner**, *"please continue to the next phases after this finishes"* | `w-c1` §8 recommends C7 as the second slice on a **cost** argument, which is right. The **coverage** question was already answered: **`#420`** — the whole relational family (3,298 blocked emitted functions) is worth **0 TUs and at most 5 functions**, a lane whose deliverable was a *decline*; **`#1593`** — admitting the whole family moves the frontier **48 → 48** (recovered 0, renamed 21); **`#423`** — the six relations are NOT one family in the guard position, four of six rewrite at `k = 0` unsigned, a live wrong-emit hazard whose shape `#1788` caught once. **Fifth binding of the standing rule that a lane dispatched off a blocked-key ranking finds the ranking was an artifact.** C7 therefore registers coverage ≈ 0 TUs / ≤ 5 functions in its prereg BEFORE measuring | `docs/DECISIONS_2026-08-22.md` decision 10 · **#420** · **#423** · **#1593** · **#1788** · `w-c1` §8.2/8.3 | **WHAT C7 BUYS IS THE NUMBER `w-c1` COULD NOT GIVE: THE COST OF A *CONSTRUCTION* SLICE.** C1 was a promotion and its own §8 calls itself *"the floor of the range, not a sample"*; `C2RS_SINK_REL` is measurement-only by construction (pushes no `IlOp`, poisons the walk), so C7 must BUILD a lowering rather than promote one. The remaining nine slices are priced at 2–4 wk raw / 10–20 wk LB **each** — whether Phase 1 is fundable past C1 turns on this one measurement |
+
+### Reservation ledger, 2026-08-24 (eighth wave — Phase 1 slice 2 + the S1c (i) tail), LIVE — **`#3485` spent (this decision) · `#3486`–`#3490` reserved `w-c7` · `#3491`–`#3495` reserved `w-permute` · `#3496`–`#3500` reserved `w-3475` · `#3501`–`#3504` reserved `w-2e4`.** Live until all four land; per-lane blocks are pointers to THIS line.
+
 ### **THE NEXT FREE NUMBER IS `#3485`.**
 
 ## `w-r8idiom` — the `mr r8,r8` idiom, from both sides (2026-08-24)

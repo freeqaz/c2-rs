@@ -417,3 +417,84 @@ the phantom `PROGRESS_METRIC.md` §5.2 citation, `DIFF_STRUCTURE.md`).
 `#3481`–`#3484` `w-r8idiom`. Next free `#3485`.
 
 **Nothing is waiting on the owner.**
+
+## Decision 10 — wave 8, and C7 is dispatched as a COST PROBE because its coverage was already measured at zero (2026-08-24)
+
+The owner, verbatim: **"please continue to the next phases after this
+finishes."** — given while wave 7's last lane was re-gating, in reply to a
+close that named the live options (C7 as the second Phase 1 slice,
+`permute_args_text`, S1c (ii), naming `0x2e4`). This funds wave 8 and carries
+decision 9's Phase 1 unlock forward; nothing in decision 9 is superseded.
+
+**Wave 7 landed complete**: `w-ordid` (`built`, `#3459` closed — the funcwalk
+hazard is an OFFSET, not a permutation), `w-r8idiom` (`built`, `mr r8,r8` is
+`emit 0x7d084378`, a baked literal), `w-s1c3` (`built`, S1c (i) COMPLETE,
+required-zero verified by the coordinator against the prior base tree), `w-c1`
+(`converted`, Phase 1's first slice: +8 `fnbyte-exact`, 0 new wrong emits, the
+`(tu, symbol)` differ-set identical at 1,968). Ledger `#3466`–`#3484` closed.
+
+**THE CORRECTION THAT SHAPES THIS WAVE.** `w-c1` §8 recommends C7 (compare)
+as the second slice — *"the only remaining Phase-1 construct with a shipped
+sink, though a poisoned one."* That is a **cost** argument and it is right.
+It is not a **coverage** argument, and the board had already answered the
+coverage question before this wave was designed:
+
+- **`#420`** — `expr-cmp-eq` is a FALL-THROUGH key; the whole relational
+  family (3,298 blocked emitted functions) is worth **0 TUs and at most 5
+  functions**. That lane's deliverable *was a decline of the rung it was
+  asked to build*.
+- **`#1593`** — admitting the WHOLE relational family moves
+  `frontier-codegen-reader` **48 → 48**: recovered 0, renamed 21.
+- **`#423`** — the six relations are **not one family in the guard
+  position**; four of six rewrite at exactly `k = 0`, unsigned. A live
+  wrong-emit hazard, whose shape `#1788` already caught once (`int size` and
+  `unsigned size` emit the identical `22` byte).
+
+This is the fifth time the standing rule *"a lane dispatched off a
+blocked-key size ranking finds the ranking was an artifact"* has bound. C7
+therefore ships with **coverage ≈ 0 TUs / ≤ 5 functions REGISTERED IN ITS
+PREREG BEFORE MEASUREMENT**, so neither a zero nor a surprise can be
+reported as a win. What C7 actually buys is the number `w-c1` could not
+give: **the cost of a CONSTRUCTION slice.** C1 was a promotion — its own §8
+says it is *"the floor of the range, not a sample"* — and the remaining nine
+slices are priced at 2–4 wk raw / 10–20 wk LB **each**. Whether Phase 1 is
+fundable past C1 is a decision that turns on this one measurement.
+
+Four lanes, dispatched concurrently on Opus subagents:
+
+| lane | kind | what it buys | price carried in |
+|---|---|---|---|
+| `w-c7` | Phase 1 slice C7 (fixture-claim + construct) | the relational family `0x1F`..`0x24`: one value-type variant + its type resolution + **one real lowering** (unlike C1, there is no acceptance rule to promote — `C2RS_SINK_REL` is measurement-only by construction, pushes no `IlOp`, and any walk containing a relational refuses under `expr-rel-sink-poison`). Deliverable is the **construction-slice cost**; the `_neg` fixture must carry `#423`'s `k = 0` unsigned case | `ROADMAP_SLICING` §5 · `w-c1` §8.2/8.3 · `#420` · `#423` |
+| `w-permute` | construct | S1c (i)'s last producer: `permute_args_text` — **6 functions / 342 lines**, re-priced BY READING and VERIFIED by `w-s1c3` (§6.2's four-name enumeration was short by two; no byte-position obstruction; one extra caller at `calls.rs:1360`) | `w-s1c3` rung §6.1 · `#3471` |
+| `w-3475` | construct | `eat_int_operands` (`mcall.rs:2917`) still has no `0x27` arm, so the completeness walker mis-names `off-add` for **19,898 bodies**. It feeds `Admit`, so required-zero is a **HYPOTHESIS TO MEASURE, not an assumption** — if it moves bytes, byte-judge and price two-sided | `w-c1` `#3475` |
+| `w-2e4` | characterization | name `0x2e4` — the pseudo-opcode that is the sole route to `mr r8,r8` — by reading `fg.c`'s edge construction at `0x10b372ea`/`0x10b39937`. `w-r8idiom` deliberately refused to name it and ranked this its #1 follow-up at one lane | `w-r8idiom` "Ranked follow-ups" 1 |
+
+**Concurrency fences.** `w-c7` and `w-3475` both touch `crates/c2-il` — the
+wave-7 asymmetric pattern, now file-level within one crate: `w-c7` owns
+`func/body/expr.rs`, `w-3475` owns `func/body/mcall.rs`, and either STOPS and
+reports if the other's file must change. `w-permute` owns
+`crates/c2-core/src/codegen/calls.rs` and the call-sequence files; `w-c7` may
+CREATE new `c2-core` files but may not modify an existing one. `w-2e4` is
+docs-only, zero `crates/` bytes.
+
+**Merge order: `w-3475` before `w-c7`.** The required-zero correction lands
+first and `w-c7` re-verifies its byte-judged fixtures after rebasing over it —
+wave 7's `w-s1c3`-before-`w-c1` rule, which paid for itself (c1's verdicts
+went 7,002 → 7,038 = exactly 2 fixtures × 18 lanes, 0 mismatch, measured on
+the merged tree rather than assumed).
+
+**Deliberately not dispatched:** C2–C10 other than C7 (C7 reports the
+construction cost first; C4 still fenced by §5's inverse-trap note); S1c (ii)
+(only 2 of 13 `block_ir` arms are `Plain`); the three `cgintrin.c`
+`push 0x7d084378` sites (a *second* idiom, `nop / nop / mr r8,r8`);
+`0x10c3b270`; `nopcapenter`/`nopcapexit`; the `P_EXPAND.md` §3 signed
+re-score (now priceable — arm 14 has been read); the generated STATUS.md
+block's missing workload identity (found this wave, recorded not repaired);
+`WB_EXPAND_FINDINGS.md:79` and `#3432`'s stale "unrecorded" sentence — **two
+lanes have now declined it for the same reason; it needs budget, not another
+flag**; the maintenance debt (`#3381`, the phantom `PROGRESS_METRIC.md` §5.2
+citation, `DIFF_STRUCTURE.md`).
+
+**Board:** `#3485` this decision · `#3486`–`#3490` `w-c7` ·
+`#3491`–`#3495` `w-permute` · `#3496`–`#3500` `w-3475` ·
+`#3501`–`#3504` `w-2e4`. Next free `#3505`.
