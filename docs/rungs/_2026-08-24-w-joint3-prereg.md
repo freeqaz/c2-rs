@@ -1,4 +1,4 @@
-# w-joint (ninth wave, 2026-08-24) — PREREG
+# w-joint3 (ninth wave, 2026-08-24) — PREREG
 
 > **TAG COLLISION, recorded here because a citation cannot see it.** A lane
 > called **`w-joint`** already exists: 2026-08-04 (`docs/rungs/_2026-08-04-w-joint-prereg.md`,
@@ -7,8 +7,10 @@
 > fixpoint and has nothing to do with this one. This lane's scratch is
 > therefore `work/w-joint9/` (its files are still on disk in `work/w-joint/`
 > and are NOT touched), and its rung is dated `2026-08-24-w-joint.md`.
-> **This prereg was first committed as `work/w-joint9/PREREG.md` and moved
-> here at merge review** — `/work` is gitignored, and a prereg that is not
+> **This lane was renamed `w-joint` -> `w-joint3` at merge review**, following
+> the precedent `w-joint2` set, because the bare name already carries 172
+> citations to the 2026-08-04 lane. **This prereg was also first committed as
+> `work/w-joint9/PREREG.md` and moved here at the same review** — `/work` is gitignored, and a prereg that is not
 > where preregs live is a prereg the next audit will not count. Content is
 > unchanged from `77dc81022`; only the path moved. Anyone
 > citing "`w-joint`" without a date is citing two different lanes.
@@ -16,7 +18,8 @@
 Committed as this lane's **first commit**, before any measurement is run.
 Registered per `CLAUDE.md` "Method discipline" and decision 11 / board **#3505**.
 
-Lane: `w-joint`, worktree `wt-w-joint`, base `67f276409`.
+Lane: **`w-joint3`** (dispatched as `w-joint`; renamed at merge review — see
+the banner above). Worktree/branch `wt-w-joint`, base `67f276409`.
 Reserved board rows: **#3506–#3511**.
 
 ---
