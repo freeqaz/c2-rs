@@ -229,3 +229,37 @@ is a finding and will be reported as one.
 `crates/` is untouched, so the gate is expected to be identical to base; it is
 run to prove that rather than assumed. **Neither is run while a timing
 measurement is live** — that is the contamination this lane exists to remove.
+
+---
+
+## 7. AMENDMENT, registered BEFORE the first timing measurement
+
+**Nothing has been timed when this section is committed.** One `c2rs perf
+--port-iters 2000` invocation was run once as a **budget probe** — 157 Match
+rows, **50.6 s wall on a load-27 box** — and no number from it is used as data.
+
+§3's protocol registered `--rounds 12`. At 50 s per invocation that is 36
+invocations = **30 min per run**, and the five runs A–E would hold the box for
+**2.5 hours** with three other lanes idle. **The rounds count is amended to 6
+for every run**, uniformly, so the runs stay comparable to each other:
+
+* **6 is legal under both rotations** (`6 % 3 == 0` cyclic, `6 % 6 == 0`
+  balanced), so rotation remains the only thing that differs between A and B;
+* **6 is `#3468`'s own stated minimum** — *"6 over 3 arms is the smallest
+  balanced setting worth running"*;
+* the sharpest of the three P3b criteria is the **sign split**, which is a
+  proportion over 157 paired fixtures and does not weaken with fewer rounds.
+  A wider CI makes "CI contains zero" **easier** to satisfy, so that clause
+  alone is now a weak test and is not leaned on; the `|mean| ≤ 0.20 %` and
+  `split ∈ [42 %, 58 %]` clauses carry P3b.
+
+**No numeric criterion in §3 changes.** P3a, P3b, P3c and P4's band are as
+registered. If the box turns out faster than the probe suggests, a 12-round
+confirmation of A and B is added **after** the six-round set is complete and is
+reported as a separate, later run — never as a replacement for one that already
+read.
+
+**Binaries are built and pinned before this is committed** (md5 recorded in the
+rung): `c2rs-permute-{base,null,tip}` from `f6f56df78` / `0ff503eb0`, and
+`c2rs-s1c3-{base,null,tip}` from `e85253cda` / `4d04ee59e`. In both sets the
+null is a `cp` of the base binary and `cmp` returns 0; base and tip differ.
