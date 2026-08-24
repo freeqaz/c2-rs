@@ -6,7 +6,11 @@
 > references in `docs/BOARD.md`**. That lane measured the emit-set data+code
 > fixpoint and has nothing to do with this one. This lane's scratch is
 > therefore `work/w-joint9/` (its files are still on disk in `work/w-joint/`
-> and are NOT touched), and its rung is dated `2026-08-24-w-joint.md`. Anyone
+> and are NOT touched), and its rung is dated `2026-08-24-w-joint.md`.
+> **This prereg was first committed as `work/w-joint9/PREREG.md` and moved
+> here at merge review** — `/work` is gitignored, and a prereg that is not
+> where preregs live is a prereg the next audit will not count. Content is
+> unchanged from `77dc81022`; only the path moved. Anyone
 > citing "`w-joint`" without a date is citing two different lanes.
 
 Committed as this lane's **first commit**, before any measurement is run.
