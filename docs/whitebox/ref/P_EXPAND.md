@@ -173,6 +173,45 @@ the list-insert wrapper **`FUN_10bd5732`** (`0x10bd5732`, 43 B), which calls
 `FUN_10bd3824` (`0x10bd3824`, 17 B, **147 callers**, a doubly-linked insert-
 after) and stamps `+0x14` with `DAT_10c2e2ec`.
 
+> **⛔ AMENDED BESIDE — lane `w-2e4`, 2026-08-24, board #3503. TWO THINGS IN
+> THE PARAGRAPH ABOVE ARE WRONG AS READ, AND THE SECOND IS A DECISION POINT
+> THIS PAGE HIDES.** `[R]`, `0x10bd5732` read in full (7 instructions of body):
+>
+> ```
+> 10bd5732  esi = edx (the new tuple) ; edi = ecx (the anchor)
+> 10bd573a  call 0x10bd3da7                       ; operand bookkeeping
+> 10bd573f  cmp DWORD PTR [esp+0xc],0x0 / je      ; <== the splice is a PARAMETER
+> 10bd574a  call DWORD PTR [esp+0xc]              ; <== and it may be NULL
+> 10bd574e  WORD PTR [esi+0x14] = ds:0x10c2e2ec   ; the line stamp, as stated
+> ```
+>
+> 1. **`0x10bd5732` does not call `0x10bd3824`.** It calls an **indirect
+>    callback supplied by the constructor's caller**, and that callback may be
+>    **null**, in which case the tuple is built and *not linked at all*.
+>    `0x10bd3824` is the common argument, not the callee. `ehexcept.c`
+>    `0x10be40ca` and `0x10be41ac` pass **`0x10bd3815`** instead, and
+>    `cgintrin.c` `0x10bf80cc` passes it too (`WB_R8IDIOM_FINDINGS.md` §4.1
+>    noticed the difference without naming it).
+> 2. **`0x10bd3824` is INSERT-BEFORE, not insert-after.** `+0x00` is *next*
+>    and `+0x10` is *prev*.
+>    [`P_BLOCKORDER.md`](P_BLOCKORDER.md) §"list primitives" already reads it
+>    that way (`0x10bd3815` INSERT AFTER · `0x10bd3824` INSERT BEFORE, with
+>    bodies); this page and [`P_OPATTR.md`](P_OPATTR.md) §5 say "insert-after".
+>    **A third, independent read agrees with `P_BLOCKORDER.md`**, on three
+>    pieces of evidence: `fg.c`'s block builder `0x10b372ea` walks the tuple
+>    list head→tail via `+0x00`; `0x10bd417d` inserts a *fall-through* label
+>    after a tuple using `0x10bd3815`'s body verbatim; and
+>    [`WB_MERGER4_FINDINGS.md`](../WB_MERGER4_FINDINGS.md) §2 reads M4 walking
+>    predecessors **backwards** through `tuple+0x10`.
+>
+> **Nothing in this page's word counts moves** — a count of constructor calls
+> does not depend on which side the callback links. What moves is any future
+> port that reproduces tuple *order*: the direction is a caller-chosen
+> parameter, and one EH producer uses both directions on the same anchor to
+> bracket a call.
+>
+> Full record: [`WB_2E4_FINDINGS.md`](../WB_2E4_FINDINGS.md) §2.1–§2.2.
+
 Inverting the call graph on `0x10bd5732` gives **16 constructors**:
 
 ```
@@ -262,6 +301,34 @@ a multi-word emitter, so the arm's own count is not the whole story.
 >   NOT read** — see `WB_R8IDIOM_FINDINGS.md` §6, which refuses to name it.
 >
 > Full record: [`WB_R8IDIOM_FINDINGS.md`](../WB_R8IDIOM_FINDINGS.md).
+
+> **⛔ AMENDED BESIDE — lane `w-2e4`, 2026-08-24, board #3501/#3502. THE
+> "NOT READ" ABOVE IS NOW READ, EXCEPT FOR THE NAME.** `[R]`. `0x2e4` is a
+> **kind-`0x12` branch tuple with exactly one operand, and that operand is a
+> LABEL**: the constructor `0x10bd76e6` hard-codes `mov cl,0x12`, tests
+> `target.kind == 0x1b`, registers a **kind-`0x1d` predecessor record** in
+> `label[+0x28]` (`0x10bd3f62`), bumps the label's reference count, and stores
+> a `0x2a7` label-address operand in `tuple[+0x28]`. **Minting one adds a real
+> CFG edge.**
+>
+> It is minted at **7** sites in 4 TUs — not the 8 functions in 6 TUs
+> `WB_R8IDIOM_FINDINGS.md` §4 tabulates, four of whose rows are consumers —
+> out of **171** callers of that constructor, a family in which `0x2dd` (60)
+> and `0x2de` (50) are the common members. The `fg.c` producer `0x10b39937` is
+> **PGO-gated** (`DAT_10c3de20 == 2`) and cannot fire on this workload.
+>
+> The contract, written out verbatim in `inline.c` `0x10b6e99b` and
+> `p2symtab.c` `0x10b9f04e`:
+> `PLAIN_CONDITIONAL(t) := t.kind == 0x12 && t[+0x34] == 0 && t.opcode ∉ {0x2e4, 0x21, 0x22}`,
+> and `fg.c`'s block builder **does not split a block on a `0x2e4`**
+> (`0x10b374c3`).
+>
+> **The NAME is still refused, and now as a measurement**: of the 34 char*
+> arrays in `.text`/`.data` exactly one passes a four-row control, and it stops
+> 75 rows short. Row `0x2e4` of the mnemonic table reads `twle` and that is a
+> **coincidence `0x39c` past the table's end**.
+>
+> Full record: [`WB_2E4_FINDINGS.md`](../WB_2E4_FINDINGS.md).
 
 > **⛔ AMENDED — lane `w-tailread`, 2026-08-23, board #3463. THIS TABLE IS
 > ONE-SIDED: IT COUNTS ADDITIONS AND CANNOT SEE DELETIONS.** The counts above

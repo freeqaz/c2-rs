@@ -366,6 +366,18 @@ Filed here rather than banked, per `wb-live`'s cost-array precedent:
 5. **The K1/K2 redundancy** — which one wins when both are live is decided by
    `0x10b3c2cc`'s branch classification (`tuple+0x34`, opcodes `0x2e4`/`0x21`/
    `0x22`), and those opcode numbers were **not decoded**.
+
+   > **⛔ HALF-CLOSED — lane `w-2e4`, 2026-08-24, board #3502.** `[R]`. The
+   > opcode numbers are decoded: **`0x21` is `bc`, `0x22` is `bca`** (c2's own
+   > mnemonic table), and **`0x2e4` is an unnamed one-operand branch pseudo-op
+   > whose operand is a label** ([`WB_2E4_FINDINGS.md`](WB_2E4_FINDINGS.md)).
+   > The classification `0x10b3c2cc` performs is written out verbatim in
+   > `inline.c` `0x10b6e99b` and `p2symtab.c` `0x10b9f04e`:
+   > `PLAIN_CONDITIONAL(t) := kind == 0x12 && t[+0x34] == 0 && opcode ∉ {0x2e4, 0x21, 0x22}`,
+   > and the two halves are **not** redundant — a fresh `0x2e4` has
+   > `t[+0x34] == 0` like a plain branch, because the constructor never writes
+   > that field. **Which of K1/K2 wins is still not decided here**; only the
+   > predicate that splits them is.
 6. **`0x10b39794`'s `0x50`-node pool** is the same constant as the region cap.
    Whether that is one constant or two is not established.
 7. **`mode = 1` is dead in this build**, so the `0x10b3c065` → K1 route is
