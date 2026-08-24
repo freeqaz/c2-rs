@@ -1,0 +1,21 @@
+== joint_ladder ==
+  repo      /home/free/code/milohax/c2-rs-wt-w-joint
+  workload  ../dc3-decomp  15a64d92f197+d41d8cd98f+d41d8cd98f
+  TUs       866 (from work/w-joint9/all_censusable.txt)
+  rungs     2: ['rung0-identity', 'relax:1']
+
+-- rung 0 (COMMITTED binary, --skip-scratch) --
+     no source lift is requested, so there is no lifted state to control against; rung 0 IS the incumbent census and K1 is not applicable.
+      denominator: TUs=866 slots=2417794 distinct-keys=833 skips=0
+
+-- rung 1: relax:1 --
+     lifts applied: relax=1 src=none (no scratch build needed)
+      denominator: TUs=866 slots=2417794 distinct-keys=831 skips=0
+     K10 committed-tree crates/ clean: YES
+     DISCRIMINATING CELLS: 1719 slot(s) moved vs the previous rung, of 2417794 walked
+
+  workload stamp before 15a64d92f197+d41d8cd98f+d41d8cd98f
+  workload stamp after  15a64d92f197+d41d8cd98f+d41d8cd98f
+
+  wrote /home/free/code/milohax/c2-rs-wt-w-joint/work/w-joint9/ladder_j3/ladder.json (2417794 slots x 2 rungs)
+EXIT=0

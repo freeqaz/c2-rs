@@ -88,6 +88,7 @@ std-library Python only.
 """
 
 import argparse
+import concurrent.futures as cf
 import hashlib
 import json
 import os
@@ -201,13 +202,24 @@ def census_rung(exe, tus, args, env, outdir, relax):
     """
     os.makedirs(outdir, exist_ok=True)
     got, skips = {}, 0
-    for src in tus:
+
+    def one(src):
         tsv = os.path.join(outdir, src.replace("/", "_") + ".tsv")
         cmd = [exe, "census", src, "--flags-file", os.path.abspath(args.flags),
                "--cwd", os.path.abspath(args.cwd), "--tsv", tsv]
         if relax is not None:
             cmd += ["--relax", str(relax)]
-        r = run(cmd, env)
+        return src, tsv, run(cmd, env)
+
+    # Parallel only in the number of processes: each `c2rs census` is a separate
+    # capture against the shared read-only cache, so there is no ordering to get
+    # wrong and no shared mutable state. The result is collected into a dict
+    # keyed by source, so the walk order cannot change the answer -- which is
+    # also the parameter test (#3483: it proves reproducibility, never
+    # attribution, so it is run AND the attribution is checked separately).
+    with cf.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
+        results = list(pool.map(one, tus))
+    for src, tsv, r in results:
         blob = r.stdout + r.stderr
         if "SKIP: toolchain absent" in blob:
             skips += 1
@@ -285,6 +297,10 @@ def main():
     ap.add_argument("--cwd", default="../dc3-decomp")
     ap.add_argument("--flags", default="work/dc3-workload/flags.txt")
     ap.add_argument("--repo", default=".")
+    ap.add_argument("--jobs", type=int, default=8)
+    ap.add_argument("--skip-scratch", action="store_true",
+                    help="rungs are `relax:N` only, so no source lift and no scratch build "
+                         "is needed; rung 0 runs on the committed binary and IS the control")
     ap.add_argument("--rungs", default="",
                     help="comma-separated rung specs, e.g. 'relax:1,src:opt-mode+callee-defined-in-tu'. "
                          "Default: relax:1 then every src lift, cumulatively.")
@@ -324,26 +340,32 @@ def main():
 
     # ---- rung 0: the identity control, in the SCRATCH tree with zero lifts ----
     scratch = os.path.join(out, "scratch")
-    print("\n-- rung 0 (scratch tree, ZERO lifts) — the identity control --")
-    make_scratch(repo, scratch, [])
-    exe0 = build(scratch, env, os.path.join(out, "build_rung0.log"))
-    base = census_rung(exe0, tus, args, env, os.path.join(out, "rung0"), None)
-
-    print("-- committed-tree control (the incumbent binary) --")
     exe_c = os.path.join(repo, "target", "release", "c2rs")
     if not os.access(exe_c, os.X_OK):
         exe_c = build(repo, env, os.path.join(out, "build_committed.log"))
-    comm = census_rung(exe_c, tus, args, env, os.path.join(out, "committed"), None)
+    if args.skip_scratch:
+        print("\n-- rung 0 (COMMITTED binary, --skip-scratch) --")
+        print("     no source lift is requested, so there is no lifted state to control "
+              "against; rung 0 IS the incumbent census and K1 is not applicable.")
+        base = census_rung(exe_c, tus, args, env, os.path.join(out, "rung0"), None)
+    else:
+        print("\n-- rung 0 (scratch tree, ZERO lifts) — the identity control --")
+        make_scratch(repo, scratch, [])
+        exe0 = build(scratch, env, os.path.join(out, "build_rung0.log"))
+        base = census_rung(exe0, tus, args, env, os.path.join(out, "rung0"), None)
 
-    diffs = [(s, i) for s in tus for i in base.get(s, {})
-             if base[s][i][1] != comm.get(s, {}).get(i, (None, None, None))[1]]
-    print("  K1 identity (scratch rung 0 vs committed tree): %d slot(s) differ of %d"
-          % (len(diffs), sum(len(v) for v in base.values())))
-    if diffs:
-        for s, i in diffs[:10]:
-            print("     %s [%d] scratch=%s committed=%s" % (s, i, base[s][i][1], comm[s][i][1]))
-        die("K1 RED — the scratch build does not reproduce the committed tree. The ladder "
-            "is VOID: every later rung's movement would be unattributable.", 4)
+        print("-- committed-tree control (the incumbent binary) --")
+        comm = census_rung(exe_c, tus, args, env, os.path.join(out, "committed"), None)
+
+        diffs = [(s, i) for s in tus for i in base.get(s, {})
+                 if base[s][i][1] != comm.get(s, {}).get(i, (None, None, None))[1]]
+        print("  K1 identity (scratch rung 0 vs committed tree): %d slot(s) differ of %d"
+              % (len(diffs), sum(len(v) for v in base.values())))
+        if diffs:
+            for s, i in diffs[:10]:
+                print("     %s [%d] scratch=%s committed=%s" % (s, i, base[s][i][1], comm[s][i][1]))
+            die("K1 RED — the scratch build does not reproduce the committed tree. The ladder "
+                "is VOID: every later rung's movement would be unattributable.", 4)
 
     rows = {(s, i): [base[s][i]] for s in tus for i in base.get(s, {})}
     rung_names = ["rung0"]
@@ -361,9 +383,13 @@ def main():
             if name not in SRC_LIFTS:
                 die("unknown src lift %r; known: %s" % (name, ", ".join(SRC_LIFTS)), 2)
         print("\n-- rung %d: %s --" % (n, spec))
-        applied = make_scratch(repo, scratch, lifts)
-        print("     lifts applied to scratch: relax=%s src=%s" % (relax, applied or "none"))
-        exe = build(scratch, env, os.path.join(out, "build_rung%d.log" % n))
+        if lifts:
+            applied = make_scratch(repo, scratch, lifts)
+            print("     lifts applied to scratch: relax=%s src=%s" % (relax, applied))
+            exe = build(scratch, env, os.path.join(out, "build_rung%d.log" % n))
+        else:
+            print("     lifts applied: relax=%s src=none (no scratch build needed)" % relax)
+            exe = exe_c
         got = census_rung(exe, tus, args, env, os.path.join(out, "rung%d" % n), relax)
         dirty = committed_tree_clean(repo)
         print("     K10 committed-tree crates/ clean: %s" % ("YES" if not dirty else dirty))
