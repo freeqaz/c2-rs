@@ -3833,6 +3833,93 @@ mod tests {
             "the subscript offset add is NOT the byte-offset add; admitting it here would \
              make the measure wider than its emitter"
         );
+        // 4. **The COARSE half of the pointer guard.** Cells 1-3 all leave the
+        //    class stack followable, so `emitter_would_refuse` answers them out
+        //    of the precise model and the coarse `saw_ptr` flag is never the
+        //    thing deciding. A mutation that simply dropped `st.ptr = true`
+        //    therefore passed every one of them — an executed mutation that
+        //    came back GREEN, which is a hole in the control and not a
+        //    property of the code.
+        //
+        //    This stream underflows the stack first (`33 <int> k · 02` pops two
+        //    with one pushed), which clears `cstack_ok` on BOTH sides exactly as
+        //    `fold_binary!` does, and only then applies the off-add. The
+        //    end-of-walk guard is now the coarse `saw_ptr && saw_arith`, and
+        //    `parse_expr`'s `0x27` arm sets `saw_ptr` unconditionally — before
+        //    its own `cstack` match — so the measure must too or it accepts a
+        //    stream the emitter refuses. That is the *phantom completeness*
+        //    direction, the one no gate in this project can see.
+        let mut underflow = vec![0x33, 0x86, 0x41, 0x74, 0x04, 0x02];
+        underflow.extend_from_slice(&[0x33, 0x86, 0x41, 0x74, 0x08]);
+        underflow.extend_from_slice(&[0x27, 0x86, 0x43, 0x74]);
+        underflow.extend_from_slice(&[0x55, 0x86, 0x43, 0x74, 0x4C]);
+        assert_eq!(
+            both(&underflow),
+            (false, false),
+            "with the class stack unfollowable the COARSE pointer guard decides, and it is \
+             `saw_ptr` that the `27` arm must set"
+        );
+        // 5. **The refusal leaves the cursor ON the `27`.** Every arm in this
+        //    module restores `*p` untouched when it refuses, and the reason is
+        //    not tidiness: `finish!()` forces the note to `fail.at.max(*p)` and
+        //    the caller re-notes at `*p`, so a cursor left one token downstream
+        //    renames the key to whatever byte it landed on — `GAPS.md` §6's
+        //    mis-attribution failure, which is the thing this whole module
+        //    exists to avoid.
+        //
+        //    Asserted through `eat_int_operands` directly, because the
+        //    acceptance verdict cannot see it: an executed mutation that
+        //    advanced the cursor past the refused TYPE came back GREEN on
+        //    cells 1-4 and on both correspondence guards. Only the offset says.
+        let non_ptr = arg(&[0x27, 0x86, 0x41, 0x74]);
+        let at_27 = non_ptr.iter().position(|&b| b == 0x27).expect("the fixture has a `27`");
+        let mut p = 0usize;
+        let mut fail = Fail::new();
+        assert!(eat_int_operands(
+            &non_ptr,
+            &mut p,
+            Vocab::CallArg,
+            Admit::bare(CallForm::RecvLoad),
+            &mut fail
+        ));
+        assert_eq!(p, at_27, "the refused `27` must leave the cursor on the `27` itself");
+    }
+
+    /// **`Vocab::IntrinsicRecv` is NOT widened by the off-add arm, and this is
+    /// the cell that says so** — lane `w-3475`.
+    ///
+    /// [`Vocab`]'s own doc is the rule: nothing in the intrinsic family is
+    /// lowered at all, so that position **has no emitter** and there is no
+    /// correspondence to hold it to. Widening it would not fix a divergence,
+    /// it would invent one, and the honest state is `UNMEASURED`.
+    ///
+    /// Written because dropping the `v == Vocab::CallArg` guard was an executed
+    /// mutation that came back **GREEN**: the two correspondence guards drive
+    /// the call-argument region only, so nothing in the tree pinned the other
+    /// position. A rule stated in a doc comment and enforced by nothing is the
+    /// failure mode this project names in five places.
+    #[test]
+    fn the_intrinsic_receiver_vocabulary_is_not_widened_by_the_off_add_arm() {
+        // `B9 <tok> int · 33 int 8 · 27 <T*>` — int-like everywhere the
+        // intrinsic position can read, so the ONLY thing that can separate the
+        // two vocabularies is the `27` itself.
+        let seg: &[u8] = &[
+            0xB9, 0x01, 0x02, 0x86, 0x41, 0x74, 0x33, 0x86, 0x41, 0x74, 0x08, 0x27, 0x86, 0x43,
+            0x74,
+        ];
+        let off_add_at = 11usize;
+        assert_eq!(seg[off_add_at], 0x27, "the fixture's own offsets must hold");
+        for (v, want) in [(Vocab::CallArg, seg.len()), (Vocab::IntrinsicRecv, off_add_at)] {
+            let mut p = 0usize;
+            let mut fail = Fail::new();
+            let ok = eat_int_operands(seg, &mut p, v, Admit::bare(CallForm::RecvLoad), &mut fail);
+            assert!(ok, "{v:?}: the run has operands before the `27` either way");
+            assert_eq!(
+                p, want,
+                "{v:?}: the cursor must stop {}",
+                if want == seg.len() { "at the end" } else { "in front of the `27`" }
+            );
+        }
     }
 
     /// One pinned body's census [`Block`].
