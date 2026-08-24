@@ -2019,11 +2019,32 @@ fn permute_args_parts(slots: &[c2_il::SlotArg]) -> Result<(Vec<u8>, Vec<u8>), Ba
 /// "two implementations of one rule" shape `docs/GAPS.md` §6 #9 records, and
 /// this one cannot drift from the moves because it is computed beside them.
 ///
-/// **The write set is the one output no byte compare of this function can
-/// grade.** Only the first element is instructions; the second is consumed by
-/// `call_seq_parts`' interleaving, so a dropped `writes.push` beside correct
-/// moves shows up as wrong bytes somewhere else entirely, in the Class B shapes
-/// that consult it.
+/// **NO IN-CLASS SHAPE READS THIS WRITE SET TODAY, and that is measured, not
+/// assumed.** The sentence above is how the coupling was written on 2026-07-30
+/// and it describes a path two later refusals have closed:
+///
+/// * [`call_seq_parts`] refuses `permuted || has_lit` whenever `seq.saved` is
+///   non-empty (`calls.rs:1303` — *"c2 breaks the cycle through the
+///   callee-saved register instead of r11, which is not characterized"*), and
+/// * `c2_il`'s `seq_call_arg_slots` refuses a `SymAddr` slot by name
+///   (`callseq-multiarg-sym`), so [`sym_slots_ops`]' write set never gets there
+///   either.
+///
+/// So the only slot list that survives to `writes.contains(&src)` is the
+/// **identity**, whose marshalling is the passthrough and whose write set is
+/// empty. Lane `w-permute` proved it both ways: three mutations that gut or
+/// poison this write set — including one that returns **all eight**
+/// `ARG_REGS` — are byte-identical on 391 fixtures and on `cargo test`; and an
+/// `assert!` at the read site, asking only about a *marshalling* write set,
+/// never fired across the **878-TU workload** (`match 25`, `mismatch 0`,
+/// `fnbyte-exact 35912`, scan exit 0).
+///
+/// **It is kept, and kept computed here rather than derived by a second walk**,
+/// for the `docs/GAPS.md` §6 #9 reason above: the day either refusal is
+/// widened, the interleaving needs this set, and a set re-derived then would be
+/// the second implementation that drifts. What changes is the claim — this is a
+/// **latent** output with a live producer, not an output under test. No byte
+/// instrument in this project can currently fail on it.
 ///
 /// ---
 ///
