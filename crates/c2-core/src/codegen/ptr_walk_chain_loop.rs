@@ -462,7 +462,12 @@ mod tests {
         words(&ptr_walk_chain_loop_text(&loop_of(ops), OptMode::O1).unwrap())
     }
 
-    use ChainOpKind::{Add, Mul, Or, Xor};
+    // `Mul` is NOT here: every use of it in this file is the production code's
+    // fully-qualified `ChainOpKind::Mul` (`:408`, `:420`), and no test below
+    // spells it bare. It sat in this list unused for long enough that `w-s1c2`
+    // §8.4 and `w-s1c3` §6.4 each recorded it as "not this lane's"; the third
+    // lane to see it just removes it.
+    use ChainOpKind::{Add, Or, Xor};
     use ChainRhs::{Char, Lit};
 
     /// **`M = 1`, word for word**, transcribed from real `c2`'s obj for
