@@ -75,10 +75,11 @@
 use c2_il::PoolCtorChain;
 
 use crate::codegen::encode::{
-    cr_bi, encode_add, encode_addi, encode_andc, encode_bdnz, encode_blr,
-    encode_cmpwi, encode_divw, encode_mr, encode_mtctr, encode_rlwinm, encode_stw, encode_twi,
+    cr_bi, mop_add, mop_addi, mop_andc, mop_bdnz, mop_blr,
+    mop_cmpwi, mop_divw, mop_mr, mop_mtctr, mop_rlwinm, mop_stw, mop_twi,
     BO_FALSE, CR_BIT_GT, CR_COMPARE,
 };
+use crate::codegen::mop::{ops_to_bytes, Ops};
 use crate::codegen::select::{out_of_class, OptMode};
 use crate::BackendError;
 use crate::codegen::labels::Form;
@@ -115,6 +116,29 @@ pub(crate) fn pool_ctor_chain_text(
     c: &PoolCtorChain,
     mode: OptMode,
 ) -> Result<Vec<u8>, BackendError> {
+    Ok(ops_to_bytes(&pool_ctor_chain_ops(c, mode)?))
+}
+
+/// **S1c (i): the twenty-word constructor as an op stream**, reachable by a
+/// caller.
+///
+/// This is the class that made the op form of [`reach::direct`] necessary:
+/// `reach.rs`'s own header counts **one** live `direct` call site crate-wide
+/// and this is it, so until [`reach::direct_op`] existed there was exactly one
+/// producer in the crate whose body could not be an `Ops` — not because it does
+/// byte-position arithmetic (it does not; both displacements are file-level
+/// constants) but because the gate its guard goes through handed back bytes.
+///
+/// The length invariant counts **ops** now. It was always "the class's body
+/// length is a constant"; the `80` was that constant expressed in the
+/// representation, and `20` is the same statement in the representation the
+/// function now builds. Both displacement assertions in the tests below still
+/// read words off the rendered bytes, deliberately: they are claims about what
+/// the `bf` and the `bdnz` *span*, which is a byte fact.
+pub(crate) fn pool_ctor_chain_ops(
+    c: &PoolCtorChain,
+    mode: OptMode,
+) -> Result<Ops, BackendError> {
     // Restated from the recognizer for #1638's reason: `select_function` is what
     // `function_gate` runs.
     if mode != OptMode::O1 {
@@ -145,49 +169,49 @@ pub(crate) fn pool_ctor_chain_text(
     let me = 31 - c.align.trailing_zeros() as u8;
     let addend = i16::try_from(c.align - 1).expect("align 4");
 
-    let mut t: Vec<u8> = Vec::with_capacity(80);
+    let mut t: Ops = Vec::with_capacity(20);
     // ---- the entry block --------------------------------------------------
     // The overflow helper first — HOISTED above the member-init store, which is
     // the single most visible thing c2's scheduler does to this body.
-    t.extend_from_slice(&encode_rlwinm(R_COUNT, R_TOTAL, 1, 0, 31));
-    t.extend_from_slice(&encode_stw(R_PTR, R_THIS, off));
-    t.extend_from_slice(&encode_addi(R_STRIDE, R_SIZE, addend));
-    t.extend_from_slice(&encode_addi(R_OVF, R_COUNT, -1));
-    t.extend_from_slice(&encode_rlwinm(R_STRIDE, R_STRIDE, 0, 0, me));
-    t.extend_from_slice(&encode_divw(R_COUNT, R_TOTAL, R_STRIDE));
-    t.extend_from_slice(&encode_andc(R_OVF, R_STRIDE, R_OVF));
-    t.extend_from_slice(&encode_twi(TO_DIV_BY_ZERO, R_STRIDE, 0));
-    t.extend_from_slice(&encode_twi(TO_OVERFLOW, R_OVF, -1));
+    t.push(mop_rlwinm(R_COUNT, R_TOTAL, 1, 0, 31));
+    t.push(mop_stw(R_PTR, R_THIS, off));
+    t.push(mop_addi(R_STRIDE, R_SIZE, addend));
+    t.push(mop_addi(R_OVF, R_COUNT, -1));
+    t.push(mop_rlwinm(R_STRIDE, R_STRIDE, 0, 0, me));
+    t.push(mop_divw(R_COUNT, R_TOTAL, R_STRIDE));
+    t.push(mop_andc(R_OVF, R_STRIDE, R_OVF));
+    t.push(mop_twi(TO_DIV_BY_ZERO, R_STRIDE, 0));
+    t.push(mop_twi(TO_OVERFLOW, R_OVF, -1));
 
     // ---- the source's own `if (count > 1)` --------------------------------
-    t.extend_from_slice(&encode_cmpwi(CR_COMPARE, R_COUNT, 1));
-    t.extend_from_slice(&reach::direct(
+    t.push(mop_cmpwi(CR_COMPARE, R_COUNT, 1));
+    t.push(reach::direct_op(
         Form::Bc { bo: BO_FALSE, bi: cr_bi(CR_COMPARE, CR_BIT_GT) },
         GUARD_SKIP_BYTES,
         "the pool-ctor guard",
     )?);
 
     // ---- the preheader: `n = count - 1`, and n IS the trip count ----------
-    t.extend_from_slice(&encode_addi(R_COUNT, R_COUNT, -1));
-    t.extend_from_slice(&encode_mtctr(R_COUNT));
+    t.push(mop_addi(R_COUNT, R_COUNT, -1));
+    t.push(mop_mtctr(R_COUNT));
 
     // ---- the loop body, four words ---------------------------------------
-    t.extend_from_slice(&encode_add(R_COUNT, R_STRIDE, R_PTR));
-    t.extend_from_slice(&encode_stw(R_COUNT, R_PTR, 0));
-    t.extend_from_slice(&encode_mr(R_PTR, R_COUNT));
-    t.extend_from_slice(
-        &encode_bdnz(BACK_EDGE_BYTES)
+    t.push(mop_add(R_COUNT, R_STRIDE, R_PTR));
+    t.push(mop_stw(R_COUNT, R_PTR, 0));
+    t.push(mop_mr(R_PTR, R_COUNT));
+    t.push(
+        mop_bdnz(BACK_EDGE_BYTES)
             .ok_or_else(|| out_of_class("the back edge does not fit a `bdnz`"))?,
     );
 
     // ---- the terminating null link ---------------------------------------
     // `li r11,0` is `addi r11,r0,0`; r11 is free again because `stride` is dead
     // once the loop is over.
-    t.extend_from_slice(&encode_addi(R_STRIDE, 0, 0));
-    t.extend_from_slice(&encode_stw(R_STRIDE, R_PTR, 0));
-    t.extend_from_slice(&encode_blr());
+    t.push(mop_addi(R_STRIDE, 0, 0));
+    t.push(mop_stw(R_STRIDE, R_PTR, 0));
+    t.push(mop_blr());
 
-    debug_assert_eq!(t.len(), 80, "the class's body length is a constant");
+    debug_assert_eq!(t.len(), 20, "the class's body length is a constant");
     Ok(t)
 }
 

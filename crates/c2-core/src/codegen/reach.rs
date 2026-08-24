@@ -138,6 +138,23 @@
 //! the two readers agree. The disagreement is still the *refusal*, and closing
 //! it is still `labels.rs`' owner's one-line change.
 //!
+//! ## ✔ 2026-08-24, lane `w-s1c3` — **the gate is op-valued, and [`direct`] is
+//! the composition**
+//!
+//! Phase 0 slice **S1c (i)** makes every producer build a stream of
+//! [`MachineOp`] and render once. That count of **one** above is what made this
+//! module part of it: `pool_ctor_chain`'s guard is the crate's last branch site
+//! computing its own displacement, so a gate that returned `[u8; 4]` was the
+//! one thing standing between that class and an op stream.
+//!
+//! [`direct_op`] is now the gate and [`direct`] is `direct_op(..).word()`.
+//! **The verdict, the clause order and the refusal text are each read exactly
+//! once**; what changed is where the composition happens, not what is composed.
+//! Zero byte delta by construction — `encode_bc` is `mop_bc(..).word()` — and
+//! [`tests::the_op_twin_agrees_with_the_word_form_over_the_whole_bc_field`]
+//! asserts it over the whole `BD` field including both refusing arms, because
+//! "by construction" is a claim about today's `encode.rs`.
+//!
 //! # What it derives rather than restates
 //!
 //! * **The threshold.** `Reach::of` asks [`encode_bc`]/[`encode_b_intra`]
@@ -169,8 +186,9 @@
 //! criterion, not a side effect of it.
 
 use super::cond::invert_sense;
-use super::encode::{encode_b_intra, encode_bc};
+use super::encode::{encode_b_intra, encode_bc, mop_b_intra, mop_bc};
 use super::labels::Form;
+use super::mop::MachineOp;
 use super::select::out_of_class;
 use crate::BackendError;
 
@@ -351,6 +369,25 @@ fn encode_in_form(form: Form, disp: i32) -> Option<[u8; 4]> {
     }
 }
 
+/// [`encode_in_form`]'s **op-valued twin** — S1c (i).
+///
+/// The same four-line dispatch against `mop_bc`/`mop_b_intra`, which are
+/// `encode_bc`/`encode_b_intra`'s own twins: `encode_bc(..)` *is*
+/// `mop_bc(..).map(MachineOp::word)`, so the two functions agree on the word by
+/// construction and on the **refusal** by sharing `BC_MAX_DISP`/`B_MAX_DISP`
+/// through those twins rather than by spelling a threshold here.
+///
+/// [`tests::the_op_twin_agrees_with_the_word_form_over_the_whole_bc_field`]
+/// asserts both halves over the full `BD` field, including the refusal, because
+/// "agrees by construction" is a claim about today's `encode.rs` and not a
+/// property the type system holds.
+fn mop_in_form(form: Form, disp: i32) -> Option<MachineOp> {
+    match form {
+        Form::Bc { bo, bi } => mop_bc(bo, bi, disp),
+        Form::B => mop_b_intra(disp),
+    }
+}
+
 impl Reach {
     /// **The decision**, in §3.3.1's own clause order.
     ///
@@ -433,8 +470,33 @@ impl Reach {
 ///
 /// [`FoldShape::admit`]: super::fold::FoldShape::admit
 pub fn direct(form: Form, disp: i32, site: &str) -> Result<[u8; 4], BackendError> {
+    direct_op(form, disp, site).map(MachineOp::word)
+}
+
+/// **[`direct`] as a [`MachineOp`]** — S1c (i), and the reason this module has
+/// an op form at all.
+///
+/// The one branch site left in this crate that computes its own displacement
+/// (`pool_ctor_chain`'s forward guard — the module header's count of **one**)
+/// was the last producer whose body could not be an op stream, because the gate
+/// every branch goes through handed back bytes. It hands back an op now, and
+/// [`direct`] is that op composed: **one** verdict, **one** refusal text, and
+/// the clause order of [`Reach::of`] read exactly once.
+///
+/// The `Reach::Direct(_)` arm discards the word it matched and rebuilds the op,
+/// which looks redundant and is not: `Reach::of` is where the *decision* lives
+/// (misaligned before out-of-range, and the threshold asked of the encoder
+/// rather than spelled), and duplicating that clause order into a second
+/// function is precisely the "one fact, two implementations" shape
+/// `docs/GAPS.md` §6 records. The `expect` cannot fire — `Reach::Direct` means
+/// `encode_in_form` returned `Some`, and `mop_in_form` refuses on the same two
+/// conditions through the same twins — and it is an `expect` rather than a
+/// silent fallback so that a future divergence between the two dispatches is
+/// loud instead of byte-visible.
+pub fn direct_op(form: Form, disp: i32, site: &str) -> Result<MachineOp, BackendError> {
     match Reach::of(form, disp) {
-        Reach::Direct(w) => Ok(w),
+        Reach::Direct(_) => Ok(mop_in_form(form, disp)
+            .expect("Reach::Direct means the form's own encoder accepted this displacement")),
         other => Err(out_of_class(&format!(
             "{site}: a displacement of {disp} is {}",
             other.what()
@@ -447,7 +509,8 @@ mod tests {
     use super::*;
     use crate::codegen::cond_tail::branch_sense;
     use crate::codegen::encode::{
-        cr_bi, BC_MAX_DISP, BO_ALWAYS, BO_DNZ, BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_COMPARE,
+        cr_bi, BC_MAX_DISP, B_MAX_DISP, BO_ALWAYS, BO_DNZ, BO_FALSE, BO_TRUE, CR_BIT_EQ,
+        CR_COMPARE,
     };
     use c2_il::Rel;
 
@@ -761,5 +824,61 @@ mod tests {
         m.define(target, &t).unwrap();
         m.resolve(&mut t).unwrap();
         assert_eq!(&t[0..4], &direct(Form::B, 40_000, "sweep").unwrap()[..]);
+    }
+
+    // ---- S1c (i), lane w-s1c3: the op twin of the gate ---------------------
+
+    /// **[`direct_op`] agrees with [`direct`] over the WHOLE `bc` field, on the
+    /// word AND on the refusal** — the control that makes routing
+    /// `pool_ctor_chain`'s guard through the op form a re-expression.
+    ///
+    /// Two halves, and the second is the one with content. Comparing words over
+    /// the in-range domain cannot see a twin that *encodes* a displacement the
+    /// gate refuses, and that is exactly the direction item D exists to guard:
+    /// a branch silently truncated instead of refused (`reach`'s whole
+    /// premise). So the sweep runs **past both limits and over every
+    /// non-multiple of 4**, and asserts that the refusing arm was reached —
+    /// without which the test could pass by never asking a question either side
+    /// could refuse.
+    #[test]
+    fn the_op_twin_agrees_with_the_word_form_over_the_whole_bc_field() {
+        let form = bne_cr6();
+        let (mut agreed, mut refused, mut misaligned) = (0u32, 0u32, 0u32);
+        // Both edges of the BD field, and 12 bytes past each of them.
+        let mut d = -BC_MAX_DISP - 16;
+        while d <= BC_MAX_DISP + 16 {
+            let w = direct(form, d, "sweep");
+            let m = direct_op(form, d, "sweep");
+            match (&w, &m) {
+                (Ok(w), Ok(m)) => {
+                    assert_eq!(*w, m.word(), "word disagreement at disp {d}");
+                    agreed += 1;
+                }
+                (Err(_), Err(_)) => {
+                    if d % 4 == 0 {
+                        refused += 1;
+                    } else {
+                        misaligned += 1;
+                    }
+                }
+                _ => panic!("one arm refused and the other did not, at disp {d}"),
+            }
+            d += 1;
+        }
+        // The refusing arm WAS reached, in both of its distinguishable kinds:
+        // past the field (`Unmeasured`/`Expanded`) and not a whole word
+        // (`Misaligned`). A sweep that only agreed would be silent about the
+        // failure the gate exists to prevent.
+        assert!(agreed > 8_000, "the in-range domain was swept: {agreed}");
+        assert!(refused > 0, "the out-of-range arm was never reached");
+        assert!(misaligned > 0, "the misaligned arm was never reached");
+        // And the unconditional form at its own, much wider, edge.
+        for d in [0, 4, -4, 40_000, -40_000, B_MAX_DISP, -B_MAX_DISP] {
+            assert_eq!(
+                direct(Form::B, d, "sweep").unwrap(),
+                direct_op(Form::B, d, "sweep").unwrap().word()
+            );
+        }
+        assert!(direct_op(Form::B, B_MAX_DISP + 4, "sweep").is_err());
     }
 }
