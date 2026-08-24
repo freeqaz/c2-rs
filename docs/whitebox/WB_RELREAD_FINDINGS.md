@@ -572,7 +572,17 @@ discriminated.
 
 ---
 
-## 9. Pre-registration score — **17 hits, 8 misses, 4 partials**
+## 9. Pre-registration score — **19 hits (3 qualified), 7 misses, 3 partials, 1 refuted, 1 control fired**
+
+> The header of this section originally read *"17 hits, 8 misses, 4 partials"*
+> and was **wrong** — I wrote the tally by hand before counting the table. It is
+> corrected here from a mechanical count of the verdict column
+> (`grep -oE '\*\*(HIT|MISS|PARTIAL|REFUTED|FIRED)\*\*' | sort | uniq -c`), and
+> the miscount is left on the record because a lane whose whole subject is
+> *"check the constraint that restates the conclusion"* does not get to
+> hand-wave its own arithmetic. **Three of the 19 hits are qualified in the
+> table** (`S4a` carries a correction, `S5b` is derived from `#2207`, `S6d` is a
+> hit on the strings only) and should be read as such rather than counted flat.
 
 | | registered | measured | |
 |---|---|---|---|
