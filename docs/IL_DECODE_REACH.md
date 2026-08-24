@@ -355,6 +355,9 @@ workload scan, naming what the bucket was already filtered by.
 
 ## 12. THE SINK INSTRUMENT FAMILY — the five, named in one place at last
 
+> **Four since 2026-08-24**: the first row is retired, promoted to a graded
+> construct by Phase 1 slice C1. See §12.1 warning 1.
+
 *(Added by lane `w-read2`. Board **#3098** is open because the first four are
 documented **only** in `crates/c2-il/src/func/body/expr.rs` doc comments,
 reachable by no `docs/` grep and no board-topic search: `w-readphase` registered
@@ -367,7 +370,7 @@ pushes no `IlOp`.
 
 | variable | board | what it sinks | where it is consulted |
 |---|---|---|---|
-| `C2RS_SINK_OFF_ADD_ARG=expr` | **#143** | `0x27`, the offset-add | `parse_expr_classed` |
+| ~~`C2RS_SINK_OFF_ADD_ARG=expr`~~ | **#143** | ~~`0x27`, the offset-add~~ — **RETIRED 2026-08-24, lane `w-c1`** | — |
 | `C2RS_SINK_REL=expr` | **#420** | the relational family `1F`..`24` | `parse_expr_classed` |
 | `C2RS_SINK_BRANCH=expr\|cflow\|stmt` | **#440** | `38`/`39`; +`29`/`3A`/`4B`; +`53`/`54` | `parse_expr_classed` |
 | `C2RS_SINK_CHAIN=<spec>` | **#660** | any pinned opcode, plus `type`/`convert`/`intrinsic` | `parse_expr_classed` |
@@ -375,11 +378,40 @@ pushes no `IlOp`.
 
 ### 12.1 Three warnings, each of which has already cost a lane
 
-1. **`C2RS_SINK_OFF_ADD_ARG` is not in the family.** Its `0x27` arm pushes
-   `IlOp::Add` and has **no poison** — it is a real widening behind an
-   environment variable, and board **#403** records `cargo test` going to *16
-   targets / 754 passed / 2 failed* under it. It must never be used as a chain
-   step.
+1. **`C2RS_SINK_OFF_ADD_ARG` was not in the family — and it is gone.** Its
+   `0x27` arm pushed `IlOp::Add` and had **no poison**: a real widening behind
+   an environment variable (board **#661**), with board **#403** recording
+   `cargo test` going to *16 targets / 754 passed / 2 failed* under it. It must
+   never be used as a chain step, and **it no longer can be**: Phase 1 slice
+   **C1** (`w-c1`, 2026-08-24) promoted the arm to a graded construct with the
+   type resolution it never had, and #403's two reds are resolved rather than
+   avoided.
+
+   What replaces it is **`C2RS_OFF_ADD`**, and it belongs in a different table
+   from this one. It is a **decision point**, not a sink: ON by default,
+   graded at the default and nowhere else, with `=off` restoring the pre-C1
+   parser exactly (`fixtures/cpp/wc1_offadd.cpp` goes 22 of 22 in class to 0
+   of 22, all on `expr-op-0x27`). That is `ROADMAP_SLICING_2026-08-21.md` §6
+   rule 7 — a general layer ships its arbitrary choices as named parameters
+   whose default reproduces c2 byte-exactly — and it is the first one in this
+   tree.
+
+   The other half of `C2RS_SINK_OFF_ADD_ARG` is **untouched and still a
+   sink**: its `honest`/`ceiling`/`zero` modes drive
+   `shapes::calls::off_add_arg_sink`, the *call-argument* off-add (board
+   **#149**), which C1 did **not** ship. See `docs/rungs/2026-08-24-w-c1.md`.
+
+   > **What the retirement measured, on the 878-TU workload at stamp
+   > `a29f559d0790`** (base `e85253cda` and tip back to back, pinned
+   > binaries): `expr-op-0x27` **leaves the board entirely** — 22,313 blocked
+   > emitted functions and 391,985 bodies at base, absent at tip — and
+   > `expr-op-0x30` becomes the head at **11,410 emitted / 201,277 bodies**,
+   > up from 19,896 bodies. Board **#150** predicted *"201,618 bodies re-file
+   > under `expr-op-0x30`"*; the measurement is **201,277**, 0.17 % away, on a
+   > different tree months later. The conversion is **+8** emitted functions
+   > (#150 said 6), `match` unmoved at 25, `mismatch` 0, and the
+   > **`fnbyte-differs` symbol set is identical at base and tip — 0 lines over
+   > 1,968 symbols**, so the widening admitted no new wrong emit.
 
 2. **A poisoned sink is fail-closed but NOT emission-neutral** (board **#3094**,
    corrected by **#3104**/**#3105**). `C2RS_SINK_CHAIN` **de-accepts** on 5 of
