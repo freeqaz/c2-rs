@@ -921,6 +921,43 @@ fn limit() -> usize {
     std::env::var("C2RS_PWORDS_LIMIT").ok().and_then(|v| v.parse().ok()).unwrap_or(48)
 }
 
+/// **Fixtures that EXHIBIT board #3459's hazard, named so a test cannot read
+/// nothing and call it a pass.**
+///
+/// Measured, not chosen: at `C2RS_PWORDS_LIMIT=0` these are the fixtures where
+/// c2 walks a function it never emits into `.text`, so its funcwalk ordinals
+/// count a superset of the obj's functions and every later pairing is offset.
+/// `wkg_splice_pos.cpp` is the extreme case (offset 2, seven rows); the
+/// destructor fixture supplies the other mechanism — a compiler-generated
+/// `??_G…` scalar-deleting destructor c2 processes and declines to emit.
+///
+/// **This is not a criterion fitted to its own failures.** They are inputs, not
+/// thresholds, and the assertion they feed is a PRECONDITION: without one of
+/// them in the population the ordinal-vs-identity comparison has nothing to
+/// compare and must say so. `w-pwords` §6.1 records the same repair in the same
+/// file — a fence keyed to *where the stride happened to land* is not keyed to
+/// anything.
+const HAZARD_FIXTURES: [&str; 2] = ["wkg_splice_pos.cpp", "w14_dtor_delegate_neg.cpp"];
+
+/// [`population`] with the hazard fixtures guaranteed present.
+///
+/// The default `C2RS_PWORDS_LIMIT=48` stride does not contain one — measured:
+/// the armed suite came back `EXIT=101` with the comparison test dying on
+/// exactly this precondition, which is the second time the gate has caught this
+/// file's own control being empty.
+fn population_with_hazard() -> Vec<PathBuf> {
+    let mut pop = population();
+    let dir = repo_root().join("fixtures/cpp");
+    for h in HAZARD_FIXTURES {
+        let p = dir.join(h);
+        if p.exists() && !pop.iter().any(|q| q.file_name() == p.file_name()) {
+            pop.push(p);
+        }
+    }
+    pop.sort();
+    pop
+}
+
 fn population() -> Vec<PathBuf> {
     let all = all_fixtures();
     let n = limit();
@@ -1247,7 +1284,10 @@ fn report(c: &Corpus) {
 #[test]
 fn pwords_corrected_bijection_over_the_fixture_corpus() {
     let Some(tc) = ready() else { return };
-    let pop = population();
+    // `population_with_hazard`, not `population`: this test asserts #3459 is
+    // CLOSED (`OrdinalUnverified == 0`), and on a population containing no
+    // fixture that exhibits the hazard that assertion reads nothing.
+    let pop = population_with_hazard();
     let c = run_corpus(&tc, &pop, Perturb::None, jobs(), Pairing::Identity);
     report(&c);
 
@@ -1311,7 +1351,12 @@ fn pwords_corrected_bijection_over_the_fixture_corpus() {
 #[test]
 fn the_identity_pairing_empties_the_quarantine_and_moves_nothing_else() {
     let Some(tc) = ready() else { return };
-    let pop = population();
+    // NOT `population()`. The default 48-fixture stride contains no fixture the
+    // old rule quarantines, so this test died on its own precondition in the
+    // first armed suite run (`EXIT=101`) — the same defect `w-pwords` §6.1
+    // records one function above, and the same repair: key the control to a
+    // population that contains the property by construction.
+    let pop = population_with_hazard();
     let old = run_corpus(&tc, &pop, Perturb::None, jobs(), Pairing::Ordinal);
     let new = run_corpus(&tc, &pop, Perturb::None, jobs(), Pairing::Identity);
 
@@ -1404,7 +1449,7 @@ fn the_instrument_fails_on_deliberately_broken_input() {
     // asserts `framed > 0` over `population()`, so keying this test to the
     // same population is what makes the precondition hold by construction
     // rather than by luck of where the stride landed.
-    let pop: Vec<PathBuf> = population();
+    let pop: Vec<PathBuf> = population_with_hazard();
 
     let base = run_corpus(&tc, &pop, Perturb::None, jobs(), Pairing::Identity);
     let h1_ok = |c: &Corpus| {
