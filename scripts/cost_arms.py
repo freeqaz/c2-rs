@@ -14,7 +14,7 @@ retyped every time.
     scripts/cost_arms.py --arm base=/path/c2rs-base \\
                          --arm nulldup=/path/c2rs-base-copy \\
                          --arm tip=/path/c2rs-tip \\
-                         --rounds 8 --port-iters 2000
+                         --rounds 9 --port-iters 2000
 
 # The protocol, and why each clause is here
 
@@ -24,8 +24,27 @@ retyped every time.
   the null arm reading ±0.5–1.1 % with a CI that excluded zero on a loaded box.
   **The null arm is the noise floor, measured rather than assumed**, and a tip
   effect inside it is a bound and not a sign.
-* **Arm order rotates every round.** A fixed order lets a warming or cooling
-  box alias onto the arm axis.
+* **Arm order rotates every round, and `--rounds` MUST be a multiple of the
+  arm count.** A fixed order lets a warming or cooling box alias onto the arm
+  axis; a rotation that does not complete does **not** remove it. This is not a
+  theoretical nicety — it is what four lanes of this protocol were losing.
+  Measured here 2026-08-24 on one tree, one pair of binaries, minutes apart:
+
+  ```text
+    rounds=8  (3 arms — UNBALANCED)   null +0.57 % [+0.45, +0.68]  split 76 %
+    rounds=9  (3 arms — balanced)     null +0.09 % [-0.07, +0.26]  split 51 %
+  ```
+
+  At 8 rounds over 3 arms, `base` and `nulldup` each run first three times and
+  `tip` only twice, while `tip` runs last three times and `nulldup` twice. On a
+  box whose load is moving, that residue lands on the arm axis, and the NULL arm
+  — byte-identical to the baseline — reads a **significantly positive effect
+  with a CI excluding zero**. `w-s1bc` §4.3 and `w-s1c2` §4.1/§4.3 both reported
+  exactly that symptom (null arms at −1.08 %, +0.47 %, +0.52 %, sign splits of
+  40 % and 52 %) and read it as box noise setting a ±1–1.7 % floor. **On the
+  balanced rotation the floor is not there**: the same protocol resolves a
+  +0.99 % effect with a CI of [+0.63, +1.35]. The script now refuses an
+  unbalanced `--rounds`.
 * **The estimator is the per-fixture MINIMUM over rounds**, not the mean of
   medians. Interference only ever makes a run slower, so the minimum is the
   least-contaminated estimate of the same quantity, and it is what `ir0` used.
@@ -35,16 +54,22 @@ retyped every time.
   too. It is real `c2.dll` under wibo and has nothing to do with the port's
   cost; including it would put a 1000x-slower number in the denominator.
 * **The SIGN SPLIT is published beside the mean.** An effect of exactly zero
-  must split its sign about 50/50. `w-s1c2`'s null arm split **40 %**, which is
-  what exposed that run as unable to resolve the effect it was asked about. A
-  mean alone hides this.
+  must split its sign about 50/50. `w-s1c2`'s null arm split **40 %**, and this
+  lane's unbalanced run split **76 %** — in both cases the split, not the mean,
+  is what said the run could not answer its own question. A mean alone hides
+  this, and it is the reason the defect above was findable at all.
 
 # What it CANNOT do, stated so it is not overread
 
-* It measures **this box, now**. Load average moves the answer by about the
-  same magnitude as the effect (`w-s1c2` §4.3: both arms flipped sign between
-  two runs of the same binaries). Report the load context.
-* `--rounds` under about 6 will not separate anything from the null.
+* It measures **this box, now**. Report the load context at both ends; this
+  script prints it.
+* `--rounds` under about 6 will not separate anything from the null, and 6 over
+  3 arms is the smallest balanced setting worth running.
+* **A balanced rotation removes arm ORDER, not everything.** It does not remove
+  a box whose load changes monotonically across a whole run, and it says nothing
+  about cache or allocator state the arms might not share. What certifies a
+  given run is the null arm's own reading — CI containing zero and a split near
+  50 % — and that is a check to perform per run, never an assumption.
 * It is a **timing** instrument, not a grader. Per board #1406 an instrument
   whose output is quoted as evidence should run under `cargo test` or
   `scripts/gate.sh`; this one cannot, for the same reason `scripts/plot_perf.py`
@@ -115,7 +140,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--arm", action="append", required=True, metavar="NAME=PATH",
                     help="an arm; the FIRST is the baseline every other is paired against")
-    ap.add_argument("--rounds", type=int, default=8)
+    ap.add_argument("--rounds", type=int, default=9,
+                    help="must be a multiple of the arm count; see the module doc")
+    ap.add_argument("--allow-unbalanced", action="store_true",
+                    help="run an incomplete rotation anyway, and print what it costs")
     ap.add_argument("--port-iters", type=int, default=2000)
     ap.add_argument("--fixtures", default="",
                     help="comma-separated; default is every fixture c2rs perf knows")
@@ -149,6 +177,20 @@ def main():
     else:
         print(f"WARNING: no arm named {args.null_arm!r} — this run has NO noise floor, "
               f"and any number it prints is a mean without a scale")
+
+    # THE ROTATION MUST COMPLETE. See the module doc: at 8 rounds over 3 arms
+    # the null arm reads +0.57 % [+0.45, +0.68] on a binary byte-identical to
+    # the baseline, and at 9 it reads +0.09 % [-0.07, +0.26]. An arm that ran
+    # last more often than it ran first is an arm with a handicap, and no amount
+    # of pairing removes it.
+    if args.rounds % len(arms) != 0:
+        msg = (f"--rounds {args.rounds} is not a multiple of {len(arms)} arms: the "
+               f"rotation does not complete, so arm ORDER aliases onto the arm axis "
+               f"and the null arm will read a nonzero effect. Use "
+               f"{len(arms) * max(1, round(args.rounds / len(arms)))}.")
+        if not args.allow_unbalanced:
+            raise SystemExit(msg)
+        print(f"WARNING (--allow-unbalanced): {msg}")
 
     fixtures = [f for f in args.fixtures.split(",") if f.strip()]
     try:
