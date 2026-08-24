@@ -314,6 +314,21 @@ static int plausible(unsigned int p)
     return 1;
 }
 
+/* The same filter for a pointer to BYTES.
+ *
+ * `plausible` requires 4-byte alignment because every pointer it guards is a
+ * record pointer. A `char *` has no such guarantee, and reusing `plausible`
+ * for one would refuse three names in four for a reason that has nothing to do
+ * with whether the address is readable — a fence that refuses the healthy case
+ * is worse than no fence, because its refusals stop being informative. */
+static int plausible_bytes(unsigned int p)
+{
+    if (p == 0) return 0;
+    if (p < 0x00010000u) return 0;
+    if (p >= 0x7ff00000u) return 0;
+    return 1;
+}
+
 /* Walk one scheduling region's tuple list and append it to the arena.
  *
  * `t` is the pointer c2 passed in ecx at 0x10be643e, which the region finder
@@ -472,6 +487,92 @@ static void tap_walk_operands(unsigned int tup)
 /* At most this many blocks per function. */
 #define BLK_MAX 4096u
 
+/* Longest identity this tap will publish. Mangled X360 C++ names run long; 512
+ * is far above anything in the fixture corpus and far below the 0x1020 buffer
+ * c2's own name path (`FUN_10b99dfe`) uses. */
+#define SYMNAME_MAX 512u
+
+/* THE FUNCTION IDENTITY — board #3459.
+ *
+ * Before this, the funcwalk payload carried an ORDINAL and nothing else, and
+ * every consumer in the tree paired that ordinal with the i-th `.text` function
+ * in address order. That pairing is an ASSUMPTION: `g_fn` counts `sched1`
+ * entries, `sched1` is one of the four optimizer-gated sites, and c2's own
+ * processing order is not documented to be address order. `w-pwords` §5 found
+ * the assumption failing live — mismatches in BOTH directions on one TU, the
+ * signature of a permuted pairing — and could only quarantine the TU, because
+ * nothing in the payload could name the function.
+ *
+ * This writes the name. THREE HOPS, each read from the disassembly of
+ * c2.dll sha256 c80981c0…a66258, and disclosed as `W-STAGETAP-6`:
+ *
+ *   func + 0x00  -> the `.gl` SYMBOL record
+ *        `FUN_10bc4715`, the function-record constructor:
+ *        `pbVar3 = alloc(0xac); *(int *)pbVar3 = param_1;` where `param_1` is
+ *        the symbol the work queue dequeued in `FUN_10b7f1ff` (the record with
+ *        `+0x4c` emit bits and `+0x78` next).
+ *   sym  + 0x04  -> char *, NUL-terminated
+ *        `0x10b9acd0` `mov eax,DWORD PTR [ecx+0x4]` in c2's own symbol-name
+ *        getter `FUN_10b9acc4`, with ecx = the symbol; and `0x10b97f38`
+ *        `mov esi,DWORD PTR [ecx+0x4]` in `FUN_10b97f37`, which NUL-tests it.
+ *   sym  + 0x30 / + 0x31  -> kind / sub-kind
+ *        `0x10b97f6b` `movzx eax,BYTE PTR [ecx+0x30]`; `P_SYMBOL.md` §1.
+ *
+ * WHAT IS DELIBERATELY *NOT* DONE HERE. `FUN_10b9acc4` returns `[sym+4]`
+ * verbatim only when `FUN_10b97f37` allows it (kind 4, kind 9, or a kind-1
+ * `?`-name); for kind 3 it goes through `FUN_10b99dfe`, which copies `[sym+4]`
+ * and returns it UNCHANGED the moment it starts with `'?'`, and otherwise
+ * applies per-sub-kind decoration (`"__unwind$"` for 'T', `"__catch$"` for 'V',
+ * `"$M"` for 'W', a trailing `"$"` for '\0'). This tap reimplements NONE of
+ * that. It publishes the RAW field plus the two kind bytes and leaves the
+ * consumer to match by exact equality — a name that does not match is reported
+ * unmatched and counted, never quietly demoted back to address order. Porting
+ * the decoration here would put a guess between the read and the check.
+ *
+ * FAIL-CLOSED, in the same three-spellings discipline `rd32` already follows:
+ * a value, or one of `<unread>` / `<empty>` / `<nonascii>` / `<toolong>`. None
+ * of those is a legal C identifier or mangled name, so a consumer cannot mistake
+ * a refusal for an identity, and an unreadable field never renders as an empty
+ * one. The scan runs TWICE — validate, then emit — so a name that turns out to
+ * be unprintable halfway through never appears half-written. */
+static void ap_symid(unsigned int func)
+{
+    unsigned int sym = 0, kind = 0, subkind = 0, nameptr = 0, n = 0, i;
+    const unsigned char *p;
+    char one[2];
+
+    ap(" sk ");
+    if (!rd32(func, 0x0, &sym) || !plausible(sym)) {
+        ap("?? ?? nm <unread>");
+        return;
+    }
+    rd8(sym, 0x30, &kind);
+    rd8(sym, 0x31, &subkind);
+    ap_hex(kind, 2);
+    ap(" ");
+    ap_hex(subkind, 2);
+    ap(" nm ");
+    if (!rd32(sym, 0x4, &nameptr) || !plausible_bytes(nameptr)) {
+        ap("<unread>");
+        return;
+    }
+    p = (const unsigned char *)(uintptr_t)nameptr;
+    /* Pass 1 — validate and measure, appending nothing. */
+    for (n = 0; n < SYMNAME_MAX; n++) {
+        unsigned char c = p[n];
+        if (c == 0) break;
+        /* Space is refused along with the non-printables on purpose: the name
+         * is emitted as the TAIL of a whitespace-delimited line, so a name
+         * containing a space would silently re-split on the reader's side. */
+        if (c < 0x21u || c > 0x7eu) { ap("<nonascii>"); return; }
+    }
+    if (n == 0)           { ap("<empty>");   return; }
+    if (n >= SYMNAME_MAX) { ap("<toolong>"); return; }
+    /* Pass 2 — emit. */
+    one[1] = 0;
+    for (i = 0; i < n; i++) { one[0] = (char)p[i]; ap(one); }
+}
+
 /* Walk one whole function from its record — the observable the region tap
  * cannot give, and the one `after0` needs.
  *
@@ -618,6 +719,8 @@ unsigned int tap_enter(unsigned int retaddr, unsigned int ecx,
                 if (g_payload && g_walkfn) {
                     ap("FN ");   ap(g_phase);
                     ap(" fn ");  ap_dec(g_fn);
+                    /* #3459: the ordinal alone is not an identity. */
+                    ap_symid(ecx);
                     ap("\n");
                     tap_walk_function(ecx);
                     ap("END-FN\n");

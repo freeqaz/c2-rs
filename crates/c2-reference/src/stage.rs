@@ -155,11 +155,96 @@ pub struct FuncWalk {
     /// The per-function site that was entered: `sched1` … `sched0`, `after0`.
     pub phase: String,
     /// Function ordinal within the TU.
+    ///
+    /// **This is c2's processing order and NOT, by itself, `.text` address
+    /// order** — board **#3459**. It is `g_fn`, a count of `sched1` entries,
+    /// and `sched1` is one of the four optimizer-gated sites. Pair on
+    /// [`FuncWalk::identity`] and check the ordinal with
+    /// [`TapReport::pair_by_identity`]; never assume it.
     pub func: u32,
+    /// **The function IDENTITY**, verbatim from c2's own symbol record
+    /// (`func+0x00` → symbol, `symbol+0x04` → `char *`; `W-STAGETAP-6`).
+    ///
+    /// Empty when the payload predates #3459 or carried no `nm` field at all.
+    /// Otherwise either a name or one of the tap's four refusal spellings —
+    /// use [`FuncWalk::identity`], which knows the difference, rather than
+    /// reading this field raw.
+    pub sym: String,
+    /// `(kind, sub-kind)` — the symbol record's `+0x30` / `+0x31`. Published
+    /// because c2's own name path decorates by sub-kind (`"__unwind$"`,
+    /// `"__catch$"`, `"$M"`) and a future consumer that needs the decorated
+    /// form should not have to re-tap to get the discriminator.
+    pub sym_kind: Option<(u8, u8)>,
     /// One `Vec` of `<opcode> <cat> <flags> <cc>[ | OP …]` rows per block, in
     /// block-chain order, **already reversed** back into list order (the C
     /// walk runs backward down `tuple+0x10`).
     pub blocks: Vec<Vec<String>>,
+}
+
+/// The tap's refusal spellings for [`FuncWalk::sym`]. None of them is a legal
+/// identifier or mangled name, so a refusal can never be mistaken for one —
+/// which is the whole reason they are words and not an empty string.
+const SYM_REFUSALS: [&str; 4] = ["<unread>", "<empty>", "<nonascii>", "<toolong>"];
+
+impl FuncWalk {
+    /// The identity, or `None` when the tap refused the read or the payload
+    /// carried none.
+    ///
+    /// **Absence and refusal are the same answer to a consumer** — neither may
+    /// be paired on — but they are different facts about the run, and
+    /// [`TapReport::pair_by_identity`] reports them as different verdicts.
+    pub fn identity(&self) -> Option<&str> {
+        if self.sym.is_empty() || SYM_REFUSALS.contains(&self.sym.as_str()) {
+            None
+        } else {
+            Some(self.sym.as_str())
+        }
+    }
+}
+
+/// What [`TapReport::pair_by_identity`] concluded about one phase's walks.
+///
+/// **Positive by construction**: `Verified` demands that a bijection was
+/// exhibited, and every other arm names what was missing. An enumeration of
+/// failure modes with a catch-all "ok" would let a new failure arrive as a
+/// pass, which is this project's signature defect.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OrdinalVerdict {
+    /// Every expected name matched exactly one walk and every walk was
+    /// matched. `ordinal_order_agrees` additionally reports whether the walk
+    /// ordinals happen to run in the order the caller supplied — i.e. whether
+    /// the pre-#3459 assumption held on THIS TU. It is a measurement, never a
+    /// requirement.
+    Verified { functions: usize, ordinal_order_agrees: bool },
+    /// No walk at this phase at all. Not an error here; the caller decides.
+    Empty,
+    /// At least one walk carried no readable identity — the pre-#3459 state.
+    /// A consumer must fall back to the ordinal *and say that it did*.
+    NoIdentity { walks: usize, without: usize },
+    /// A name appears twice, on one side or the other, so no pairing is
+    /// well-defined. Refused rather than resolved by position.
+    Duplicate { name: String, side: &'static str },
+    /// Identities present, but the two name sets differ. The partial pairing
+    /// is still returned — matched functions are correctly paired — and the
+    /// two difference lists say exactly which are not.
+    Unmatched { walks: usize, expected: usize, only_in_tap: Vec<String>, only_in_expected: Vec<String> },
+}
+
+impl OrdinalVerdict {
+    /// `true` only for [`OrdinalVerdict::Verified`].
+    pub fn is_verified(&self) -> bool {
+        matches!(self, OrdinalVerdict::Verified { .. })
+    }
+    /// A short, stable label for a report table.
+    pub fn label(&self) -> &'static str {
+        match self {
+            OrdinalVerdict::Verified { .. } => "verified",
+            OrdinalVerdict::Empty => "empty",
+            OrdinalVerdict::NoIdentity { .. } => "no-identity",
+            OrdinalVerdict::Duplicate { .. } => "duplicate",
+            OrdinalVerdict::Unmatched { .. } => "unmatched",
+        }
+    }
 }
 
 impl FuncWalk {
@@ -221,6 +306,120 @@ impl TapReport {
             .iter()
             .filter(|b| b.phase == phase && b.func == func)
             .collect()
+    }
+
+    /// Every function walk at one phase, in ordinal order.
+    pub fn walks_at(&self, phase: &str) -> Vec<&FuncWalk> {
+        let mut v: Vec<&FuncWalk> = self.funcs.iter().filter(|f| f.phase == phase).collect();
+        v.sort_by_key(|f| f.func);
+        v
+    }
+
+    /// **Board #3459 — pair the walks at `phase` to `expected` BY NAME, and say
+    /// so, instead of pairing by ordinal and hoping.**
+    ///
+    /// `expected` is the caller's own list of function names in whatever order
+    /// the caller indexes by — for the obj-side consumers that is `.text`
+    /// address order. The return is `(pairing, verdict)` where `pairing[i]` is
+    /// the walk whose identity equals `expected[i]`, or `None`.
+    ///
+    /// # Why this is not just `zip`
+    ///
+    /// [`FuncWalk::func`] is `g_fn`, a count of `sched1` entries in
+    /// `c2host/stagetap.c`. `sched1` is one of the four sites the optimizer
+    /// flag gates, and each carries a second per-function gate on the function
+    /// record's `+0x1c` bit 0 ([`OPT_GATED_SITES`]). A function c2 processes
+    /// without entering `sched1` therefore inherits the PREVIOUS function's
+    /// ordinal, and every downstream site — `after0` included — is then
+    /// off by one for the rest of the TU. `w-pwords` §5 measured that live:
+    /// six "failures" on one fixture with mismatches in *both* directions,
+    /// `T=73` against `W=14` beside `T=6` against `W=72`, which is a permuted
+    /// pairing and not a compiler that sometimes emits 59 extra words.
+    ///
+    /// # The two questions this answers, and they are different
+    ///
+    /// 1. *Which walk is this function's?* — the pairing. Order-independent by
+    ///    construction, so it is right even when the ordinals are permuted.
+    /// 2. *Did the ordinal happen to equal the caller's order anyway?* —
+    ///    `Verified { ordinal_order_agrees }`. That is the pre-#3459
+    ///    assumption, now **measured on every TU instead of assumed on all of
+    ///    them**. It is reported and never required: a `false` is a fact about
+    ///    c2, not a failure.
+    ///
+    /// A partial pairing is returned even on
+    /// [`OrdinalVerdict::Unmatched`] — a function whose name matched IS
+    /// correctly paired, and throwing the whole TU away would re-create the
+    /// quarantine this exists to remove.
+    pub fn pair_by_identity<'a>(
+        &'a self,
+        phase: &str,
+        expected: &[String],
+    ) -> (Vec<Option<&'a FuncWalk>>, OrdinalVerdict) {
+        let none = || vec![None; expected.len()];
+        let walks = self.walks_at(phase);
+        if walks.is_empty() {
+            return (none(), OrdinalVerdict::Empty);
+        }
+        let without = walks.iter().filter(|w| w.identity().is_none()).count();
+        if without > 0 {
+            return (none(), OrdinalVerdict::NoIdentity { walks: walks.len(), without });
+        }
+        // Duplicates are REFUSED, not resolved by position: resolving one by
+        // position is exactly the assumption this function exists to retire.
+        let mut by_name: BTreeMap<&str, &FuncWalk> = BTreeMap::new();
+        for w in &walks {
+            let n = w.identity().expect("checked above");
+            if by_name.insert(n, w).is_some() {
+                return (none(), OrdinalVerdict::Duplicate { name: n.to_string(), side: "tap" });
+            }
+        }
+        let mut seen: BTreeMap<&str, ()> = BTreeMap::new();
+        for e in expected {
+            if seen.insert(e.as_str(), ()).is_some() {
+                return (
+                    none(),
+                    OrdinalVerdict::Duplicate { name: e.clone(), side: "expected" },
+                );
+            }
+        }
+        let pairing: Vec<Option<&FuncWalk>> =
+            expected.iter().map(|e| by_name.get(e.as_str()).copied()).collect();
+        let only_in_expected: Vec<String> = expected
+            .iter()
+            .filter(|e| !by_name.contains_key(e.as_str()))
+            .cloned()
+            .collect();
+        let only_in_tap: Vec<String> = by_name
+            .keys()
+            .filter(|n| !seen.contains_key(**n))
+            .map(|n| (*n).to_string())
+            .collect();
+        if !only_in_expected.is_empty() || !only_in_tap.is_empty() {
+            return (
+                pairing,
+                OrdinalVerdict::Unmatched {
+                    walks: walks.len(),
+                    expected: expected.len(),
+                    only_in_tap,
+                    only_in_expected,
+                },
+            );
+        }
+        // Sets agree and both are duplicate-free, so `walks.len() ==
+        // expected.len()` and the ordinal question is well posed.
+        let agrees = walks
+            .iter()
+            .zip(expected.iter())
+            .all(|(w, e)| w.identity() == Some(e.as_str()));
+        (
+            pairing,
+            OrdinalVerdict::Verified { functions: expected.len(), ordinal_order_agrees: agrees },
+        )
+    }
+
+    /// [`TapReport::pair_by_identity`]'s verdict alone.
+    pub fn verify_ordinals(&self, phase: &str, expected: &[String]) -> OrdinalVerdict {
+        self.pair_by_identity(phase, expected).1
     }
 
     /// **The pre/post-COLOR pair.** Returns `(before, after)` as the
@@ -342,7 +541,11 @@ impl TapReport {
     /// digest is stable only because the environment was.
     pub fn canonical_bytes(&self) -> String {
         let mut out = String::new();
-        out.push_str("SCHEMA 1\n");
+        // SCHEMA 2 — #3459 added the function identity to the `FN` row. The
+        // bump is honest bookkeeping and costs nothing: nothing in the tree
+        // persists a canonical stream or pins a digest, and `stage snap`'s
+        // rerun comparison is within one process.
+        out.push_str("SCHEMA 2\n");
         out.push_str(if self.slide_zero { "SLIDE 0\n" } else { "SLIDE nonzero\n" });
         for s in &self.armed {
             out.push_str("ARMED ");
@@ -366,6 +569,12 @@ impl TapReport {
             out.push_str(&f.phase);
             out.push(' ');
             out.push_str(&f.func.to_string());
+            // The identity IS canonical: it is read out of c2's own record and
+            // contains no address, path, PID or timestamp, so it satisfies the
+            // schema rule above — and a stream that omitted it would call two
+            // runs identical while the function-to-ordinal binding moved.
+            out.push(' ');
+            out.push_str(if f.sym.is_empty() { "<none>" } else { f.sym.as_str() });
             out.push('\n');
             for (i, b) in f.blocks.iter().enumerate() {
                 out.push_str("BLK ");
@@ -479,11 +688,33 @@ impl TapReport {
                     r.tuples.push(row);
                 }
                 Some("FN") => {
-                    // FN <phase> fn <n>
+                    // FN <phase> fn <n> [sk <kk> <ss> nm <name>]
+                    //
+                    // The identity tail is parsed as OPTIONAL, and not for
+                    // forward compatibility — it is how a payload produced by a
+                    // tap without #3459's field reads as `NoIdentity` (a named
+                    // verdict) instead of as a name that happens to be empty.
                     let t: Vec<&str> = rest.split_whitespace().collect();
                     let phase = t.get(1).copied().unwrap_or("?").to_string();
                     let func = t.get(3).and_then(|v| v.parse::<u32>().ok()).unwrap_or(0);
-                    r.funcs.push(FuncWalk { phase, func, blocks: Vec::new() });
+                    let sym_kind = match (t.get(4), t.get(5), t.get(6)) {
+                        (Some(&"sk"), Some(k), Some(s)) => {
+                            match (u8::from_str_radix(k, 16), u8::from_str_radix(s, 16)) {
+                                (Ok(k), Ok(s)) => Some((k, s)),
+                                _ => None,
+                            }
+                        }
+                        _ => None,
+                    };
+                    // The name is the TAIL of the line, taken whole. The C side
+                    // refuses any name containing a byte outside `0x21..=0x7e`,
+                    // so a name can never re-split here — and a name that could
+                    // have arrives as `<nonascii>`, which is a refusal.
+                    let sym = match rest.split_once(" nm ") {
+                        Some((_, n)) => n.trim().to_string(),
+                        None => String::new(),
+                    };
+                    r.funcs.push(FuncWalk { phase, func, sym, sym_kind, blocks: Vec::new() });
                     in_funcwalk = true;
                 }
                 Some("BLK") => {
@@ -919,6 +1150,158 @@ mod tests {
         // And the healthy spelling must NOT be read as truncation.
         let ok = TapReport::parse("[stagetap] ARENA bytes=17 full=0\n");
         assert!(ok.walk_refusals.is_empty());
+    }
+
+    // -----------------------------------------------------------------------
+    // #3459 — the function identity, and the fence around it
+    // -----------------------------------------------------------------------
+
+    /// Three functions at `after0`, ordinals 1..3, names `?a@` `?b@` `?c@`.
+    /// **The ordinals are deliberately NOT in the same order as the names**
+    /// in one of the tests below; here they are.
+    fn idpayload(rows: &[(u32, &str)]) -> String {
+        let mut s = String::new();
+        for (ord, name) in rows {
+            s.push_str(&format!("[stagetap] FN after0 fn {ord} sk 03 54 nm {name}\n"));
+            s.push_str("[stagetap] BLK 0 rev\n");
+            s.push_str("[stagetap] FT 0 0000000b 0d 01 00\n");
+            s.push_str("[stagetap] END-FN\n");
+        }
+        s
+    }
+
+    fn names(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| (*s).to_string()).collect()
+    }
+
+    #[test]
+    fn the_fn_row_carries_a_function_identity() {
+        let r = TapReport::parse(&idpayload(&[(1, "?a@@YAHXZ"), (2, "?b@@YAHXZ")]));
+        assert_eq!(r.funcs.len(), 2);
+        assert_eq!(r.funcs[0].identity(), Some("?a@@YAHXZ"));
+        assert_eq!(r.funcs[0].sym_kind, Some((0x03, 0x54)));
+        // And the identity is in the canonical stream, so two runs whose
+        // ordinal→function binding moved cannot digest the same.
+        let swapped = TapReport::parse(&idpayload(&[(1, "?b@@YAHXZ"), (2, "?a@@YAHXZ")]));
+        assert_ne!(
+            r.digest(),
+            swapped.digest(),
+            "the canonical stream is blind to WHICH function each walk belongs to"
+        );
+    }
+
+    /// A payload from a tap without #3459's field must read as
+    /// `NoIdentity` — a named verdict — and never as a name that is empty.
+    #[test]
+    fn a_payload_without_the_identity_field_says_so() {
+        let s = "[stagetap] FN after0 fn 1\n\
+                 [stagetap] BLK 0 rev\n\
+                 [stagetap] FT 0 0000000b 0d 01 00\n\
+                 [stagetap] END-FN\n";
+        let r = TapReport::parse(s);
+        assert_eq!(r.funcs[0].identity(), None);
+        assert_eq!(
+            r.verify_ordinals("after0", &names(&["?a@@YAHXZ"])),
+            OrdinalVerdict::NoIdentity { walks: 1, without: 1 }
+        );
+    }
+
+    /// The tap's refusal spellings are REFUSALS, not names. If `<unread>` were
+    /// read as an identity a whole TU would pair against a fiction.
+    #[test]
+    fn a_refusal_spelling_is_not_an_identity() {
+        for spell in SYM_REFUSALS {
+            let r = TapReport::parse(&idpayload(&[(1, spell)]));
+            assert_eq!(r.funcs[0].identity(), None, "{spell} was read as a name");
+        }
+    }
+
+    /// The healthy case: names agree, and the ordinal happens to run in the
+    /// caller's order too.
+    #[test]
+    fn a_matching_identity_set_verifies_and_reports_the_ordinal_agreement() {
+        let r = TapReport::parse(&idpayload(&[(1, "?a@"), (2, "?b@"), (3, "?c@")]));
+        let (pairing, v) = r.pair_by_identity("after0", &names(&["?a@", "?b@", "?c@"]));
+        assert_eq!(v, OrdinalVerdict::Verified { functions: 3, ordinal_order_agrees: true });
+        assert_eq!(pairing[1].unwrap().func, 2);
+    }
+
+    /// **THE FENCE, half one: a PERMUTED pairing is caught.**
+    ///
+    /// This is `w-pwords` §5's live failure, reproduced synthetically: c2's
+    /// ordinals run `?c@ ?a@ ?b@` while the caller indexes `.text` address
+    /// order `?a@ ?b@ ?c@`. The pairing must still be RIGHT — that is the
+    /// deliverable — and `ordinal_order_agrees` must go **false**, which is the
+    /// part the pre-#3459 consumers had no way to learn.
+    #[test]
+    fn a_permuted_ordinal_is_paired_correctly_and_reported_as_disagreeing() {
+        let r = TapReport::parse(&idpayload(&[(1, "?c@"), (2, "?a@"), (3, "?b@")]));
+        let (pairing, v) = r.pair_by_identity("after0", &names(&["?a@", "?b@", "?c@"]));
+        assert_eq!(
+            v,
+            OrdinalVerdict::Verified { functions: 3, ordinal_order_agrees: false },
+            "a permuted pairing read as agreeing — the ordinal check is a rubber stamp"
+        );
+        // The pairing itself is correct, which the old `func == i+1` rule was
+        // not: index 0 is `?a@`, which c2 walked SECOND.
+        assert_eq!(pairing[0].unwrap().func, 2);
+        assert_eq!(pairing[1].unwrap().func, 3);
+        assert_eq!(pairing[2].unwrap().func, 1);
+    }
+
+    /// **THE FENCE, half two: a WRONG name list is refused.**
+    ///
+    /// One expected name replaced by a fiction. The verdict must be
+    /// `Unmatched` and must name both sides of the difference — a bare
+    /// `false` would leave the caller unable to say what went wrong.
+    #[test]
+    fn a_wrong_expected_name_is_refused_and_both_sides_are_named() {
+        let r = TapReport::parse(&idpayload(&[(1, "?a@"), (2, "?b@")]));
+        let (pairing, v) = r.pair_by_identity("after0", &names(&["?a@", "?NOT_A_REAL_NAME@"]));
+        match v {
+            OrdinalVerdict::Unmatched { only_in_tap, only_in_expected, .. } => {
+                assert_eq!(only_in_tap, names(&["?b@"]));
+                assert_eq!(only_in_expected, names(&["?NOT_A_REAL_NAME@"]));
+            }
+            other => panic!("a fabricated name was ABSORBED: {other:?}"),
+        }
+        // …and the function that DID match is still paired. Discarding it
+        // would re-create the whole-TU quarantine #3459 exists to remove.
+        assert_eq!(pairing[0].unwrap().func, 1);
+        assert!(pairing[1].is_none());
+    }
+
+    /// A short list is a difference, not a truncation to be tolerated.
+    #[test]
+    fn a_short_expected_list_is_refused() {
+        let r = TapReport::parse(&idpayload(&[(1, "?a@"), (2, "?b@")]));
+        let v = r.verify_ordinals("after0", &names(&["?a@"]));
+        assert!(matches!(v, OrdinalVerdict::Unmatched { walks: 2, expected: 1, .. }), "{v:?}");
+    }
+
+    /// Two walks with one name: no pairing is well-defined, and resolving it
+    /// by position would be the assumption this whole API retires.
+    #[test]
+    fn a_duplicate_identity_is_refused_rather_than_resolved_by_position() {
+        let r = TapReport::parse(&idpayload(&[(1, "?a@"), (2, "?a@")]));
+        assert_eq!(
+            r.verify_ordinals("after0", &names(&["?a@", "?b@"])),
+            OrdinalVerdict::Duplicate { name: "?a@".to_string(), side: "tap" }
+        );
+        let r2 = TapReport::parse(&idpayload(&[(1, "?a@"), (2, "?b@")]));
+        assert_eq!(
+            r2.verify_ordinals("after0", &names(&["?a@", "?a@"])),
+            OrdinalVerdict::Duplicate { name: "?a@".to_string(), side: "expected" }
+        );
+    }
+
+    /// No walk at the phase is `Empty` and not a silent verified-zero.
+    #[test]
+    fn no_walk_at_a_phase_is_empty_and_never_a_vacuous_pass() {
+        let r = TapReport::parse(&idpayload(&[(1, "?a@")]));
+        let v = r.verify_ordinals("sched2", &names(&["?a@"]));
+        assert_eq!(v, OrdinalVerdict::Empty);
+        assert!(!v.is_verified());
     }
 
     #[test]
