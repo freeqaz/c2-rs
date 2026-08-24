@@ -22,16 +22,28 @@
 //! # **THE CENSUS KEY DOES NOT DISCRIMINATE THESE CELLS, AND THAT IS WHY THE
 //! FENCE IS PROVED SOMEWHERE ELSE**
 //!
-//! All seven refuse, and across seven DISTINCT clauses they report **two**
-//! keys: `expr-op-0x27` ×4 and `expr-brtrue` ×3. Those are the fall-through
-//! keys boards **#1101** and **#1416** describe — they name where the *generic*
-//! walk stopped after the whole-body production declined, not the clause that
-//! declined it. A test asserting seven distinct keys here would assert a
-//! fiction, so this file asserts the multiset it actually has (below) and the
-//! fences are graded by a different instrument.
+//! All seven refuse, and across seven DISTINCT clauses they report **three**
+//! keys: `expr-brtrue` ×3, `expr-op-0x32` ×3 and `expr-op-0x30` ×1. Those are
+//! the fall-through keys boards **#1101** and **#1416** describe — they name
+//! where the *generic* walk stopped after the whole-body production declined,
+//! not the clause that declined it. A test asserting seven distinct keys here
+//! would assert a fiction, so this file asserts the multiset it actually has
+//! (below) and the fences are graded by a different instrument.
 //!
-//! Two keys for seven clauses is itself the measurement, and it is the reason a
-//! `_neg` file cannot be graded by reading its census rows.
+//! Three keys for seven clauses is itself the measurement, and it is the reason
+//! a `_neg` file cannot be graded by reading its census rows.
+//!
+//! > **The multiset MOVED at Phase 1 slice C1 (lane `w-c1`, 2026-08-24), and
+//! > the movement is the fall-through thesis being executed rather than
+//! > argued.** It read `expr-op-0x27` ×4 + `expr-brtrue` ×3 until `0x27` — the
+//! > byte-offset add — became a graded construct in `parse_expr`. **All seven
+//! > cells still refuse**, and the four that named the designator step now name
+//! > what was standing behind it one construct along (`0x30`, the indirect
+//! > load; `0x32`). Board **#150** predicted exactly this shape at workload
+//! > scale: unblocking `expr-op-0x27` *renames* far more than it converts. Four
+//! > cells splitting 1/3 across two successors is the same fact at fixture
+//! > scale — and note it went from two keys to three, so the file's own count
+//! > is part of the assertion.
 //!
 //! That instrument is `work/w-pool2/neg_clauses.py`: for each cell it **mutates
 //! the one shipping clause the cell is written for**, rebuilds, and re-censuses
@@ -180,10 +192,14 @@ fn every_negative_cell_refuses_and_the_keys_are_fall_throughs() {
         hist,
         BTreeMap::from([
             ("expr-brtrue".to_string(), 3),
-            ("expr-op-0x27".to_string(), 4),
+            // C1 (`w-c1`): these four read `expr-op-0x27` ×4 until the
+            // byte-offset add became a graded construct. They still refuse; the
+            // key is now the successor. See the module header.
+            ("expr-op-0x30".to_string(), 1),
+            ("expr-op-0x32".to_string(), 3),
         ]),
         "the keys are FALL-THROUGHS and this file says so rather than \
-         pretending to seven distinct keys — seven clauses, TWO keys: {rows:?}"
+         pretending to seven distinct keys — seven clauses, THREE keys: {rows:?}"
     );
     // …and none of them is the acceptance key of either shipped class, which is
     // the one thing the census CAN say here: no cell was admitted by accident.

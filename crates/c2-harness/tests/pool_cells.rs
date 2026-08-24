@@ -15,11 +15,17 @@
 //! each step moves the verdict:
 //!
 //! ```text
-//!                                                   w-pool     w-pool2
-//!   A  *(void**)v = p->mFree;                       store-leaf  store-leaf
-//!   B  A + one more store                           expr-op-0x27  expr-op-0x27
-//!   C  B + a null guard whose arm is a bare return  expr-brtrue   pool-free-list
+//!                                                   w-pool     w-pool2      w-c1
+//!   A  *(void**)v = p->mFree;                       store-leaf  store-leaf   store-leaf
+//!   B  A + one more store                           expr-op-0x27  expr-op-0x27  expr-op-0x30
+//!   C  B + a null guard whose arm is a bare return  expr-brtrue   pool-free-list  pool-free-list
 //! ```
+//!
+//! **The third column is Phase 1 slice C1** (lane `w-c1`, 2026-08-24). B's key
+//! moved and B's *verdict did not*: the byte-offset add is a graded construct
+//! now, so the walk gets past it and stops on the indirect load behind it. The
+//! fence this file is about — `collect_store_run`'s `value_is_load` clause
+//! (#2563) — is untouched, which is exactly why B still refuses.
 //!
 //! # **CELL C CONVERTED, AND THE LADDER INVERTS** — lane `w-pool2`, board #2591
 //!
@@ -42,8 +48,11 @@
 //! **The fence that MATTERS is untouched and still live.** B refuses because it
 //! has no guard, so it reaches `leaf_store::collect_store_run` and dies on the
 //! `value_is_load` clause (board #2563) — **which this lane did NOT widen**, by
-//! decline clause D1. If that clause were repaired B's key would stop being
-//! `expr-op-0x27`, and this file still says so.
+//! decline clause D1. If that clause were repaired B's key would stop being a
+//! fall-through, and this file still says so. (The fall-through key itself is
+//! `expr-op-0x30` since C1; it was `expr-op-0x27`. The *claim* is that the key
+//! is a fall-through, and moving it one construct along is the claim being
+//! demonstrated, not weakened.)
 //!
 //! # Why the sources are `include_str!`-ed
 //!
@@ -138,7 +147,10 @@ fn the_three_pool_cells_each_move_the_verdict_by_one_construct() {
     let b = only(&b_rows, "b");
     assert_eq!(
         b.verdict.key(),
-        "expr-op-0x27",
+        // C1 (`w-c1`): was `expr-op-0x27`. The byte-offset add is graded now,
+        // so the walk stops one construct further on — at the indirect load.
+        // The verdict is unchanged: B is still blocked, on the same clause.
+        "expr-op-0x30",
         "cell B must stop at the run's value clause: {b:?}"
     );
     assert_eq!(
