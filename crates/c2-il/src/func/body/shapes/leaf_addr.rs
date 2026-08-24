@@ -216,18 +216,64 @@ mod tests {
 
         // The `27` re-type must be a POINTER. An int-typed add here would be
         // integer arithmetic on a pointer, which c2 scales.
+        //
+        // **This cell is the fence Phase 1 slice C1 kept**, and it is the one
+        // that matters: `expr::parse_expr`'s promoted `0x27` arm gates on the
+        // same [`super::designator::is_ptr_any`] whitelist this leaf does, so
+        // the body is refused by *both* productions rather than falling through
+        // the leaf into a general walk that would have taken it.
         let mut nonptr = base.clone();
         nonptr[81] = 0x86;
         nonptr[82] = 0x41;
         nonptr[83] = 0x74;
         assert_eq!(parse_segment(&nonptr, NO_LOCALS), None, "a non-pointer `27`");
 
-        // The `41` result must be a pointer too: an int result means the address
-        // was converted, and that conversion is unprobed.
+        // **The `41` int-result cell CHANGED at C1 (lane `w-c1`), and this is
+        // board #403's other predicted red — the one that is a finding.**
+        //
+        // This used to assert `None` with the comment *"an int result means the
+        // address was converted, and that conversion is unprobed"*, and #403
+        // recorded that the axis had never been probed: 11 probes over 5 axes,
+        // none of them the result type. **It is probed now.** MEASURED,
+        // `fixtures/cpp/wc1_offadd.cpp` (and `work/w-c1/probes/p2.cpp` before
+        // it), `/Ox /GS- /c`, byte-judged against real c2:
+        //
+        // ```text
+        //   int addr_cast(T* t) { return (int)&t->s.b; }   38630008 4e800020
+        //   int addr_one (T* t) { return (int)&t->y;   }   38630010 4e800020
+        //   int addr_zero(T* t) { return (int)&t->x;   }            4e800020
+        // ```
+        //
+        // — the same one `addi` the pointer-returning form emits, because the
+        // conversion is a width-4 ptr4→int4 reinterpret, which c2 pays nothing
+        // for (board **#700**, graded over 31 cells and the whole 3×3 of
+        // [`crate::func::readers::ValueClass`] pairs). So the refusal was
+        // conservatism, not a rule, and the `Port=Match` on those bodies is what
+        // retires it.
+        //
+        // **The ADDRESS LEAF still refuses it** — that is this test's subject and
+        // it is asserted below. What changed is which production takes the body:
+        // the general expression walk now folds the designator run into
+        // `[Load, Lit(4), Add]`, one `addi` after `codegen::fold`.
         assert_eq!(&base[85..90], &[0x41, 0x86, 0x43, 0xF4, 0x08], "the `41` moved");
         let mut intres = base.clone();
         intres.splice(85..90, [0x41, 0x86, 0x41, 0x74].iter().copied());
-        assert_eq!(parse_segment(&intres, NO_LOCALS), None, "an int result type");
+        assert_eq!(
+            parse_segment(&intres, NO_LOCALS),
+            Some(BodyShape::StraightLine {
+                params: vec![0x160A],
+                ops: vec![IlOp::Load(0x160A), IlOp::Lit(4), IlOp::Add],
+            }),
+            "an int result type is a straight-line address computation, NOT an address leaf"
+        );
+        assert!(
+            !matches!(parse_segment(&intres, NO_LOCALS), Some(BodyShape::AddrLeaf { .. })),
+            "the ADDRESS LEAF still refuses it — this test's subject is unchanged"
+        );
+        // And with the C1 decision point turned off the pre-C1 parser is exactly
+        // restored. Not asserted here — `off_add_admitted` reads its environment
+        // through a process-wide `OnceLock`, so a test cannot flip it — see
+        // `docs/rungs/2026-08-24-w-c1.md` §"the counterfactual".
     }
 
 }

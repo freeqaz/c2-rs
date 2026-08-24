@@ -2791,11 +2791,20 @@ mod tests {
         );
         // …and the neighbour that emits `stfs f1` must refuse, in the parser.
         assert_eq!(parse_segment(STORE_FLOAT_NEG, NO_LOCALS), None);
+        // **The KEY moved at Phase 1 slice C1 (lane `w-c1`), the REFUSAL did
+        // not** — one of the two reds board **#403** predicted for promoting the
+        // `0x27` arm, and the harmless one. This used to read `expr-op-0x27`:
+        // the walk stopped at the byte-offset add, in front of the float. With
+        // `0x27` admitted the walk gets one construct further and stops on the
+        // thing this case is actually about, naming the float load type `86 45`
+        // rather than the designator step before it. The assertion above — that
+        // the body still refuses — is unchanged, and it is what the test's name
+        // claims.
         assert_eq!(
             parse_segment_detail(STORE_FLOAT_NEG, NO_LOCALS)
                 .unwrap_err()
                 .feature(),
-            "expr-op-0x27"
+            "expr-load-type-8645"
         );
     }
 

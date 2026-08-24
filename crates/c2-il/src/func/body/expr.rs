@@ -406,12 +406,36 @@ pub(crate) fn eat_fn_tail(seg: &[u8], p: &mut usize) -> Result<(), Block> {
 /// int4 value — so an accepted sub-expression has exactly ONE class throughout.
 /// Where the two could differ (`(void *)(s + 1)`, whose last operand is the
 /// literal) the guard refuses the body anyway; only the census key changes.
-/// `C2RS_SINK_OFF_ADD_ARG=expr` — W-ARMS's board #143 counterfactual over the
-/// WHOLE of [`parse_expr`] rather than the call-argument position alone. OFF and
-/// free on every gate lane and every default scan.
-pub(crate) fn off_add_sink_enabled() -> bool {
+///
+/// ---
+///
+/// **`C2RS_OFF_ADD` — the C1 decision point, and it is ON by default.**
+///
+/// This used to be `off_add_sink_enabled()`, reading
+/// `C2RS_SINK_OFF_ADD_ARG=expr`: W-ARMS's board **#143** counterfactual, off on
+/// every gate lane and every default scan. Board **#661** is the row that named
+/// what it actually was — *"NOT a measurement-only sink; a real widening behind
+/// an environment variable"*, because its arm ends `ops.push(IlOp::Add)` with no
+/// poison. Lane `w-c1` (Phase 1 slice **C1**) promoted it: the arm is now a
+/// **graded acceptance rule**, byte-judged on `fixtures/cpp/wc1_offadd*.cpp`,
+/// with the type resolution it never had (see the `0x27` arm).
+///
+/// It stays a **named, enumerable parameter** rather than becoming a baked
+/// `true`, under `docs/rungs/README.md`'s decision-surface clause
+/// (`ROADMAP_SLICING_2026-08-21.md` §6 rule 7): the DEFAULT reproduces c2
+/// byte-exactly and is the only configuration anything is graded at;
+/// `C2RS_OFF_ADD=off` restores the pre-C1 parser exactly, which is what makes
+/// the lane's own counterfactual — *"what does this construct convert?"* —
+/// re-runnable on any later tree instead of being a number in a rung.
+///
+/// **`C2RS_SINK_OFF_ADD_ARG` is a different variable and is unchanged**: its
+/// `honest`/`ceiling`/`zero` modes drive
+/// [`super::shapes::calls::off_add_arg_sink`], the *call-argument* half
+/// (board **#149**), which C1 did not ship — see
+/// `docs/rungs/2026-08-24-w-c1.md`.
+pub(crate) fn off_add_admitted() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| std::env::var("C2RS_SINK_OFF_ADD_ARG").as_deref() == Ok("expr"))
+    *ON.get_or_init(|| std::env::var("C2RS_OFF_ADD").as_deref() != Ok("off"))
 }
 
 /// `C2RS_SINK_REL=expr` — **w-cmp's board #420 counterfactual**, and the only
@@ -1748,10 +1772,6 @@ pub(crate) fn parse_expr_classed(
     // recorded type is still an operand type of the same expression, which is
     // what the int/float question is about.
     let mut last_type: Option<(u8, u8)> = None;
-    // Set by `02`/`03`/`04` — arithmetic whose pointer form c2 SCALES by the
-    // pointee width, which is what the pointer guard below exists to refuse.
-    // The `27` byte-offset add is not that and does not set it.
-    let mut scaled_arith = false;
     // Set by the [`rel_sink_enabled`] arm and by nothing else. A walk that
     // reaches the end with this set refuses under `expr-rel-sink-poison`, so the
     // sink can never move an obj byte.
@@ -2034,19 +2054,16 @@ pub(crate) fn parse_expr_classed(
             }
             0x02 => {
                 *p += 1;
-                scaled_arith = true;
                 fold_binary!(ptr_arith_exact);
                 ops.push(IlOp::Add);
             }
             0x03 => {
                 *p += 1;
-                scaled_arith = true;
                 fold_binary!(ptr_arith_exact);
                 ops.push(IlOp::Sub);
             }
             0x04 => {
                 *p += 1;
-                scaled_arith = true;
                 fold_binary!(ptr_arith_exact);
                 ops.push(IlOp::Mul);
             }
@@ -2055,7 +2072,7 @@ pub(crate) fn parse_expr_classed(
             // Bare one-byte tokens, exactly as `mcall`'s `BARE_BINARY_OPS`
             // records them from a capture: no TYPE, no varint, no trailing
             // field. They pop two and push one, like `02`/`03`/`04`, and unlike
-            // those they do **not** set `scaled_arith` — a pointer never enters
+            // those their pointer form is never SCALED — a pointer never enters
             // one of these at all (the guard below refuses it outright), so
             // there is no scaling question to answer.
             //
@@ -2131,25 +2148,11 @@ pub(crate) fn parse_expr_classed(
                 fold_binary!(ptr_bitwise_exact);
                 ops.push(op);
             }
-            // **W-ARMS scratch sink — `C2RS_SINK_OFF_ADD_ARG=expr` and nothing
-            // else.** `27 <TYPE>` is the BYTE-offset add: `&t->s.k` is
-            // `B9 t · 33 <int> 0 · 27 · 33 <int> 8 · 27`, one step per designator,
-            // and c2 lowers the whole run as a single `addi rD,rBase,<sum>`.
+            // (The `0x27` byte-offset add's description used to sit here, above
+            // the wrong arm — it documented a scratch sink that lived 90 lines
+            // below. It moved onto its arm when lane `w-c1` promoted it; search
+            // [`off_add_admitted`].)
             //
-            // It is a different construct from `02` and that is the whole reason
-            // it has its own opcode: `p + 1` on an `int*` is `02` and emits
-            // `addi r3,r3,4` — SCALED by the pointee — which is why the
-            // pointer-arithmetic guard below refuses `02` over a pointer. `27`
-            // carries the scaling already, so `[Load, Lit(k), Add]` is the
-            // correct lowering and the guard must not see it. `scaled_arith`
-            // separates the two facts the old single `saw_ptr && any-arith` test
-            // conflated.
-            //
-            // MEASURED, not shipped: widening `parse_expr` here also obliges
-            // `mcall::eat_int_operands`'s `Vocab::CallArg` to widen in lockstep,
-            // or §9.14.6's correspondence guard goes red — a measure narrower
-            // than its emitter manufactures phantom rungs. See
-            // `docs/rungs/_draft-roadmap-9.17.md`.
             // **w-cmp scratch sink — `C2RS_SINK_REL=expr` and nothing else.**
             // The six relational opcodes, consumed so the walk can proceed to the
             // next unmodeled byte. See [`rel_sink_enabled`] for why this pushes no
@@ -2224,18 +2227,81 @@ pub(crate) fn parse_expr_classed(
                 *p += 2;
                 saw_branch_sink = true;
             }
-            0x27 if off_add_sink_enabled() => {
+            // **THE BYTE-OFFSET ADD — Phase 1 slice C1, lane `w-c1`.** Graded,
+            // default-on, and gated only by the named decision point
+            // [`off_add_admitted`]. The three parts of a Phase-1 slice row
+            // (`ROADMAP_SLICING_2026-08-21.md` §5) are the three statements
+            // below: **the type resolution**, **the value-type variant**, and
+            // (in `crates/c2-core`, unchanged) **the general lowering**.
+            //
+            // `27 <TYPE>` re-types an address after adding a byte offset that
+            // was pushed as a literal: `&t->s.k` is
+            // `B9 t · 33 <int> 0 · 27 <T*> · 33 <int> 8 · 27 <S*>`, one step per
+            // designator, and c2 lowers the whole run as a single
+            // `addi rD,rBase,<sum>` (MEASURED — `?addr_cast@@YAHPAUT@@@Z` in
+            // `work/w-c1/probes/p2.cpp` is `38630008 4e800020` for a two-step
+            // chain summing to 8).
+            //
+            // **The lowering is the incumbent one and no new arm was needed**:
+            // each step pushes `[Lit(k), Add]`, and `codegen::fold` folds the
+            // run into one `addi` — the promotion `ROADMAP_SLICING` §5 predicted,
+            // confirmed by the byte judge rather than by reading.
+            //
+            // ## 1. The type resolution — `designator::is_ptr_any`, not "any TYPE"
+            //
+            // The sink this replaced (board **#143**) advanced past *whatever*
+            // `read_type` returned. That is the one thing a promotion may not
+            // keep: an unmodeled tag would be admitted silently and its
+            // lowering assumed. The predicate is the same literal whitelist
+            // [`super::shapes::designator::walk_offset_adds`] already enforces
+            // at this exact byte for the four designator consumers — one fact,
+            // one locator (`GAPS.md` §6) — so a `27` that the *address* leaf
+            // would refuse is refused here too, under its own census key
+            // `expr-off-add-ptee` rather than being folded into
+            // `expr-off-add-type` (a malformed TYPE and an unmodeled one are
+            // different ignorance).
+            //
+            // ## 2. The value-type variant — the result is a POINTER
+            //
+            // The sink cleared `cstack_ok`, and its comment claimed the second
+            // operand is "IMPLICIT — the TYPE, not a stack value". **That is
+            // wrong, and the correction is the slice.** The offset is pushed by
+            // the preceding `33` as an ordinary literal, so `27` is a genuine
+            // binary token: it pops the offset and the address and pushes the
+            // re-typed address. Modelling it keeps `cstack_ok` TRUE across the
+            // construct, which is what lets the *exact* pointer guard
+            // (`ptr_arith_exact`) judge the body instead of the whole-expression
+            // fallback. MEASURED on `work/w-c1/probes/p1.cpp`: under the old
+            // sink `(int)&t->s.b + i` and `(int)&t->s.c - (int)&t->s.a` refused
+            // as `expr-ptr-arith:mid` — the `2C` had already moved the value to
+            // `Int4` and the coarse flag could not see it.
+            //
+            // It does **not** set `ptr_arith_exact`: `27` is the *byte*-offset
+            // add and `02` is the scaled one (`p + 1` on an `int*` emits
+            // `addi r3,r3,4`), which is the whole reason the two have different
+            // opcodes and the whole reason the guard refuses one and not the
+            // other. This is where the retired `scaled_arith` flag's fact now
+            // lives — in the value model rather than in a second whole-expression
+            // flag beside it.
+            //
+            // On a stream the postfix model could not follow the arm clears
+            // `cstack_ok` exactly as `fold_binary!` does, and the coarse
+            // fallback then refuses the body under `expr-ptr-arith`. A model
+            // that guessed would be worse than the flag it replaced.
+            0x27 if off_add_admitted() => {
                 *p += 1;
-                match read_type(seg, *p) {
-                    Some((_, _, _, w)) => *p += w,
-                    None => return Err(blk(seg, *p, "expr-off-add-type")),
+                let Some((tag, kind, _, w)) = read_type(seg, *p) else {
+                    return Err(blk(seg, *p, "expr-off-add-type"));
+                };
+                if !super::shapes::designator::is_ptr_any(tag, kind) {
+                    return Err(Block::refuse(seg, *p, "expr-off-add-ptee"));
                 }
-                // The byte-offset add's second operand is IMPLICIT — it is the
-                // TYPE, not a stack value — so the postfix discipline the class
-                // stack models does not hold across this token. Clearing the
-                // model is what keeps `C2RS_SINK_OFF_ADD_ARG` a counterfactual
-                // rather than a second, ungraded acceptance rule (#403).
-                cstack_ok = false;
+                *p += w;
+                saw_ptr = true;
+                match (cstack.pop(), cstack.pop()) {
+                    (Some(_off), Some(_base)) => cstack.push(ValueClass::Ptr4),
+                    _ => cstack_ok = false,
+                }
                 ops.push(IlOp::Add);
             }
             // A `26` SYMBOL PUSH — the single largest blocking feature on the real
@@ -2684,10 +2750,17 @@ pub(crate) fn parse_expr_classed(
     // The coarse flag stays as the fallback for any stream the stack model could
     // not follow, so the refusal can only ever get *narrower* on streams the
     // model understands and is bit-for-bit the old one everywhere else.
-    let ptr_arith = if off_add_sink_enabled() {
-        // Only the SCALED forms indict a pointer value; see the `0x27` arm.
-        saw_ptr && scaled_arith
-    } else if cstack_ok {
+    //
+    // **The `off_add_sink_enabled()` branch that used to head this chain is
+    // gone — lane `w-c1`.** It read `saw_ptr && scaled_arith`, a *third*
+    // whole-expression flag standing in for the fact that `27` carries its own
+    // scaling. With the `0x27` arm modelling its stack effect (see it), that
+    // fact lives in the value model and `ptr_arith_exact` states it exactly:
+    // the arm pushes `Ptr4` without setting the flag, so an off-add never
+    // indicts the value and a `02`/`03`/`04` over a pointer still does. The
+    // retired flag was also *coarser than the guard it bypassed* — it refused
+    // `(int)&t->s.b + i`, which `ptr_arith_exact` admits and c2 emits.
+    let ptr_arith = if cstack_ok {
         ptr_arith_exact
     } else {
         saw_ptr
