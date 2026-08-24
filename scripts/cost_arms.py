@@ -126,6 +126,16 @@ behaviour for controlled comparison only.
 * **The design balances FIRST-ORDER adjacency only**, i.e. what ran immediately
   before. It says nothing about second-order carryover (what ran two slots
   back), and it is not claimed to.
+* **A CLEAN NULL DOES NOT MAKE A RUN COMPARABLE TO ANOTHER RUN** (#3523). The
+  null certifies this run against arm-order artefacts *within* it. It certifies
+  nothing about anything that varies *between* sessions and applies to all arms
+  alike — build layout, box state, the hour. `w-adjacency` measured a tip at
+  **+1.27 % [+1.01, +1.52], split 76 %** on the same two commits `w-permute`
+  measured at **-0.49 / -0.44 / -0.55 %**, and the run reporting +1.27 % had a
+  null of **-0.00 %, split 43 %**. A dirty null announces itself; that did not.
+  **Cross-session comparability is not tested by anything this script prints**,
+  which is why it now prints each arm's md5, size and build directory — so the
+  next disagreement is answerable instead of open.
 * **One adjacency out of `rounds·n` is necessarily unbalanced, and it is the
   last one.** The cycle is balanced as a *circle*; a real run is a *line*, so
   the wrap from the final arm back to the first never happens. `rounds·n − 1`
@@ -148,6 +158,7 @@ not bind `scripts/`, but there is no reason to spend a dependency here.
 
 import argparse
 import filecmp
+import hashlib
 import itertools
 import os
 import re
@@ -358,6 +369,29 @@ def ci95(xs):
     return (m - h, m + h)
 
 
+def arm_identity(path):
+    """md5, size and build directory of an arm binary — PRINTED, not assumed.
+
+    `w-adjacency` measured a `tip` at +1.27 % that a prior lane measured at
+    -0.55 % on the SAME two commits, and could not settle it, because that
+    lane's binaries were reaped with its worktree and no record of them
+    survived. Three independent builds of one commit in three directories
+    differ, and their sizes track the DIRECTORY-NAME LENGTH: the repo root is
+    `env!("CARGO_MANIFEST_DIR")` captured at compile time
+    (`crates/c2-reference/src/lib.rs:81`), so a longer build path is a longer
+    string literal, a larger `.rodata`, and a different layout for everything
+    aligned after it. The same `env!` capture is #3470's defect.
+
+    So an arm is not identified by the sha it was built from. Three lines of
+    output here is the whole cost of making a future disagreement answerable.
+    """
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest(), os.path.getsize(path), os.path.dirname(os.path.abspath(path))
+
+
 def show_design(n, rotation):
     """Print the rotation for `n` arms and the counts that certify it.
 
@@ -477,6 +511,19 @@ def main():
     if len(arms) < 2:
         raise SystemExit("at least two arms (a baseline and one other)")
     base_name, base_path = arms[0]
+
+    # ARM IDENTITY, printed before anything is timed. See arm_identity().
+    print("arm identity (md5 / size / build dir) — a sha is NOT an arm:")
+    ident = {}
+    for name, path in arms:
+        digest, size, where = arm_identity(path)
+        ident[name] = (digest, size, where)
+        print(f"  {name:<10} {digest}  {size:>10,} B  {where}")
+    sizes = {v[1] for v in ident.values()}
+    if len(sizes) > 1:
+        print(f"  NOTE: arm binaries differ in SIZE ({sorted(sizes)}). If they were "
+              f"built from the same source, the build DIRECTORY differs and so "
+              f"does the layout; see arm_identity().")
 
     # THE NULL ARM'S OWN PRECONDITION, checked rather than trusted. A "null" arm
     # that is not byte-identical is not a noise floor, and the whole reading of
