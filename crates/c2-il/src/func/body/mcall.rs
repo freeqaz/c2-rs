@@ -68,6 +68,7 @@
 
 use super::expr::{
     eat_fn_tail, eat_return_plumbing, eat_scopes, intrinsic_name, intrinsic_selector,
+    off_add_admitted,
 };
 use super::{Block, Complete, BODY_SCOPE_DEPTH};
 use crate::func::readers::{
@@ -2875,6 +2876,28 @@ impl Stream {
         }
     }
 
+    /// Fold the **byte-offset add** `27 <TYPE>`, exactly as
+    /// `parse_expr_classed`'s `0x27` arm does: pop the offset the preceding
+    /// `33` pushed and the address under it, push the re-typed address as a
+    /// [`ValueClass::Ptr4`].
+    ///
+    /// It deliberately does **not** set [`Stream::ptr_arith_exact`], and that
+    /// asymmetry with [`Stream::fold_binary`] is the whole reason `27` and `02`
+    /// are different opcodes: `27` is the *byte*-offset add and carries its
+    /// scaling already, while `02` over a pointer is scaled by the pointee
+    /// width and costs a real multiply. The emitter's guard refuses one and not
+    /// the other (`w-c1`, `expr.rs`'s `0x27` arm), so a measure that indicted
+    /// this fold would be **wider** than its emitter — the direction #139
+    /// records as manufacturing phantom completeness.
+    fn fold_off_add(&mut self) {
+        match (self.cstack.pop(), self.cstack.pop()) {
+            (Some(_off), Some(_base)) => self.push_class(ValueClass::Ptr4),
+            // On a stream the postfix model could not follow, the coarse flags
+            // take over — `fold_binary`'s own failure arm, one for one.
+            _ => self.cstack_ok = false,
+        }
+    }
+
     /// Replace the class on top — an accepted `2C`.
     fn retop_class(&mut self, c: ValueClass) {
         if let Some(top) = self.cstack.last_mut() {
@@ -3015,6 +3038,69 @@ fn eat_int_operands(seg: &[u8], p: &mut usize, v: Vocab, adm: Admit, fail: &mut 
                     fail.note(probe, FailKind::Value);
                     return finish!();
                 }
+                *p = probe;
+            }
+            // **THE BYTE-OFFSET ADD** — lane `w-3475`, board **#3475**, and it
+            // is #139's shape for the third time at this position.
+            //
+            // Lane `w-c1` (Phase 1 slice C1) promoted `parse_expr_classed`'s
+            // `0x27` arm from an env-gated sink to a graded, **default-on**
+            // construct. `Vocab::CallArg`'s contract is that this measure
+            // mirrors `shapes::calls::eat_call_args`, whose operand streams are
+            // `parse_expr`'s on the default path — `off_add_arg_sink` is OFF
+            // unless `C2RS_SINK_OFF_ADD_ARG` is set and `eat_sym_addr_arg`
+            // refuses an offset run by construction. The measure did not
+            // follow, so from `w-c1` until here it was NARROWER than its
+            // emitter at this byte, and the greedy walker charged the
+            // difference as a granted `Blocker::OffAdd` — a census key naming
+            // `off-add` as the second blocker for bodies whose emitter decodes
+            // it. That is the *phantom rung* direction, and #139 measured what
+            // it costs: a 14x estimate miss.
+            //
+            // Mirrored token for token, and the three things it does NOT do are
+            // as load-bearing as the three it does:
+            //
+            // * **`0x28` is NOT admitted.** `parse_expr` has no `28` arm at all
+            //   (it refuses under `expr-op-0x28`), so admitting the subscript
+            //   offset add here would be the *wider* error in the same line
+            //   that fixes the narrower one. `Fail::blocker` still names both
+            //   bytes `off-add`, which is correct — it names the construct —
+            //   and a `28` therefore still stops this run and is still granted
+            //   through `eat_one_blocker_value`.
+            // * **`Vocab::IntrinsicRecv` is NOT widened.** Nothing in the
+            //   intrinsic family is lowered, so that position has no emitter
+            //   and no correspondence to hold it to (see [`Vocab`]). Widening
+            //   it would be inventing one.
+            // * **`ptr_arith_exact` is NOT set** — see [`Stream::fold_off_add`].
+            //
+            // Gated on the same named decision point the emitter reads, so
+            // `C2RS_OFF_ADD=off` restores the pre-`w-c1` parser **and** the
+            // pre-`w-3475` measure together. The two must not be settable
+            // apart: a configuration in which the correspondence is false is a
+            // configuration in which every `-whole{k}` figure is wrong, and
+            // nothing would say so.
+            Some(&0x27) if v == Vocab::CallArg && off_add_admitted() => {
+                let start = *p;
+                let mut probe = *p + 1;
+                let Some((tag, kind, _, w)) = read_type(seg, probe) else {
+                    fail.note(probe, FailKind::Type);
+                    return finish!();
+                };
+                if !super::shapes::designator::is_ptr_any(tag, kind) {
+                    // The emitter refuses this one too, under its own key
+                    // (`expr-off-add-ptee`) and on this same predicate. The
+                    // refused CONSTRUCT is still the off-add, so it is named at
+                    // the `27` and not at the TYPE behind it: a `FailKind::Type`
+                    // here would file the body under a granted *type class*,
+                    // which `eat_admitted_type` would then admit at every OTHER
+                    // operand position while this one kept refusing — a grant
+                    // that cannot complete the body it was granted for.
+                    fail.note(start, FailKind::Value);
+                    return finish!();
+                }
+                probe += w;
+                st.ptr = true;
+                st.fold_off_add();
                 *p = probe;
             }
             _ => {
@@ -3539,7 +3625,15 @@ mod tests {
         // is the fix. `(int)p + b` is the whole of the workload population the
         // precise model converts.
         for (n1, t1) in CLASS_WITNESSES {
-            for op in [None, Some(0x02u8), Some(0x03), Some(0x04), Some(0x2C), Some(0xFF)] {
+            for op in [
+                None,
+                Some(0x02u8),
+                Some(0x03),
+                Some(0x04),
+                Some(0x2C),
+                Some(0xFF),
+                Some(0x27),
+            ] {
                 for (n2, t2) in CLASS_WITNESSES {
                     for (n5, t5) in CLASS_WITNESSES {
                         cases += 1;
@@ -3560,6 +3654,42 @@ mod tests {
                                 seg.extend_from_slice(t2);
                                 seg.push(0x00);
                                 seg.extend_from_slice(&[0xB9, 0x01, 0x03, 0x86, 0x41, 0x74, 0x02]);
+                            }
+                            // **`0x27` is the BYTE-OFFSET ADD axis** (lane
+                            // `w-3475`, board **#3475**), and it is the axis
+                            // whose absence let the `Vocab::CallArg`
+                            // correspondence break for a whole lane without a
+                            // single test going red. This guard's operator axis
+                            // was `02`/`03`/`04`/`2C` — **arithmetic and
+                            // conversion only** — so when `w-c1` widened
+                            // `parse_expr` to admit `27`, nothing here could
+                            // see it. The claim the tree carried in three
+                            // places (`expr.rs`'s comment, board **#364**,
+                            // ROADMAP §9.17.6) was that widening `parse_expr`
+                            // *"obliges `mcall::eat_int_operands` to widen in
+                            // lockstep, or the correspondence guard goes red"*;
+                            // `w-c1` measured that nothing went red and scored
+                            // its own prereg **P10 a MISS**. This line is why
+                            // it did not: **the guard everybody cited had no
+                            // opcode axis for the opcode in question.**
+                            //
+                            // `33 <t2> 08 · 27 <t2>` — the designator step
+                            // `&t->s.k` spells, with `t2` in both positions so
+                            // the enumeration sweeps the accepting (pointer)
+                            // and refusing (non-pointer) halves of
+                            // `designator::is_ptr_any` on both sides at once.
+                            //
+                            // **It goes RED on the tree before `w-3475`** and
+                            // green after, which is the only thing that makes
+                            // it a control rather than a restatement: the whole
+                            // module is diagnostic, so the byte judge cannot go
+                            // red for this defect and never could.
+                            Some(0x27) => {
+                                seg.push(0x33);
+                                seg.extend_from_slice(t2);
+                                seg.push(0x08);
+                                seg.push(0x27);
+                                seg.extend_from_slice(t2);
                             }
                             Some(o) => {
                                 seg.extend_from_slice(&[0xB9, 0x01, 0x03]);
@@ -3584,6 +3714,7 @@ mod tests {
                                     Some(0x03) => "-",
                                     Some(0x04) => "*",
                                     Some(0xFF) => "convert-then-add-int, to",
+                                    Some(0x27) => "byte-offset-add by",
                                     _ => "convert-to",
                                 }
                             ));
@@ -3636,6 +3767,72 @@ mod tests {
         let mut p = 0usize;
         assert!(crate::func::body::shapes::calls::eat_call_args(&seg, &mut p).is_err());
         assert!(!super::measure_admits_call_args(&seg));
+    }
+
+    /// The same statement for the **byte-offset add** — lane `w-3475`, board
+    /// **#3475**, and the reason the guard above needed a `0x27` axis.
+    ///
+    /// Since lane `w-c1` the emitter has decoded `27 <ptr TYPE>` by default
+    /// (`expr.rs`'s arm, `off_add_admitted`, `C2RS_OFF_ADD`). Until this lane
+    /// the measure did not, so the greedy walker charged the difference as a
+    /// granted `Blocker::OffAdd` and printed `…-then-off-add` as the second
+    /// blocker for a body whose emitter takes that token — **#139's shape**,
+    /// and it stood for the whole interval between the two lanes with nothing
+    /// in the tree able to say so.
+    ///
+    /// The spelling is the designator step `&t->s.k` compiles to, quoted from
+    /// `expr.rs`'s own arm: `B9 t · 33 <int> k · 27 <T*>`.
+    ///
+    /// **Three cells, and the two negatives are what keep the repair from
+    /// overshooting into the phantom-completeness direction:**
+    ///
+    /// 1. `27` over a **pointer** TYPE — both sides admit;
+    /// 2. `27` over a **non-pointer** TYPE — both sides refuse
+    ///    (`designator::is_ptr_any`, the same predicate the four leaf consumers
+    ///    and the emitter's arm use; the emitter names it `expr-off-add-ptee`);
+    /// 3. **`28`, the subscript offset add — both sides refuse.** `parse_expr`
+    ///    has no `28` arm, so a measure that admitted it would be *wider* than
+    ///    its emitter in the same line that fixed the narrower error. This cell
+    ///    is the one that would catch a repair reaching for the neighbouring
+    ///    byte because `Fail::blocker` gives the two the same construct name.
+    #[test]
+    fn a_byte_offset_add_call_argument_was_never_a_second_construct() {
+        // `86 43 74` — a 4-byte pointer; `86 41 74` — plain `int`.
+        let arg = |off: &[u8]| {
+            let mut seg = vec![0xB9, 0x01, 0x02, 0x86, 0x43, 0x74];
+            seg.extend_from_slice(&[0x33, 0x86, 0x41, 0x74, 0x08]);
+            seg.extend_from_slice(off);
+            seg.extend_from_slice(&[0x55, 0x86, 0x43, 0x74, 0x4C]);
+            seg
+        };
+        let both = |seg: &[u8]| {
+            let mut p = 0usize;
+            let emitter = crate::func::body::shapes::calls::eat_call_args(seg, &mut p).is_ok()
+                && p == seg.len();
+            (emitter, super::measure_admits_call_args(seg))
+        };
+
+        // 1. the pointer TYPE — admitted by both.
+        assert_eq!(
+            both(&arg(&[0x27, 0x86, 0x43, 0x74])),
+            (true, true),
+            "the EMITTER has decoded `27 <ptr>` since w-c1; the measure must too, or the \
+             census key prints `-then-off-add` for a construct that was never a blocker"
+        );
+        // 2. a non-pointer TYPE — refused by both, so the repair widened the
+        //    measure TO the emitter and not past it.
+        assert_eq!(
+            both(&arg(&[0x27, 0x86, 0x41, 0x74])),
+            (false, false),
+            "`is_ptr_any` fences both sides; the emitter calls this `expr-off-add-ptee`"
+        );
+        // 3. `28` — refused by both. `parse_expr` has no arm for it.
+        assert_eq!(
+            both(&arg(&[0x28, 0x00, 0x00])),
+            (false, false),
+            "the subscript offset add is NOT the byte-offset add; admitting it here would \
+             make the measure wider than its emitter"
+        );
     }
 
     /// One pinned body's census [`Block`].
