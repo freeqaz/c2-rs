@@ -263,3 +263,82 @@ read.
 rung): `c2rs-permute-{base,null,tip}` from `f6f56df78` / `0ff503eb0`, and
 `c2rs-s1c3-{base,null,tip}` from `e85253cda` / `4d04ee59e`. In both sets the
 null is a `cp` of the base binary and `cmp` returns 0; base and tip differ.
+
+---
+
+## 8. AMENDMENT 2 — RUN F, THE BUILD-TO-BUILD FLOOR. Registered before it runs.
+
+Run A is complete and is a **MISS on P3a**: the *defective* rotation produced a
+null of **−0.00 % [−0.11, +0.10], split 43 %**, which lands inside the band §3
+registered for a GOOD run. The acceptance test is **UNPOWERED**, B–E were not
+run, and nothing about the fix is claimed from timing. That is the branch §3
+registered and it needs no amendment.
+
+What needs one is what run A found on the way: its **tip** reads
+**+1.27 % [+1.01, +1.52], split 76 %** on the same two commits `w-permute`
+measured at **−0.49 / −0.44 / −0.55 %** (splits 27–32 %). Sign flip, ~1.8
+points, **with the run's own null certificate clean**.
+
+**Run F is the coordinator's design, and it is better than either option this
+lane proposed**, because it isolates *build* from *change* completely instead of
+mixing them.
+
+### 8.1 The design
+
+**Three independent builds of ONE commit**, `f6f56df78`, in three directories
+of deliberately different name length (`b1`, `b2xx`, `b3yyyyyy`), run as three
+arms under `--rotation balanced --rounds 6`. **Every pairwise difference has a
+true value of exactly zero by construction** — same sha, same pinned toolchain,
+same box, same session, same flags. It is the null-arm logic promoted one level:
+instead of a `cp` (byte-identical, layout identical) it is an independent build
+(semantically identical, layout possibly different).
+
+### 8.2 The `cmp` precondition — CHECKED FIRST, and the experiment is LIVE
+
+Registered condition: *if the three builds are byte-identical the test
+degenerates into the existing null arm, and it is reported as that and stopped,
+not presented as new evidence.*
+
+    c2rs-b1        e63eb8bd50e4d97b5bb57c0c346edabd   6,126,264 bytes
+    c2rs-b2xx      b9a82a769ecd04df850895f16bd4fdcd   6,126,296 bytes
+    c2rs-b3yyyyyy  84268b6129ec827c59a275a14e104017   6,126,312 bytes
+
+**All three differ, and the sizes track the directory-name length** (+32, +16),
+so the mechanism is not `rustc` nondeterminism — it is the **embedded
+`CARGO_MANIFEST_DIR`**, which `crates/c2-reference` takes with `env!`. That
+makes run F a test of **build-directory variation specifically**, which is
+exactly the real case: every lane builds in its own worktree at its own path.
+
+### 8.3 There is no `nulldup` arm, ON PURPOSE
+
+The script will warn *"no arm named 'nulldup' — this run has NO noise floor, and
+any number it prints is a mean without a scale."* **The warning is correct in
+general and inapplicable here**: in run F every arm is a null with respect to
+every other, so the numbers this run prints **are** the noise floor. A `nulldup`
+could not be added even if wanted — it would have to be `cmp`-identical to the
+baseline, and the script would refuse anything else, which is the guard working.
+
+### 8.4 P5 — the registered prediction and the three-way conclusion rule
+
+Let **F** = the largest `|mean|` over the two pairwise readings, with its split.
+
+**Prediction: `F` lands in ±0.2 % to ±0.7 %** — bigger than the byte-identical
+null's ±0.11 %, because the embedded strings move `.rodata` and everything
+aligned after it, but well short of the 1.8-point swing run A showed.
+
+| outcome | what is concluded |
+|---|---|
+| **`F` < ±0.2 %** | Build-directory layout is **not** a plausible explanation for the 1.8-point swing. The sign flip needs another cause — round count (6 vs 9) or session — and #3468's +0.99 % and #3495's −0.55 % survive *this* objection. |
+| **`F` = ±0.2–0.7 %** | A real build floor exists and is **comparable in size to the effects the COST CLAUSE measures**. Every published cost reading must be quoted beside it, and none of them was. The 1.8-point swing is then only **partly** explained, and is said to be. |
+| **`F` > ±0.7 %** | **Every published cost reading in this project is inside the noise of its own build.** #3468's +0.99 %, #3495's −0.55 % and this lane's +1.27 % are then all unresolved, and the COST CLAUSE as practised cannot resolve what it claims to. |
+
+**Scored on the mean AND the split**, per #3495: a true effect of exactly zero
+must split near 50 %, and a split far from 50 % on these arms is as much a
+finding as the mean.
+
+**What run F canNOT do, registered so it is not overread:** it is one session on
+one box with three builds. It establishes a floor **for build-directory
+variation on this box today**; it does not establish that the same floor
+explains `w-permute`'s numbers, whose binaries were reaped with its worktree and
+**cannot be re-run**. That remains a disagreement without an established cause,
+and run F narrows the candidate list rather than closing it.
