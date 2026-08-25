@@ -184,6 +184,21 @@ self_test() {
     echo "  control (clean repo)                        GREEN"
 
     fails=0
+    # THE ABSOLUTE-PATH PLANT IS ASSEMBLED AT RUNTIME, AND THAT IS NOT STYLE.
+    #
+    # Written as a literal, this script's own text would contain
+    # `/home/<a-user>/…` — and class 2 scans the CONTENT of every tracked file
+    # under scripts/. The guard would then flag ITSELF the moment it was
+    # committed, which is exactly what happened on the first attempt: the audit
+    # was run and passed while the file was still untracked, so `git ls-files`
+    # did not list it, and it went red one commit later at 9,618 files instead
+    # of 9,616. **A guard validated against a population that does not yet
+    # contain the guard is not validated.** Assembling the string from two
+    # halves keeps the file honest under its own rule — self-exemption was the
+    # alternative and it is the wrong instinct: a rule its enforcer is exempt
+    # from is a rule with one guaranteed blind spot.
+    home_seg="/home"
+    abs_plant="main=$home_seg/someuser/code/thing"
     # path, content — one plant per class this guard CLAIMS to cover.
     for plant in \
         "crates/a.obj:binary" \
@@ -192,9 +207,10 @@ self_test() {
         "crates/a.il:il" \
         "crates/a.profraw:cov" \
         "target/release/c2rs:tree" \
-        "scripts/hard.sh:main=/home/someuser/code/thing"
+        "scripts/hard.sh:@ABS@"
     do
         p="${plant%%:*}"; c="${plant#*:}"
+        [ "$c" = "@ABS@" ] && c="$abs_plant"
         mkdir -p "$tmp/$(dirname "$p")"
         printf '%s\n' "$c" > "$tmp/$p"
         git -C "$tmp" add -f "$p" >/dev/null
