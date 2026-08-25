@@ -376,9 +376,16 @@ results 3–4), and the knob pair (§1 result 5).
   `w-unfuse` or a later I1 slice replaces the seam, frame reach is expected to DROP before
   it climbs.** A drop across that boundary is a change of instrument, not a regression, and
   only the recorded decoder identity can tell the two apart. Board **#3566**.
-* **`w-unfuse` had committed nothing when this lane measured.** Every number here is taken
-  on today's **fused** surface, which the prereg said in advance. The instrument rebases
-  over `w-unfuse` and **re-measures**; it does not carry these numbers across.
+* **`w-unfuse` had not merged when this lane measured, and the re-measure is OWED.** Every
+  number here is taken on today's **fused** surface, at base `5db186426`, which the prereg
+  said in advance. At the close `wt-w-unfuse` is live and unmerged — it has named the two
+  halves (`Decoded` / `AdmissionPolicy`) and reports an identity diff of 0 lines with
+  **2,417,794 census rows byte-identical per symbol**, the same denominator as
+  `decode-reach-observable` here, which is the first cross-lane agreement either has. **The
+  instrument rebases over it and RE-MEASURES; it does not carry these numbers across**, and
+  `reach_of`'s body is where `Decoded` replaces the statement-layer verdict — one function,
+  one locator. (`master` moved to `97cc7ce62` during this lane when **`w-ilarms`** merged;
+  that lane is docs-only and cannot move a number here.)
 * **A per-body PREFIX distance is not built and its reach is unknown, not zero.** It needs
   the stop OFFSET, and `FnCensus` publishes none. That field lives in `crates/c2-il`, which
   this lane READS and does not write (`w-unfuse` owns those sites). The byte-weighted reach

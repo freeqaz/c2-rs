@@ -65,11 +65,16 @@
 //! computed for **every** body whether or not it is in class. That is the
 //! closest thing in the tree to 4a(i)'s general decode.
 //!
-//! When lane `w-unfuse` separates DECODE from ADMISSION in `crates/c2-il`, the
-//! separated decode's verdict replaces the body of [`reach_of`] and **nothing
-//! else in this file changes**. One fact, one locator (`docs/GAPS.md` §6) — the
-//! rule S0 learned by printing `no-decode 0` on a scan whose own machine line
-//! read 113,165.
+//! When lane `w-unfuse` separates DECODE from ADMISSION in `crates/c2-il` — it
+//! is live and unmerged at this writing, and has already named the two halves
+//! `Decoded` / `AdmissionPolicy` — the separated decode's verdict replaces the
+//! **body of [`reach_of`]** and **nothing else in this file changes**. One fact,
+//! one locator (`docs/GAPS.md` §6) — the rule S0 learned by printing
+//! `no-decode 0` on a scan whose own machine line read 113,165.
+//!
+//! **Expect the number to DROP when that happens.** A stronger decode reaches
+//! less before it reaches more; [`DECODER`] is why a reader can tell that from a
+//! regression.
 //!
 //! # A FIRST-BLOCKER KEY IS NOT A DISTANCE (#3131)
 //!
