@@ -283,11 +283,13 @@ def cmd_arms(img, d):
 def cmd_tsv(img, d):
     oa = d.opcodes_of_arm()
     ra = set(d.refusal_arms())
-    print("arm\ttarget\tn_opcodes\topcodes\trefusal")
+    print("arm\ttarget\tn_opcodes\topcodes\trefusal\tclasses\tattrs")
     for k in range(d.n_arms):
         ops = oa.get(k, [])
+        cls = " ".join(f"{img.u8(CLASS_TABLE_VA + o):02x}" for o in ops)
+        att = " ".join(f"{img.u16(ATTR_TABLE_VA + 2 * o):04x}" for o in ops)
         print(f"{k}\t{d.arms[k]:#x}\t{len(ops)}\t{' '.join(f'{o:02x}' for o in ops)}"
-              f"\t{'1' if k in ra else '0'}")
+              f"\t{'1' if k in ra else '0'}\t{cls}\t{att}")
 
 
 def cmd_refuse(img, d):

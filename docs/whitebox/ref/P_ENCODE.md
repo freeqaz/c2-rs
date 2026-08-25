@@ -621,7 +621,7 @@ Stated so absence is not read as coverage (`STEP5_PRICING_2026-08-21.md`'s
 I2 is *"the general lowering to `coff::Function`"*):
 
 1. **The tuple stream.** This page starts at a finished machine tuple. What
-   *builds* the tuple is `FUN_10bc2d7a`'s 189 arms — read **R5**, unstarted.
+   *builds* the tuple is `FUN_10bc2d7a`'s ~~189 arms~~ **61 real arms over 95 opcodes, plus one refusal over 94 ([`WB_ILARMS_MAP.md`](../WB_ILARMS_MAP.md) §1)** — read **R5**, ~~unstarted~~ **DONE 2026-08-23, `ref/P_ILRECORD.md`, #3415**.
    An encoder is a total function of a tuple you do not yet have.
 2. **Operand-record layout beyond the fields used here.** `+0x00` next,
    `+0x04` opcode-or-address-mode, `+0x08` kind, `+0x09` flag byte,

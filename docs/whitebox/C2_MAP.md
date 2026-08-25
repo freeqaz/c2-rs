@@ -1009,7 +1009,7 @@ The honest boundary. Read this before building on anything above.
 | **The gate on the owner-index `varU` at the tag-`0x0e` gap offset 0** | **NEW, open, `low`.** Ghidra and raw asm both say it is read only when `+0x20 & 0x200`, yet `+0x20` decoded to `0x005`/`0x105`/`0x405` in **every** record across three bundles — bit `0x200` never set — while the two bytes are unambiguously consumed. One record in 61 (`??0P@@QAA@ABU0@@Z`, a constructor) breaks the chain, almost certainly the same gate. | `10b9be72` |
 | **Whether the census's unemitted bodies are `.gl` records at all** | **open, and it matters.** Small-TU probes show `.gl` ≡ obj, so the census is measuring something else. `.in` is the obvious candidate. Not measured. | `10b9bf99`, list `0x10c3cf68` |
 | **c1xx's zero-initializer folding** | asserted, **not verified** — out of scope, and it is a c1xx fact |
-| **`.ex` opcode semantics** | operand *formats* known for all 200 opcodes, attributes for ~194; **naming each opcode** needs reading 189 arms of `FUN_10bc2d7a` | mechanical, recipe is exact |
+| **`.ex` opcode semantics** | operand *formats* known for all 200 opcodes, attributes for ~194; **naming each opcode** needs reading ~~189 arms~~ **61 real arms over 95 opcodes, plus one refusal over 94 ([`WB_ILARMS_MAP.md`](WB_ILARMS_MAP.md) §1)** of `FUN_10bc2d7a` | ~~mechanical, recipe is exact~~ **REFUTED — #3419: 17 of 62 arms read a `.data` global, six frame slots carry state across tokens, and arm 20 re-enters the dispatch** |
 | **Selection code 8** | mapped by `FUN_10b281f7` and special-cased at emit, but it is **not** a documented `IMAGE_COMDAT_SELECT_*`. **Do not assume it is a valid on-the-wire value.** |
 | **Kind 9** | `FUN_10b982d6` handles it; **no creator found**. `unknown`. |
 
