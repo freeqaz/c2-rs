@@ -692,8 +692,30 @@ COFF_HDR = 20
 SEC_HDR = 40
 SYM_LEN = 18
 IMAGE_SCN_LNK_COMDAT = 0x00001000
+IMAGE_SYM_CLASS_EXTERNAL = 2
 IMAGE_SYM_CLASS_STATIC = 3
+IMAGE_SYM_CLASS_LABEL = 6
+IMAGE_SYM_CLASS_WEAK_EXTERNAL = 105
 TEXT_PREFIX = b".text"
+
+# IMAGE_REL_PPC_* — confirmed present in this corpus's `.text` COMDATs, and
+# they are exactly the set DIFF_STRUCTURE.md §3.2 names ("3 REL24 + 2 x
+# (REFHI + PAIR) + 2 x (REFLO + PAIR)").
+R_ADDR32 = 0x02
+R_REL24 = 0x06
+R_REFHI = 0x10
+R_REFLO = 0x11
+R_PAIR = 0x12
+
+# Which bits of the word the linker will overwrite, per relocation type. A word
+# under a relocation carries a PLACEHOLDER in these bits; comparing them across
+# two objs compares link state, not compiler behaviour.
+RELOC_PATCH_MASK = {
+    R_REL24: 0x03FFFFFC,   # the LI field, bits 6..29
+    R_REFHI: 0x0000FFFF,
+    R_REFLO: 0x0000FFFF,
+    R_ADDR32: 0xFFFFFFFF,
+}
 
 
 def _str_at(strtab, i):
@@ -701,31 +723,47 @@ def _str_at(strtab, i):
     return strtab[i:end] if end >= 0 else strtab[i:]
 
 
-def text_comdat_entries(b):
-    """`c2_obj::ObjImage::text_comdat_entries`, fail-closed the same way.
+def read_obj(b):
+    """Every `.text*` COMDAT function body in one obj, by symbol name.
 
-    Returns {name: (section_index, data, relocs)} or None. A COMDAT `.text`
-    section that produced no leader means the symbol walk went wrong, and a
-    SHORT emitted set is worse than none — it is a denominator that silently
-    inflates every ratio computed against it.
+    Returns {name: (words, relocs_by_word)} or None (fail-closed).
+
+    ** WHY THIS IS NOT `c2_obj::text_comdat_entries` VERBATIM, AND THE BUG THAT
+    FORCED THE DIFFERENCE. **
+
+    `c2-obj` claims ONE leader per COMDAT `.text` section and hands it the
+    section's WHOLE raw data. That is sound for the objs c2-rs grades, where c2
+    under `/Gy` puts one function per COMDAT starting at offset 0. It is WRONG
+    on this corpus, and the first run of this lane published a shape built on
+    it. In `../dc3-decomp`'s `src/App.obj`, section 72 is 128 bytes and holds:
+
+        val=0    class=3 aux=1  .text                 <- section definition
+        val=8    class=2        ??0FilePath@@QAA@PBD@Z  <- THE FUNCTION
+        val=88   class=3 aux=0  __unwind$275902       <- NOT code
+        val=24/72/88/104/128 class=6  $M2759xx        <- line labels, INTERIOR
+
+    Taking the whole section gave the function 32 words against the target's
+    20, with two leading zero words and a second prologue inside. So the body
+    is `[symbol Value, next boundary)`, where a boundary is an EXTERNAL /
+    WEAK-EXTERNAL / non-definition STATIC symbol — and `IMAGE_SYM_CLASS_LABEL`
+    (6) symbols are INTERIOR and must never truncate a body.
     """
     if len(b) < COFF_HDR:
         return None
-    nsec, psym, nsym = struct.unpack_from("<HxxxxII", b, 2)
-    nsec, psym, nsym = struct.unpack_from("<H", b, 2)[0], \
-        struct.unpack_from("<I", b, 8)[0], struct.unpack_from("<I", b, 12)[0]
+    nsec = struct.unpack_from("<H", b, 2)[0]
+    psym = struct.unpack_from("<I", b, 8)[0]
+    nsym = struct.unpack_from("<I", b, 12)[0]
     sym_end = psym + nsym * SYM_LEN
-    if sym_end > len(b):
+    if not psym or sym_end > len(b):
         return None
     strtab = b[sym_end:]
 
-    secs = []
-    is_text = []
+    secs, is_text = [], []
     for i in range(nsec):
         o = COFF_HDR + i * SEC_HDR
         raw = b[o:o + 8]
         if raw[:1] == b"/":
-            name = _str_at(strtab, int(raw[1:].split(b"\0")[0].decode()))
+            name = _str_at(strtab, int(raw[1:].rstrip(b"\0").decode()))
         else:
             name = raw.rstrip(b"\0")
         size, ptr = struct.unpack_from("<II", b, o + 16)
@@ -735,46 +773,112 @@ def text_comdat_entries(b):
         secs.append((name, size, ptr, prel, nrel, chars))
         is_text.append(name.startswith(TEXT_PREFIX) and bool(chars & IMAGE_SCN_LNK_COMDAT))
 
-    claimed = [False] * nsec
-    out = {}
+    # Pass 1: every symbol, with its name, so a relocation can name its target.
+    allsyms = []
     i = 0
     while i < nsym:
         o = psym + i * SYM_LEN
         if o + SYM_LEN > len(b):
             return None
         naux = b[o + 17]
+        if b[o:o + 4] == b"\0\0\0\0":
+            at, = struct.unpack_from("<I", b, o + 4)
+            nm = _str_at(strtab, at)
+        else:
+            nm = b[o:o + 8].rstrip(b"\0")
+        val, = struct.unpack_from("<I", b, o + 8)
         secnum, = struct.unpack_from("<h", b, o + 12)
         sclass = b[o + 16]
-        if 1 <= secnum <= nsec:
-            s = secnum - 1
-            is_section_definition = (sclass == IMAGE_SYM_CLASS_STATIC and naux == 1)
-            if is_text[s] and not claimed[s] and not is_section_definition:
-                if b[o:o + 4] == b"\0\0\0\0":
-                    at, = struct.unpack_from("<I", b, o + 4)
-                    name = _str_at(strtab, at)
-                else:
-                    name = b[o:o + 8].rstrip(b"\0")
-                claimed[s] = True
-                _n, size, ptr, prel, nrel, _c = secs[s]
-                data = b[ptr:ptr + size] if ptr else b""
-                relocs = []
-                for k in range(nrel):
-                    ro = prel + k * 10
-                    va, _sym = struct.unpack_from("<II", b, ro)
-                    typ, = struct.unpack_from("<H", b, ro + 8)
-                    relocs.append((va, typ))
-                out[name.decode("utf-8", "replace")] = (s, data, relocs)
+        allsyms.append((nm.decode("utf-8", "replace"), val, secnum, sclass, naux))
         i += 1 + naux
         if i > nsym:
             return None
-    for c, t in zip(claimed, is_text):
-        if t and not c:
-            return None          # fail closed, exactly as c2-obj does
+    symname = [s[0] for s in allsyms]
+    # Relocation SymbolTableIndex indexes RAW records, aux included; rebuild the
+    # raw-index -> name map rather than assuming aux-free numbering.
+    raw_name = {}
+    i = 0
+    k = 0
+    while i < nsym and k < len(allsyms):
+        raw_name[i] = allsyms[k][0]
+        i += 1 + allsyms[k][4]
+        k += 1
+
+    # Pass 2: boundaries per section.
+    bounds = defaultdict(list)
+    starts = defaultdict(list)
+    for (nm, val, secnum, sclass, naux) in allsyms:
+        if not (1 <= secnum <= nsec) or not is_text[secnum - 1]:
+            continue
+        if sclass == IMAGE_SYM_CLASS_STATIC and naux == 1:
+            continue                       # the section definition itself
+        if sclass == IMAGE_SYM_CLASS_LABEL:
+            continue                       # INTERIOR: `$M…` line labels
+        bounds[secnum - 1].append(val)
+        if sclass in (IMAGE_SYM_CLASS_EXTERNAL, IMAGE_SYM_CLASS_WEAK_EXTERNAL) \
+                and not nm.startswith("__unwind$"):
+            starts[secnum - 1].append((val, nm))
+
+    out = {}
+    for s in range(nsec):
+        if not is_text[s]:
+            continue
+        _n, size, ptr, prel, nrel, _c = secs[s]
+        data = b[ptr:ptr + size] if ptr else b""
+        rel = []
+        for k in range(nrel):
+            ro = prel + k * 10
+            if ro + 10 > len(b):
+                return None
+            va, sidx = struct.unpack_from("<II", b, ro)
+            typ, = struct.unpack_from("<H", b, ro + 8)
+            rel.append((va, typ, raw_name.get(sidx, "?%d" % sidx)))
+        bs = sorted(set(bounds[s]))
+        for (val, nm) in starts[s]:
+            nxt = next((x for x in bs if x > val), size)
+            body = data[val:nxt]
+            if len(body) < 4:
+                continue
+            ws = [int.from_bytes(body[i:i + 4], "big") for i in range(0, len(body) - 3, 4)]
+            rbw = {}
+            for (va, typ, tn) in rel:
+                if val <= va < nxt and (va - val) % 4 == 0:
+                    rbw[(va - val) // 4] = (typ, tn)
+            if nm not in out:              # first definition wins; collisions counted
+                out[nm] = (ws, rbw)
     return out
 
 
-def words_of(bs):
-    return [int.from_bytes(bs[i:i + 4], "big") for i in range(0, len(bs) - 3, 4)]
+def normalize(ws, rbw):
+    """Zero the bits the LINKER will overwrite, and return the relocation
+    target NAME per word alongside.
+
+    ** THIS IS BOARD #984, IN THE MIRROR, AND IT IS WHY THE FIRST RUN OF THIS
+    LANE WAS AN ARTIFACT. ** There, byte equality CREDITED a relocated word it
+    had not checked: two `bl`s to different callees are the same four bytes
+    under `/Gy`, because the placeholder displacement is `-(offset of the branch
+    word)` whatever the callee. Here the same fact runs the other way and
+    PENALISES: the same call, compiled into a section at a different offset, is
+    a DIFFERENT four bytes. `??0FilePath@@QAA@PBD@Z` sits at offset 8 in our
+    obj and 0 in the target, so every one of its four `bl`s differed by exactly
+    8 and the lens read four `branch-target` substitutions in a function
+    `decomp.db` scores 100.0 %.
+
+    So the comparison is done on words whose relocated field is zeroed, with
+    the relocation's TARGET SYMBOL NAME compared separately and never summed
+    into the byte verdict — the same separation `fnbyte-exact` and
+    `fnbyte-reloc-differs` are kept in (#884, #986).
+    """
+    out = list(ws)
+    names = {}
+    for wi, (typ, tn) in rbw.items():
+        if wi >= len(out):
+            continue
+        m = RELOC_PATCH_MASK.get(typ)
+        if m is not None:
+            out[wi] = out[wi] & (~m & 0xFFFFFFFF)
+        names[wi] = (typ, tn)
+    return out, names
 
 
 # ===========================================================================
@@ -823,8 +927,8 @@ def measure(root, out_json=None):
             stats["unit-obj-missing"] += 1
             continue
         stats["unit-pairable"] += 1
-        tgt = text_comdat_entries(open(tpa, "rb").read())
-        base = text_comdat_entries(open(bpa, "rb").read())
+        tgt = read_obj(open(tpa, "rb").read())
+        base = read_obj(open(bpa, "rb").read())
         if tgt is None or base is None:
             stats["unit-coff-refused"] += 1
             refused_units.append(u["name"])
@@ -834,22 +938,54 @@ def measure(root, out_json=None):
         stats["sym-target-only"] += len(set(tgt) - common)
         stats["sym-base-only"] += len(set(base) - common)
         for sym in sorted(common):
-            _s, tdata, trel = tgt[sym]
-            _s2, bdata, _brel = base[sym]
+            tws, trbw = tgt[sym]
+            bws, brbw = base[sym]
             stats["P"] += 1
-            if tdata == bdata:
+            # THE NORMALISED COMPARISON. Two verdicts, kept apart and never
+            # summed: the BYTES (relocated fields zeroed) and the relocation
+            # TARGET NAMES.
+            pn, pnames = normalize(bws, brbw)
+            rn, rnames = normalize(tws, trbw)
+            bytes_equal = pn == rn
+            # PAIR (0x12) is excluded from the NAME comparison: its
+            # `VirtualAddress` field carries the other half of a REFHI/REFLO
+            # pair, not an address, so it does not name a site.
+            same_targets = (
+                [pnames[i][1] for i in sorted(pnames) if pnames[i][0] != R_PAIR] ==
+                [rnames[i][1] for i in sorted(rnames) if rnames[i][0] != R_PAIR]
+            )
+            if bytes_equal and same_targets:
                 stats["P-identical"] += 1
                 continue
+            if bytes_equal:
+                # ** BROKEN OUT, NOT FOLDED INTO N — and this is the port side's
+                # own convention, not a convenience. ** `DIFF STRUCTURE` profiles
+                # `fnbyte-differs` (1,968 at this tree); the byte-identical /
+                # wrong-target bodies are `fnbyte-reloc-differs` (530), credited
+                # nowhere and NOT part of the population the cluster table
+                # describes (#884, #986, STATUS.md line 293). Folding them in
+                # here would compare 8,916 apples against 1,968 oranges.
+                #
+                # Measured: essentially all of this class is TEMPLATE
+                # INSTANTIATION NAMING under COMDAT folding — e.g. ours calls
+                # `??H?$_Bit_iter@_NPB_N@…` where the target names
+                # `??H?$_Bit_iter@U_Bit_reference@…`, with the bodies identical
+                # word for word. decomp.db carries a `merged_symbols` table for
+                # exactly this. It is not a permuter case.
+                stats["P-reloc-differs"] += 1
+                continue
             stats["N"] += 1
-            pw, rw = words_of(bdata), words_of(tdata)
-            if not pw or not rw:
+            if not pn or not rn:
                 stats["N-empty-body"] += 1
                 continue
             # `shape` on the port side is the catalogue variant the port chose;
             # there is no such thing here. A constant keeps csig comparable
             # across rows and is named `decomp` so no reader mistakes it for one
             # of the port's shapes.
-            s = signature("decomp", pw, rw, trel)
+            s = signature("decomp", pn, rn, [(i * 4, trbw[i][0]) for i in sorted(trbw)])
+            # Call-target disagreement, measured on the NAMES, jointly.
+            pt = [pnames[i][1] for i in sorted(pnames)]
+            rt = [rnames[i][1] for i in sorted(rnames)]
             rows.append({
                 "unit": u["name"], "sym": sym,
                 "pct": pct.get(sym),
@@ -861,14 +997,51 @@ def measure(root, out_json=None):
                 "classes": s["classes"], "accounting_ok": s["accounting_ok"],
                 "sub_at_reloc": s["sub_at_reloc"], "del_at_reloc": s["del_at_reloc"],
                 "reloc_count": s["reloc_count"],
-                "ours_transfer": has_transfer(pw), "theirs_transfer": has_transfer(rw),
-                "ours_call": has_linked_call(pw), "theirs_call": has_linked_call(rw),
+                "bytes_equal": bytes_equal, "same_targets": same_targets,
+                "n_reloc_ours": len(pt), "n_reloc_theirs": len(rt),
+                "ours_transfer": has_transfer(pn), "theirs_transfer": has_transfer(rn),
+                "ours_call": has_linked_call(pn), "theirs_call": has_linked_call(rn),
             })
     if out_json:
         with open(out_json, "w") as fh:
             for r in rows:
                 fh.write(json.dumps(r) + "\n")
     return stats, rows, refused_units
+
+
+def run_xcheck3(rows, stats, pct_map, verbose=True):
+    """CONTROL ARM 3 — an EXTERNAL cross-check this lane did not author.
+
+    `decomp.db` scores a function 100.0 when objdiff calls it a complete match.
+    That score is a selector and never this lane's measurement — but it is an
+    INDEPENDENT opinion about which bodies are identical, and a lens that
+    disagrees with it wholesale is reading the wrong bytes.
+
+    ** THIS ARM IS THE ONE THAT FIRED. ** The lane's first run took a COMDAT
+    section's whole raw data as the body, c2-obj-style. It reported
+    `??0FilePath@@QAA@PBD@Z` — `current_percent` 100.0 — as 32 words against 20
+    with four `branch-target` substitutions, and the headline it produced
+    (84.8 % `port-longer|sub+ins|branch-target`) was an artifact of section
+    offset, not a fact about decomp near-misses. It is reported as the budgeted
+    surprise, not repaired quietly.
+    """
+    at100 = {s for s, p in pct_map.items() if p is not None and p >= 100.0}
+    differing = {r["sym"] for r in rows}
+    contradict = sorted(at100 & differing)
+    n100 = len(at100)
+    if verbose:
+        print()
+        print("CONTROL ARM 3 — decomp.db's own 100%% verdict against this lens's bytes")
+        print("  functions decomp.db scores 100.0                  %6d" % n100)
+        print("  … that this lens nevertheless calls BYTES-DIFFERING %5d   (was 6,850 before"
+              % len(contradict))
+        print("                                                              the extent fix)")
+        print("  (a lens reading the wrong extents disagrees wholesale; the first")
+        print("   run of this lane disagreed on thousands and the shape it printed")
+        print("   was an artifact of section offset — see the docstring)")
+        for s in contradict[:8]:
+            print("      still contradicting: %s" % s[:78])
+    return {"at100": n100, "contradicting": len(contradict), "examples": contradict[:20]}
 
 
 def band(rows, lo):
@@ -895,14 +1068,38 @@ def report(rows, label, denom_note=""):
     w0 = sum(1 for r in rows if r["first"] == 0)
     print("  first word ALREADY WRONG:                     %d / %d = %.2f%%"
           % (w0, n, 100.0 * w0 / n))
+    # ** THE WORD CENSUS EXCLUDES LCS-CAPPED ROWS, AND HERE IS WHY. **
+    # A capped row is aligned POSITIONALLY, so every position becomes a `Sub`
+    # — including positions where the two words are EQUAL, which is where the
+    # otherwise-impossible `equal` class comes from. On the port side this
+    # cannot arise: `fndiff-align-capped` is 0 on every scan. Including them
+    # here would compare a positional fallback against a real LCS.
+    live = [r for r in rows if not r["capped"]]
     cls = Counter()
-    for r in rows:
+    for r in live:
         cls.update(r["classes"])
     tot = sum(cls.values())
-    print("  substituted WORDS by decoded field class (%d words):" % tot)
+    print("  substituted WORDS by decoded field class (%d words over the %d NON-CAPPED"
+          % (tot, len(live)))
+    print("    rows; the %d capped rows are excluded — they align positionally, which"
+          % (n - len(live)))
+    print("    manufactures `Sub`s between EQUAL words. The port side has 0 capped rows):")
     if tot:
         for k, v in cls.most_common():
             print("      %-22s %7d  %6.2f%%" % (k, v, 100.0 * v / tot))
+    # THE SPLIT THAT DECIDES WHICH PERMUTER TO BUILD, measured jointly per body.
+    struct_free = [r for r in live if r["classes"] and "opcode" not in r["classes"]
+                   and not any(k.startswith("mixed:") and "opcode" in k for k in r["classes"])]
+    any_op = [r for r in live if any(k == "opcode" or ("mixed:" in k and "opcode" in k)
+                                     for k in r["classes"])]
+    nosub = [r for r in live if not r["classes"]]
+    print("  BODIES by whether ANY substituted word differs in its OPCODE (joint, per body):")
+    print("      no substitutions at all (pure ins/del)   %5d / %d = %5.1f%%"
+          % (len(nosub), len(live), 100.0 * len(nosub) / max(len(live), 1)))
+    print("      substitutions, NONE an opcode difference %5d / %d = %5.1f%%   <- operand-level only"
+          % (len(struct_free), len(live), 100.0 * len(struct_free) / max(len(live), 1)))
+    print("      at least one OPCODE difference           %5d / %d = %5.1f%%"
+          % (len(any_op), len(live), 100.0 * len(any_op) / max(len(live), 1)))
     fb = Counter()
     for r in rows:
         f = r["first"]
@@ -954,9 +1151,11 @@ def main():
         print()
         print("POPULATION (../dc3-decomp), read from the bytes, not from a score:")
         for k in ("unit-no-base-path", "unit-obj-missing", "unit-pairable",
-                  "unit-coff-refused", "unit-read", "P", "P-identical", "N",
-                  "N-empty-body", "sym-target-only", "sym-base-only"):
+                  "unit-coff-refused", "unit-read", "P", "P-identical",
+                  "P-reloc-differs", "N", "N-empty-body",
+                  "sym-target-only", "sym-base-only"):
             print("    %-20s %8d" % (k, stats[k]))
+        run_xcheck3(rows, stats, load_percents(root))
         if refused:
             print("    COFF-refused units (fail-closed, c2-obj's rule): %s%s"
                   % (", ".join(refused[:6]), " …" if len(refused) > 6 else ""))
