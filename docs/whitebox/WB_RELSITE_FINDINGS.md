@@ -393,7 +393,38 @@ table** —
 — and then toggles bit 0 of `[record+0x14]`, which is the *"negate + flip the
 taken bit"* shape `WB_RELATION_FINDINGS.md` §3.3 names at `FUN_10bd507f`.
 
-### 7.1 A SEVENTH independent read that `0x10b189b8` is REFLECTION `[R]`
+### 7.1 CARRIER A HAS SIX WRITERS AND ONLY ONE OF THEM READS AN IL OPCODE — with the denominator `[R]`
+
+**This is stated because it is the way §3 could be over-read.** "The site" is
+the only place an *IL opcode* becomes a relation code (§2's index table settles
+that, denominator 189). It is **not** the only place carrier A is written.
+
+Enumerated over **all 24 byte stores to `[reg+0x15]` in the image**, keeping the
+**6** that are high-nibble merges (an `and r8,0xf` within six instructions
+before the store):
+
+| VA | the code it writes | where |
+|---|---|---|
+| **`0x10bc0013`** | **six literals selected by the IL opcode** | **`FUN_10bbffbb` — THE SITE**, IL arm 7 (`0x1F`..`0x24`) |
+| `0x10bbfe93` | literal **1 `EQ`** (`or dl,0x10`) | `FUN_10bbfd7c`'s coercion of a non-condition value (§6.1 constraint 4) |
+| `0x10bc1ff7` | literal **4 `GT`** (`or cl,0x40`) | `0x10bc1fe0`, not an arm |
+| `0x10bc3232` | **`cc[code]`** — negation, in place | IL arm **5**, opcode **`0x1a`** |
+| `0x10bc3a82` | literal **1 `EQ`** (`or cl,0x10`) | IL arm **46**, opcode **`0x77`** |
+| `0x10bc3def` | a **variable** in `bl`, `and bl,0x1f` then `shl bl,4` | IL arm **56**, opcode **`0xa0`** |
+
+The last row is worth one sentence and no more. `and bl,0x1f` masks to **five**
+bits and `shl bl,4` then discards bit 4, so a code of 16 or above is silently
+truncated on the way into a four-bit field. That is the only place in this read
+where a **5-bit** mask and carrier A meet, and `WB_RELATION_FINDINGS.md` §3.3's
+*"low 5 bits of a byte that carries other flags"* is a 5-bit claim about
+**carrier C**. **I am not joining them.** I did not read arm 56, I do not know
+that `bl` is a relation code there, and opcode `0xa0` is outside this lane.
+
+The complementary denominator: there are exactly **4** `shr`/`sar r8,0x4`
+instructions in the entire image, and **all four** read `[reg+0x15]` — so the
+nibble has four readers and they are enumerable.
+
+### 7.2 A SEVENTH independent read that `0x10b189b8` is REFLECTION `[R]`
 
 `FUN_10c194b8` normalises carrier B:
 
