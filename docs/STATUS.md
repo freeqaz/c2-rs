@@ -86,22 +86,23 @@ a read attached to it.
 > 63,335 graded**.
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-24 · tree `b814d1db2` · binary `c5e1e52d8a9b` · workload `a29f559d0`
+Collected 2026-08-25 · tree `c13cebbca` · binary `e5e1e202bd87` · workload `15a64d92f`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 1864 passed, 0 failed, 54 targets |
+| Workspace tests (cargo test --workspace --release) | 1902 passed, 0 failed, 59 targets |
 | Oracle self-test (c2rs selftest) | 391 PASS, 0 FAIL |
 | Fixture port gate (c2rs perf) | 157 port Match, 0 mismatch, 234 not-implemented (of 391) |
-| Port speedup, geomean over matched fixtures | 664x geomean over matched fixtures |
+| Port speedup, geomean over matched fixtures | 553x geomean over matched fixtures |
 | 878-TU dc3 workload scan (c2rs gap) | match 25, mismatch 0, codegen-gap 0, vocab-gap 845, capture-fail 8 |
 | Per-function census (driver, not target) | 707728/2417794 functions in class (29.27%) |
 | Emitted-function census | 39369/162205 emitted functions in class (24.27%) |
 | Emitted-census residue | residue 9255: 1952 compiler-generated (no IL body), 7303 unexplained  (5.71% of the denominator) |
 | TU distance to match, blocked functions | ≤0: 17, ≤1: 20, ≤10: 29, ≤100: 35, ≤1000: 268 |
 | TU distance to match, blocked emitted functions | ≤0: 18, ≤1: 27, ≤10: 92, ≤100: 455, ≤1000: 860 |
-| Emit-set ceiling, LO-anchored (segments == COMDATs) | 26 of 870 graded TUs |
-| Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes) | 29 of 870 graded TUs |
+| Emit-set ceiling, LO-anchored (segments == COMDATs) | VOID — 1 violation(s) among matching TUs (#3510); the ceiling's own control says it is not counting what it claims |
+| Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes) | VOID — 1 violation(s) among matching TUs (#3510); the ceiling's own control says it is not counting what it claims |
+| Emit-set ceiling CONTROL (must be 0; a nonzero VOIDS both ceilings — #3510) | 1 violation(s) LO-anchored; 1 of 25 gate-anchored — must be 0 |
 | Emit-set MODEL ceiling (today / repaired / wall) | 322 today / 416 repaired / 454 wall |
 | .gl binding invariants (records / arity / conflicts) | 1459242 records, 254 nameless, 0 before the first row, 38928 row-conflicts, 676 name-conflicts, 0 accounting breaks, 0 unreadable objs |
 | Phase-7 factors over the graded TUs (A / B / C / D / E) | A 29 (LO 26) · B 322 · C 169 · D 23 · E 4, of 870 graded |
@@ -116,7 +117,7 @@ Collected 2026-08-24 · tree `b814d1db2` · binary `c5e1e52d8a9b` · workload `a
 | OBJECT PLAN — emit set (both components WITHDRAWN; the seed is characterization) | components (BOTH WITHDRAWN — control red, prereg §3): members observable 870 | known 0 | exact 0 ;; order observable 870 | known 0 | exact 0 ;; CHARACTERIZATION — the 0x20 seed names 305 against 109044 emitted over the same 704 TUs (162205 over all graded), empty on 606 TUs, subset on 702, over-claims 2, closure owes 108741, equals c2 on 32 TUs of which 27 are substantive (the rest compare the empty set to the empty set) ;; .gl-record order agrees 17 of 704 ;; bounds-violations 0 of 704 checks reached |
 | OBJECT PLAN — the NAMED control on the byte-exact TUs, WITH ITS OWN SIZE | 26 pinned | 25 found | set-diff 1 | 26 present | 0 exact on every shipped component | 52 shortfall cell(s) = 0 differs + 52 unknown (only differs reds) | SIZE: 59 emitted name(s) over the pinned TUs, 5 of them comparing an EMPTY set, 10 comparing >= 2 names |
 | OBJECT PLAN — reference-side inventory (weak / COMDAT / undef) | weak 4008 records over 675 TUs | COMDAT sections 350656 (101130 associative over 848 TUs; 0 of UNKNOWN selection) | undefined externals 70214 over 857 TUs | sections 353168 (855 distinct attribute sequences) | relocation records 1323798 |
-| OBJECT PLAN — coverage and bit histogram of the .gl attribute reader | gl_function_attrs names 22913 record(s), 2802 of which c2 emitted; the framing-free reader names 882980 run(s), 70147 of which c2 emitted | bit histogram 0:2 1:0 2:961 3:22913 4:0 5:305(SEED) 6:22910(INLINABLE) 7:22186, byte==0x00 0 | observe vs text_comdat_functions over 870 TUs: 0 disagreement(s) |
+| OBJECT PLAN — coverage and bit histogram of the .gl attribute reader | gl_function_attrs names 22913 record(s), 2802 of which c2 emitted; the framing-free reader names 882978 run(s), 70147 of which c2 emitted | bit histogram 0:2 1:0 2:961 3:22913 4:0 5:305(SEED) 6:22910(INLINABLE) 7:22186, byte==0x00 0 | observe vs text_comdat_functions over 870 TUs: 0 disagreement(s) |
 
 <!-- END GENERATED -->
 
