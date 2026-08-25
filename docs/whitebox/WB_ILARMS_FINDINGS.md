@@ -310,3 +310,34 @@ rather than its exit code — `GATE: REFUSED (DIRTY crates/)` exits 0.
 the entire lane, so the docs-only fence is checked rather than asserted. The
 gate's own result is recorded in the rung,
 [`../rungs/2026-08-25-w-ilarms.md`](../rungs/2026-08-25-w-ilarms.md) §1.
+
+---
+
+## 10. The row `#3415` blamed the whole error on is STILL `unknown`, and it is labelled now
+
+`#3415`'s consequence cell reads *"NOBODY HAD PARSED THE TABLE —
+`ADDR.tsv:755` RECORDS `0x10bc4152` AS `data`, SIZE 4, `unknown`"*. That was
+filed as the explanation for how "189 arms" survived five documents. **The row
+is still there**: it has drifted to `ADDR.tsv:820` and still reads
+`10bc4152  data  …  4  …  unknown`, with `:821` the same for the byte table.
+A diagnosis was published and the thing diagnosed was never treated — which is
+the same shape as `DOC_CONVENTIONS.md` §2's *"an amendment is not landed until
+its consumers are swept"*, one shelf over.
+
+`ADDR.tsv` is **generated** by `scripts/build_ref.py` from
+`docs/whitebox/labels/*.tsv`, so the fix belongs in the label file. Five rows
+are added to `labels/W-IL.tsv`, beside the one that carried the original
+`"table 0x10bc4152, ops 0x01..0xBD"` reading that was misread as an arm count:
+
+| addr | what it now says |
+|---|---|
+| `10bc2e08` | the switch head, all six instructions |
+| `10bc4152` | **ARM TARGET TABLE**, stride 4, **62** entries, **62 distinct**, ends `0x10bc4249` |
+| `10bc424a` | **BYTE INDEX TABLE**, stride 1, **189** entries, `opcode−1 → arm 0..61`, ends `0x10bc4306` |
+| `10bc4143` | arm 61, the refusal — C1001 `reader.c:3295`, 94 opcodes plus the out-of-range `ja` |
+| `10bc4307` | the next `reader.c` function; prologue `55 8b ec` |
+
+**`ADDR.tsv` itself is NOT regenerated here**, and that is stated rather than
+left to be discovered: `build_ref.py` needs the Ghidra export, which
+`ref/README.md` §5 says is deliberately not committed. The rows are staged for
+the next regeneration, and until it runs the two `unknown` cells stand.
