@@ -840,6 +840,20 @@ def read_obj(b):
             if len(body) < 4:
                 continue
             ws = [int.from_bytes(body[i:i + 4], "big") for i in range(0, len(body) - 3, 4)]
+            # ** TRAILING ZERO WORDS ARE SECTION ALIGNMENT PADDING, NOT CODE —
+            # and leaving them in manufactured a cluster. ** When a function is
+            # the last thing in its COMDAT the extent runs to the section end,
+            # which is padded to alignment. That put exactly two 0x00000000
+            # words on the end of 530 of 531 bodies in one cluster
+            # (`port-longer|ins-only|-`, 25.8 % of N) — a "difference" that is
+            # a layout constant, with no compiler decision in it at all.
+            # 0x00000000 is not a legal PPC instruction (primary opcode 0 is
+            # reserved and `decode` refuses it), so a real body cannot end in
+            # one. Trimmed on BOTH sides, and counted.
+            while ws and ws[-1] == 0:
+                ws.pop()
+            if len(ws) < 1:
+                continue
             rbw = {}
             for (va, typ, tn) in rel:
                 if val <= va < nxt and (va - val) % 4 == 0:
