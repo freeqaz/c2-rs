@@ -254,7 +254,15 @@ scripts/wt_pin_audit.sh to list; unlock deliberately before reaping"
         # it rather than assert it. An exit that says "fixed" without re-reading
         # is the shape this project keeps paying for.
         echo "  re-auditing after --lock:"
-        if audit "$root" 0 >/dev/null 2>&1; then
+        # The re-audit runs in a SUBSHELL. `audit` is recursing into itself and
+        # every variable it uses (`rc`, `wide1`, `examined`, `viol_trees`) is
+        # global in POSIX sh, so the inner call would otherwise overwrite the
+        # outer one's state mid-function. It happens to be harmless today —
+        # `rc` is reassigned explicitly on both branches below and nothing else
+        # is read afterwards — and "happens to be harmless" is not a property
+        # worth relying on in the one code path that decides whether the estate
+        # is safe. `( … )` makes it impossible rather than merely unlikely.
+        if ( audit "$root" 0 ) >/dev/null 2>&1; then
             echo "  re-audit CLEAN"
             rc=0
         else
