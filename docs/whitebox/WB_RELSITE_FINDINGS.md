@@ -347,7 +347,7 @@ an identity stops being one.
 
 ---
 
-## 7. TWO CARRIERS OF THE SAME ENUM, AND THE TRANSFER BETWEEN THEM `[R]`
+## 7. THREE CARRIERS OF THE SAME ENUM, AND THE TRANSFER BETWEEN THE FIRST TWO `[R]`
 
 `w-relread` §4.5 left this open as ranked follow-on 3 (*"the `[node+0x34]` vs
 `[node+0xa]` record split"*). It is a **three**-carrier question and this lane
@@ -355,7 +355,7 @@ closes the first two ends of it.
 
 | carrier | where | width | written by | read by |
 |---|---|---|---|---|
-| **A** | high nibble of `[[node+0x2c]+0x15]` on a `0x2d4` node | **4 bits** | **`0x10bc0013`** — this lane's site | `0x10bbfe23` (`shr al,0x4`), `0x10bbdbe9`, `0x10b49767`, `0x10b497c4` — **4 nibble readers image-wide** |
+| **A** | high nibble of `[[node+0x2c]+0x15]` on a `0x2d4` node | **4 bits** — so codes 16–18 cannot live here | **`0x10bc0013`** — this lane's site, and **five others** (§7.1) | `0x10bbfe23` (`shr al,0x4`), `0x10bbdbe9`, `0x10b49767`, `0x10b497c4` — **4 nibble readers, and there are exactly 4 `shr r8,0x4` in the whole image** |
 | **B** | `[node+0x34]`, a whole byte | 8 bits | `0x10bd74e7`, inside `FUN_10bd748b` (a kind-`0x11` node constructor, `ret 0x1c`, the code is its **5th** stack arg) | `FUN_10c1a908` @ `0x10c1a91c` (`w-relread` §4.5), `FUN_10c194b8` @ `0x10c194d6` |
 | **C** | low 5 bits of `[param_1+0xa]` | 5 bits | unread | `FUN_10bd50b7` (`WB_RELATION_FINDINGS.md` §3.3) — **still unread, still not resolved** |
 
