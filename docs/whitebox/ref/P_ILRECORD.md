@@ -210,7 +210,33 @@ plan asked for.
 | 4 | `10bc37c3` | `0f`…`19` (10) | 01 | 16 | 1 | — | ROUTE | DEFER | → `0x10bc2cf2` |
 | 5 | `10bc31fb` | `1a` | 00 | 89 | 1 | — | STATE | SELECT | flips `sym+0x15` nibble via `0x10b189cc`, toggles `sym+0x14` bit 0 |
 | 6 | `10bc3254` | `1b` `1c` | 00 | 152 | 4 | — | REWRITE | SELECT | branches on `1b` vs `1c` and on `flags&3`; two list splices |
-| 7 | `10bc38a1` | `1f`…`24` (6) | 00 | 13 | 1 | — | ROUTE | DEFER | → `0x10bbffbb`. **All six relational operators share one arm and no discriminator is passed** — the callee re-reads the opcode through `ecx+4` |
+| 7 | `10bc38a1` | `1f`…`24` (6) | 00 | 13 | 1 | — | ROUTE | DEFER | → `0x10bbffbb`. **All six relational operators share one arm and no discriminator is passed** — the callee re-reads the opcode through `ecx+4`  ⚠ **SEE THE BANNER BELOW — this cell's last two clauses are WRONG (board #3547)** |
+
+> ### ⚠ ARM 7's CELL IS CORRECTED — inserted 2026-08-25 by lane `w-relsite`, board **#3547**. The original row above is left exactly as written (the `#3495`-on-`#3468` convention); nothing in it was altered.
+>
+> **What is RIGHT, and it is the load-bearing part:** the arm VA `10bc38a1`, the
+> six opcodes `1f`…`24`, the 13-byte length, the single call, and the callee
+> `0x10bbffbb`. All five re-derived from raw image bytes. **That callee is the
+> IL-opcode → relation-code site**, unnamed after two subsequent lanes searched
+> for it (`w-c7` prereg W2, `w-relread` prereg S2c) — **because neither read this
+> row**. `#3098`'s family, seventh instance (**#3546**).
+>
+> **What is WRONG, in both clauses:**
+>
+> * *"no discriminator is passed"* — **a discriminator IS passed, in `edx`.**
+>   The dispatch head loads it at `0x10bc2e08` (`mov edx,[ebp-0x34]`) and
+>   nothing on the path to arm 7 clobbers it, so the 13-byte arm does not need
+>   to re-materialise it. `FUN_10bbffbb` reads it three instructions in:
+>   `10bbffc6: mov eax,edx`.
+> * *"the callee re-reads the opcode through `ecx+4`"* — **it never touches
+>   `ecx+4`.** `ecx` on entry is `&[ebp-0x38]`, a pointer to the caller's record
+>   cursor; the callee does `mov edi,ecx` then `mov ecx,[edi]` — offset **0** —
+>   and writes the cursor back at `10bc0016: mov [edi],esi`.
+>
+> Together those two clauses say *"the discriminator is somewhere else, go look
+> for it"*, which is the opposite of what the arm does and is why the site
+> stayed unnamed. Full read, with the six literals and the confirmation probe:
+> [`../WB_RELSITE_FINDINGS.md`](../WB_RELSITE_FINDINGS.md) §2, §3.
 | 8 | `10bc2e27` | `26` | 02 | 17 | 1 | — | ROUTE | DEFER | → `0x10bc24a6` |
 | 9 | `10bc3891` | `27` | 01 | 16 | 1 | — | ROUTE | DEFER | → `0x10bbfebb` (256 B). **C1, 33.3 % of the residue, is a 16-byte trampoline** |
 | 10 | `10bc3881` | `28` | 02 | 16 | 1 | — | ROUTE | DEFER | → `0x10bbfe9a` |
