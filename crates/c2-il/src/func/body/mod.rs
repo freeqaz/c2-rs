@@ -1,6 +1,11 @@
 pub(crate) mod chain;
 pub use self::chain::{chain_form, ChainForm};
 pub use self::shapes::leaf_store::FP_SCRATCH;
+/// **DECODE, separated from ADMISSION** — lane `w-unfuse`, board **#3554**.
+/// Everything outside `body` reaches the parser through [`decode::Decoded`];
+/// see that module's own doc for why, and for what the split does not do.
+pub(crate) mod decode;
+pub use self::decode::{AdmissionPolicy, Decoded};
 pub(crate) mod expr;
 pub(crate) mod mcall;
 pub(crate) mod shapes;
@@ -1914,14 +1919,39 @@ pub(crate) fn blk_type(seg: &[u8], p: usize, report_at: usize, ctx: &'static str
 /// `+ k` over a *computed* argument (`g(a+1)+1`), or a `* k`/`- k`/wide `k`/a
 /// second literal/a second call, all reject. The `callee` name is not in `.ex`;
 /// the caller pairs it from `.gl`.
-pub(crate) fn parse_segment(seg: &[u8], sy: SyView) -> Option<BodyShape> {
-    parse_segment_detail(seg, sy).ok()
+///
+/// # ⚠ THIS IS THE FUSED ENTRY, AND IT IS TEST-ONLY SINCE LANE `w-unfuse`
+///
+/// `Option<BodyShape>` conflated two questions in one value: `None` meant both
+/// *"this port cannot read this IL"* (**decode**) and *"this port may not emit
+/// this body"* (**admission**). Because they were the same value, widening what
+/// the port could read was the same edit as widening what it would emit — the
+/// architectural fact `docs/DECISIONS_2026-08-22.md` decision 13 is written
+/// around.
+///
+/// **Production goes through [`decode::Decoded`] and [`AdmissionPolicy`].** This
+/// function survives `#[cfg(test)]` only, as the spelling ~40 pinned-segment
+/// tests were written in, and it is defined in terms of the split so it cannot
+/// become a second implementation of either half.
+#[cfg(test)]
+pub(in crate::func::body) fn parse_segment(seg: &[u8], sy: SyView) -> Option<BodyShape> {
+    decode::Decoded::of(seg, sy).admitted_default()
 }
 
-/// [`parse_segment`] with the fail-closed *reason* preserved (P2b census).
-/// Acceptance is identical — `parse_segment` is `.ok()` of this — so the census
-/// can never disagree with the gate about what is in class.
-pub(crate) fn parse_segment_detail(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
+/// **THE DECODE.** The positive whole-stream parse of one `.ex` function
+/// segment, with the fail-closed *reason* preserved (P2b census).
+///
+/// # Visibility is the mechanism, not the doc comment
+///
+/// `pub(in crate::func::body)` since lane `w-unfuse`: `func::bundle`,
+/// `func::census` and `func::diag` cannot call this, and must go through
+/// [`decode::Decoded`]. That is what makes *"one decode, and admission is a
+/// predicate over it"* a structural fact instead of a convention — this doc
+/// used to say *"acceptance is identical — `parse_segment` is `.ok()` of this
+/// — so the census can never disagree with the gate about what is in class"*,
+/// and a sentence is not a mechanism. The invariant it asserted is unchanged
+/// and is now enforced by there being no second route.
+pub(in crate::func::body) fn parse_segment_detail(seg: &[u8], sy: SyView) -> Result<BodyShape, Block> {
     // The two dispatch axes are per-body, so they are cleared HERE — at the one
     // entry every reader goes through — rather than at each tag site. A tag left
     // over from the previous segment would attribute this body's row to a

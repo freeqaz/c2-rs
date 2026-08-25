@@ -45,7 +45,7 @@ pub use self::bind::{
     gl_body_record_names, gl_gate_record_names, gl_narrow_record_names, gl_precise_record_names,
     EmitBinding,
 };
-pub use self::body::{chain_form, Block, ChainForm, FP_SCRATCH};
+pub use self::body::{chain_form, AdmissionPolicy, Block, ChainForm, Decoded, FP_SCRATCH};
 pub use self::bundle::{
     DataObject, DataTu,
     DynInitTu,

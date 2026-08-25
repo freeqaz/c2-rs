@@ -1,4 +1,4 @@
-use super::body::{self, parse_segment, BodyShape};
+use super::body::{self, BodyShape};
 use super::BodyShape as IlBody;
 use super::bind::Bindings;
 use super::gl::drectve_is_boilerplate;
@@ -1968,6 +1968,61 @@ impl IlBundle {
         Some((names.len(), segments, mangled, inline_fit))
     }
 
+    /// **W-UNFUSE — the DECODE of every body in this TU, with no admission
+    /// decision anywhere in it** (board **#3555**).
+    ///
+    /// One [`body::Decoded`] per `.ex` function segment, in segment order. This
+    /// is the surface `docs/DECISIONS_2026-08-22.md` decision 13 gives lane
+    /// `w-decodereach` to measure: how many bodies the decode **reaches**, as
+    /// against how many the port **admits**, which are two numbers off one
+    /// parse and were one number before the split.
+    ///
+    /// # It licenses nothing
+    ///
+    /// A pure reader. It makes no acceptance decision, never refuses on
+    /// admission grounds, and is available on a bundle whose [`Self::functions`]
+    /// returns `None` — which is the whole population it is about. Nothing in
+    /// `scripts/gate.sh` reads it and no emit consults it; FBM's separation
+    /// rule (`docs/FUNCTION_BYTE_MATCH.md`) applies to anything published off
+    /// it.
+    ///
+    /// # The segmentation and the binding are the CENSUS's, deliberately
+    ///
+    /// [`split_function_bodies_at`] plus [`Bindings::census`] — the same pair
+    /// [`Self::census`] uses, and **not** the gate's [`split_functions_at`] /
+    /// [`Bindings::selective`]. The two splitters disagree on 634 of 871
+    /// workload TUs (`docs/STATUS.md`, the two-splitters section), so a reach
+    /// number taken over one and compared against a census taken over the other
+    /// would be a ratio of two different denominators — this project's
+    /// most-repeated defect. A reach instrument is *for* comparing against the
+    /// census, so it takes the census's population.
+    ///
+    /// `None` only when `.ex` is absent, because "no `.ex`" and "an `.ex` that
+    /// splits into nothing" are different facts (`docs/STATUS.md` trap 5).
+    pub fn decode_bodies(&self) -> Option<Vec<body::Decoded<'_>>> {
+        let ex = self.ex()?;
+        let (seg_starts, segs) = split_function_bodies_at(ex);
+        let bind = Bindings::census(
+            self.get("gl").unwrap_or(&[]),
+            self.get("in").unwrap_or(&[]),
+            self.get("sy"),
+            &segs,
+            &seg_starts,
+        );
+        Some(
+            segs.iter()
+                .enumerate()
+                .map(|(i, seg)| {
+                    // Per-body, exactly as the census does it: a tag left over
+                    // from the previous segment would attribute this body's row
+                    // to a recognizer that never saw it.
+                    body::dispatch_reset();
+                    body::Decoded::of(seg, bind.locals(i))
+                })
+                .collect(),
+        )
+    }
+
     pub fn opt_words(&self) -> Option<Vec<Option<u32>>> {
         let ex = self.ex()?;
         Some(
@@ -2101,8 +2156,15 @@ impl IlBundle {
             if bind.is_varargs(i) {
                 return None;
             }
+            // **W-UNFUSE — decode, then ADMIT, as two named steps.** The body
+            // is read first ([`body::Decoded::of`]); whether the port may EMIT
+            // what was read is a separate question asked of
+            // [`body::AdmissionPolicy`], and this is the site that asks it in
+            // its emitting sense. Under the DEFAULT policy the pair is exactly
+            // what `parse_segment(seg, locals)?` was, byte for byte — the split
+            // is a re-expression and admits not one function more.
             let mut f = shape_to_function(
-                parse_segment(seg, bind.locals(i))?,
+                body::Decoded::of(seg, bind.locals(i)).admitted_default()?,
                 name,
                 &src,
                 &resolve,
@@ -2532,8 +2594,12 @@ impl IlBundle {
         // The body. Three slots, in the one order this class was measured in:
         // the object (the constructor's `this`), the literal, then the literal
         // `0`.
+        // **W-UNFUSE** — decode then admit, as at `functions`'s own site. This
+        // whole-TU recognizer asks the admission question because what it does
+        // with the answer is EMIT; the decode it is asking about is the same
+        // one the census reads, and there is only ever one of them per segment.
         let BodyShape::MultiArgTailCall { arg_sources, callee_tok, params } =
-            parse_segment(&segs[0], bind.locals(0))?
+            body::Decoded::of(&segs[0], bind.locals(0)).admitted_default()?
         else {
             return None;
         };

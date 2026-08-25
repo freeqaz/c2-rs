@@ -1,5 +1,5 @@
 use super::body::{
-    self, bind_refusal_key, call_tokens, parse_segment_detail, BodyShape, Complete, DtorSubObject,
+    self, bind_refusal_key, call_tokens, BodyShape, Complete, Decoded, DtorSubObject,
     CALLEE_DEFINED_IN_TU, CALLEE_UNRESOLVED_DTOR,
     CALLEE_UNRESOLVED_FRAMED, CALLEE_UNRESOLVED_SEQ, CALLEE_UNRESOLVED_TAIL,
     STATIC_SCAN_LOOP_OBJECT, STORE_RUN_BIND_NO_CARRIER, STORE_RUN_CALL_NO_CARRIER,
@@ -604,7 +604,10 @@ fn tu_modelled_callees(
             link.insert(n.to_string(), c);
             continue;
         }
-        let Ok(sh) = parse_segment_detail(s2, bind.locals(j)) else {
+        // **W-UNFUSE** — this reader converts the body and hands the result to
+        // the splice, so what it needs is the ADMISSION answer, not the decode
+        // one. Asked through the one predicate.
+        let Ok(sh) = Decoded::of(s2, bind.locals(j)).into_admit_default() else {
             continue;
         };
         let Some(f) = shape_to_function(
@@ -936,7 +939,22 @@ impl IlBundle {
                     let verdict = if varargs {
                         FnVerdict::Blocked(Block::refuse(seg, 0, "fn-varargs"))
                     } else {
-                        shape = parse_segment_detail(seg, bind.locals(i));
+                        // **W-UNFUSE — one decode, then the ADMISSION
+                        // predicate, and `shape` is the predicate's ANSWER.**
+                        //
+                        // The census's `InClass` verdict is an admission claim
+                        // and not a decode one: `gap`'s census/gate cross-check
+                        // (roadmap #44) grades every `InClass` function against
+                        // `PortC2`'s own selector and its known answer is 0. So
+                        // this variable holds `Decoded::into_admit_default`'s
+                        // result — the `Ok`/`Err` the ~120 arms below match on
+                        // IS `AdmissionPolicy::DEFAULT`'s verdict, not a second
+                        // derivation of it that could drift from the gate's.
+                        // The arms themselves NAME the grammar the decode
+                        // reached, which is the decode reading of the same
+                        // parse; both come off one `Decoded` and there is no
+                        // second parse (this block's own comment above).
+                        shape = Decoded::of(seg, bind.locals(i)).into_admit_default();
                         match &shape {
                             Ok(BodyShape::StraightLine { .. }) => FnVerdict::InClass("straight-line"),
                             Ok(BodyShape::VoidTailCall { .. }) => FnVerdict::InClass("void-tail-call"),
