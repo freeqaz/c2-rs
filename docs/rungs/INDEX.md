@@ -307,3 +307,4 @@ the header block this table is read from.
 | 2026-08-24 | w-r8idiom | [w-r8idiom](2026-08-24-w-r8idiom.md) | 6 | unchanged → unchanged (+0) |
 | 2026-08-24 | w-relread | [w-relread](2026-08-24-w-relread.md) | 10 | +0 (no `crates/` byte changed) |
 | 2026-08-24 | w-s1c3 | [w-s1c3](2026-08-24-w-s1c3.md) | 12 | +0 — a re-expression, not a widening; required-zero byte delta |
+| 2026-08-25 | w-hygiene | [w-hygiene](2026-08-25-w-hygiene.md) | 10 | +0 — no census key moves; the identity diff is the grade |
