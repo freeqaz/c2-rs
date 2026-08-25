@@ -939,7 +939,7 @@ largest single file in the project is the member-call decode
 | question | doc |
 |---|---|
 | what is open, what was declined, what was refuted | [`BOARD.md`](BOARD.md) |
-| the phase plan and why it is ordered that way | [`ROADMAP.md`](ROADMAP.md) §8 |
+| the phase plan and why it is ordered that way | [`ROADMAP.md`](ROADMAP.md) **§11** (current framing, 2026-08-25) · [`ROADMAP_SLICING_2026-08-21.md`](ROADMAP_SLICING_2026-08-21.md) §5 (the program's Phase 0/1/2) · §8/§10.5 are the dated records |
 | what each blocker holds hostage, per rung | [`GAPS.md`](GAPS.md) |
 | what landed, when, and for how much census | [`rungs/INDEX.md`](rungs/INDEX.md) |
 | the correctness rule and the invariants | [`ROADMAP.md`](ROADMAP.md) §7, `../CLAUDE.md` |

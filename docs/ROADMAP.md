@@ -8166,6 +8166,13 @@ no block IR**. This is new machinery, not the widening of a private limit.
 
 ## 10.5 The order
 
+> **⚠ 2026-08-25 — row 1's numbers are stale and the operative program no
+> longer uses this table's vocabulary.** `CEILING.md` §6.1 row 1's 2026-08-19
+> banner: the pre-Phase-7 frontier is **2**, not 16–17 — stale by a factor of
+> eight, and the argument inverts. The program now runs on
+> `ROADMAP_SLICING_2026-08-21.md` §5's Phase 0/1/2 (see §11.1 for the two
+> vocabularies). This table stays as the 2026-08-02 record.
+
 | | phase | why here |
 |---|---|---|
 | **1** | **Phase 7 — the emit set, as binding and synthesis** | gates 846 of 871. Nothing else can lift the 25-TU cap. |
@@ -11902,13 +11909,24 @@ the same needle a day earlier.
 
 ## 10.35 SESSION CLOSE 2026-08-10 — the distance is MAPPED, and it is not a conversion backlog
 
+> **⚠ 2026-08-25 — SUPERSEDED AS THE FILE'S CURRENT FRAMING BY §11.** This
+> close was the newest text in this file for fifteen days, during which the
+> goal was owned and ranked (`GOAL_DECISION_2026-08-21.md`), the program was
+> re-sliced (`ROADMAP_SLICING_2026-08-21.md`), and eleven owner decisions ran
+> Phase 0 and held Phase 1 (`DECISIONS_2026-08-22.md`). `match` read 23 here
+> and reads 25 at §11's tree. Everything below stays as the dated record of
+> what 2026-08-10 knew.
+
 Written at the funnel. `match` **11 → 23** across this session (twelve
 conversions), `mismatch` **0** throughout, and a live wrong emit that had been
 sitting on master found and closed (`w-decouple`, #2750–#2762 — the fixture
 gate went 1 → 0).
 
-**What the last five lanes established, and it supersedes every earlier framing
-of the goal.** The distance to 871 was never "codegen, one TU at a time":
+**What the last five lanes established~~, and it supersedes every earlier
+framing of the goal~~.** *(Clause struck 2026-08-25: the goal's framing is the
+owner's — `GOAL_DECISION_2026-08-21.md` — and the current map is §11. The four
+numbered findings below stand as measured.)* The distance to 871 was never
+"codegen, one TU at a time":
 
 1. **`A∧B∧C` = 27 is the ceiling of the conversion approach**, and all four
    remaining frontier rows are priced from their own captures — `Main.cpp` 14,
@@ -11938,7 +11956,8 @@ defect**. It is COMDAT-style linkage against a packed single-`.text` writer:
 emit from the last time it was relaxed. That is a design question with a known
 hazard, not a backlog item.
 
-**So the honest map is:** 23 matched · 4 frontier rows priced · a 34-TU
+**So the honest map ~~is~~ was, at this close (the current one is §11):**
+23 matched · 4 frontier rows priced · a 34-TU
 acceptance path whose fences are total · and beyond it a section-layout model
 nobody has built, in front of a codegen distance `CEILING.md` §10 already
 measured. **Every one of those numbers is now backed by a lane that tried to
@@ -11954,3 +11973,211 @@ actually go wrong; check the antecedent you wrote is the one the claim
 requires; *"an antecedent that only makes your registered clause true is not
 the antecedent the claim needs"*; and if you register an unlosable row, write
 down what would falsify it — after one such row, at 0.96, **lost**.
+
+---
+
+## 11. The plan under the owned goal — 2026-08-25, written at the funnel
+
+**This section replaces §10.35 as the file's current framing, and it is the
+first section written here since 2026-08-10.** In the fifteen days between,
+every strategic decision was taken in dated docs, not in this file — which is
+the house convention now (`DOC_CONVENTIONS.md` §1: this file is *live, but
+read as an archive*). The record, in reading order:
+
+- `STRATEGY_REVIEW_2026-08-13.md` — the conversion approach audited at its
+  ceiling; the goal question named as *owned by nobody* (§2, since answered).
+- `GOAL_DECISION_2026-08-21.md` **+ its § AMENDED** — the goal, owned and
+  ranked by the owner. This is the authority everything below hangs off.
+- `ARCH_REVIEW_2026-08-21.md` · `STEP5_PRICING_2026-08-21.md` ·
+  `WHITEBOX_LEVERAGE_2026-08-21.md` · `ROADMAP_SLICING_2026-08-21.md` — the
+  port-the-middle program priced, the read-before-probe doctrine, and the
+  slicing this section's "Phase 0/1/2" vocabulary comes from.
+- `DECISIONS_2026-08-22.md` — owner decisions **1–11**, running through
+  2026-08-24. The program's actual control flow lives there.
+- `SHIPPING_ROADMAP_2026-08-22.md` — the program roadmap rewritten against
+  the goals (decision 2).
+
+Board **#3526**. Written at tree `6b2f16986` (master, clean; waves 7–9
+landed and pushed). **Quote every number below from a scan, not from this
+page** — the standing instruction of `STATUS.md`, which remains the one-page
+answer to "where is this project".
+
+### 11.1 The goal, as owned
+
+Decided 2026-08-21 and **ranked** the same day (`GOAL_DECISION_2026-08-21.md`
+§ AMENDED): **(1) a clear understanding of MSVC's internals, in service of
+decomp, is primary.** (2) parity — `match` → 870/878, a 100 % open-source
+implementation — is a real end **and instrumental to (1)**: the port is an
+executable, tweakable model of c2, with two named consumers (training data
+for models that reverse the compiler; a permuter over the port's exposed
+decision points). Consequences that bind every lane: characterization is a
+first-class deliverable (predicted reach 0 is not a mark against it);
+**read-before-probe** is standing doctrine; every general layer exposes its
+decision points as named, settable parameters. There is no perf thesis
+(§10.7's strike): throughput neither justifies nor forbids anything.
+
+**Two phase vocabularies now exist in this repo; do not conflate them.**
+`CEILING.md` §6.1's *phases 1–7* (emitter CFG classes, inliner, …, regalloc)
+are the missing-capability inventory. The **program** phases — the ones
+decisions 5–11 fund and hold — are `ROADMAP_SLICING_2026-08-21.md` §5's:
+**Phase 0** (S0 blind-reach + S1 general lowering), **Phase 1** (ten
+construct slices C1–C10), **Phase 2** (the 1.3 % genuinely-undecoded
+residue), with characterization running alongside as product. §5, §8.3 and
+§10.5 above use the *old* vocabulary and are dated records.
+
+### 11.2 How the program got here — decisions 1–11 in one table
+
+| decision | date | what it decided |
+|---|---|---|
+| 1 | 08-22 | fund reads R1–R3 before choosing 4a vs Phase 0 vs characterization-only |
+| 2–4 | 08-22 | shipping roadmap rewritten to the goals; push authorized; docs structure pass |
+| 5 | 08-22 | **branch (c): the 8-week Phase 0**, S0 + S1, started immediately |
+| 6 | 08-23 | R4 + R5 funded (R5 = the 189-arm IL→codegen dispatch, the critical-path read) |
+| 7 | 08-23 | S1b/S1c dispatched; **R6–R9 funded — the read plan closed out**; Phase 1 NOT unlocked (S0's blind-differs 96.1 % priced the naive widening as bad) |
+| 8 | 08-23 | implementation wave (S1c producers, `4F 01` width fix, prolog-words seam, tail read) |
+| 9 | 08-24 | wave 7 **and Phase 1 unlocked by the owner**, opening with C1 alone |
+| 10 | 08-24 | wave 8; C7 dispatched as a **cost probe** with coverage ≈ 0 registered pre-measurement (#420/#1593/#423 had already answered coverage) |
+| 11 | 08-24 | wave 9: **Phase 1 held pending evidence — measure the joint blocker set first** |
+
+Every read in `whitebox/READ_PLAN_2026-08-21.md` §3 — **R1 through R9 — has
+now run**, each with a rung and most with a `ref/P_*.md` product
+(`P_ENCODE`, `P_ILRECORD` with all 189 arms, `P_LABEL`, `P_GLOBREGS`,
+`P_EXPAND`, `P_BLOCKORDER`, `P_SUB4F`). Four of the nine corrected their own
+row's premise on the way in, which is what a read plan is for.
+
+### 11.3 Where the payoff metrics stand (2026-08-24 scan, tree `b814d1db2`)
+
+`match` **25 of 878** (26 → 25 was a workload-stamp move, not a regression) ·
+`mismatch` **0** · `fnbyte-exact` **35,912** + 3 whole-TU credits, over
+162,205 emitted functions · per-function census 29.27 % · `codegen-gap` **0**
+— every non-matching TU is `vocab-gap`, blocked on reading IL, not on
+emitting PowerPC. Waves 7–9 moved `match` by **zero**, and per §11.4 that is
+now an *explained* zero, not a disappointing one.
+
+### 11.4 What waves 7–9 settled (twelve lanes, all 2026-08-24)
+
+**(a) The per-TU construct floor is the decisive number** (`w-joint3`,
+#3505–#3511). Over all 845 non-matching TUs, the union of blocker keys per
+TU — a **lower bound**, since the port reports only the first refusal per
+body (#3131) — reads **min 1 · median 186 · max 278**, with **821 of 845
+(97.2 %) above 50** and 831 above ten. Against Phase 1's ten constructs, the
+arithmetic is settled at the floor: **97.2 % of the workload is out of reach
+before any successor question is asked.** Exactly one TU sits at floor 1
+(`ChecksumData_xbox.cpp`), and its key is `expr-op-0x32` — a construct this
+tree has never named.
+
+**(b) Closure composes, and it does not matter — two independent facts.**
+Lifting one clause family moved 1,719 slots: **1,697 closed, 22 substituted,
+0 regressed** — refuting #150 (*"closing a blocker only reveals the next"*)
+as a general law; its seven-plus confirmations were all aggregate readings.
+And the 1,697 closures land in 365 TUs of which **zero** convert (364 still
+carry > 10 blocked bodies). Decision 11's two candidate readings — Phase 1
+worthless vs. worth 46 % jointly — contained neither truth.
+
+**(c) The two slices measured price Phase 1's range from both ends.** C1,
+*the largest construct and the cheapest work*, converted for ~0.2
+engineer-days against a 2–4-week price and bought **+8 functions, 0 TUs** —
+"the floor of the range, not a sample" (its own §8). C7 was **declined**: the
+general relational lowering already existed in history, byte-graded green on
+552 cells, measured **+0** and deliberately reverted on 2026-07-31
+(`CMP_PRODUCES_A_VALUE.md` — cited 9× in `crates/`, 0× in any planning doc;
+#3487, the fifth #3098 instance). Its family ceiling today: **6 emitted
+functions, 0 TUs**.
+
+**(d) Observability has three rungs, and the project had been quoting the
+second as sufficient** (`w-latent`, #3512–#3516). A five-mutation set passes
+`cargo test --workspace --release` green while `gate.sh` fails 14 of 18
+lanes at 35,584 cross mismatches. Worse: `INLINE_DECLINE_LOOP_BYTES` 80→4096
+passes the gate at `GATE: PASS`, exit 0, `mismatch 0` — **and six matched
+TUs disappear**, visible only in the per-lane count table (#3515). **The
+standing funnel rule adopted the same day: every merge touching `crates/`
+carries an identity diff of the 21 count-bearing gate rows against the
+pre-merge base, quoted in the merge message.** `mismatch 0` is not
+`match unchanged`.
+
+**(e) A family of instrument blindnesses surfaced in one wave, and it is the
+calibration story of this review.** The write set is unobservable — three
+mutations that gut it are byte-identical across every test and fixture
+(#3493). Three NUL bytes removed the 4,120-line file holding
+`IlBundle::functions` from every text search in the repo and manufactured a
+false finding (#3513). Binary layout is a function of **build-directory path
+length** (+32 B per +2 chars, `c2-reference/src/lib.rs:81`'s `env!`), so
+every cross-lane cost comparison ever made carried an uncontrolled variable
+(#3525, same site as #3470). First-blocker keys are not distances (#3131),
+one catch-all key's name is provably not its cause on 2,302 slots, and the
+#3098 family — *the correct answer was already on the board, unconsulted* —
+reached its sixth instance when #3490 settled as `UGT` via #2207. The moral
+is not that the instruments are bad; it is that **a green instrument is a
+statement about the population it can reach** (trap 0), and waves that widen
+reach keep being the ones that move the map.
+
+**(f) Goal (1) had a productive three days, at census +0 by design.** The
+19-entry relation-name enum read raw from the image (retiring a 36-cell
+probe grid and correcting 8 of 10 codes in a findings doc); pseudo-opcode
+`0x2e4`'s full contract; `mr r8,r8` resolved to a baked `emit 0x7d084378`
+with run-length == catch-handler count on 95.19 %; R1–R9's seven `P_*.md`
+references. This is exactly the "running alongside" row of
+`ROADMAP_SLICING` §5 doing what the goal decision promoted it to. And the
+decision-surface rule is measurably working: the mutation audit found **8 of
+9 shipped decision-point parameters fenced or graded, none latent** — the
+shipped decision surfaces are in better shape than the shipped constants.
+
+### 11.5 What gates Phase 1 — one read, named, priced, undone
+
+**#3509**: Phase 1's ten constructs have never been mapped to census keys —
+3 of 10 carry an opcode, 7 are prose. Every Phase-1 price is denominated in
+**bodies**; every stop/continue argument in decisions 9–11 is denominated in
+**TUs**; nothing in the tree converts between them, so *"can Phase 1 convert
+a TU"* is **not decidable from any measurement in this tree**. The read is
+**0.5–1 day**; its cheap half is already delivered
+(`docs/data/census_key_populations.tsv`, 785 blocker keys, sorted by name
+deliberately so it cannot be read as a ranking). Until it runs, Phase 1
+stays exactly where decision 11 put it: **held — neither stopped nor
+continued.** Beside it, **#3510**: `emit_set_violations()` reads 1, and by
+its own doc that **voids the emit-set ceiling `STATUS.md` publishes** until
+diagnosed.
+
+### 11.6 The forward plan — three tracks
+
+**Track 1 — characterization (goal 1, primary).** Continues as first-class
+product. The priced queue, from the lanes' own follow-up sections: the
+IL-opcode → relation-code site (~½ day, closes `w-c7`'s W2); the six
+against-zero emitters (~1 day, retires #423 at the byte level); the permuter
+**pre-measurement** (decision-record recommendation: one day measuring
+whether hand-written decomp near-misses are inlining-dominated, *before*
+building any permuter); the `DIFF_STRUCTURE.md` rescan; R6/R8's open items.
+
+**Track 2 — parity (goal 2, held at the gate).** The 0.5–1-day #3509 read
+is the next action, and the only one that unblocks a go/no-go. What the
+floor result already says: even a fully-landed ten-construct Phase 1
+converts ≈ nothing at the floor on 97.2 % of the workload — so if the
+mapping read confirms the shape, the honest route to `match` runs through
+the **general decode** (R5's 189-arm dispatch is read; `w-joint3` §9's
+parse-layer lifter is *"the single thing that would make the complete
+blocker set measurable rather than bounded"*), which is the 4a question
+Phase 0 was funded to price — with S0's 96.1 % blind-differs standing as
+the two-sided price of ever widening naively. Coverage is still the
+scoreboard, and a wrong emit still scores below the refusal it replaced.
+
+**Track 3 — instruments and hygiene, each small and each blocking something.**
+Experiment F (~15 min, fully registered, unrun) — the build-to-build cost
+floor that every historical cost re-run and #3523's attribution are blocked
+on. The `repo_root()` **runtime** fix (one function; closes #3470 and #3525
+from one site). The `configure_existing_worktree.sh` lane (two
+independently-found defects, #3500/#3516, both *"reports success while doing
+something other than what it says"*). The #3513 NUL fix (one character × 3).
+The #3510 diagnosis. The ~40-line orphan-sweep test #3514 named and did not
+build. Regenerating `STATUS.md`'s block on a quiet box. And the **#3156
+undercount**: 21 forbidden files are tracked under `work/w-biquad/` (11
+`.obj` **and 10 `_CL_*` captures the standing row does not count**) — 
+removal from HEAD is one command; purging history is a rewrite and is the
+owner's call.
+
+### 11.7 What this section does NOT change
+
+The one correctness rule — real `c2` under wibo, byte-exact obj compare,
+sole judge. A wrong emit scores strictly below the refusal it replaced.
+Two-sided pricing of every fence. Read-before-probe. The decision-surface
+rule (now with measured evidence it works). And the coverage bound: a green
+run is sound only on the IL it was tested against — waves 7–9 added the
+sharpest demonstrations yet (#3515, #3493), not exceptions.

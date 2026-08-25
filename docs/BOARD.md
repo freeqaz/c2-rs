@@ -4895,3 +4895,11 @@ Reservation: ninth-wave ledger, `#3512`–`#3516` (see decision 11 / `#3505`).
 
 
 ### Reservation ledger, 2026-08-24 (ninth wave — the joint blocker set), CLOSED — all four lanes landed (`w-joint3`, `w-latent`, `w-relread`, `w-adjacency`); every number `#3505`–`#3525` is spent (`#3525` allocated mid-lane to `w-adjacency`). Next free `#3526`.
+
+## Coordinator — the plan re-derived under the owned goal (2026-08-25)
+
+| row | claim | state | evidence | links | consequence |
+|---|---|---|---|---|---|
+| **3526**<sub>coordinator</sub> | **ROADMAP §11 IS THE FILE'S CURRENT FRAMING — the strategic review over waves 7–9, written at `6b2f16986`, superseding §10.35 as "the honest map"** | **WRITTEN, docs-only; zero `crates/` bytes** | `docs/ROADMAP.md` §11: the goal as owned (`GOAL_DECISION_2026-08-21.md` § AMENDED), decisions 1–11 in one table, the two phase vocabularies named as distinct, the wave 7–9 synthesis (the 97.2 % construct-floor result, C1/C7 pricing Phase 1 from both ends, the three-rung observability ladder, the instrument-blindness family, goal-1 product at census +0), the #3509/#3510 gate on Phase 1, and a three-track forward plan. Strikes-in-place per `DOC_CONVENTIONS.md` §2: §10.35's supersession clause and "honest map" tense, §10.5's stale row-1 banner. Consumer sweep run: no doc outside `ROADMAP.md` quotes the struck claims | `#3505` (Phase 1 held) · `#3509` · `#3510` · `#3515` · `#3525` · `docs/DECISIONS_2026-08-22.md` · `docs/rungs/2026-08-24-w-joint3.md` §4 | **Phase 1's go/no-go remains gated on the #3509 read (0.5–1 day, cheap half delivered), and no wave-10 lane is dispatched by this row** — it is a map, not a work order. `STATUS.md`'s generated block is 2026-08-24 (`b814d1db2`) and its regeneration is deferred to a quiet box: a peer measurement (wibo + probe workers) was live at writing, and the perf row is load-sensitive by its own warning |
+
+### `#3526` is the coordinator's and is spent above. Next free `#3527`.
