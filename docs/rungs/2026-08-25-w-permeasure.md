@@ -195,17 +195,37 @@ and `PERMUTER_POPULATION.md` §2.2 are the rescan beside it.
 
 ## 7. Gate
 
-`sh scripts/gate.sh --jobs 4 --require-graded`, run on this tree.
+`sh scripts/gate.sh --jobs 4 --require-graded`, on the committed tree:
 
-    18 lanes, 34s at --jobs 4
+    GATE: PASS (HATCH-RED REFUSED)
+    graded tree: 4a86e3d619e6  (780 files under crates fixtures scripts)
+    18/18 lanes ran, every one graded a corpus
+    DEBUG-LANE-TOTAL lanes=18 ran=18 failed=0
     expr sweep:  checked=19556  mismatches=0  graded=19460  ungraded=96
     mode cross:  checked=90812  mismatches=0  graded=90424  ungraded=388
     cache-bad=0 in both
 
+`HATCH-RED REFUSED` is pre-existing and not this lane's (`HATCH-STALE`, board
+**#1389**).
+
 **`mismatch 0` is not evidence this lane was correct** (`STATUS.md` trap 5) —
-this lane changed no `crates/` byte, so the gate could not have moved. It is
-quoted as the required-zero floor, not as a grade. The lane's grade is control
-arms 1–3 and §4's account of what they missed.
+this lane changed no `crates/` byte, so the gate could not have moved. It is the
+required-zero floor, not a grade. The lane's grade is control arms 1–3 and §4's
+account of what they missed.
+
+### 7.1 THE FIRST GATE RUN WAS VOID BY THE GATE'S OWN GUARD, AND IT SAID SO
+
+Recorded because it is the guard working, and because it caught the author.
+The first attempt reported `graded tree: 6c13b305d811` in its header and
+`452b0f19dc53` in its footer — **the tree moved under the run**, because the
+lane edited `scripts/permeasure.py` (the padding-trim fix) while the gate was in
+flight. The footer's own words: *"The verdict above was produced partly from
+each, so it is evidence about NEITHER tree."*
+
+**That run is not quoted anywhere.** The run above was taken on a tree with
+`git status --short -- crates/ fixtures/ scripts/` empty, and reports
+`4a86e3d619e6` at **both** ends. The 781 → 780 file count is
+`permeasure.py` leaving `scripts/` (§8).
 
 ---
 
