@@ -128,6 +128,7 @@ distance-bodies  yes  TU distance to match, blocked functions
 distance-emitted yes  TU distance to match, blocked emitted functions
 emit-ceiling     yes  Emit-set ceiling, LO-anchored (segments == COMDATs)
 emit-ceiling-gate yes Emit-set ceiling, GATE-anchored (4F 1F — what the port consumes)
+emit-ceiling-control yes Emit-set ceiling CONTROL (must be 0; a nonzero VOIDS both ceilings — #3510)
 emit-model       yes  Emit-set MODEL ceiling (today / repaired / wall)
 binding          yes  .gl binding invariants (records / arity / conflicts)
 factors          yes  Phase-7 factors over the graded TUs (A / B / C / D / E)
@@ -168,7 +169,8 @@ plan-glattr      yes  OBJECT PLAN — coverage and bit histogram of the .gl attr
 # a metric that ran and had nothing to say. One list; `--check` proves it covers
 # the registry.
 GAP_KEYS='workload census emitted-census residue distance-bodies
-          distance-emitted emit-ceiling emit-ceiling-gate emit-model binding
+          distance-emitted emit-ceiling emit-ceiling-gate emit-ceiling-control
+          emit-model binding
           factors joint-ceilings frontier emit-predicate-worth section-ladder
           progress-mass fnbyte-match fnbyte-partition fnbyte-per-tu
           plan-emitset plan-control plan-inventory plan-glattr'
@@ -221,6 +223,48 @@ p_dist_body()  { sed -n 's/.*TU distance to matching (blocked functions) — \(.
 p_dist_emit()  { sed -n 's/.*TU distance to matching (blocked EMITTED functions) — \(.*\)$/\1/p' "$1" | head -1; }
 p_ceiling()    { sed -n 's/.*emit-set ceiling: \([0-9]* of [0-9]*\) graded TUs.*/\1 graded TUs/p' "$1" | head -1; }
 p_ceilgate()   { sed -n 's/^ *emit-set ceiling, GATE-anchored (`4F 1F`, what the port consumes), over the \([0-9]*\) known: \([0-9]*\) .*/\2 of \1 graded TUs/p' "$1" | head -1; }
+# ---- THE CEILING'S OWN CONTROL (board #3510 / #3577) -------------------------
+#
+# `GapReport::emit_set_violations` counts matching TUs whose `.ex` segment count
+# disagrees with their obj's `.text` COMDAT-leader count. Its own doc says a
+# nonzero value **voids the ceiling above it** — and it has read **1** while
+# this script published that ceiling as a number. Every scan printed it; nothing
+# read it. These two parsers are what make it readable, and `collect_gap` is
+# what makes it BINDING.
+#
+# Two controls, not one, because they are anchored differently and #3577
+# measured them BOTH red at HEAD on the same TU: the `LO` one splits `.ex` on
+# the census marker `4C 4F 11`, the `GATE` one on `4F 1F`. On
+# `src/system/decomp_pch.cpp` the two anchors AGREE at 1260 — so a reader that
+# checked only one would not have been reading a weaker version of the same
+# thing, it would have been asserting on an accident.
+p_ceilviol()     { sed -n 's/.*violations among matching TUs, must be 0: \([0-9][0-9]*\)).*/\1/p' "$1" | head -1; }
+p_ceilviolgate() { sed -n 's/^ *gate-anchored control on matching TUs: \([0-9][0-9]*\) violations over \([0-9][0-9]*\) matching TUs.*/\1 of \2/p' "$1" | head -1; }
+
+# The control as a published row, and the ceiling rows' VOID decision — ONE
+# implementation, called by `collect_gap` and by `--check`. Extracted rather
+# than inlined precisely so `--check` can exercise the real branch: a control
+# that re-implements the logic it is checking is checking its own copy, which
+# is #3494's finding in a different costume.
+ceiling_control_row() {
+    _v="$(p_ceilviol "$1")"; _vg="$(p_ceilviolgate "$1")"
+    [ -z "$_v" ] && return 0
+    printf '%s violation(s) LO-anchored; %s gate-anchored — must be 0' \
+        "$_v" "$(val_or_missing "$_vg")"
+}
+
+# `ceiling_row <log> lo|gate` — the number, or VOID if the control is red.
+ceiling_row() {
+    _v="$(p_ceilviol "$1")"
+    if [ -n "$_v" ] && [ "$_v" -gt 0 ] 2>/dev/null; then
+        printf 'VOID — %s violation(s) among matching TUs (#3510); the ceiling'"'"'s own control says it is not counting what it claims' "$_v"
+        return 0
+    fi
+    case "$2" in
+        lo)   val_or_missing "$(p_ceiling  "$1")" ;;
+        gate) val_or_missing "$(p_ceilgate "$1")" ;;
+    esac
+}
 p_model()      { sed -n 's/.*emit-set MODEL ceiling: \([0-9]*\) of [0-9]* TUs bind every emitted symbol today; \([0-9]*\) would.*; \([0-9]*\) carry.*/\1 today \/ \2 repaired \/ \3 wall/p' "$1" | head -1; }
 p_binding()    { sed -n 's/^ *binding: \(.*\)$/\1/p'               "$1" | head -1; }
 p_fixgate()    { sed -n 's/^summary: \(.*\)$/\1/p'                 "$1" | head -1; }
@@ -477,8 +521,33 @@ collect_gap() {
     emit residue         "$(val_or_missing "$(p_residue   "$_log")")"
     emit distance-bodies "$(val_or_missing "$(p_dist_body "$_log")")"
     emit distance-emitted "$(val_or_missing "$(p_dist_emit "$_log")")"
-    emit emit-ceiling    "$(val_or_missing "$(p_ceiling   "$_log")")"
-    emit emit-ceiling-gate "$(val_or_missing "$(p_ceilgate "$_log")")"
+    # ---- THE CEILING, AND THE CONTROL THAT DECIDES WHETHER IT MAY BE
+    # PUBLISHED AS A NUMBER AT ALL (board #3510 -> #3577) ----------------------
+    #
+    # `GapReport::emit_set_violations`'s own doc: *"a nonzero here means
+    # `fn_total` and `emit-emitted` are not counting the things this reading
+    # says they count, and the ceiling above is VOID ... It is the control that
+    # makes the ceiling a measurement rather than an argument."*
+    #
+    # It has read **1** since at least 2026-08-24, and this script published
+    # `Emit-set ceiling, LO-anchored ... 26 of 870` straight into
+    # `docs/STATUS.md` — the page whose own header says it carries *the traps*.
+    # Printed, red, and unasserted is the failure family `GAPS.md` §6 exists
+    # for. So the number is no longer rendered as a number when its control is
+    # red: it renders VOID, with the count, and the row cannot be quoted by
+    # accident.
+    #
+    # **This does NOT repair the predicate**, which is a separate priced
+    # decision (#3577 diagnoses it: `PortC2::build` has four emit paths and
+    # three of them return before or on `functions()`'s refusal, so "one
+    # `.text` COMDAT per `.ex` segment" is false for them; `decomp_pch.cpp`
+    # takes `provide_data_tu()` and emits no `.text` at all). Refusing to
+    # publish a number whose own definition voids it is not the same act as
+    # deciding what the right number is, and conflating them is how this row
+    # would have turned into a lane nobody funded.
+    emit emit-ceiling-control "$(val_or_missing "$(ceiling_control_row "$_log")")"
+    emit emit-ceiling      "$(ceiling_row "$_log" lo)"
+    emit emit-ceiling-gate "$(ceiling_row "$_log" gate)"
     emit emit-model      "$(val_or_missing "$(p_model     "$_log")")"
     emit binding         "$(val_or_missing "$(p_binding   "$_log")")"
 
@@ -667,10 +736,11 @@ if [ "$do_check" -eq 1 ]; then
   EMITTED CENSUS (§8): 38456/178968 emitted functions in class (21.49%)
     bound 169693  |  residue 9275: 2004 compiler-generated (no IL body), 7271 unexplained  (5.18% of the denominator)
     TU distance to matching (blocked functions) — ≤0: 1, ≤1: 10, ≤10: 25
-    emit-set ceiling: 25 of 871 graded TUs have `.ex` segments == obj `.text` COMDATs
+    emit-set ceiling: 25 of 871 graded TUs have `.ex` segments == obj `.text` COMDATs — the most TU match can reach before ROADMAP §8.3 Phase 7 (violations among matching TUs, must be 0: 0)
     emit-set MODEL ceiling: 324 of 871 TUs bind every emitted symbol today; 420 would if `bind.rs` lost none; 451 carry an emitted symbol with NO `.gl` body record and are a wall
   emit-set ceiling, LO-anchored, over ALL graded TUs: 27
   emit-set ceiling, GATE-anchored (`4F 1F`, what the port consumes), over the 871 known: 28 (+1 entering, -0 leaving vs the LO-anchored set)
+  gate-anchored control on matching TUs: 0 violations over 25 matching TUs whose gate count is known
     binding: 1515160 records, 420 nameless, 2 before the first row
 summary: 100 port Match, 0 mismatch, 110 not-implemented (of 210)
   geomean speedup over the 100 matched fixture(s): 653x faster than standalone c2
@@ -804,6 +874,57 @@ EOF
     # deliberately carries both with different values (25 vs 28): a parser that
     # picked up the wrong line would read 25 here and the check would go red.
     check_parse p_ceilgate   '28 of 871 graded TUs'                               || fails=$((fails+1))
+    check_parse p_ceilviol     '0'                                                || fails=$((fails+1))
+    check_parse p_ceilviolgate '0 of 25'                                          || fails=$((fails+1))
+
+    # ---- THE CEILING'S VOID BRANCH, WATCHED FIRING (board #3577) -------------
+    #
+    # Both checks above read a CLEAN control, so both are green in a build where
+    # `ceiling_row` had its VOID branch deleted. A guard nobody has seen fire is
+    # not a guard (#1236, and this repo's canonical case — a NUL check that
+    # could not fire was quoted as clean 20+ times). So the probe log is
+    # rewritten to the value HEAD actually reads (#3510: 1) and the branch is
+    # required to flip.
+    #
+    # The clean assertion is kept and taken FIRST: a `ceiling_row` that always
+    # returned VOID would pass the red case alone.
+    _clean_lo="$(ceiling_row "$probe_log" lo)"
+    _clean_gate="$(ceiling_row "$probe_log" gate)"
+    if [ "$_clean_lo" = '25 of 871 graded TUs' ] && [ "$_clean_gate" = '28 of 871 graded TUs' ]; then
+        echo "  ceiling rows, control CLEAN -> published as numbers"
+    else
+        echo "CHECK FAIL: with a clean control the ceilings must publish as numbers, got '$_clean_lo' / '$_clean_gate'"
+        fails=$((fails+1))
+    fi
+
+    _red_log="$work_dir/probe_gap_voided.log"
+    sed -e 's/must be 0: 0)/must be 0: 1)/' \
+        -e 's/control on matching TUs: 0 violations/control on matching TUs: 1 violations/' \
+        "$probe_log" > "$_red_log"
+    # The rewrite is verified rather than assumed: a `sed` that matched nothing
+    # would leave a CLEAN log and the case below would "pass" by testing the
+    # clean path twice. That is the mutation-not-applied failure #3516 asserts
+    # against, and it costs one line.
+    if [ "$(p_ceilviol "$_red_log")" != '1' ]; then
+        echo "CHECK FAIL: the voided-probe rewrite did not take — the red case would test the clean path"
+        fails=$((fails+1))
+    else
+        _red_lo="$(ceiling_row "$_red_log" lo)"
+        _red_gate="$(ceiling_row "$_red_log" gate)"
+        case "$_red_lo$_red_gate" in
+            VOID*VOID*)
+                echo "  ceiling rows, control RED (1 violation) -> VOID, both anchors" ;;
+            *)
+                echo "CHECK FAIL: a RED control still published a ceiling number: '$_red_lo' / '$_red_gate'"
+                fails=$((fails+1)) ;;
+        esac
+        if [ "$(ceiling_control_row "$_red_log")" = '1 violation(s) LO-anchored; 1 of 25 gate-anchored — must be 0' ]; then
+            echo "  the control itself is published as its own row"
+        else
+            echo "CHECK FAIL: ceiling_control_row gave '$(ceiling_control_row "$_red_log")'"
+            fails=$((fails+1))
+        fi
+    fi
     check_parse p_binding    '1515160 records, 420 nameless, 2 before the first row' || fails=$((fails+1))
 
     # ---- the GAP-METRICS rows (lane w-bc's block, wired by w-gr) --------------

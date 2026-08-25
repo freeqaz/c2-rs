@@ -162,6 +162,7 @@ import hashlib
 import itertools
 import os
 import re
+import shutil
 import statistics
 import subprocess
 import sys
@@ -337,6 +338,142 @@ ROW = re.compile(
 UNIT = {"s": 1e9, "ms": 1e6, "µs": 1e3, "us": 1e3, "ns": 1.0}
 
 
+def repo_root_of_this_script():
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def pin_toolchain():
+    """Resolve `C2RS_COMPILERS` / `C2RS_WIBO` and EXPORT them. Board **#3575**.
+
+    ---- why a cost protocol has to do this, and cannot document it instead ----
+
+    **`#3470` bites BACKWARDS and the fix cannot reach the commits that need
+    it.** `repo_root()` used to be `env!("CARGO_MANIFEST_DIR")/../..` — the
+    build tree baked in at COMPILE time — so a binary built in a scratch tree
+    resolves `compilers/` relative to *that* tree, prints `SKIP: toolchain
+    absent`, and exits **0**. `w-hygiene` made it resolve at runtime
+    (`crates/c2-reference/src/lib.rs`), which closes it for everything built
+    after; **every arm of every historical re-run is built BEFORE it**, by
+    construction — that is what "historical" means. The three cost re-runs
+    owed to `w-s1bc` / `w-s1c2` / `w-s1c3` all build pre-fix commits, and
+    experiment F hit it live as `#3470`'s **fourth** site.
+
+    The remedy has been re-derived by hand three times now (`w-s1c3` first,
+    then `scan_pair.sh`, then the coordinator mid-run): an explicit
+    `C2RS_COMPILERS` / `C2RS_WIBO` is taken verbatim by `Toolchain::locate`
+    and does not go through `repo_root()` at all, so it reaches a pre-fix
+    binary. Re-deriving a known remedy three times is what a script is for.
+    Resolution order matches `scripts/scan_pair.sh` deliberately: two
+    protocols that pin the same toolchain differently are two toolchains.
+
+    Returns (compilers, wibo, "pinned-here" | "inherited"). Raises if neither
+    can be found, because a run that cannot pin is a run every arm will SKIP.
+    """
+    root = repo_root_of_this_script()
+    how = "inherited from the caller's environment"
+    comp = os.environ.get("C2RS_COMPILERS")
+    if not comp:
+        cand = os.path.join(root, "compilers")
+        if not os.path.isdir(cand):
+            raise SystemExit(
+                "cost_arms.py: no compilers/ under this repo and C2RS_COMPILERS "
+                "is unset — every arm would SKIP and the run would grade "
+                "nothing (#3470)."
+            )
+        comp = cand
+        how = "pinned here"
+    wibo = os.environ.get("C2RS_WIBO")
+    if not wibo:
+        for c in (os.path.join(root, "../wibo/build/release/wibo"),
+                  os.path.join(root, "../wibo/build/wibo")):
+            if os.path.isfile(c) and os.access(c, os.X_OK):
+                wibo = os.path.abspath(c)
+                break
+        if not wibo:
+            wibo = shutil.which("wibo")
+        if not wibo:
+            raise SystemExit(
+                "cost_arms.py: wibo not found and C2RS_WIBO is unset — every arm "
+                "would SKIP and the run would grade nothing (#3470)."
+            )
+        how = "pinned here"
+    os.environ["C2RS_COMPILERS"] = comp
+    os.environ["C2RS_WIBO"] = wibo
+    return comp, wibo, how
+
+
+def preflight_arm(name, binary, fixtures):
+    """Prove ONE arm can grade, before anything is timed. Board **#3575**.
+
+    ---- what this adds over the in-flight check, which already existed -------
+
+    `run_arm` has refused on `SKIP: toolchain absent` since this file was
+    created (`a2757c7f6`), and on experiment F's void run it DID fire and DID
+    exit 1 — `work/coordinator/expF/runF.txt` ends on that line, and
+    `SystemExit(str)` is rc 1, measured. **So the recorded claim that "the
+    protocol exited 0 having graded nothing" is not what happened**: the ARM
+    exited 0, the protocol refused. What was actually wrong is two smaller
+    things, and both cost real time:
+
+      1. **The refusal named the wrong cause.** *"the cost protocol needs the
+         oracle"* — but the oracle was right there; the arm could not SEE it.
+         An operator reading that goes looking for a missing toolchain. The
+         message below distinguishes the two cases by CHECKING which one it
+         is: if this repo has a resolvable toolchain and the arm still SKIPs,
+         that is not a missing oracle, it is `#3470` biting backwards, and it
+         says so and names the remedy.
+      2. **It fired mid-flight, after the identity block, the rotation
+         certificate and `load_at_start`.** Cheap here, not cheap at
+         `--port-iters 2000` on a quiet box you waited for.
+
+    A zero-`Match` arm is caught too and is a DISTINCT case: an arm that runs
+    and grades nothing looks identical in the timing table to one that graded
+    everything, which is `#3470`'s and `#1002`'s shared shape — only a
+    denominator catches an absence, so the denominator is printed per arm.
+    """
+    cmd = [binary, "perf", "--port-iters", "1"]
+    if fixtures:
+        cmd += ["--fixtures", ",".join(fixtures)]
+    p = subprocess.run(cmd, capture_output=True, text=True)
+    blob = (p.stdout or "") + (p.stderr or "")
+    if "SKIP: toolchain absent" in blob:
+        root = repo_root_of_this_script()
+        have = os.path.isdir(os.path.join(root, "compilers"))
+        raise SystemExit(
+            f"PREFLIGHT REFUSED — arm {name!r} ({binary}) printed 'SKIP: toolchain "
+            f"absent' and exited {p.returncode}. It graded NOTHING.\n"
+            + (
+                "  This repo HAS a toolchain and C2RS_COMPILERS/C2RS_WIBO are "
+                "exported, so the oracle is not what is missing.\n"
+                "  This is #3470 biting BACKWARDS: the arm is built from a commit "
+                "PREDATING w-hygiene's runtime repo_root() fix, so it resolves "
+                "compilers/ against its own build tree.\n"
+                "  The fix cannot reach it. Rebuild the arm at a post-fix commit, "
+                "or run it under a wibo/compilers pair it can see.\n"
+                if have else
+                "  This repo has no compilers/ either — provision the toolchain "
+                "(scripts/fetch_compilers.sh) before pricing anything.\n"
+            )
+            + "  A cost run whose arms grade nothing has no denominator and no "
+              "number worth printing."
+        )
+    if p.returncode != 0:
+        raise SystemExit(
+            f"PREFLIGHT REFUSED — arm {name!r} ({binary}) perf exited "
+            f"{p.returncode}\n{p.stdout}\n{p.stderr}"
+        )
+    n = sum(1 for line in p.stdout.splitlines()
+            if (m := ROW.match(line)) and m.group("verdict") == "Match")
+    if n == 0:
+        raise SystemExit(
+            f"PREFLIGHT REFUSED — arm {name!r} ({binary}) ran, exited 0, and "
+            f"produced ZERO Match rows. An arm that grades nothing is "
+            f"indistinguishable in the timing table from one that graded "
+            f"everything (#3470, #1002); refusing to report 0 of 0."
+        )
+    return n
+
+
 def run_arm(binary, port_iters, fixtures):
     """One `c2rs perf` run. Returns {fixture: port_ns} for MATCHING fixtures."""
     cmd = [binary, "perf", "--port-iters", str(port_iters)]
@@ -346,7 +483,14 @@ def run_arm(binary, port_iters, fixtures):
     if p.returncode != 0:
         raise SystemExit(f"{binary} perf exited {p.returncode}\n{p.stdout}\n{p.stderr}")
     if "SKIP: toolchain absent" in p.stdout:
-        raise SystemExit("SKIP: toolchain absent — the cost protocol needs the oracle")
+        # Kept as a backstop: `preflight_arm` runs first and gives the diagnosed
+        # message, so reaching HERE means an arm started grading and stopped
+        # mid-run, which is a different fact and should not be reported with the
+        # preflight's wording.
+        raise SystemExit(
+            f"{binary} printed 'SKIP: toolchain absent' MID-RUN, having passed "
+            f"preflight — the toolchain moved underneath the run (#3470)"
+        )
     out = {}
     for line in p.stdout.splitlines():
         m = ROW.match(line)
@@ -465,8 +609,78 @@ def self_test(max_arms=6):
                 bad += 1
             else:
                 print(f"  n={n}: ok — cyclic correctly rejected: {creport}")
+    bad += _preflight_self_test()
     print(f"self-test: {'PASS' if bad == 0 else f'FAIL ({bad})'}")
     return 1 if bad else 0
+
+
+def _preflight_self_test():
+    """Watch `preflight_arm` go RED on each shape it claims to catch. **#3575**.
+
+    A guard nobody has seen fail is a guard nobody has tested (`#1236`). All
+    three arms below are shell scripts in a throwaway directory — never a real
+    binary, never in this repo — because the failure being reproduced is
+    entirely about what an arm PRINTS and what it EXITS, and a two-line script
+    reproduces `#3470`'s signature exactly: prints `SKIP: toolchain absent`,
+    exits **0**.
+
+    The GREEN control is the one that makes the reds mean something. Without an
+    arm that passes preflight, a `preflight_arm` that raised unconditionally
+    would score three-for-three here.
+    """
+    import tempfile
+    bad = 0
+    print("preflight controls (#3575) — each shape watched going RED:")
+    with tempfile.TemporaryDirectory(prefix="c2rs-preflight-selftest-") as tmp:
+        cases = [
+            ("skip-exit-0",
+             '#!/bin/sh\necho "SKIP: toolchain absent"\nexit 0\n',
+             "#3470 backwards: prints SKIP, exits 0"),
+            ("zero-match",
+             '#!/bin/sh\necho "a header and no rows"\nexit 0\n',
+             "runs, exits 0, grades nothing"),
+            ("nonzero-exit",
+             '#!/bin/sh\necho boom >&2\nexit 3\n',
+             "exits nonzero"),
+        ]
+        for name, body, why in cases:
+            p = os.path.join(tmp, name)
+            with open(p, "w") as fh:
+                fh.write(body)
+            os.chmod(p, 0o755)
+            try:
+                preflight_arm(name, p, [])
+            except SystemExit:
+                print(f"  {name:<14} -> REFUSED  ({why})")
+                continue
+            print(f"  {name:<14} *** PASSED PREFLIGHT *** ({why})")
+            bad += 1
+
+        # THE GREEN CONTROL. A fabricated `c2rs perf` row in the exact shape
+        # `ROW` parses, with verdict `Match`. If this is refused, every red
+        # above is worthless because the detector refuses everything.
+        ok = os.path.join(tmp, "grades-one")
+        with open(ok, "w") as fh:
+            # `us` rather than `µs`: `UNIT` accepts both, and a fabricated
+            # control that depends on getting a non-ASCII byte sequence through
+            # a shell heredoc is testing the fabrication, not the parser. The
+            # first version of this control DID fail for exactly that reason
+            # and the failure is why the green control is here at all.
+            fh.write('#!/bin/sh\n'
+                     'echo "  ctl.cpp    888B    10.343 ms    11.01 us    939x    Match"\n'
+                     'exit 0\n')
+        os.chmod(ok, 0o755)
+        try:
+            n = preflight_arm("grades-one", ok, [])
+            if n == 1:
+                print("  grades-one     -> PASSED, denominator 1  (the green control)")
+            else:
+                print(f"  grades-one     *** denominator {n}, expected 1 ***")
+                bad += 1
+        except SystemExit as exc:
+            print(f"  grades-one     *** REFUSED A VALID ARM *** — {exc}")
+            bad += 1
+    return bad
 
 
 def main():
@@ -511,6 +725,34 @@ def main():
     if len(arms) < 2:
         raise SystemExit("at least two arms (a baseline and one other)")
     base_name, base_path = arms[0]
+
+    # The fixture restriction is read HERE rather than just before the timing
+    # loop, because the preflight below must probe the SAME population the run
+    # will time. A preflight over a different population is a preflight over a
+    # different question.
+    fixtures = [f for f in args.fixtures.split(",") if f.strip()]
+
+    # ---- THE TOOLCHAIN PIN AND THE PER-ARM PREFLIGHT (#3575, #3470) ---------
+    #
+    # First, before the identity block, the rotation certificate and
+    # `load_at_start` — because all three are setup for a run that is about to
+    # be refused, and on a quiet box you waited for, that setup is the
+    # expensive part. Experiment F's void run printed all of it and then
+    # stopped on the SKIP.
+    comp, wibo, how = pin_toolchain()
+    print(f"toolchain {how}: C2RS_COMPILERS={comp}")
+    print(f"                 C2RS_WIBO={wibo}")
+    print("  Exported to every arm. #3470 cannot be fixed forwards: an arm built "
+          "before w-hygiene's\n  runtime repo_root() resolves compilers/ against "
+          "its own build tree, and an EXPLICIT\n  env pin is the only thing that "
+          "reaches it.")
+    print("preflight — each arm proves it can grade before anything is timed:")
+    for name, path in arms:
+        n = preflight_arm(name, path, fixtures)
+        # The DENOMINATOR, per arm, printed always. `#3470`/`#1002`: only a
+        # denominator catches an absence, and an arm that graded 3 fixtures
+        # while its partner graded 157 is a comparison of two populations.
+        print(f"  {name:<10} graded {n} Match fixtures at --port-iters 1")
 
     # ARM IDENTITY, printed before anything is timed. See arm_identity().
     print("arm identity (md5 / size / build dir) — a sha is NOT an arm:")
@@ -590,7 +832,6 @@ def main():
             raise SystemExit(msg)
         print(f"WARNING (--allow-unbalanced): {msg}")
 
-    fixtures = [f for f in args.fixtures.split(",") if f.strip()]
     try:
         load = os.getloadavg()
     except OSError:
