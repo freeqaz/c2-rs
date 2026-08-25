@@ -111,7 +111,8 @@ the near-misses are the residue, and that residue *is* the permuter's input.
 > **`P-reloc-differs` (7,158) is broken out and NOT folded into `N`, and that is
 > the port side's own convention rather than a convenience.** `DIFF STRUCTURE`
 > profiles `fnbyte-differs` (1,968); the byte-identical / wrong-target bodies are
-> `fnbyte-reloc-differs` (530), credited nowhere and not part of the population
+> `fnbyte-reloc-differs` (**531** on this scan; `STATUS.md` line 293 says 530),
+> credited nowhere and not part of the population
 > the cluster table describes (#884, #986). Measured here, that class is
 > **template-instantiation naming under COMDAT folding** — ours calls
 > `??H?$_Bit_iter@_NPB_N@…` where the target names

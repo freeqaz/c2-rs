@@ -181,6 +181,10 @@ confirmed while every count moved**:
 | first word already wrong | 94.3 % | **92.78 %** |
 | LCS-capped / accounting breaks | 0 / 0 | 0 / 0 |
 
+Sidecar counters from the same scan, for anyone re-deriving: `fnbyte-differs`
+**1,968** (equal to the signature count, as it must be), `fnbyte-reloc-differs`
+**531**, `fnbyte-exact` **35,912**. `STATUS.md` line 293 carries 1,960 and 530.
+
 The population nearly halved, the substituted-word count rose by half again, and
 the opcode share went **up**. **The page is not edited** — it is a dated record,
 its own ⚠ banner already marks §3.2 and one row of §4 refuted, and #3369's rule
