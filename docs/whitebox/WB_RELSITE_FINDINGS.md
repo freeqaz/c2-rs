@@ -399,19 +399,32 @@ taken bit"* shape `WB_RELATION_FINDINGS.md` §3.3 names at `FUN_10bd507f`.
 
 ```
 10c194ef:  3c 04                 cmp   al,0x4          ; GT
-10c194f9:  e8 19 aa fb ff        call  0x10bd3f17      ; an operand action
+10c194f9:  e8 19 aa fb ff        call  0x10bd3f17      ; the operand swap, below
 10c19501:  c6 47 34 03           mov   BYTE PTR [edi+0x34],0x3   ; -> LT
 10c19539:  3c 05                 cmp   al,0x5          ; LE
 10c19543:  e8 cf a9 fb ff        call  0x10bd3f17
 10c1954b:  c6 47 34 06           mov   BYTE PTR [edi+0x34],0x6   ; -> GE
 ```
 
-`4→3` and `5→6` are `b8[4]` and `b8[5]`, each accompanied by an operand action —
-`GT` becomes `LT` and `LE` becomes `GE` **by exchanging the operands**. Under
-the retracted *"strictness flip"* labelling those same two rewrites would read
-`LT→LE` and `GE→GT` with an operand swap, which is not a valid rewrite at all.
-**This is a site outside `w-relread`'s six**, and it agrees with them. Board
-**#3549**.
+**And `FUN_10bd3f17` is read, not assumed — it is a 17-byte two-element
+operand-list swap and nothing else** `[R]`:
+
+```
+10bd3f17:  8b 41 28   mov eax,[ecx+0x28]   ; the operand list head  = operand 1
+10bd3f1a:  8b 10      mov edx,[eax]        ;                        = operand 2
+10bd3f1d:  8b 32      mov esi,[edx]        ;                        = operand 3
+10bd3f1f:  89 51 28   mov [ecx+0x28],edx   ; head := 2
+10bd3f22:  89 02      mov [edx],eax        ; 2->next := 1
+10bd3f24:  89 30      mov [eax],esi        ; 1->next := 3
+10bd3f27:  c3         ret
+```
+
+So `4→3` and `5→6` are `b8[4]` and `b8[5]`, each with the compare's two operands
+**exchanged**: `a > b` becomes `b < a`, and `a <= b` becomes `b >= a`. Both are
+valid rewrites. Under the retracted *"strictness flip"* labelling the same two
+rewrites would read `LT→LE` and `GE→GT` **with the operands exchanged**, and
+`a < b` is not `b <= a`. **This is a site outside `w-relread`'s six**, it needs
+no strings, and it agrees with them. Board **#3549**.
 
 ---
 
