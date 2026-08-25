@@ -1,6 +1,7 @@
 # `w-permeasure` — the permuter PRE-MEASUREMENT (2026-08-25)
 
     Tag:       w-permeasure
+    Slug:      w-permeasure
     Date:      2026-08-25
     Kind:      characterization lane
     Base:      a8593651b
