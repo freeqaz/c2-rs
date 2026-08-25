@@ -24,7 +24,22 @@ under `--apply` — removes what is provably loss-free to remove:
 
 Everything else is reported, never acted on: trees whose reflog moved within
 --active-hours (somebody's live surface — rebasing or removing one is how
-work gets lost), locked trees, dirty trees.
+work gets lost), locked trees, PINNED trees, dirty trees.
+
+  PINNED    the tree holds a measurement artifact that exists nowhere else
+            (board #3552, #3573). Never removed, whatever else it classifies
+            as, and never `--force`d away by this script. See
+            `scripts/wt_pin_audit.sh`, which owns the detector and can arm
+            git's own refusal with `--lock`.
+
+Note what the PINNED class is and is NOT. It is a second line, not the fence:
+all three recorded losses came from a HAND-TYPED `git worktree remove --force`
+and this script was not involved in any of them, so a check that lived only
+here could not have fired (#1236 — a guard that passes exactly when it
+matters). The fence is `git worktree lock`, measured on git 2.55.0 to refuse
+a plain `--force` and to print the pin reason while doing it. This class
+exists so that the one reaper that IS automated cannot walk past a pin that
+nobody got round to locking.
 
 Dry-run is the default and every class is counted — a reaper that ran
 silently is indistinguishable from one that did not. No removal ever passes
@@ -98,6 +113,66 @@ def only_compilers_symlink(wt_path, lines):
     return os.path.islink(os.path.join(wt_path, "compilers"))
 
 
+PRUNE_DIRS = {"target", ".git", "compilers", "node_modules", ".claude"}
+PIN_FILE = ".c2rs-pin"
+
+
+def _is_elf(path):
+    try:
+        with open(path, "rb") as fh:
+            return fh.read(4) == b"\x7fELF"
+    except OSError:
+        return False
+
+
+def pinned_artifacts(wt_path, primary):
+    """Artifacts a reap of `wt_path` would DESTROY — i.e. that exist only here.
+
+    The same two classes `scripts/wt_pin_audit.sh` defines, re-implemented
+    rather than shelled out to so this script keeps its "git and nothing else"
+    property. The two are cross-checked by
+    `crates/c2-harness/tests/wt_pin_audit.rs`, because two implementations of
+    one predicate that nobody compares are two predicates.
+
+    P1 — an ELF binary whose same-relative-path counterpart in the primary is
+         absent or a different size. The path+size test (not a hash) is what
+         drops the six inherited `work/w-biquad/c2rs.base` copies that
+         `setup_worktree.sh` reflinks into every tree; hashing 6 MB binaries
+         per tree per run would cost seconds to separate cases that do not
+         arise. Its false negative is named in wt_pin_audit.sh.
+    P2 — an explicit `.c2rs-pin` manifest. Two of the three recorded losses
+         were of things a rung had declared pinned IN PROSE, which no tool can
+         read; this is the channel that makes the declaration machine-readable,
+         and it is the only one that can cover a non-binary (a corpus
+         snapshot, a gate base table, a registered-unrun experiment).
+    """
+    found = []
+    for dirpath, dirnames, filenames in os.walk(wt_path):
+        dirnames[:] = [d for d in dirnames if d not in PRUNE_DIRS]
+        for name in filenames:
+            p = os.path.join(dirpath, name)
+            rel = os.path.relpath(p, wt_path)
+            if name == PIN_FILE:
+                found.append(("P2", rel))
+                continue
+            if os.path.islink(p) or not os.access(p, os.X_OK):
+                continue
+            try:
+                if not os.path.isfile(p) or not _is_elf(p):
+                    continue
+                size = os.stat(p).st_size
+            except OSError:
+                continue
+            twin = os.path.join(primary, rel)
+            try:
+                if os.path.isfile(twin) and os.stat(twin).st_size == size:
+                    continue
+            except OSError:
+                pass
+            found.append(("P1", rel))
+    return found
+
+
 def first_parent_line(repo, base):
     """Commits on the base branch's first-parent line. A lane that LANDED has
     its tip on the second-parent side of its merge — never here. A tip that IS
@@ -108,15 +183,25 @@ def first_parent_line(repo, base):
     return set(out.split())
 
 
-def classify(repo, wt, base, active_hours, fp_line):
+def classify(repo, wt, base, active_hours, fp_line, primary=None):
     path = wt["worktree"]
     if not os.path.isdir(path):
         return {"path": path, "cls": "GONE"}
     row = {"path": path, "cls": None, "branch": None, "sha": None,
-           "dirty": None, "note": ""}
+           "dirty": None, "note": "", "pins": []}
     if wt.get("locked") is not None and "locked" in wt:
         row["cls"] = "LOCKED"
         return row
+
+    # The pin scan does NOT short-circuit the classification, deliberately.
+    # GAPS §7's lane-registry trap (board #1236) is that an earlier guard
+    # returns first and every later assertion silently never executes — so the
+    # pin is recorded on the row and the VETO is applied at the action stage,
+    # where it can be seen alongside the class the tree would otherwise have
+    # had. A row reading `MERGED ... KEPT: PINNED` is the useful output; a row
+    # reading only `PINNED` hides which reap would have taken it.
+    if primary:
+        row["pins"] = pinned_artifacts(path, primary)
 
     age = reflog_age_hours(path)
     row["age_h"] = age
@@ -235,14 +320,30 @@ def main():
 
     rows = []
     for wt in trees[1:]:
-        rows.append(classify(repo, wt, args.base, args.active_hours, fp_line))
+        rows.append(classify(repo, wt, args.base, args.active_hours, fp_line,
+                             primary=primary))
 
     counts = {}
+    pinned_vetoes = 0
     actions = []
     for row in rows:
         cls = row["cls"]
         counts[cls] = counts.get(cls, 0) + 1
         act = ""
+        if row.get("pins"):
+            # THE VETO. Board #3552/#3573: three consecutive actors destroyed
+            # pinned measurement artifacts this way. It applies whatever the
+            # tree classified as, and no flag on this script overrides it —
+            # `--reap-unlanded` and `--reap-empty-lanes` exist to widen what is
+            # reapable and neither may widen past this.
+            pinned_vetoes += 1
+            counts["PINNED-VETO"] = counts.get("PINNED-VETO", 0) + 1
+            listing = ", ".join(f"{k}:{v}" for k, v in row["pins"][:4])
+            more = "" if len(row["pins"]) <= 4 else f" (+{len(row['pins']) - 4} more)"
+            act = (f"KEPT: PINNED — would have been {cls}; holds {listing}{more}. "
+                   f"Run scripts/wt_pin_audit.sh --lock to arm git's own refusal.")
+            actions.append((row, act))
+            continue
         if cls == "MERGED" and row["dirty"] == 0:
             act = remove_worktree(repo, row, args.apply)
             if not act.startswith("REFUSED") and row["branch"]:
@@ -297,7 +398,11 @@ def main():
     for k in sorted(counts):
         print(f"  {counts[k]:4d}  {k}")
     print(f"\n  {'reaped' if args.apply else 'would reap'}: "
-          f"{sum(1 for _, a in actions if 'remov' in a)}")
+          f"{sum(1 for _, a in actions if 'remov' in a and not a.startswith('KEPT: PINNED'))}")
+    # Printed on EVERY run, including zero. A veto count that only appears when
+    # it is nonzero is indistinguishable from a scanner that never ran, which
+    # is the shape #3470 and #1002 are both about.
+    print(f"  pinned-artifact vetoes: {pinned_vetoes}")
     if args.apply:
         git(["worktree", "prune"], cwd=repo)
         print("  pruned")
