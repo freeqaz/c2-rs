@@ -519,10 +519,23 @@ somewhere it should refuse.
 
 ---
 
-## 10. Pre-registration score — **13 hits, 3 misses, 2 partials, 2 controls fired**
+## 10. Pre-registration score — **12 hits, 3 misses, 2 partials, 2 controls fired**
+
+> This header first read **"13 hits"** and was **wrong** — I wrote the tally by
+> hand before counting the table, which is the *exact* thing `w-relread` §9
+> caught itself doing and wrote down so the next lane would not. The next lane
+> did it anyway. Corrected from
+> `grep -oE '\*\*(HIT|MISS|PARTIAL|FIRED)\*\*' | sort | uniq -c` over the
+> verdict column (12 / 2 / 2 / 2; the third MISS is S6, whose verdict cell
+> carries trailing prose inside the bold and so is not matched by that regex —
+> **which is itself an instrument defect in the counting method, and the reason
+> the hand count and the machine count must agree before either is published**).
+> The miscount is left on the record: a lane whose own `#3550` is *"do not
+> substitute a description for a read"* does not get to hand-wave its own
+> arithmetic.
 
 Counted mechanically from the verdict column, not by hand (`w-relread` §9's
-lesson).
+lesson — learned late, see above).
 
 | | registered | measured | |
 |---|---|---|---|
