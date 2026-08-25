@@ -288,10 +288,82 @@ a stronger statement and the one the diff file supports line by line.
 
 ## 8. GATE EVIDENCE
 
-*(filled from the run; the verdict LINE is quoted, never the exit code — `gate.sh` prints
-`GATE: REFUSED (DIRTY crates/)` and **exits 0**.)*
+**The verdict LINE is quoted, never the exit code** — `gate.sh` prints
+`GATE: REFUSED (DIRTY crates/)` and **exits 0**, so a lane that read the status would
+report a refusal as a pass. Every figure below is a count read off the run.
 
-See §8.1 below.
+Both arms run from this worktree with `C2RS_COMPILERS`, `C2RS_WIBO` and `C2RS_DC3`
+exported explicitly. The base arm is the **same worktree at detached `5db186426`**, so the
+two gates differ only in the commits under test.
+
+| | base `5db186426` | tip `c3cfc230b` |
+|---|---|---|
+| verdict line | `GATE: PASS (HATCH-RED REFUSED)` | `GATE: PASS (HATCH-RED REFUSED)` |
+| lanes | 18/18 ran, every one graded a corpus | 18/18 ran, every one graded a corpus |
+| fixture-verdicts | 7,038 | **7,038** |
+| generated sweep | 19,460 graded of 19,556 | **19,460 of 19,556** |
+| mode cross | 90,424 graded of 90,812 cells | **90,424 of 90,812** |
+| debug lane | 18/18, 7,038 verdicts, 0 panics | **18/18, 7,038, 0 panics** |
+| mismatches | **0** anywhere | **0** anywhere |
+
+    C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast
+       55 targets · 1,885 passed · 0 failed
+       `#[test]` count 1,883 (base) -> 1,895 (tip), +12 — all in `gap::decode`
+
+**The environment is asserted BY DURATION, never by "0 `SKIP` lines"** — that check is
+vacuous, because libtest swallows the stdout of passing tests (#3341). `census_gate`
+**70.15 s**, `cli_flags` **128.95 s**, `fixture_profiles` **52.74 s**: the toolchain was
+live.
+
+### 8.1 The 21-row identity diff, and the proof it can fail
+
+`work/coordinator/gatebase/HOWTO_DIFF.md`'s procedure: normalise the run dir, cut to the
+count-bearing columns (`LANE VERDICT graded/total match`), drop the two `n/a`-mismatch rows
+(`hatch-red`, `ladder-red`). **The denominator is 21 rows — 18 mode lanes + `expr-sweep` +
+`mode-cross` + `debug-lane` — asserted by enumeration and printed at both ends:**
+
+    base rows: 21   tip rows: 21
+    IDENTITY DIFF: 0 lines over 21 rows on both sides
+
+**PROOF THE DIFF CAN FAIL, executed before its zero was trusted.** The tip table with a
+single row's `match` count decremented by one (`O1 186 → 185` — the `/O1` family is where a
+regression shows first) is diffed against the real one:
+
+    1c1
+    < O1 PASS 391/391 186
+    ---
+    > O1 PASS 391/391 185
+    diff exit=1
+
+One changed count, one reported line, non-zero exit. **The zero above is a measurement, not
+a pipeline that cannot speak.**
+
+### 8.2 `hatch-red` REFUSED is not this lane's, proven two independent ways
+
+The headline is qualified `(HATCH-RED REFUSED)` at **both** ends, so it does not move across
+this lane. Beyond that:
+
+1. **`hatch.py` patches only `crates/c2-il/*`, and this lane changed zero bytes of it.**
+   `git rev-parse <ref>:crates/c2-il` is **`1f0e99a9061d77f378d21fe9cae79ad89e20dc88` at
+   the tip, at the base, and on `master`** — identical at all three. The hatch is exactly
+   as stale at this tip as on master.
+2. **The main repository's `work/gate_row_history.tsv` reads
+   `hatch-red 24 2026-08-20 REFUSED`** — 24 consecutive runs, first seen **five days before
+   this lane existed**.
+
+**And the liveness counter under-reports from a worktree, in the direction that blames the
+current lane** — this run printed *"REFUSED for 1 consecutive run(s) (first seen
+2026-08-25)"*, because `work/` does not follow a `git worktree add` and the copy is fresh.
+`w-joint3` §10.1 recorded this at N = 22; it is **24** now and still unfixed. A lane reading
+it at face value concludes it broke the row.
+
+### 8.3 What the gate diff does and does not prove
+
+It is the right control for an instrument rung — the deliverable moves no byte, and 0 lines
+over 21 rows is that. It is **not** evidence that the `decode-reach-*` numbers are right;
+nothing in `scripts/gate.sh` grades them and, by `FUNCTION_BYTE_MATCH.md` §0, nothing there
+ever may. What grades them is §4's control table, the byte compare against real c2 (§1
+results 3–4), and the knob pair (§1 result 5).
 
 ---
 
