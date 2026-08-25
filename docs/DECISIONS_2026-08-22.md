@@ -642,3 +642,94 @@ rewrite of the w-biquad binaries (owner declined, deliberately).
 `#3546`–`#3550` `w-relsite`. Next free `#3551`.
 
 **Nothing is waiting on the owner.**
+
+## Decision 13 — the GENERAL DECODE is funded: row 4a(i) / I1 (2026-08-25)
+
+The owner, verbatim, on the wave-10 close and its Phase-1 recommendation:
+
+> *"okay lets fund general decode now"*
+
+**What this decides.** `ARCHITECTURE_PROPOSAL_2026-08-20.md` §8 row **4a(i)**
+— *a general op-level IL decode* — is **funded and started**. This is the
+row `STEP5_PRICING_2026-08-21.md` §2/§4 prices at **I1 raw 1.5–4.5
+engineer-months, and 15–45 engineer-months as a LOWER BOUND** once
+`CEILING` §5's ~5:1 calibration is applied (4a as a whole; I1 is its first
+half). It is the **critical path**: without it step 5 cannot reach the byte
+judge at all, and 4a's own risk column names the failure mode — every lane
+lands an *unconsumable instrument*, `#3336` at program scale with no
+contrast case to catch it.
+
+**Why this row and not Phase 1.** The `#3509` read the owner funded as
+decision 12 returned **TU reach 0** — per construct, jointly, and granting
+every byteless key free (`#3529`); Phase 1's ten constructs move the per-TU
+construct floor from median 187 to 147. `codegen-gap` is **0 over all 878
+TUs** and every non-matching TU is `vocab-gap`: the port is not blocked on
+generating PowerPC, it is blocked on **reading IL**. That is 4a(i)'s
+subject.
+
+**What this does NOT decide.** It does not fund **4a(ii)** (the general
+lowering to `coff::Function`) or **4b** (IR3 in tuple/region coordinates),
+and it does not approve **step 5** — whose NO-GO clauses (a)–(c) stand.
+**It does not formally rule on Phase 1**: decision 11's hold is not lifted
+here, no Phase-1 slice is dispatched, and if the owner wants Phase 1 closed
+in the record that is a one-line decision that has not been taken. What has
+changed is the route being funded, not a ruling on the other.
+
+### The correction this decision carries, because two of my own documents repeat it
+
+**"189 arms" IS AN OPCODE COUNT AND THERE ARE 61 ARMS.** `P_ILRECORD.md`'s
+own ⛔ banner: the switch is MSVC's **two-level** form (byte index table,
+then a DWORD target table), so **189 opcodes → 62 distinct arms**, of which
+**94 of the 189 opcodes route to a single arm that raises C1001** — the real
+read is **61 arms serving 95 opcodes, plus one refusal**. `READ_PLAN` §3/§4,
+`C2_MAP.md:1012`, `STEP5_PRICING:139`, `WHITEBOX_LEVERAGE:89`,
+`ARCHITECTURE_PROPOSAL:968` **and decision 6 and decision 12 of this file**
+all say 189. The dispatch a general decode must implement is **three times
+smaller than every planning document in this tree states**, and that is a
+re-pricing input, not a footnote.
+
+### The architectural fact the wave is designed around
+
+4a(i)'s own wording: *"IR0 stops at a two-variant byte framing and
+`BodyShape` starts at 35 whole-function grammars **that are simultaneously
+the admission gate**, so the semantic middle a COLOR pass would consume does
+not exist."* **Decode and admission are fused.** That is why widening reach
+has always meant widening emission — and `S0` measured what naive widening
+ships: **blind-differs 96.1 %** of what it reached. So the wave's first
+move is to **unfuse them**: decode generally, admit exactly as
+conservatively as today. Under `PROGRESS_METRIC.md` a wrong emit still
+scores strictly below the refusal it replaced, and nothing here relaxes
+that.
+
+Four lanes, dispatched concurrently on Opus subagents:
+
+| lane | kind | what it buys | price carried in |
+|---|---|---|---|
+| `w-unfuse` | construct (**primary**) | separate DECODE from ADMISSION in the `BodyShape` path, so a body can be decoded without thereby being admitted. **Required-zero byte delta** and a required-zero identity diff: today's admitted set must be identical, function for function, after the split. This is the prerequisite every later I1 slice depends on | `ARCHITECTURE_PROPOSAL` row 4a(i) · `S0` blind-differs 96.1 % |
+| `w-decodereach` | instrument | the signal I1 has no progress measure without: how many bodies the general decode **reaches**, published beside FBM under FBM's separation rule — **never in `gate.sh`, licenses no emit**. 4a's risk column says an unconsumable instrument is the failure mode; this is the consumer | `w-joint3` §9 item 4 (the parse-layer lifter) · `ROADMAP_SLICING` §5 S0 · `#3336` |
+| `w-ilarms` | characterization | reconcile `P_ILRECORD.md`'s **61 arms / 95 opcodes** against the port's existing decode vocabulary and publish the arm → port-site map, with the 94 C1001 opcodes named as out of scope. The artifact every later I1 slice is sized from — and the first chance to catch the 189 error's consequences | `P_ILRECORD.md` §1.1–§1.3 · `#3421` |
+| `w-guard` | construct | `#3552`'s reap guard (three consecutive actors destroyed pinned artifacts); explicit toolchain pinning for any re-run of a PRE-`repo_root()`-fix commit (`#3470` bites backwards and cannot be fixed forwards); and `#3510`'s diagnosis, which voids the emit-set ceiling `STATUS.md` publishes | `#3552` · `#3470` · `#3510` |
+
+**Concurrency fences.** `w-unfuse` owns the `crates/c2-il` decode/admission
+sites and may not touch `crates/c2-harness`. `w-decodereach` owns
+`crates/c2-harness` and may READ `c2-il` but not write it. `w-ilarms` is
+docs-only, zero `crates/` bytes. `w-guard` owns `scripts/` and
+`crates/c2-harness/tests/`. Reading is unfenced; writing is not. Any lane
+that needs a peer's file **STOPS and reports** — the wave-7 precedent.
+
+**Merge order: `w-unfuse` first**, because `w-decodereach` measures the
+surface it creates; the instrument rebases over it and re-measures rather
+than assuming.
+
+**Deliberately not dispatched:** 4a(ii) and 4b (this decision funds I1
+only); any Phase-1 slice; step 5; the against-zero emitters; the three
+historical cost re-runs (now known to be **inside build noise** — `#3551`,
+so they need the floor quoted beside them, not just a re-run);
+`DIFF_STRUCTURE.md`'s edit; the `STATUS.md` block regeneration
+(coordinator's, needs a quiet box).
+
+**Board:** `#3553` this decision · `#3554`–`#3560` `w-unfuse` ·
+`#3561`–`#3566` `w-decodereach` · `#3567`–`#3572` `w-ilarms` ·
+`#3573`–`#3578` `w-guard`. Next free `#3579`.
+
+**Nothing is waiting on the owner.**
