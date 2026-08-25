@@ -1,5 +1,39 @@
 # The statement-layer decode reach, and the two opcodes that were holding it
 
+> ### ⚠ 2026-08-25 — **EVERY "DECODE REACH" FIGURE ON THIS PAGE IS A *FRAMING* CLAIM, AND ON THE READING ROW 4a(i) IS FUNDED TO MOVE IT IS WRONG BY 8.6× IN BODIES AND 17.6× BY BYTE.**
+>
+> *Lane `w-decodereach`, board **#3561**. **Nothing below is retracted** — every
+> number on this page was measured and stands as measured. What is added is the
+> **strength** the phrase "decoded end to end" names, which this page could not
+> have distinguished because it had only one.*
+>
+> *"Bodies decoded end to end"* means **the walk landed on the segment tail**.
+> Re-measured on this tree at workload stamp `15a64d92f197+42949672950+42949672950`
+> it reads **2,375,390 of 2,417,794 = 98.25 %** (this page's 94.2 % was a
+> different workload tree, 25 days earlier). **MODEL reach** — *and every operand
+> the walk stepped over was in the decoder's modeled vocabulary*
+> (`control_flow.rs:474`'s `off_class`) — reads **275,295 = 11.39 %**, and
+> **35,404,955 of 646,881,206 bytes = 5.47 %**.
+>
+> | strength | bodies | % | bytes | % |
+> |---|---:|---:|---:|---:|
+> | FRAME (this page's number) | 2,375,390 | **98.25** | 622,484,114 | **96.23** |
+> | MODEL | 275,295 | **11.39** | 35,404,955 | **5.47** |
+>
+> **A general-decode lane measured on the first starts its 15–45 engineer-month
+> row at 98 % with 1.75 points of headroom.** Both numbers are true and only one
+> is a progress signal for a general decode. Both are `gap-metric` keys now
+> (`decode-reach-reached` / `decode-reach-modeled`) rather than prose;
+> `docs/FUNCTION_BYTE_MATCH.md` §0's separation rule binds them — never in
+> `scripts/gate.sh`, licenses no emit.
+> [`rungs/2026-08-25-w-decodereach.md`](rungs/2026-08-25-w-decodereach.md).
+>
+> **§7's residue is still the right list and is still not a ranking.** `cf-expr-0x59`
+> is **20,804** bodies at this tree — half the entire stopped population, listed
+> here at 16,016 on 2026-07-31 as *"appears between two FP arithmetic ops"* and
+> **still unidentified**. `#3131` binds: a first-blocker key is not a distance,
+> and 19 greedy rungs off such a histogram bought reach **0**.
+
 **WDR, 2026-07-31.** Census delta **0** — this is a measurement, not a rung, on
 the model of `docs/rungs/2026-07-31-cflow-decode.md` and `docs/EH_RECORDS.md` §7.
 It admits nothing, it lowers nothing, and every body it newly understands still
