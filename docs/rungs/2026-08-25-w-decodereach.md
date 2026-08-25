@@ -1,14 +1,13 @@
 # w-decodereach — the DECODE REACH instrument: 98.25 % is a FRAMING claim and the reading I1 is funded to move is 11.39 %
 
     Tag:       w-decodereach
-    Slug:      decodereach
+    Slug:      w-decodereach
     Date:      2026-08-25
     Kind:      instrument rung
     Outcome:   instrument
     Fixtures:  none — instrument rung: the `decode-reach-*` family
                (`crates/c2-harness/src/gap/decode.rs`) + its metrics and printed block
-    Census:    +0 (no acceptance predicate moved; `IlBundle::functions` untouched,
-               `crates/c2-il` READ and never written)
+    Census:    +0 — no acceptance predicate moved; `crates/c2-il` is READ, never written
     Base:      master `5db186426`
     Prereg:    `docs/rungs/_2026-08-25-w-decodereach-prereg.md`, the FIRST commit on
                `wt-w-decodereach` (`83b551585`)
