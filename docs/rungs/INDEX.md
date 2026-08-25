@@ -308,3 +308,4 @@ the header block this table is read from.
 | 2026-08-24 | w-relread | [w-relread](2026-08-24-w-relread.md) | 10 | +0 (no `crates/` byte changed) |
 | 2026-08-24 | w-s1c3 | [w-s1c3](2026-08-24-w-s1c3.md) | 12 | +0 — a re-expression, not a widening; required-zero byte delta |
 | 2026-08-25 | w-keymap | [w-keymap](2026-08-25-w-keymap.md) | 9 | **+0.** **ZERO `crates/` bytes.** `git diff --stat` against |
+| 2026-08-25 | w-relsite | [w-relsite](2026-08-25-w-relsite.md) | 10 | +0 (no `crates/` byte changed) |
