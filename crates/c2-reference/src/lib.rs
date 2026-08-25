@@ -74,11 +74,106 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use c2_core::{Backend, BackendError, IlBundle, ObjImage};
 
-/// Repo root = this crate's `CARGO_MANIFEST_DIR` joined `../..`
-/// (`.../c2-rs/crates/c2-reference` → `.../c2-rs`). All default toolchain paths
-/// are resolved relative to it, so nothing absolute is baked into source.
+/// Does `dir` look like a c2-rs checkout root? `Cargo.toml` + `crates/`.
+///
+/// Deliberately structural and cheap. It is **not** "does this tree have a
+/// toolchain" — that is [`root_search`]'s second preference, and keeping the
+/// two separate is what preserves the degrade-cleanly rule: a marker tree with
+/// no `compilers/` is still a legitimate answer, it just yields
+/// `SKIP: toolchain absent` the way it always did.
+fn is_repo_marker(dir: &Path) -> bool {
+    dir.join("Cargo.toml").is_file() && dir.join("crates").is_dir()
+}
+
+/// Walk `start` and its ancestors, returning **(first marker, first marker that
+/// also carries the X360 toolchain)**.
+///
+/// Both are collected in one pass because the caller wants the toolchain-bearing
+/// one when it exists and the nearest one otherwise, and walking twice would let
+/// the two answers come from different traversals.
+fn root_search(start: &Path) -> (Option<PathBuf>, Option<PathBuf>) {
+    let (mut first, mut with_tc) = (None, None);
+    let mut cur = Some(start);
+    while let Some(dir) = cur {
+        if is_repo_marker(dir) {
+            if first.is_none() {
+                first = Some(dir.to_path_buf());
+            }
+            if with_tc.is_none() && dir.join("compilers").join(X360_TOOLCHAIN_REL).is_dir() {
+                with_tc = Some(dir.to_path_buf());
+            }
+        }
+        cur = dir.parent();
+    }
+    (first, with_tc)
+}
+
+/// Repo root — **resolved at RUNTIME**. All default toolchain paths hang off it,
+/// so nothing absolute is baked into source.
+///
+/// Precedence:
+///
+/// 1. `C2RS_REPO_ROOT`, verbatim — an explicit override wins and is not
+///    second-guessed, the same contract [`compilers_root`] gives `C2RS_COMPILERS`.
+/// 2. Walking up from [`std::env::current_exe`], then from
+///    [`std::env::current_dir`], for a `Cargo.toml` + `crates/` marker —
+///    **preferring the nearest marker that actually carries `compilers/`**, and
+///    falling back to the nearest marker of any kind.
+/// 3. The compile-time `CARGO_MANIFEST_DIR`, as the last-resort fallback.
+///
+/// # Why this is not `CARGO_MANIFEST_DIR` any more (board #3540)
+///
+/// It was `Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")` — captured when
+/// the binary was **compiled**, not when it runs — and that one line produced
+/// two defects that two lanes found independently:
+///
+/// * **#3470.** A binary built in a scratch tree under `work/` resolved
+///   `compilers/` relative to *that* tree, printed `SKIP: toolchain absent` and
+///   **exited 0**. A scan pair graded nothing on one arm while all four stamp
+///   reads were correct; what caught it was `base: 0 keys` beside `tip: 399`.
+///   A guard correct about its own question is not a guard against an empty run.
+/// * **#3525.** The captured string is a string *literal*, so it sets `.rodata`
+///   size: three independent builds of one commit in directories named `b1`,
+///   `b2xx` and `b3yyyyyy` produced three distinct binaries whose sizes rose
+///   monotonically with the directory-name length. Every lane builds in its own
+///   worktree at its own path, so binary layout — and anything timing-sensitive
+///   to it — has varied across every cross-lane cost comparison ever made.
+///
+/// # Why the search prefers a toolchain-bearing root
+///
+/// The nearest marker alone does **not** fix #3470. A scratch tree extracted
+/// under `work/<lane>/` has `Cargo.toml` and `crates/` of its own, so a plain
+/// nearest-marker walk finds it and reproduces the original failure exactly.
+/// The whole job of this function is to name the tree whose *toolchain* the
+/// oracle should drive, so the search prefers the nearest ancestor that has one
+/// and keeps walking past trees that do not.
+///
+/// # Degrade-cleanly is preserved, deliberately
+///
+/// Every branch returns a path; none panics, and none requires the toolchain to
+/// exist. When no ancestor carries one, the nearest marker is returned and the
+/// caller reaches `SKIP: toolchain absent` exactly as before — `CLAUDE.md`'s
+/// hard constraint. Absence of a toolchain is a degradation, never an error.
 fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+    if let Some(v) = std::env::var_os("C2RS_REPO_ROOT") {
+        return PathBuf::from(v);
+    }
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(Path::to_path_buf));
+    let cwd = std::env::current_dir().ok();
+
+    let mut nearest_marker = None;
+    for start in [exe_dir, cwd].into_iter().flatten() {
+        let (first, with_tc) = root_search(&start);
+        if let Some(root) = with_tc {
+            return root;
+        }
+        if nearest_marker.is_none() {
+            nearest_marker = first;
+        }
+    }
+    nearest_marker.unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."))
 }
 
 /// Value of env var `var`, or `root/default_rel` if unset.
@@ -1832,6 +1927,93 @@ mod tests {
         assert!(old < good);
         assert!(!(parse_wibo_version("wibo 1.0.1-23-g4a9dd6f (Linux x86_64)").unwrap() < good));
         assert!(!(parse_wibo_version("wibo 1.0.2-0-gdeadbee (Linux)").unwrap() < good));
+    }
+
+    /// Lay down `<root>/{Cargo.toml, crates/}`, plus the X360 toolchain dir if
+    /// `with_toolchain`. The marker is structural, so a stub is a real marker.
+    fn plant_marker(root: &Path, with_toolchain: bool) {
+        std::fs::create_dir_all(root.join("crates")).unwrap();
+        std::fs::write(root.join("Cargo.toml"), b"[workspace]\n").unwrap();
+        if with_toolchain {
+            std::fs::create_dir_all(root.join("compilers").join(X360_TOOLCHAIN_REL)).unwrap();
+        }
+    }
+
+    /// **This is `#3470`, as a test.** Board **#3540**.
+    ///
+    /// A scan pair graded nothing on one arm while all four of its stamp reads
+    /// were correct, because a binary built in a scratch tree under `work/`
+    /// resolved `compilers/` relative to *that* tree, printed
+    /// `SKIP: toolchain absent` and **exited 0**. Nothing covered the case;
+    /// `w-adjacency` §7.7 priced the fix as *"one function, plus the tests that
+    /// assert a relocated binary still finds the toolchain"*. This is that test,
+    /// at the level that can be asserted without building a second binary.
+    ///
+    /// The load-bearing assertion is **`first != with_tc`**: a plain
+    /// nearest-marker walk would stop at the scratch tree and reproduce the
+    /// original failure exactly, so the two answers must come apart here or the
+    /// search rule is not doing the thing it exists to do.
+    #[test]
+    fn the_search_walks_past_a_scratch_tree_to_the_root_that_has_the_toolchain() {
+        let tmp = scratch_dir("rootsearch");
+        let outer = tmp.join("checkout");
+        let scratch = outer.join("work/some-lane/base-tree");
+        plant_marker(&outer, true);
+        plant_marker(&scratch, false);
+
+        let (first, with_tc) = root_search(&scratch.join("target/release"));
+
+        assert_eq!(
+            first.as_deref(),
+            Some(scratch.as_path()),
+            "the NEAREST marker is the scratch tree — this is what the old \
+             compile-time capture resolved to, and it is the defect"
+        );
+        assert_eq!(
+            with_tc.as_deref(),
+            Some(outer.as_path()),
+            "the search must keep walking to the checkout that actually carries \
+             compilers/, or #3470 is not fixed"
+        );
+        assert_ne!(
+            first, with_tc,
+            "if these ever coincide this test has stopped covering #3470"
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// Degrade-cleanly, at the search level: **no marker anywhere is not an
+    /// error.** `CLAUDE.md`'s hard constraint is that an absent toolchain means
+    /// `SKIP: toolchain absent`, never a panic — so both halves come back
+    /// `None` and [`repo_root`] falls through to its last resort.
+    #[test]
+    fn a_tree_with_no_marker_at_all_yields_none_rather_than_failing() {
+        let tmp = scratch_dir("nomarker");
+        let deep = tmp.join("a/b/c");
+        std::fs::create_dir_all(&deep).unwrap();
+        let (first, with_tc) = root_search(&deep);
+        assert_eq!(first, None);
+        assert_eq!(with_tc, None);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// A marker is the workspace root, not any crate inside it: `crates/c2-*`
+    /// has a `Cargo.toml` and no `crates/`, so the walk must not stop there.
+    #[test]
+    fn a_member_crate_directory_is_not_a_repo_marker() {
+        let tmp = scratch_dir("member");
+        let root = tmp.join("checkout");
+        plant_marker(&root, false);
+        let member = root.join("crates/c2-reference");
+        std::fs::create_dir_all(&member).unwrap();
+        std::fs::write(member.join("Cargo.toml"), b"[package]\n").unwrap();
+        assert!(is_repo_marker(&root));
+        assert!(
+            !is_repo_marker(&member),
+            "a member crate has Cargo.toml but no crates/ — stopping there would \
+             resolve every default toolchain path one level too deep"
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     #[test]
