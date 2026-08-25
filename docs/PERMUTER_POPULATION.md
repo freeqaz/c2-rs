@@ -75,7 +75,7 @@ block of a full `c2rs gap` scan:
 | accounting breaks (known answer 0) | 0 |
 | LCS-capped rows | **0** |
 | **pure reorderings** | **0** |
-| first word already wrong | **1,826 / 1,968 = 92.79 %** |
+| first word already wrong | **1,826 / 1,968 = 92.78 %** |
 | substituted words | **7,912**, 0 undecoded |
 | … `opcode` | **7,902 = 99.87 %** |
 | … `mixed:reg+disp` | 7 = 0.09 % |
@@ -85,7 +85,7 @@ block of a full `c2rs gap` scan:
 **The rescan the brief asked for, and its result: `DIFF_STRUCTURE.md`'s SHAPE is
 confirmed and its COUNTS have moved.** The page is at tree `0c8a185` — 3,195
 bodies, 5,189 words, opcode 99.7 %, reorderings 0, first-word 94.3 %. At
-`a8593651b` it is 1,968 / 7,912 / **99.87 %** / **0** / 92.79 %. The population
+`a8593651b` it is 1,968 / 7,912 / **99.87 %** / **0** / 92.78 %. The population
 nearly halved, the substituted-word count rose by half again, and **the opcode
 share went up**. Nothing about the conclusion moved. The page is not edited —
 it is a dated record and this is the rescan beside it (#3369's own rule).
@@ -133,7 +133,7 @@ the decomp side would compare a fallback against a real LCS.
 | | **port** 1,968 | **N** 1,530 | **N90** 1,098 | **N99** 405 |
 |---|---:|---:|---:|---:|
 | **pure reorderings** | **0.00 %** | 3.53 % | 4.64 % | **7.90 %** |
-| first word already wrong | **92.79 %** | 1.24 % | 0.36 % | **0.00 %** |
+| first word already wrong | **92.78 %** | 1.24 % | 0.36 % | **0.00 %** |
 | substituted words | 7,912 | 34,504 | 16,454 | 2,520 |
 | … **`opcode`** | **99.87 %** | 23.63 % | 12.11 % | **2.14 %** |
 | … **`reg`** | 0.04 % | 46.18 % | 54.45 % | **52.50 %** |
@@ -142,8 +142,8 @@ the decomp side would compare a fallback against a real LCS.
 | … `branch-target` | 0 | 9.48 % | 11.66 % | 7.34 % |
 | … `mixed:reg+disp` | 0.09 % | 5.02 % | 3.15 % | 0.52 % |
 | … `undecoded` | **0** | 0.29 % | — | — |
-| **opcode-implicated words** | **99.96 %** | 23.63 % | 12.11 % | **2.14 %** |
-| **operand-level words** | **0.04 %** | 76.37 % | 87.89 % | **97.86 %** |
+| **opcode-implicated words** | **99.87 %** | 23.63 % | 12.11 % | **2.14 %** |
+| **operand-level words** | **0.13 %** | 76.37 % | 87.89 % | **97.86 %** |
 
 **Per body, jointly — never by multiplying the marginals above:**
 

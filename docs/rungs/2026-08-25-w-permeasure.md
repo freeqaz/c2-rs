@@ -178,7 +178,7 @@ confirmed while every count moved**:
 | substituted words | 5,189 | **7,912** |
 | opcode share | 99.7 % | **99.87 %** |
 | pure reorderings | 0 | **0** |
-| first word already wrong | 94.3 % | **92.79 %** |
+| first word already wrong | 94.3 % | **92.78 %** |
 | LCS-capped / accounting breaks | 0 / 0 | 0 / 0 |
 
 The population nearly halved, the substituted-word count rose by half again, and
