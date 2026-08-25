@@ -672,7 +672,7 @@ impl IlBundle {
     /// is all-or-nothing per TU (correctly — the port must emit a whole obj or
     /// nothing), so over a real workload it reports one `vocab-gap` per TU and
     /// cannot rank the missing classes. The census runs the *same*
-    /// [`parse_segment_detail`] per segment and keeps the first blocking
+    /// [`Decoded`] per segment and keeps the first blocking
     /// feature, so the histogram of [`FnVerdict::key`] over a corpus is the
     /// widening order (docs/ROADMAP.md §G5).
     ///

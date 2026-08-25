@@ -9,7 +9,7 @@
 //! > whole-function grammars **that are simultaneously the admission gate**, so
 //! > the semantic middle a COLOR pass would consume does not exist."*
 //!
-//! Before this module there was one call — [`super::parse_segment`], returning
+//! Before this module there was one call — `parse_segment`, returning
 //! `Option<BodyShape>` — and its `None` meant two different things at once:
 //!
 //! * *"this port cannot read this IL"* (a **decode** fact about the bytes), and
