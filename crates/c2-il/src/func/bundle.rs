@@ -3437,7 +3437,7 @@ mod provide_tests {
         ex.push(0x53); // a statement list, not another intro and not a segment
         ex.extend_from_slice(&[0x4F, 0x1F]); // a segment exists, so class B
         ex.extend_from_slice(&[0u8; 16]);
-        assert!(bundle(ex, b"junkjunk ".to_vec()).provide_data_tu().is_none());
+        assert!(bundle(ex, b"junkjunk\0".to_vec()).provide_data_tu().is_none());
 
         // The Common_Xbox shape itself: `4F 02 <token>` right after the index.
         let mut ex2 = Vec::new();
@@ -3446,7 +3446,7 @@ mod provide_tests {
         ex2.extend_from_slice(&[0x4F, 0x02, 0xAC, 0x0F]);
         ex2.extend_from_slice(&[0x4F, 0x1F]);
         ex2.extend_from_slice(&[0u8; 16]);
-        assert!(bundle(ex2, b"junkjunk ".to_vec()).provide_data_tu().is_none());
+        assert!(bundle(ex2, b"junkjunk\0".to_vec()).provide_data_tu().is_none());
     }
 
     /// A class-B `.ex` with no module block at all is not the witnessed
@@ -3455,7 +3455,7 @@ mod provide_tests {
     fn class_b_without_a_module_block_refuses() {
         let mut ex = vec![0x4F, 0x1F];
         ex.extend_from_slice(&[0u8; 16]);
-        assert!(bundle(ex, b"junkjunk ".to_vec()).provide_data_tu().is_none());
+        assert!(bundle(ex, b"junkjunk\0".to_vec()).provide_data_tu().is_none());
     }
 }
 
