@@ -613,9 +613,17 @@ algebra — a consumer or a name is required."* This lane adds the next term:
 was read correctly, six consumers agreed, and the map from the IL was still off
 by a global negation, because every one of those consumers reads a carrier two
 hops downstream of the producer. **The producer had to be read.** That is the
-argument for location reads over value reads in one sentence, and it is why
-`w-c7`'s W2 scored a MISS for recovering a value instead of a location even
-though the value looked right. Board **#3550**.
+argument for location reads over value reads in one sentence.
+
+**And it is why `w-c7`'s W2 was right to score a MISS for recovering a value
+instead of a location — a verdict that would still have been right if the value
+had been correct.** `w-c7`'s value was wrong (`opcode − 0x1E`). `w-relread`'s
+§3.2 replacement is *semantically* right — it is the map from the IL opcode to
+the relation the source wrote, and this lane's §5 capture confirms every row of
+it. **It is still not what the site stores**, and no amount of getting the value
+more correct would have surfaced that, because a value read has nowhere to put
+the observation *"and then it is complemented on the way in."* Only an address
+does. Board **#3550**.
 
 ---
 
