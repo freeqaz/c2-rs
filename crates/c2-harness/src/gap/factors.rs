@@ -2436,6 +2436,167 @@ impl GapReport {
                 ));
             }
         }
+        // ---- DECODE REACH (lane `w-decodereach`, decision 13's row 4a(i)) ----
+        //
+        // The progress signal I1 has no other source for. Emitted
+        // UNCONDITIONALLY, every key on every scan **including as a zero**, for
+        // the reason the blind block above gives: an absent row reading as
+        // "nothing to see" is this project's most-repeated defect.
+        //
+        // **THREE DENOMINATORS, PUBLISHED AS CONTAINMENT AND NEVER AS A
+        // RATIO** — `observable ⊇ reached ⊇ verified`, and the byte-weighted
+        // twin of each, because a body count and a byte count are two
+        // denominators (#3356 / `w-objplan`: a containment claim of "seed ⊆
+        // emitted on 853 of 854 TUs" was **739 empty seeds**, undetectable
+        // until the claimant's own size was printed beside it). No ratio is
+        // published here at all.
+        //
+        // Nothing in this block reaches a numerator that grades the port,
+        // enters an accept/refuse path, or appears in `scripts/gate.sh`
+        // (`docs/FUNCTION_BYTE_MATCH.md` §0).
+        {
+            let d = |k: &str| self.decode_total(k);
+            let (observable, reached, stopped, nobody) = (
+                d("decode-reach-observable"),
+                d("decode-reach-reached"),
+                d("decode-reach-stopped"),
+                d("decode-reach-nobody"),
+            );
+            for (k, v) in [
+                // The denominator FIRST, always.
+                ("decode-reach-observable", observable),
+                ("decode-reach-reached", reached),
+                // **THE SECOND, STRONGER STRENGTH.** `frame ⊇ model`. Frame
+                // reach is a framing claim and is nearly saturated on this
+                // workload; model reach is the one with headroom, and quoting
+                // the first without the second would be this instrument's own
+                // over-claim.
+                ("decode-reach-modeled", d("decode-reach-modeled")),
+                // **THE THIRD STRENGTH**, off `w-unfuse`'s `decode_bodies`
+                // seam, and the I1 DIVERGENCE DETECTOR beside it. Zero today by
+                // construction; nonzero on the day a general decode lands
+                // without a widening, which is the outcome the split is for.
+                ("decode-reach-grammar", d("decode-reach-grammar")),
+                ("decode-reach-bytes-grammar", d("decode-reach-bytes-grammar")),
+                (
+                    "decode-reach-grammar-not-admitted",
+                    d("decode-reach-grammar-not-admitted"),
+                ),
+                (
+                    "decode-reach-admitted-not-grammar",
+                    d("decode-reach-admitted-not-grammar"),
+                ),
+                // The three strengths are NOT a chain, and these three cells
+                // are what says so.
+                ("decode-reach-grammar-and-model", d("decode-reach-grammar-and-model")),
+                ("decode-reach-grammar-not-model", d("decode-reach-grammar-not-model")),
+                ("decode-reach-model-not-grammar", d("decode-reach-model-not-grammar")),
+                ("decode-reach-grammar-desync", d("decode-reach-grammar-desync")),
+                ("decode-reach-grammar-no-ex", d("decode-reach-grammar-no-ex")),
+                // `ROADMAP_SLICING` §3's OWN predicate, over its own
+                // denominator, so the two can be compared instead of guessed at.
+                ("decode-reach-inmodel", d("decode-reach-inmodel")),
+                ("decode-reach-offmodel", d("decode-reach-offmodel")),
+                (
+                    "decode-reach-inmodel-denominator",
+                    d("decode-reach-inmodel-denominator"),
+                ),
+                ("decode-reach-stopped", stopped),
+                ("decode-reach-nobody", nobody),
+                ("decode-reach-bytes-observable", d("decode-reach-bytes-observable")),
+                ("decode-reach-bytes-reached", d("decode-reach-bytes-reached")),
+                ("decode-reach-bytes-modeled", d("decode-reach-bytes-modeled")),
+                // The emitted population — a SECOND denominator, never mixed
+                // with the first.
+                ("decode-reach-emit-observable", d("decode-reach-emit-observable")),
+                ("decode-reach-emit-reached", d("decode-reach-emit-reached")),
+                ("decode-reach-emit-modeled", d("decode-reach-emit-modeled")),
+                ("decode-reach-verified", d("decode-reach-verified")),
+                (
+                    "decode-reach-verified-modeled",
+                    d("decode-reach-verified-modeled"),
+                ),
+                (
+                    "decode-reach-emit-bytes-observable",
+                    d("decode-reach-emit-bytes-observable"),
+                ),
+                (
+                    "decode-reach-emit-bytes-reached",
+                    d("decode-reach-emit-bytes-reached"),
+                ),
+                ("decode-reach-emit-unbound", d("decode-reach-emit-unbound")),
+                // The admission cross — **the containment nobody has asked**.
+                ("decode-reach-admitted", d("decode-reach-admitted")),
+                (
+                    "decode-reach-admitted-reached",
+                    d("decode-reach-admitted-reached"),
+                ),
+                (
+                    "decode-reach-admitted-not-reached",
+                    d("decode-reach-admitted-not-reached"),
+                ),
+                // **THE DISCRIMINATING CELL.** If this is 0 the instrument is
+                // measuring admission and the lane that ships it has FAILED.
+                (super::decode::SEPARATION_KEY, d(super::decode::SEPARATION_KEY)),
+            ] {
+                m.push((k, v.to_string()));
+            }
+            // The controls, each a DEFECT count with a known answer of 0, and
+            // each recomputed HERE from the published totals as well as being
+            // filed per TU — so a control that stopped being written at the
+            // walk is visible as a disagreement rather than as agreement.
+            m.push((
+                "decode-reach-partition-broken",
+                ((reached + stopped + nobody != observable) as usize
+                    + d("decode-reach-partition-broken"))
+                .to_string(),
+            ));
+            m.push((
+                "decode-reach-population-broken",
+                d("decode-reach-population-broken").to_string(),
+            ));
+            m.push((
+                "decode-reach-containment-broken",
+                d("decode-reach-containment-broken").to_string(),
+            ));
+            // **THE SECOND DERIVATION** (#3288's discipline — computing one
+            // quantity two ways and diffing them has caught a wrong figure in
+            // every lane that ran it).
+            //
+            // `GapReport::cflow_decoded_totals` has computed a reach number
+            // since long before this module existed — off `TuResult::fn_cflow`,
+            // by code this lane did not write, printed as PROSE at
+            // `cli/gap.rs:679` and collected by nothing. This walk computes the
+            // same quantity off its own map. **They must agree exactly.**
+            //
+            // It is a real control and not a restatement: the two walks differ
+            // in their key spelling, their map, their skip rules for `|`
+            // cross-tab rows, and their treatment of `cf-no-body`. A
+            // disagreement means
+            // one of them is counting a population the other is not — which is
+            // exactly the defect that made `cflow-residue-inclass-offclass`
+            // double.
+            let incumbent = self.cflow_decoded_totals().0;
+            m.push(("decode-reach-incumbent", incumbent.to_string()));
+            m.push((
+                "decode-reach-incumbent-disagree",
+                incumbent.abs_diff(reached).to_string(),
+            ));
+            // Which decoder produced every number above.
+            m.push((
+                Box::leak(
+                    format!("decode-reach-decoder-{}", super::decode::DECODER).into_boxed_str(),
+                ),
+                d(&format!("decode-reach-decoder|{}", super::decode::DECODER)).to_string(),
+            ));
+            // **THE POSITIVE CHECK.** How many cells this instrument actually
+            // graded. A zero here is a loud failure for any lane quoting these
+            // numbers — never an enumeration of the ways it could be empty.
+            m.push((
+                "decode-reach-graded",
+                (reached + stopped).to_string(),
+            ));
+        }
         // **THE BYTE-FRACTION RANKER** (board #500) and its control (#501).
         //
         // The head is emitted as three keys — name, numerator, denominator —

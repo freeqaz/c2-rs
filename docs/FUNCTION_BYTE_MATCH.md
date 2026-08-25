@@ -55,6 +55,36 @@ Structurally, exactly as the progress mass is separated:
 >   cannot attempt (`ROADMAP_SLICING_2026-08-21.md` §5), and **the one below,
 >   which is not a plan but a shipped instrument.**
 >
+> ### ✔ 2026-08-25 — **THE FOURTH GRADIENT IS SHIPPED: `decode-reach-*`, and it is the first one that measures the DECODE rather than the OUTPUT.**
+> *Lane `w-decodereach`, boards **#3561**–**#3566**, funded by
+> `DECISIONS_2026-08-22.md` decision 13 (row 4a(i) / I1, the general decode).
+> `crates/c2-harness/src/gap/decode.rs`. **Nothing on this page is edited,
+> re-scored or withdrawn**; §0's five properties are adopted verbatim, as S0
+> adopted them.*
+>
+> FBM and S0 both ask *"are these bytes c2's?"* — of the accepted population and
+> of the refused one respectively. This one asks a question upstream of both:
+> **how many bodies does the general decode reach, and is what it reaches
+> right?** It publishes **three denominators as a containment**, never a ratio
+> — `observable ⊇ reached ⊇ verified` — and its `verified` bucket is **this
+> page's own `FnByte::Exact`**, passed in from FBM's walk rather than
+> recomputed, so there is one producer of the judge's verdict.
+>
+> **Two things to carry off it before quoting any reach number:**
+>
+> * **REACH HAS TWO STRENGTHS AND THE TREE WAS PUBLISHING ONLY THE WEAK ONE.**
+>   *Frame* reach (the walk landed on the segment tail) is **98.25 %**; *model*
+>   reach (…and every operand was in the decoder's modeled vocabulary) is
+>   **11.39 %**, and **5.47 % by byte**. `cli/gap.rs:679` has printed the first
+>   as prose for weeks. **Quote them together or neither.**
+> * **`decode-reach-verified` equals `fnbyte-exact` exactly (35,912), so it
+>   carries no information by itself today** — every byte-exact body is reached,
+>   i.e. reach is not the binding constraint on byte-exactness anywhere the
+>   judge can speak. What does carry information is the pair beside it:
+>   **23,140 of the 35,912 (64.4 %) are bodies the decode does NOT model.**
+>
+> [`rungs/2026-08-25-w-decodereach.md`](rungs/2026-08-25-w-decodereach.md).
+
 > **The third gradient already exists and this page never linked it.**
 > [`DIFF_STRUCTURE.md`](DIFF_STRUCTURE.md) / `crates/c2-harness/src/gap/fndiff.rs`
 > extends the gradient *inside* each `fnbyte-differs` body: word-granular LCS

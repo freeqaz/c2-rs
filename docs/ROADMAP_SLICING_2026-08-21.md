@@ -152,13 +152,78 @@ worked.
 The review priced 4a as *(i)* a general op-level IL decode and *(ii)* a general
 lowering. Both halves are mis-shaped in the proposal.
 
+> ### ⚠ AMENDED 2026-08-25 by lane `w-decodereach` (board **#3581**) — **THE 98.2% IS CORROBORATED TO THE BODY. THE 83.5% IS WRONG, AND THIS SECTION'S OWN TABLE REFUTES IT.** See §3.0 immediately below for what replaces each figure; the paragraph after it stays exactly as written.
+
+### 3.0 The two reach figures, re-measured — and only one of them survives
+
+*Lane `w-decodereach`, standing `gap-metric decode-reach-*` keys, workload
+stamp `15a64d92f197+42949672950+42949672950`. Nothing below §3.0 is rewritten.*
+
+**The 98.2% is right, is the same measurement, and its partition matches to the
+body.** Re-measured: **2,375,390 of 2,417,794 = 98.25%**. The corpus moved by
+13,356 bodies and **every one of them is in the `reached` term** — `undecoded`
+is **41,657** and bodies with no body to decode are **747**, both *identical to
+the body* across the two corpora. Two independent walks, one answer.
+
+**But it is a FRAMING claim, and this section's own next sentence already knew
+that** — *"what the walk lacks is a return value"*. The standing keys now name
+the two strengths apart, and a third:
+
+| strength | key | bodies | of 2,417,794 | by byte |
+|---|---|---:|---:|---:|
+| **FRAME** — the walk landed on the segment tail | `decode-reach-reached` | 2,375,390 | **98.25 %** | 96.23 % |
+| **MODEL** — …and every operand was in the semantic model | `decode-reach-modeled` | 275,295 | **11.39 %** | **5.47 %** |
+| **GRAMMAR** — the decode reached a whole-function grammar | `decode-reach-grammar` | 711,729 | 29.44 % | 15.56 % |
+
+**They are not a chain.** `frame ⊇ model` holds; **grammar contains neither and
+is contained in neither** — `grammar∧model` **190,865**, `grammar-not-model`
+**520,864**, `model-not-grammar` **84,430**.
+
+#### ⛔ `83.5%` IS WRONG. The measured figure is **88.6%**, and the table below refutes 83.5 on its own arithmetic.
+
+The ten constructs sum to **2,036,842** bodies at a cumulative **97.3%**, so the
+table's own denominator is **2,036,842 / 0.973 = 2,093,363**. At the claimed
+83.5% that denominator would be `0.835 × 2,404,438 = 2,007,706` — **smaller than
+the rows it is supposed to contain**, i.e. the ten constructs would sum to
+**101.5% of their own population**, which a first-reason partition cannot do.
+2,093,363 is **87.1%** of 2,404,438, not 83.5%.
+
+Measured on this tree, from the same `cflow-offclass-*` decomposition the table
+is built from: the rows sum to **2,100,095**, which is exactly
+`reached − modeled` (2,375,390 − 275,295) — checked, not asserted — and
+`load-type` reproduces at **221,583**, *identical to the body* to this section's
+own row. So:
+
+| | this section | measured 2026-08-25 |
+|---|---:|---:|
+| bodies with ≥1 operand outside the semantic model | ~~83.5 %~~ | **88.61 %** (`decode-reach-offmodel` 2,141,752 of 2,417,047 scanned) |
+| …the complement, "in the semantic model" | ~~16.5 %~~ | **11.39 %** (`decode-reach-inmodel` **275,295**) |
+
+**And the complement equals MODEL reach exactly — 275,295 on both.** That is a
+measurement, not a coincidence, and it says something this section could not
+have known: **every one of the 41,657 undecoded bodies had already left the
+semantic model before the walk stopped**, so the two predicates (which differ in
+principle — §3's counts a stopped body, MODEL reach does not) coincide on this
+corpus. `crates/c2-harness/src/gap/decode.rs`'s
+`the_slicing_predicate_is_wider_than_model_reach` pins the difference in
+principle so the coincidence cannot be mistaken for an identity.
+
+**The consequence for the pricing this section carries: the hole is bigger than
+83.5% said, not smaller, and the 16.5% "already in the model" is 11.39%.**
+Row 4a(i)'s direction is unchanged; its headroom is 5 points wider.
+
+---
+
 **(i) is not "write a decoder."** A decode-only walker already reaches
-**2,362,034 of 2,404,438 bodies (98.2%)**, corroborated by the `step5`
-partition I verified: only **41,657 bodies (1.73%) are undecoded** ✅, one of
+**2,362,034 of 2,404,438 bodies (98.2%)** *(corroborated — §3.0; and it is
+**FRAME** reach)*, corroborated by the `step5`
+partition I verified: only **41,657 bodies (1.73%) are undecoded** ✅ *(exact,
+still 41,657 — §3.0)*, one of
 whose four rows is EH in disguise. What the walk lacks is a *return value* —
 it knows widths and construct names and discards them into a `&'static str`
-counter. The real hole is **83.5% of bodies having ≥1 operand outside the
-semantic model** ✅, decomposing into ten named constructs ✅:
+counter. The real hole is ~~**83.5% of bodies having ≥1 operand outside the
+semantic model** ✅~~ **88.61 % — `83.5 %` is REFUTED by the very table below
+it, see §3.0**, decomposing into ten named constructs ✅:
 
 | construct | bodies | cum. |
 |---|---:|---:|

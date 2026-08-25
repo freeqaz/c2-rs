@@ -411,6 +411,39 @@ impl GapReport {
             .sum()
     }
 
+    /// The same read-out over [`TuResult::fn_decode`] — the DECODE REACH map
+    /// (lane `w-decodereach`). A separate accessor because it is a separate
+    /// map, and the two maps are separate because a `decode-reach-*|IN-CLASS`
+    /// row landing in a swept map is precisely how `cflow-residue-inclass-\
+    /// offclass` more than doubled with nothing in the diff to explain it.
+    pub fn decode_total(&self, key: &str) -> usize {
+        self.results
+            .iter()
+            .map(|r| r.fn_decode.get(key).copied().unwrap_or(0))
+            .sum()
+    }
+
+    /// Every `fn_decode` row whose key starts with `prefix`, aggregated across
+    /// the scan and returned **sorted by key NAME**.
+    ///
+    /// **Never by mass, and that is load-bearing.** The rows this serves
+    /// include the first-blocker histogram, and the standing rule against
+    /// dispatching off a blocked-key size ranking has bound five times
+    /// (`#3505`); `w-joint3` shipped its own table sorted by name for the same
+    /// reason. A caller that wants a ranking has to write the sort itself, in
+    /// the open.
+    pub fn decode_rows_by_name(&self, prefix: &str) -> Vec<(String, usize)> {
+        let mut by: std::collections::BTreeMap<String, usize> = Default::default();
+        for r in &self.results {
+            for (k, n) in &r.fn_decode {
+                if let Some(rest) = k.strip_prefix(prefix) {
+                    *by.entry(rest.to_string()).or_default() += n;
+                }
+            }
+        }
+        by.into_iter().collect()
+    }
+
     /// **The read-out**: (in class ∩ emitted, emitted). The ratio is what
     /// `docs/ROADMAP.md` §8.2 ranks the plan by, and it is a **floor** — every
     /// emitted symbol the binding could not claim is residue, never a numerator.

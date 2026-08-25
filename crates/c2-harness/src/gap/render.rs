@@ -27,6 +27,248 @@ use super::{GapReport, TuClass, TuResult, PORT_WRITER_SECTIONS, WHOLE_TU_RECOGNI
 ///
 /// **`plan-*` is NECESSARY but NOT SUFFICIENT for `match`** and the block says
 /// so on every run. It is an instrument; the byte judge is unchanged.
+/// **DECODE REACH — its own block, under its own disclaimer** (lane
+/// `w-decodereach`, decision 13's row 4a(i) / I1).
+///
+/// `docs/FUNCTION_BYTE_MATCH.md` §0 is the standing template for every gradient
+/// added after FBM and this is one: never in `scripts/gate.sh`, namespaced
+/// keys, **licenses no emit**, and `NO-RESULT` — never a zero — over an empty
+/// scan.
+fn render_decode_reach(report: &GapReport) {
+    let d = |k: &str| report.decode_total(k);
+    let (observable, reached, stopped, nobody) = (
+        d("decode-reach-observable"),
+        d("decode-reach-reached"),
+        d("decode-reach-stopped"),
+        d("decode-reach-nobody"),
+    );
+    let graded = reached + stopped;
+    // **THE POSITIVE CHECK, FIRST.** "The run must have GRADED something" —
+    // never an enumeration of the ways it can be empty. A zero here prints
+    // NO-RESULT loudly and publishes no number at all.
+    if graded == 0 {
+        println!(
+            "\n\x20 DECODE REACH: NO-RESULT — the general decode was offered NO body with a \
+             body to decode ({observable} rows observed, {nobody} of them bodiless).\n\
+             \x20   Nothing was graded. This is not `decode-reach-stopped 0`; a lane quoting a \
+             reach number off this scan has no number."
+        );
+        return;
+    }
+    println!(
+        "\n\x20 DECODE REACH (w-decodereach) — the progress signal for the GENERAL DECODE \
+         (decision 13, row 4a(i) / I1). A CHARACTERIZATION instrument, NEVER a gate, and it \
+         LICENSES NO EMIT.\n\
+         \x20   REACH IS NOT ADMISSION and must never become it. A body that decodes is not a \
+         body the port may emit — a wrong emit scores strictly below the refusal it replaced \
+         (`docs/PROGRESS_METRIC.md`). The byte judge is unchanged: real `c2.dll` under wibo.\n\
+         \x20   Read the THREE DENOMINATORS as a containment, never as a ratio: \
+         observable ⊇ reached ⊇ verified."
+    );
+    let pct = |n: usize, den: usize| {
+        if den == 0 {
+            "n/a".to_string()
+        } else {
+            format!("{:.2}%", 100.0 * n as f64 / den as f64)
+        }
+    };
+    let (badm, brea, bmod) = (
+        d("decode-reach-bytes-observable"),
+        d("decode-reach-bytes-reached"),
+        d("decode-reach-bytes-modeled"),
+    );
+    let modeled = d("decode-reach-modeled");
+    println!(
+        "\x20   DECODER = `{}` — every number below is a property of THIS decoder. When the \
+         seam is replaced by a stronger one the reach is expected to DROP before it climbs; a \
+         drop across that boundary is a change of instrument, not a regression.\n\
+         \x20   ALL BODIES     observable {observable}  FRAME-reached {reached} ({})  \
+         MODEL-reached {modeled} ({})  stopped {stopped}  nobody {nobody}\n\
+         \x20   …BY BYTE       observable {badm}  frame {brea} ({})  model {bmod} ({}) — a body \
+         count and a byte count are two denominators and neither is quoted alone\n\
+         \x20     FRAME reach = the walk landed on the segment tail. MODEL reach = …AND every \
+         operand was in the decoder's modeled vocabulary. **Quote them together.** Frame reach \
+         is a framing claim and is nearly saturated here; model reach is the one with headroom, \
+         and it is the reading row 4a(i) is funded to move.",
+        super::decode::DECODER,
+        pct(reached, observable),
+        pct(modeled, observable),
+        pct(brea, badm),
+        pct(bmod, badm),
+    );
+    let (eobs, erea, ever) = (
+        d("decode-reach-emit-observable"),
+        d("decode-reach-emit-reached"),
+        d("decode-reach-verified"),
+    );
+    let (emod, evermod) = (
+        d("decode-reach-emit-modeled"),
+        d("decode-reach-verified-modeled"),
+    );
+    println!(
+        "\x20   EMITTED ONLY   observable {eobs}  frame {erea} ({})  model {emod} ({})  VERIFIED \
+         {ever} ({} of frame-reached) — `verified` is the BYTE JUDGE's own word \
+         (`FnByte::Exact`: bytes AND relocations), asked of the bodies the decode reached. \
+         unbound {} (published, never folded — {eobs} + unbound is the whole emitted census)\n\
+         \x20     …of the {ever} VERIFIED, {evermod} are also MODEL-reached. A body the judge \
+         calls exact that the decode does not model is a body whose bytes were NOT bought by \
+         modelling it.",
+        pct(erea, eobs),
+        pct(emod, eobs),
+        pct(ever, erea),
+        d("decode-reach-emit-unbound"),
+    );
+    // **THE THIRD STRENGTH and the I1 DIVERGENCE DETECTOR** (`w-unfuse`'s
+    // `decode_bodies` seam, board #3555).
+    let (gram, gna, ang) = (
+        d("decode-reach-grammar"),
+        d("decode-reach-grammar-not-admitted"),
+        d("decode-reach-admitted-not-grammar"),
+    );
+    println!(
+        "\x20   GRAMMAR-reached {gram} ({}) — off `IlBundle::decode_bodies`, a SECOND parse \
+         over the census's own segmentation.\n\
+         \x20     ADMISSION THAT IS NOT DECODE: grammar-not-admitted {gna}  \
+         admitted-not-grammar {ang}. **{gna} IS THE BASELINE, NOT ZERO**, and it is the size \
+         of a THIRD layer `w-unfuse`'s split does not reach: the grammar reads these bodies \
+         WHOLE and the census refuses them at `shape_to_function`'s SYMBOL BINDING, downstream \
+         of `AdmissionPolicy`. Every one is an `:eof` key. `reached_shape() == is_admitted()` \
+         IS zero by construction — but that is a tautology (`is_admitted` is defined as \
+         `reached_shape`), and a criterion that cannot fail has abstained, not passed \
+         (`#3336`). This pairing is against the CENSUS's verdict and it can fail; it does.\n\
+         \x20     So the I1 signal is the CHANGE in {gna}, measured against this baseline — \
+         never against 0.\n\
+         \x20     THE THREE STRENGTHS ARE NOT A CHAIN: grammar∧model {}  grammar-not-model {} \
+          model-not-grammar {}. `frame ⊇ model` holds; `grammar` contains neither and is \
+         contained in neither. Three questions, three numbers, no ladder.",
+        pct(gram, observable),
+        d("decode-reach-grammar-and-model"),
+        d("decode-reach-grammar-not-model"),
+        d("decode-reach-model-not-grammar"),
+    );
+    let gna_rows = report.decode_rows_by_name("decode-reach-grammar-not-admitted|");
+    if !gna_rows.is_empty() {
+        println!(
+            "\x20     …and WHICH census verdict refuses a body whose grammar the decode \
+             reached — {} distinct, sorted by name. A count of disagreements that cannot be \
+             looked at is not a repair set:",
+            gna_rows.len()
+        );
+        for (k, n) in gna_rows.iter().take(10) {
+            println!("\x20       {n:>8}  {k}");
+        }
+    }
+    // `ROADMAP_SLICING` §3's own predicate, measured here so the two can be
+    // compared instead of guessed at.
+    let (inm, offm, inden) = (
+        d("decode-reach-inmodel"),
+        d("decode-reach-offmodel"),
+        d("decode-reach-inmodel-denominator"),
+    );
+    println!(
+        "\x20   §3's PREDICATE  in-semantic-model {inm} ({} of {inden} scanned bodies)  \
+         off-model {offm} ({}) — this is `ROADMAP_SLICING_2026-08-21.md` §3's *\"≥1 operand \
+         outside the semantic model\"*, negated, over ITS population (every body a walk ran \
+         on, finished or not). **It is WIDER than MODEL reach above**, which also requires \
+         the walk to have reached the tail. Two predicates, two denominators, published side \
+         by side so neither can be taken for the other.",
+        pct(inm, inden),
+        pct(offm, inden),
+    );
+    // **THE CONTAINMENT NOBODY HAS ASKED**, and its own denominator beside it.
+    let (adm, admr, admn) = (
+        d("decode-reach-admitted"),
+        d("decode-reach-admitted-reached"),
+        d("decode-reach-admitted-not-reached"),
+    );
+    println!(
+        "\x20   ADMITTED ⊆ REACHED?  admitted {adm}  of which reached {admr}  NOT REACHED \
+         {admn} ({})\n\
+         \x20     This is NOT a known-answer-0 control. A body the incumbent parser accepts \
+         WHOLE that the general decode stops inside is two independent walkers disagreeing \
+         about the same bytes — a finding about the DECODE, not an alarm about this \
+         instrument.",
+        pct(admn, adm),
+    );
+    // **THE DISCRIMINATING CELL.** Printed with the threshold that reads it.
+    let sep = d(super::decode::SEPARATION_KEY);
+    println!(
+        "\x20   SEPARATION     reached-and-NOT-admitted {sep}  vs admitted {adm} — the \
+         discriminating cells. If this were 0 the instrument would be measuring ADMISSION \
+         wearing a reach key's name, which is `#3336` at program scale and the exact failure \
+         4a's risk column names.{}",
+        if sep == 0 {
+            "  ** ZERO — THIS INSTRUMENT IS NOT MEASURING REACH **"
+        } else {
+            ""
+        }
+    );
+    println!(
+        "\x20   controls (all known answer 0): partition-broken {}  population-broken {}  \
+         containment-broken {}   ·   GRADED {graded} cells",
+        d("decode-reach-partition-broken"),
+        d("decode-reach-population-broken"),
+        d("decode-reach-containment-broken"),
+    );
+    // The SECOND DERIVATION (#3288): the same quantity off a walk this lane did
+    // not write.
+    let incumbent = report.cflow_decoded_totals().0;
+    println!(
+        "\x20   second derivation: `GapReport::cflow_decoded_totals` (prose since long before \
+         this module, off a different map, by code this lane did not write) reads {incumbent}; \
+         this walk reads {reached}; disagreement {}. Known answer 0 — computing one quantity \
+         two ways and diffing them has caught a wrong figure in every lane that ran it (#3288).",
+        incumbent.abs_diff(reached),
+    );
+    // The first-blocker histogram — labelled, and sorted by NAME.
+    let stops = report.decode_rows_by_name("decode-reach-stop|");
+    println!(
+        "\x20   where the decode STOPPED — {} distinct productions over {stopped} bodies. \
+         **A FIRST-BLOCKER KEY IS NOT A DISTANCE AND NOT A RANKING** (#3131: the port stops \
+         at its first refusal by design, so every stopped body names exactly one production \
+         however many it has; 19 greedy rungs off such a histogram bought reach ZERO). Sorted \
+         by NAME, never by mass (#3505, bound five times). The byte row above is the distance:",
+        stops.len()
+    );
+    if stops.is_empty() {
+        println!("\x20     (none)");
+    }
+    for (k, n) in stops.iter().take(16) {
+        println!("\x20     {n:>8}  {k}");
+    }
+    if stops.len() > 16 {
+        println!(
+            "\x20     … and {} more, all in `gap-metric`-adjacent per-TU rows",
+            stops.len() - 16
+        );
+    }
+    // The admitted-not-reached decomposition: a repair set, not a count.
+    let anr = report.decode_rows_by_name("decode-reach-admitted-not-reached|");
+    if !anr.is_empty() {
+        println!(
+            "\x20   …and WHICH production stopped an ADMITTED body — {} distinct, sorted by \
+             name. A count of disagreements that cannot be looked at is not a repair set:",
+            anr.len()
+        );
+        for (k, n) in anr.iter().take(12) {
+            println!("\x20     {n:>8}  {k}");
+        }
+    }
+    // The 2xN judge cross — the emit-path consumer, printed whole.
+    let cross = report.decode_rows_by_name("decode-reach-emit|");
+    println!(
+        "\x20   IS WHAT IT REACHES RIGHT? — the byte judge's own verdict crossed with reach, \
+         over c2's own emitted COMDAT leaders. The `refused` column is the denominator on \
+         which the judge CANNOT speak and is printed as a number rather than left out:"
+    );
+    if cross.is_empty() {
+        println!("\x20     (none — no emitted function was bound)");
+    }
+    for (k, n) in cross.iter() {
+        println!("\x20     {n:>8}  {k}");
+    }
+}
+
 fn render_plan(report: &GapReport) {
     let ctl = report.plan_control();
     println!(
@@ -1536,6 +1778,7 @@ pub(super) fn print_factorization(report: &GapReport) {
             }
         }
     }
+    render_decode_reach(report);
     // ---- W-FENCECOUNT: the per-fence hold-out counter -----------------------
     //
     // The instrument the two-sided fence-pricing rule (CLAUDE.md) needs on the
@@ -1631,6 +1874,7 @@ mod tests {
             fn_cflow: Default::default(),
             fn_cflow_off: Default::default(),
         fn_cfg_admit: Default::default(),
+        fn_decode: Default::default(),
             fn_eh: Default::default(),
             fn_dispatch: Default::default(),
             fn_complete: Default::default(),

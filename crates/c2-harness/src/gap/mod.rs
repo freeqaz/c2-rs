@@ -39,6 +39,11 @@ mod classify;
 /// against real c2's COMDAT bytes. A GRADIENT under `FUNCTION_BYTE_MATCH.md`
 /// §0's separation rule: never in `gate.sh`, licenses no emit.
 pub mod blind;
+/// **DECODE REACH — how far the general decode gets, and whether what it
+/// reaches is right.** Lane `w-decodereach`, decision 13's row 4a(i) / I1. A
+/// GRADIENT under `FUNCTION_BYTE_MATCH.md` §0's separation rule: never in
+/// `gate.sh`, licenses no emit. **Reach is not admission.**
+pub mod decode;
 mod factors;
 pub mod fnbytes;
 pub mod fndiff;
@@ -223,6 +228,20 @@ pub struct TuResult {
     /// nothing else: no test covered it, and the number is not one this lane
     /// would have thought to read.
     pub fn_cfg_admit: BTreeMap<String, usize>,
+    /// **DECODE REACH** (lane `w-decodereach`, boards #3561–#3566) — how many
+    /// bodies the general decode reaches, crossed with what the byte judge says
+    /// about the ones it reached. Every row is `decode-reach-*`.
+    ///
+    /// **Its own map, and by now the reason is a repo rule rather than a
+    /// preference.** The two fields above it record the same lesson learned
+    /// twice: `GapReport::cflow_residue_control` sweeps `fn_cflow` rows by
+    /// suffix, so a row added there with a `|IN-CLASS` tail is folded into a
+    /// published number with nothing in the diff to explain it (517,425 →
+    /// 1,222,684, caught only by a base-vs-tip key identity diff). **Two maps
+    /// cannot collide.** This module's rows are *exactly* the shape that would
+    /// have been swept — `decode-reach-admitted-*` — so putting them anywhere
+    /// else would have repeated it a third time.
+    pub fn_decode: BTreeMap<String, usize>,
     /// **The exception-handling axis** (`docs/EH_RECORDS.md` §9.4, §10): which
     /// side of the `maxState` boundary each body falls on. Four row shapes, and
     /// the shape is in the key so no two populations can share a row:
