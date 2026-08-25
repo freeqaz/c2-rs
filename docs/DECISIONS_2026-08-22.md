@@ -576,3 +576,69 @@ the maintenance debt (`#3381`, the phantom `PROGRESS_METRIC.md` §5.2 citation,
 **Board:** `#3505` this decision · `#3506`–`#3511` `w-joint` ·
 `#3512`–`#3516` `w-latent` · `#3517`–`#3520` `w-relread` ·
 `#3521`–`#3524` `w-adjacency`. Next free `#3525`.
+
+## Decision 12 — wave 10: the #3509 read is funded, the w-biquad binaries are removed without a history rewrite, and the wave is funded whole (2026-08-25)
+
+The owner, verbatim, in reply to the structural review's three asks:
+
+> *"#1 funded. #2. remove from git and skip rewriting history. #3 fund it.
+> all of these are solid. please orchestrate opus subagents"*
+
+**What this decides**, in the order asked:
+
+1. **The `#3509` key→slice read is FUNDED** (0.5–1 day). Phase 1's ten
+   constructs have never been mapped to census keys — 3 of 10 carry an
+   opcode, 7 are prose — so prices are in **bodies**, arguments are in
+   **TUs**, and nothing in the tree converts between them. Until it runs,
+   *"can Phase 1 convert a TU"* is not decidable from any measurement here,
+   and decision 11's hold cannot be lifted or released on evidence. The
+   cheap half is already on disk (`docs/data/census_key_populations.tsv`,
+   785 blocker keys, sorted by NAME so it cannot be read as a ranking).
+2. **The 21 forbidden binaries under `work/w-biquad/` are removed from
+   `HEAD`, and history is NOT rewritten** — done by the coordinator before
+   this wave was dispatched (`2c0de2ad4`). `git rm --cached` only: the files
+   stay on disk, ignored; every commit hash since 2026-08-09 is untouched.
+   **`#3156` undercounted by 10** — it named the 11 `.obj` and never counted
+   the 10 `_CL_*` IL captures, which appeared on no row at all. The row is
+   corrected and closed from `HEAD`; `work/w-biquad/REMOVED_ARTIFACTS.md`
+   carries the regeneration path per class. **The funnel check `#3156`
+   prescribes is still not built**, and is item 1 of the hygiene lane below.
+3. **Wave 10 is funded whole**, dispatched as Opus subagents under the
+   coordinator, per the three tracks of `ROADMAP.md` §11.6.
+
+**What this does NOT decide.** Phase 1 stays **held** — this wave funds the
+read that makes the ruling possible, not the ruling. No Phase-1 slice is
+dispatched. Rows 4a/4b remain unapproved; step 5's NO-GO clauses stand; the
+byte judge is untouched; a wrong emit still scores below the refusal it
+replaced.
+
+Four lanes, dispatched concurrently on Opus subagents:
+
+| lane | kind | what it buys | price carried in |
+|---|---|---|---|
+| `w-keymap` | characterization (**primary**) | **`#3509`**: map Phase 1's ten constructs to census keys by READING the decode sites, and publish the TU-denominated reach of each. The deliverable is the artifact the whole stop/continue debate has been conducted without. **Must not produce a ranking** (`#3505`, bound five times) and must state which of the ten it CANNOT key rather than guessing | `w-joint3` rung §5, §9 item 1 · `#3509` |
+| `w-permeasure` | characterization | the **permuter pre-measurement**: are hand-written decomp near-misses inlining-dominated the way the port's own wrong-body population is? `DIFF_STRUCTURE.md` measured the port's failures (0 pure reorderings, 5,173 of 5,189 substituted words differ in opcode); **nothing has measured the owner's actual permuter case**, and `#3369` is that conflation. One day of measuring decides which permuter to build; building first risks weeks on the wrong search space | `DECISIONS_2026-08-22.md` § "Recorded from the same brief" · `#3369` |
+| `w-hygiene` | construct | five named defects, each blocking something and each priced: **experiment F** (~15 min, registered-unrun, blocks every historical cost re-run and `#3523`'s attribution); the **`repo_root()` runtime fix** (one function — closes `#3470` AND `#3525` from one site); `scripts/configure_existing_worktree.sh`'s **two** defects (`#3500` silent no-op, `#3516` the `bench` mislabel); the `#3513` NUL fix (one character × 3); and the `#3156` funnel check that is still not built | `w-adjacency` rung §7.3, §7.7 · `w-3475` §10.1 · `w-latent` §8.1, §8.4 |
+| `w-relsite` | characterization | `w-relread`'s top-ranked follow-on (~½ day): the IL-opcode → relation-code site, **still unnamed after two lanes**, which closes `w-c7`'s W2. Read-before-probe: this retires a question two lanes argued from tables instead of from the code | `w-relread` rung §9 item 1 |
+
+**Concurrency fences.** `w-hygiene` is the only lane permitted to edit
+`crates/` (`c2-reference/src/lib.rs`, `c2-il/.../bundle.rs`) and `scripts/`;
+it owns both. `w-keymap`, `w-permeasure` and `w-relsite` are docs-only, zero
+`crates/` bytes, and STOP-AND-REPORT if a `crates/` edit looks necessary.
+`w-keymap` and `w-relsite` both read `crates/c2-il` decode sites — **reading
+is unfenced, writing is not**.
+
+**Deliberately not dispatched:** every Phase-1 slice (still held — this wave
+produces the evidence, and the ruling is the owner's); C7's one-arm
+`select.rs:435` variant (still takeable); the against-zero emitters (~1 day,
+queued behind `w-relsite` which shares its subject); `DIFF_STRUCTURE.md`'s
+rescan (cheap, but `w-permeasure` may moot its framing); `#3510`'s diagnosis
+(named in `w-hygiene`'s brief as a stretch, not a deliverable); the
+`STATUS.md` block regeneration (needs a quiet box, coordinator's); a history
+rewrite of the w-biquad binaries (owner declined, deliberately).
+
+**Board:** `#3527` this decision · `#3528`–`#3533` `w-keymap` ·
+`#3534`–`#3538` `w-permeasure` · `#3539`–`#3545` `w-hygiene` ·
+`#3546`–`#3550` `w-relsite`. Next free `#3551`.
+
+**Nothing is waiting on the owner.**
