@@ -72,28 +72,49 @@ fn render_decode_reach(report: &GapReport) {
             format!("{:.2}%", 100.0 * n as f64 / den as f64)
         }
     };
-    let (badm, brea) = (
+    let (badm, brea, bmod) = (
         d("decode-reach-bytes-observable"),
         d("decode-reach-bytes-reached"),
+        d("decode-reach-bytes-modeled"),
     );
+    let modeled = d("decode-reach-modeled");
     println!(
-        "\x20   ALL BODIES     observable {observable}  reached {reached} ({})  stopped \
-         {stopped}  nobody {nobody}\n\
-         \x20   …BY BYTE       observable {badm}  reached {brea} ({}) — a body count and a byte \
-         count are two denominators and neither is quoted alone",
+        "\x20   DECODER = `{}` — every number below is a property of THIS decoder. When the \
+         seam is replaced by a stronger one the reach is expected to DROP before it climbs; a \
+         drop across that boundary is a change of instrument, not a regression.\n\
+         \x20   ALL BODIES     observable {observable}  FRAME-reached {reached} ({})  \
+         MODEL-reached {modeled} ({})  stopped {stopped}  nobody {nobody}\n\
+         \x20   …BY BYTE       observable {badm}  frame {brea} ({})  model {bmod} ({}) — a body \
+         count and a byte count are two denominators and neither is quoted alone\n\
+         \x20     FRAME reach = the walk landed on the segment tail. MODEL reach = …AND every \
+         operand was in the decoder's modeled vocabulary. **Quote them together.** Frame reach \
+         is a framing claim and is nearly saturated here; model reach is the one with headroom, \
+         and it is the reading row 4a(i) is funded to move.",
+        super::decode::DECODER,
         pct(reached, observable),
+        pct(modeled, observable),
         pct(brea, badm),
+        pct(bmod, badm),
     );
     let (eobs, erea, ever) = (
         d("decode-reach-emit-observable"),
         d("decode-reach-emit-reached"),
         d("decode-reach-verified"),
     );
+    let (emod, evermod) = (
+        d("decode-reach-emit-modeled"),
+        d("decode-reach-verified-modeled"),
+    );
     println!(
-        "\x20   EMITTED ONLY   observable {eobs}  reached {erea} ({})  VERIFIED {ever} ({} of \
-         reached) — `verified` is the BYTE JUDGE's own word (`FnByte::Exact`: bytes AND \
-         relocations), asked of the bodies the decode reached. unbound {}",
+        "\x20   EMITTED ONLY   observable {eobs}  frame {erea} ({})  model {emod} ({})  VERIFIED \
+         {ever} ({} of frame-reached) — `verified` is the BYTE JUDGE's own word \
+         (`FnByte::Exact`: bytes AND relocations), asked of the bodies the decode reached. \
+         unbound {} (published, never folded — {eobs} + unbound is the whole emitted census)\n\
+         \x20     …of the {ever} VERIFIED, {evermod} are also MODEL-reached. A body the judge \
+         calls exact that the decode does not model is a body whose bytes were NOT bought by \
+         modelling it.",
         pct(erea, eobs),
+        pct(emod, eobs),
         pct(ever, erea),
         d("decode-reach-emit-unbound"),
     );
@@ -131,6 +152,16 @@ fn render_decode_reach(report: &GapReport) {
         d("decode-reach-partition-broken"),
         d("decode-reach-population-broken"),
         d("decode-reach-containment-broken"),
+    );
+    // The SECOND DERIVATION (#3288): the same quantity off a walk this lane did
+    // not write.
+    let incumbent = report.cflow_decoded_totals().0;
+    println!(
+        "\x20   second derivation: `GapReport::cflow_decoded_totals` (prose since long before \
+         this module, off a different map, by code this lane did not write) reads {incumbent}; \
+         this walk reads {reached}; disagreement {}. Known answer 0 — computing one quantity \
+         two ways and diffing them has caught a wrong figure in every lane that ran it (#3288).",
+        incumbent.abs_diff(reached),
     );
     // The first-blocker histogram — labelled, and sorted by NAME.
     let stops = report.decode_rows_by_name("decode-reach-stop|");

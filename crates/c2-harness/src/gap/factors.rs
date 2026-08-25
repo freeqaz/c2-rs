@@ -2466,15 +2466,27 @@ impl GapReport {
                 // The denominator FIRST, always.
                 ("decode-reach-observable", observable),
                 ("decode-reach-reached", reached),
+                // **THE SECOND, STRONGER STRENGTH.** `frame ⊇ model`. Frame
+                // reach is a framing claim and is nearly saturated on this
+                // workload; model reach is the one with headroom, and quoting
+                // the first without the second would be this instrument's own
+                // over-claim.
+                ("decode-reach-modeled", d("decode-reach-modeled")),
                 ("decode-reach-stopped", stopped),
                 ("decode-reach-nobody", nobody),
                 ("decode-reach-bytes-observable", d("decode-reach-bytes-observable")),
                 ("decode-reach-bytes-reached", d("decode-reach-bytes-reached")),
+                ("decode-reach-bytes-modeled", d("decode-reach-bytes-modeled")),
                 // The emitted population — a SECOND denominator, never mixed
                 // with the first.
                 ("decode-reach-emit-observable", d("decode-reach-emit-observable")),
                 ("decode-reach-emit-reached", d("decode-reach-emit-reached")),
+                ("decode-reach-emit-modeled", d("decode-reach-emit-modeled")),
                 ("decode-reach-verified", d("decode-reach-verified")),
+                (
+                    "decode-reach-verified-modeled",
+                    d("decode-reach-verified-modeled"),
+                ),
                 (
                     "decode-reach-emit-bytes-observable",
                     d("decode-reach-emit-bytes-observable"),
@@ -2517,6 +2529,36 @@ impl GapReport {
             m.push((
                 "decode-reach-containment-broken",
                 d("decode-reach-containment-broken").to_string(),
+            ));
+            // **THE SECOND DERIVATION** (#3288's discipline — computing one
+            // quantity two ways and diffing them has caught a wrong figure in
+            // every lane that ran it).
+            //
+            // `GapReport::cflow_decoded_totals` has computed a reach number
+            // since long before this module existed — off `TuResult::fn_cflow`,
+            // by code this lane did not write, printed as PROSE at
+            // `cli/gap.rs:679` and collected by nothing. This walk computes the
+            // same quantity off its own map. **They must agree exactly.**
+            //
+            // It is a real control and not a restatement: the two walks differ
+            // in their key spelling, their map, their skip rules for `|`
+            // cross-tab rows, and their treatment of `cf-no-body`. A
+            // disagreement means
+            // one of them is counting a population the other is not — which is
+            // exactly the defect that made `cflow-residue-inclass-offclass`
+            // double.
+            let incumbent = self.cflow_decoded_totals().0;
+            m.push(("decode-reach-incumbent", incumbent.to_string()));
+            m.push((
+                "decode-reach-incumbent-disagree",
+                incumbent.abs_diff(reached).to_string(),
+            ));
+            // Which decoder produced every number above.
+            m.push((
+                Box::leak(
+                    format!("decode-reach-decoder-{}", super::decode::DECODER).into_boxed_str(),
+                ),
+                d(&format!("decode-reach-decoder|{}", super::decode::DECODER)).to_string(),
             ));
             // **THE POSITIVE CHECK.** How many cells this instrument actually
             // graded. A zero here is a loud failure for any lane quoting these

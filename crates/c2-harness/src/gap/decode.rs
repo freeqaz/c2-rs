@@ -120,6 +120,18 @@ pub const POP_ENV: &str = "C2RS_DECODE_REACH_POP";
 /// ways it can be empty."*
 pub const SEPARATION_KEY: &str = "decode-reach-reached-not-admitted";
 
+/// **WHICH DECODER PRODUCED THESE NUMBERS.** Recorded on every scan as
+/// `decode-reach-decoder|<name>`, so two scans taken against two decoders can
+/// never be compared or summed without the difference being visible.
+///
+/// This is `fnbyte-blind-level`'s discipline and it matters more here: the
+/// number this instrument publishes is a property of the decoder at the seam,
+/// and when lane `w-unfuse` (or a later I1 slice) replaces it, **the reach
+/// number is expected to DROP** — a stronger decode reaches less before it
+/// reaches more. A drop across that boundary is a change of instrument, not a
+/// regression, and only a recorded decoder identity can tell the two apart.
+pub const DECODER: &str = "statement-layer";
+
 /// Whether the instrument runs. An unparseable value is **refused loudly**
 /// rather than silently defaulted: a scan that quietly measured a different
 /// thing would publish a number against the wrong denominator, which is the one
@@ -241,6 +253,31 @@ pub fn reach_of_cflow(cflow: &str) -> Reach {
     Reach::Stopped
 }
 
+/// **REACH HAS TWO STRENGTHS AND PUBLISHING ONLY THE FIRST WOULD BE THE
+/// OVER-CLAIM THIS INSTRUMENT EXISTS TO PREVENT.**
+///
+/// [`reach_of_cflow`] answers *"did the walk land on the segment tail"* —
+/// **FRAME reach**. That is a framing claim, and on this workload it is nearly
+/// saturated. It is **not** the claim row 4a(i) is funded to make: a general
+/// op-level decode has to produce a consumable structure, and a walk can reach
+/// a tail while skipping operands it has no model for.
+///
+/// **MODEL reach** is the stronger reading, and the tree already computes its
+/// input: the `+expr-modeled` suffix means *every operand this body carries was
+/// in the decoder's modeled vocabulary*, so the body is blocked on control flow
+/// **alone**. `frame ⊇ model`, and the gap between them is the honest size of
+/// what a general decode still has to learn.
+///
+/// **Its caveat is quoted rather than discovered**, from the incumbent axis's
+/// own printed line: `Modeled` *"neither contains nor is contained in the
+/// class — it is a different predicate"*, and **85,806 straight-line bodies are
+/// `+expr-modeled` and the port REFUSES them anyway**. So model reach is not
+/// admission either, in **both** directions, which is exactly what makes it a
+/// decode-side number.
+pub fn modeled_of_cflow(cflow: &str) -> bool {
+    reach_of_cflow(cflow) == Reach::Reached && cflow.ends_with("+expr-modeled")
+}
+
 /// [`reach_of_cflow`] against a census row. The string form is the one the
 /// tests drive, so the grading is exercised without a toolchain and without
 /// constructing a `c2-il` type this crate does not own.
@@ -291,7 +328,8 @@ pub(super) fn measure(
     let (mut observable, mut reached, mut stopped, mut nobody) = (0usize, 0, 0, 0);
     let (mut admitted, mut admitted_reached) = (0usize, 0);
     let (mut reached_not_admitted, mut admitted_not_reached) = (0usize, 0);
-    let (mut bytes_observable, mut bytes_reached) = (0usize, 0);
+    let (mut bytes_observable, mut bytes_reached, mut bytes_modeled) = (0usize, 0, 0);
+    let mut modeled = 0usize;
     for (c, _) in census.iter() {
         let (r, adm) = grade_one(&c.cflow, c.verdict.in_class());
         observable += 1;
@@ -301,6 +339,14 @@ pub(super) fn measure(
             Reach::Reached => {
                 reached += 1;
                 bytes_reached += c.seg_len;
+                // **MODEL reach — the stronger strength.** See
+                // [`modeled_of_cflow`]. Counted inside the `Reached` arm, so
+                // `modeled ⊆ reached` holds by construction AND is checked
+                // below anyway, because "by construction" is what `#3336` was.
+                if modeled_of_cflow(&c.cflow) {
+                    modeled += 1;
+                    bytes_modeled += c.seg_len;
+                }
             }
             Reach::Stopped => stopped += 1,
             Reach::NoBody => nobody += 1,
@@ -341,8 +387,10 @@ pub(super) fn measure(
         ("decode-reach-admitted-reached", admitted_reached),
         ("decode-reach-admitted-not-reached", admitted_not_reached),
         (SEPARATION_KEY, reached_not_admitted),
+        ("decode-reach-modeled", modeled),
         ("decode-reach-bytes-observable", bytes_observable),
         ("decode-reach-bytes-reached", bytes_reached),
+        ("decode-reach-bytes-modeled", bytes_modeled),
     ] {
         if n > 0 {
             *res.fn_decode.entry(k.into()).or_insert(0) += n;
@@ -366,6 +414,7 @@ pub(super) fn measure(
             }
         }
         let (mut emit_obs, mut emit_reached, mut emit_verified) = (0usize, 0, 0);
+        let (mut emit_modeled, mut emit_verified_modeled) = (0usize, 0);
         let (mut emit_bytes_obs, mut emit_bytes_reached) = (0usize, 0);
         for (name, v) in fbm.iter() {
             let Some([i]) = claim.get(name.as_str()).map(Vec::as_slice) else {
@@ -395,6 +444,17 @@ pub(super) fn measure(
             if r == Reach::Reached && v == &FnByte::Exact {
                 emit_verified += 1;
             }
+            if modeled_of_cflow(&c.cflow) {
+                emit_modeled += 1;
+                // **The pair that says whether MODEL reach is load-bearing for
+                // byte-exactness.** If the judge calls a body exact while the
+                // decode does not model it, then producing a full op-level
+                // model of that body is not what bought the bytes — which is a
+                // measured caution on how row 4a(i)'s progress may be read.
+                if v == &FnByte::Exact {
+                    emit_verified_modeled += 1;
+                }
+            }
             // The 2×N cross. This is the answer to "is what it reaches right",
             // in the judge's units, WITH the denominator on which the judge
             // cannot speak printed in the same table (the `refused` column).
@@ -413,7 +473,9 @@ pub(super) fn measure(
         for (k, n) in [
             ("decode-reach-emit-observable", emit_obs),
             ("decode-reach-emit-reached", emit_reached),
+            ("decode-reach-emit-modeled", emit_modeled),
             ("decode-reach-verified", emit_verified),
+            ("decode-reach-verified-modeled", emit_verified_modeled),
             ("decode-reach-emit-bytes-observable", emit_bytes_obs),
             ("decode-reach-emit-bytes-reached", emit_bytes_reached),
         ] {
@@ -423,11 +485,23 @@ pub(super) fn measure(
         }
         // **THE CONTAINMENT INVARIANT, checked and not assumed** — `verified`
         // ⊆ `emit-reached` ⊆ `emit-observable`. Known answer 0.
-        if emit_verified > emit_reached || emit_reached > emit_obs {
+        if emit_verified > emit_reached
+            || emit_reached > emit_obs
+            || emit_modeled > emit_reached
+            || emit_verified_modeled > emit_verified
+        {
             *res.fn_decode
                 .entry("decode-reach-containment-broken".into())
                 .or_insert(0) += 1;
         }
+    }
+    // The census-population containment, checked for the same reason: `modeled`
+    // is inside the `Reached` arm **by construction**, and a criterion that
+    // holds by construction is precisely what `#3336` measured abstaining.
+    if modeled > reached {
+        *res.fn_decode
+            .entry("decode-reach-containment-broken".into())
+            .or_insert(0) += 1;
     }
 
     // ---- the two known-answer controls, both filed POSITIVELY ---------------
@@ -459,6 +533,11 @@ pub(super) fn measure(
     //
     //     The size AND the direction, because an aggregate cannot distinguish
     //     `+1400/-27` from `+1373/-0` (`ROADMAP_SLICING` §6 rule 3).
+    // Which decoder these numbers came from, per TU, so a report cannot merge
+    // two scans taken against two decoders without the merge being visible.
+    *res.fn_decode
+        .entry(format!("decode-reach-decoder|{DECODER}"))
+        .or_insert(0) += 1;
     let sibling = res.fn_in_class + res.fn_blockers.values().sum::<usize>();
     if observable != sibling {
         *res.fn_decode
@@ -526,6 +605,62 @@ mod tests {
             "the whole-string reading must disagree — if it does not, this \
              control cannot fail and is worthless"
         );
+    }
+
+    /// **THE TWO STRENGTHS ARE A CONTAINMENT, AND THE KNOB SEPARATES THEM —
+    /// ONE KEY MUST NOT MOVE AND THE OTHER MUST.**
+    ///
+    /// This is the pair that makes `C2RS_CFRESIDUE_ADMIT` a real control rather
+    /// than a green absence. That variable admits `off_class` arms, which moves
+    /// the `+expr-modeled` suffix and **cannot** move the walk's Ok/Err:
+    ///
+    /// * FRAME reach must be **invariant** — the negative control.
+    /// * MODEL reach must **move** — the positive one, which is S0's
+    ///   `the_relaxation_is_actually_wired_to_something` lesson: a pin showing
+    ///   only that a parameter is inert is equally consistent with the
+    ///   parameter being wired to nothing at all.
+    #[test]
+    fn the_knob_moves_model_reach_and_must_not_move_frame_reach() {
+        // The same body, with and without the suffix the knob controls.
+        let (off, on) = ("cflow-straight", "cflow-straight+expr-modeled");
+        // Negative control: frame reach is invariant.
+        assert_eq!(reach_of_cflow(off), reach_of_cflow(on));
+        assert_eq!(reach_of_cflow(off), Reach::Reached);
+        // Positive control: model reach is NOT.
+        assert!(!modeled_of_cflow(off));
+        assert!(modeled_of_cflow(on));
+        assert_ne!(modeled_of_cflow(off), modeled_of_cflow(on));
+    }
+
+    /// **`model ⊆ frame`, and a body that never reached can never be modeled.**
+    /// The containment is asserted at the predicate, not only at the totals,
+    /// because a totals-level check on a quantity that holds by construction is
+    /// what `#3336` measured abstaining.
+    #[test]
+    fn model_reach_is_contained_in_frame_reach() {
+        for cflow in [
+            "cf-expr-0x05",
+            "cf-no-body",
+            "cf-expr-0x05+expr-modeled", // not a real value; the guard must hold anyway
+        ] {
+            assert!(
+                !modeled_of_cflow(cflow),
+                "{cflow} is modeled without having reached"
+            );
+        }
+        for cflow in ["cflow-straight+expr-modeled", "cflow-if-1+expr-modeled"] {
+            assert!(modeled_of_cflow(cflow));
+            assert_eq!(reach_of_cflow(cflow), Reach::Reached);
+        }
+    }
+
+    /// The decoder identity is recorded, because the reach number is a property
+    /// of the decoder at the seam and is **expected to drop** when a stronger
+    /// one replaces it.
+    #[test]
+    fn the_decoder_identity_is_recorded() {
+        assert_eq!(DECODER, "statement-layer");
+        assert!(!DECODER.is_empty());
     }
 
     /// **REACH IS NOT ADMISSION, pinned on one row from both sides.** The
