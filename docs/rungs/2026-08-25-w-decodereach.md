@@ -8,7 +8,7 @@
     Fixtures:  none — instrument rung: the `decode-reach-*` family
                (`crates/c2-harness/src/gap/decode.rs`) + its metrics and printed block
     Census:    +0 — no acceptance predicate moved; `crates/c2-il` is READ, never written
-    Base:      master `5db186426`
+    Base:      master `5a013b8f4` (the `w-unfuse` merge) — rebased; first round was `5db186426`
     Prereg:    `docs/rungs/_2026-08-25-w-decodereach-prereg.md`, the FIRST commit on
                `wt-w-decodereach` (`83b551585`)
     Board:     #3561–#3566
@@ -407,7 +407,181 @@ results 3–4), and the knob pair (§1 result 5).
 
 ---
 
-## 10. FOUND AND NOT TAKEN
+## 11. SECOND ROUND — re-measured over `w-unfuse`'s split (base `5a013b8f4`)
+
+`w-unfuse` merged. The lane rebased onto master and re-ran the pair rather than
+carrying its numbers across, which §9 said it owed.
+
+**Every pre-existing `decode-reach-*` key is identical to the digit.**
+
+| key | before the split | after | delta |
+|---|---:|---:|---:|
+| `decode-reach-observable` | 2,417,794 | 2,417,794 | **0** |
+| `decode-reach-reached` (FRAME) | 2,375,390 | 2,375,390 | **0** |
+| `decode-reach-modeled` (MODEL) | 275,295 | **275,295** | **0** |
+| `decode-reach-stopped` · `-nobody` | 41,657 · 747 | 41,657 · 747 | **0** |
+| `decode-reach-admitted` | 707,728 | 707,728 | **0** |
+| `decode-reach-verified` | 35,912 | 35,912 | **0** |
+
+**It did not move, and here is what the split did and did not change.** Two
+structural reasons, both checkable without trusting the run:
+
+1. **`w-unfuse` changed zero bytes of `shapes::control_flow`**, which is this
+   instrument's seam — and that module *was already a decode-only layer*, which
+   is `w-unfuse`'s own **#3559** and `w-ilarms`'s finding independently.
+2. **`AdmissionPolicy::RecognizedShape` is the identity on the decode result**,
+   so the admitted set could not move either. `w-unfuse`'s **#3558** measured
+   the same thing from the other side — 2,417,794 census rows byte-identical per
+   symbol, the same denominator as `decode-reach-observable` here, which is the
+   first cross-lane agreement the two lanes have.
+
+**So the split made the two questions separately *askable*; it did not change
+either answer.** That is what a prerequisite is. Board **#3580**.
+
+**What the split DID buy this instrument is a third strength and a detector**,
+off the surface it built for exactly that — see §13.
+
+---
+
+## 12. `ROADMAP_SLICING` §3's TWO FIGURES — one corroborated to the body, one refuted
+
+The coordinator flagged a five-point disagreement in a consumer this lane had
+not swept. It is not definitional. **One figure is right and one is wrong.**
+
+### 12.1 The `98.2 %` is the same measurement, and its partition matches exactly
+
+§3: *"a decode-only walker already reaches **2,362,034 of 2,404,438 bodies
+(98.2%)** … only **41,657 bodies (1.73%) are undecoded**."*
+
+| term | §3 (its corpus) | here (this corpus) | delta |
+|---|---:|---:|---:|
+| reached | 2,362,034 | 2,375,390 | +13,356 |
+| **undecoded** | **41,657** | **41,657** | **0** |
+| no body to decode | 747 (derived) | **747** | **0** |
+| total | 2,404,438 | 2,417,794 | +13,356 |
+
+**The whole corpus difference is in the `reached` term and the other two are
+identical to the body.** Two walks, two trees, one answer. Same predicate.
+
+### 12.2 The `83.5 %` is WRONG, and §3's own table refutes it
+
+The ten constructs sum to **2,036,842** at cumulative **97.3 %**, so the table's
+denominator is `2,036,842 / 0.973 = 2,093,363`. At 83.5 % that denominator would
+be `0.835 × 2,404,438 = 2,007,706` — **smaller than the rows it contains**, so
+the ten constructs would sum to **101.5 % of their own population**. A
+first-reason partition cannot do that. 2,093,363 is **87.1 %** of 2,404,438.
+
+Measured here, from the same `cflow-offclass-*` decomposition the table is built
+from — and the identification is checked twice, not asserted:
+
+* the rows sum to **2,100,095**, which is `reached − modeled` (2,375,390 −
+  275,295) **exactly**; and
+* `load-type` reproduces at **221,583**, *identical to the body* to §3's row.
+
+| | §3 | measured |
+|---|---:|---:|
+| ≥1 operand outside the semantic model | ~~83.5 %~~ | **88.61 %** (2,141,752 of 2,417,047) |
+| the complement, "in the semantic model" | ~~16.5 %~~ | **11.39 %** (275,295) |
+
+**So it is a real disagreement, not two definitions — and the hole row 4a(i)
+must fill is 5 points WIDER than §3 priced it, not narrower.**
+
+### 12.3 And the complement equals MODEL reach exactly, which §3 could not have known
+
+`decode-reach-inmodel` is **275,295** and `decode-reach-modeled` is **275,295**.
+The two predicates differ *in principle* — §3's counts a body that stopped
+before anything took it off-model; MODEL reach requires the walk to have reached
+the tail — so their agreeing is a **measurement**: **every one of the 41,657
+undecoded bodies had already left the semantic model before the walk stopped.**
+
+The difference in principle is pinned by
+`the_slicing_predicate_is_wider_than_model_reach`, so the coincidence can never
+be read as an identity by a later tree where it stops holding. Board **#3581**.
+
+### 12.4 The sweep — ENUMERATED, not grepped-and-stopped
+
+`w-ilarms` found a banner's consumer list short by two, both on a shelf no topic
+grep reaches. So the shelf was enumerated: **every live doc that prices 4a(i)/I1
+at all** — `ARCHITECTURE_PROPOSAL_2026-08-20.md`, `ARCH_REVIEW_2026-08-21.md`,
+`STEP5_PRICING_2026-08-21.md`, `GOAL_DECISION_2026-08-21.md`,
+`DECISIONS_2026-08-22.md`, `whitebox/READ_PLAN_2026-08-21.md`,
+`whitebox/WB_MIDDLE_INTERFACES.md`, `whitebox/ref/P_ILRECORD.md`,
+`FUNCTION_BYTE_MATCH.md`, `IL_DECODE_REACH.md`, `ROADMAP_SLICING_2026-08-21.md`.
+
+**Result: exactly one of them quotes a reach figure — `ROADMAP_SLICING` §3.**
+The others price I1 off the *structural* claim (*"`BodyShape`'s 35 grammars are
+simultaneously the admission gate"*), which is `w-unfuse`'s to amend and which
+its **#3559** already has. Amended in place, inline at the struck line, per
+`DOC_CONVENTIONS.md` §2 mitigation 1.
+
+**Every other `98.2 %` in the tree is a different 98.2 %** and the enumeration is
+what establishes that rather than a grep that stopped: `DIFF_STRUCTURE.md` (diff
+clusters), `ROADMAP.md` ×2 (the `26` separator; virtual member functions),
+`rungs/2026-08-02-w-witness.md`, `rungs/2026-08-06-w-bytes.md`. None is reach.
+`rungs/2026-08-20-refrev.md`'s `2404438` is the **census** denominator in a dated
+rung record and is left alone.
+
+---
+
+## 13. THE THIRD STRENGTH, AND THE LAYER THE SPLIT DID NOT REACH
+
+`w-unfuse` built `IlBundle::decode_bodies()` for this instrument (**#3555**).
+Consuming it adds **GRAMMAR** reach — *did the decode reach a whole-function
+grammar* — and a detector.
+
+| strength | key | bodies | of 2,417,794 |
+|---|---|---:|---:|
+| FRAME | `decode-reach-reached` | 2,375,390 | 98.25 % |
+| **GRAMMAR** | `decode-reach-grammar` | **711,729** | **29.44 %** |
+| MODEL | `decode-reach-modeled` | 275,295 | 11.39 % |
+
+**They are not a chain, and the cells say so**: `grammar∧model` **190,865**,
+`grammar-not-model` **520,864**, `model-not-grammar` **84,430**. `frame ⊇ model`
+holds; grammar contains neither and is contained in neither.
+
+### 13.1 The detector reads 4,001 on its first run — and 4,001 is the baseline
+
+`decode-reach-grammar` **711,729** vs `decode-reach-admitted` **707,728**.
+`admitted-not-grammar` is **0**; `grammar-not-admitted` is **4,001**, decomposed
+in the same walk that filed it:
+
+| census verdict | bodies |
+|---|---:|
+| `callee-unresolved-tail-call:eof` | 2,282 |
+| `data-sym-unresolved:eof` | 1,665 |
+| `data-sym-not-extern:eof` | 52 |
+| `callee-defined-in-tu:eof` · `data-sym-strlit-fenced:eof` | 1 · 1 |
+
+**Every one is `:eof`** — the parse ran to the end of the segment and the refusal
+came *afterwards* — and every one is **symbol binding**. `census_functions` runs
+`shape_to_function` after the admission predicate (`census.rs:957`), and that
+step resolves callees and data symbols through `.gl`; `Decoded` is upstream of
+it.
+
+> **`w-unfuse` unfused the GRAMMAR layer. There is a third layer under it —
+> symbol binding — still fused into the census's admission verdict, and it is
+> 4,001 bodies wide.**
+
+### 13.2 …and shipping the pairing that reads zero would have been `#3336` twice in one lane
+
+`Decoded::is_admitted` is *defined* as `Decoded::reached_shape`, so comparing
+them **cannot fail**. That pairing reads 0 forever and says nothing — the same
+shape as this lane's own first population control (**#3565**), in the same lane,
+for the second time. The shipped detector pairs against the **census's** verdict,
+which can disagree, and does.
+
+**So the I1 progress signal is the CHANGE in 4,001, measured against that
+baseline — never its distance from 0.** A lane grading its first slice against
+*"0 means nothing landed"* would have started 4,001 off.
+
+Three of the five keys are exactly S0's relaxation population (`data-sym-*`,
+`#3392`) and one is `#3511`(b)'s named catch-all. **None of the bodies is new.
+What is new is that they are the residue of an incomplete unfusing rather than
+ordinary blockers.** Board **#3582**.
+
+---
+
+## 14. FOUND AND NOT TAKEN
 
 1. **`decode-reach-verified` is `fnbyte-exact` today.** It becomes informative the moment
    frame reach stops being 100 % of the judge-verified population — i.e. the moment a
