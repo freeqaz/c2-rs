@@ -1,0 +1,101 @@
+# PHASE 1's TEN CONSTRUCTS -> CENSUS KEYS, with both denominators. Board #3509 / lane w-keymap, 2026-08-25.
+#
+# NOT A RANKING. Ordered C1..C10 (ROADMAP_SLICING_2026-08-21.md section 5's own order) and, within a
+# construct, by key NAME. #3505's rule -- a lane dispatched off a blocked-key size ranking finds the
+# ranking was an artifact -- has bound five times. Do not re-sort this file by any count column.
+#
+# THE TWO DENOMINATORS ARE DIFFERENT INSTRUMENTS AND MUST NEVER BE SUMMED OR COMPARED AS ONE NUMBER:
+#
+#  cf_mass       ROADMAP_SLICING section 3's published body count. It is
+#                `gap-metric cflow-offclass-<reason>-inclass` PLUS `-blocked`, from the DECODE-ONLY
+#                control-flow walker (control_flow.rs `Scan::off_class`), over 2,417,794 census slots.
+#                It COUNTS BODIES THE PORT ALREADY EMITS: 518,956 of the residue is in class.
+#  cf_inclass    the in-class half of cf_mass -- bodies this construct 'covers' that need no work.
+#  cf_blocked    the blocked half.
+#  bodies        FIRST-BLOCKER count on the CENSUS route (`IlBundle::census_functions`, the 4C 4F 11
+#                splitter; key = `FnVerdict::key` = `Block::feature`), of 1,710,066 blocked bodies.
+#                NOT a distance and NOT a reach: the port stops at the first refusal by design, so
+#                every blocked body reports exactly one key however many it has (#3131).
+#  tus           distinct TUs in which the key heads at least one blocked body, of 878.
+#  bodies_c1off  the same first-blocker count with `C2RS_OFF_ADD=off`, i.e. with C1 -- the ONE of the
+#                ten that has SHIPPED -- de-admitted. See the rung section 6: three of the ten are
+#                already in class on the census route, so their shipped head counts are RESIDUE.
+#
+# TU-DENOMINATED REACH, which is what #3509 was funded to produce:
+#   TUs whose ENTIRE blocked-body head-key set lies inside the union of all ten: 0 of 845.
+#   Same, per single construct: 0 of 845, for each of the ten.
+#   Same, relaxing every byteless :eof/:mid/opt-mode key to free: 0 of 845 shipped, 1 of 845 with C1 off.
+#
+# corpus  ../dc3-decomp 15a64d92f dirty=False · 878 TU rows · match 25
+# scan    c2rs d5b67058a / binary c99dadc9e1fa / wibo wibo 1.2.0-c2rs.1 (Linux x86_64)
+# repro   work/w-keymap/keymap.py <scan.jsonl>
+#
+slice	reason	opcode	off_class_site	cf_mass	cf_inclass	cf_blocked	census_key	bodies	tus	bodies_c1off
+C1	off-add	0x27	control_flow.rs:941	697008	273494	423514	call-postop-op-0x27	2	2	2
+C1	off-add	0x27	control_flow.rs:941	697008	273494	423514	callseq-postop-op-0x27	1	1	1
+C1	off-add	0x27	control_flow.rs:941	697008	273494	423514	expr-op-0x27	0	0	391985
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	call-conv-0x40	4	4	4
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	call-intrinsic-this-adjust	5	3	2
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-0x848	1	1	1
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-0xDD	6	6	6
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-0xDF	12051	616	12051
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-__frsqrte	1	1	1
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-__mftb	5	3	5
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-_abs64	830	830	830
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-abs	830	830	830
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-base-downcast	19971	806	19971
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-base-member-addr	112770	832	112768
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-base-upcast	20536	703	20146
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-call	5	5	5
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-dynamic-cast	17693	698	17693
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-fabs	5804	748	5804
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-memcmp	809	808	809
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-memcpy	3364	721	3364
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-memset	29685	825	29684
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-sqrt	2937	748	2937
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-strcmp	2521	815	2521
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-strcpy	5	4	5
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-strlen	2462	825	2462
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-this-adjust	133603	832	133603
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-vbase-member-addr	351	214	351
+C2	intrinsic	0x40	control_flow.rs:1057	464194	71387	392807	expr-intrinsic-vbase-upcast	1350	685	1350
+C3	bind	0x99	control_flow.rs:1168	417141	62941	354200	call-bound-store-0x99	2303	701	0
+C3	bind	0x99	control_flow.rs:1168	417141	62941	354200	expr-op-0x99	1446	411	0
+C4	load-type	0xB9 + TYPE outside int4/ptr4	control_flow.rs:823	221583	85093	136490	expr-load-type-8211	1645	826	1644
+C4	load-type	0xB9 + TYPE outside int4/ptr4	control_flow.rs:823	221583	85093	136490	expr-load-type-8216	230	40	230
+C4	load-type	0xB9 + TYPE outside int4/ptr4	control_flow.rs:823	221583	85093	136490	expr-load-type-8421	826	825	826
+C4	load-type	0xB9 + TYPE outside int4/ptr4	control_flow.rs:823	221583	85093	136490	expr-load-type-8422	3568	825	3567
+C4	load-type	0xB9 + TYPE outside int4/ptr4	control_flow.rs:823	221583	85093	136490	expr-load-type-8645	65879	781	56983
+C4	load-type	0xB9 + TYPE outside int4/ptr4	control_flow.rs:823	221583	85093	136490	expr-load-type-8646	1485	325	218
+C4	load-type	0xB9 + TYPE outside int4/ptr4	control_flow.rs:823	221583	85093	136490	expr-load-type-8881	2368	830	2368
+C4	load-type	0xB9 + TYPE outside int4/ptr4	control_flow.rs:823	221583	85093	136490	expr-load-type-8882	2281	825	2230
+C4	load-type	0xB9 + TYPE outside int4/ptr4	control_flow.rs:823	221583	85093	136490	expr-load-type-8885	41375	777	40636
+C4	load-type	0xB9 + TYPE outside int4/ptr4	control_flow.rs:823	221583	85093	136490	expr-load-type-8906	5	2	5
+C4	load-type	0xB9 + TYPE outside int4/ptr4	control_flow.rs:823	221583	85093	136490	expr-load-type-A246	5	5	0
+C4	load-type	0xB9 + TYPE outside int4/ptr4	control_flow.rs:823	221583	85093	136490	expr-load-type-A645	4	4	4
+C4	load-type	0xB9 + TYPE outside int4/ptr4	control_flow.rs:823	221583	85093	136490	expr-load-type-A646	921	534	495
+C5	temp	0x9B	control_flow.rs:1174	80340	0	80340	body-0x9B	27059	826	27059
+C5	temp	0x9B	control_flow.rs:1174	80340	0	80340	call-ref-0x9B	1	1	0
+C5	temp	0x9B	control_flow.rs:1174	80340	0	80340	call-token-0x9B	1	1	1
+C5	temp	0x9B	control_flow.rs:1174	80340	0	80340	expr-op-0x9B	18106	825	13746
+C6	lit-type	0x33 + TYPE outside int4/ptr4	control_flow.rs:833	45240	24399	20841	expr-lit-type-8207	4162	531	4162
+C6	lit-type	0x33 + TYPE outside int4/ptr4	control_flow.rs:833	45240	24399	20841	expr-lit-type-8211	11	9	4
+C6	lit-type	0x33 + TYPE outside int4/ptr4	control_flow.rs:833	45240	24399	20841	expr-lit-type-8421	1471	735	1
+C6	lit-type	0x33 + TYPE outside int4/ptr4	control_flow.rs:833	45240	24399	20841	expr-lit-type-8422	60	30	60
+C6	lit-type	0x33 + TYPE outside int4/ptr4	control_flow.rs:833	45240	24399	20841	expr-lit-type-864A	18806	749	9957
+C6	lit-type	0x33 + TYPE outside int4/ptr4	control_flow.rs:833	45240	24399	20841	expr-lit-type-8881	1	1	1
+C6	lit-type	0x33 + TYPE outside int4/ptr4	control_flow.rs:833	45240	24399	20841	expr-lit-type-8882	717	713	717
+C6	lit-type	0x33 + TYPE outside int4/ptr4	control_flow.rs:833	45240	24399	20841	expr-lit-type-888A	8	6	8
+C6	lit-type	0x33 + TYPE outside int4/ptr4	control_flow.rs:833	45240	24399	20841	expr-lit-type-9641	1653	827	1
+C6	lit-type	0x33 + TYPE outside int4/ptr4	control_flow.rs:833	45240	24399	20841	expr-lit-type-A64A	3	2	3
+C7	compare	0x1F 0x20 0x21 0x22 0x23 0x24	control_flow.rs:885	39879	17	39862	expr-cmp-eq	18614	823	18609
+C7	compare	0x1F 0x20 0x21 0x22 0x23 0x24	control_flow.rs:885	39879	17	39862	expr-cmp-ge	1292	186	1292
+C7	compare	0x1F 0x20 0x21 0x22 0x23 0x24	control_flow.rs:885	39879	17	39862	expr-cmp-gt	894	808	894
+C7	compare	0x1F 0x20 0x21 0x22 0x23 0x24	control_flow.rs:885	39879	17	39862	expr-cmp-le	1536	826	1536
+C7	compare	0x1F 0x20 0x21 0x22 0x23 0x24	control_flow.rs:885	39879	17	39862	expr-cmp-lt	2916	740	2916
+C7	compare	0x1F 0x20 0x21 0x22 0x23 0x24	control_flow.rs:885	39879	17	39862	expr-cmp-ne	10699	828	9992
+C8	bitwise	0x0B 0x0C 0x0D 0x0E	control_flow.rs:885	32367	0	32367	expr-op-0x0E	1	1	0
+C9	materialize-64	0x64	control_flow.rs:1157	24403	0	24403	expr-op-0x64	24383	698	24383
+C10	virtual-slot	0x67	control_flow.rs:1114	19827	0	19827	body-0x67	18800	816	18800
+C10	virtual-slot	0x67	control_flow.rs:1114	19827	0	19827	call-ref-0x67	2	2	2
+C10	virtual-slot	0x67	control_flow.rs:1114	19827	0	19827	expr-op-0x67	566	199	552
