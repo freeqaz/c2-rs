@@ -5,13 +5,22 @@
 //! arg-setup `g(a+1)`), and a framed non-leaf `return g(a) + k` (k ≠ 0). This is
 //! deliberately NOT a general IL disassembler.
 //!
-//! **Acceptance is a positive whole-body parse (W4b2-v).** [`parse_segment`]
-//! tokenizes the entire `.ex` operand stream of a function segment — from the
-//! `4C 4F 11` ('LO') marker to the segment end — and accepts only if the whole
-//! token sequence is exactly one of the recognized [`BodyShape`]s; the
-//! parse must *reach the end*, so trailing statements, a second call, a
-//! non-trivial call-argument region, or any unmodeled byte fail the function
-//! closed (`None` → the caller reports `NotImplemented`, never a mis-emit).
+//! **Acceptance is a positive whole-body parse (W4b2-v) — and since lane
+//! `w-unfuse` it is TWO named steps, not one.** [`Decoded`] tokenizes the entire
+//! `.ex` operand stream of a function segment — from the `4C 4F 11` ('LO')
+//! marker to the segment end — and reaches a recognized whole-body grammar only
+//! if the whole token sequence is exactly one of them; the parse must *reach the
+//! end*, so trailing statements, a second call, a non-trivial call-argument
+//! region, or any unmodeled byte stop the read. Whether the port may then
+//! **emit** what was read is a separate question, asked of [`AdmissionPolicy`],
+//! whose `DEFAULT` admits exactly what the decode reached — so the accepted
+//! class is byte-for-byte what it was, and a refusal from the pair still means
+//! the caller reports `NotImplemented`, never a mis-emit.
+//!
+//! The distinction is the point: before the split one `Option<BodyShape>` meant
+//! both *"this port cannot read this IL"* and *"this port may not emit it"*, so
+//! widening the reach and widening the emit set were the same edit. See
+//! `body::decode`'s module doc for what that cost and what it does not buy.
 //! This replaced an earlier trio of gates that each matched on a *local* byte
 //! neighborhood around the first CALL and so silently over-accepted (two
 //! reviews caught the same two functions dropping trailing/in-argument work).
@@ -45,7 +54,7 @@ pub use self::bind::{
     gl_body_record_names, gl_gate_record_names, gl_narrow_record_names, gl_precise_record_names,
     EmitBinding,
 };
-pub use self::body::{chain_form, Block, ChainForm, FP_SCRATCH};
+pub use self::body::{chain_form, AdmissionPolicy, Block, ChainForm, Decoded, FP_SCRATCH};
 pub use self::bundle::{
     DataObject, DataTu,
     DynInitTu,
@@ -5534,7 +5543,7 @@ pub(crate) mod test_fixtures {
     ///
     /// Transcribed verbatim from a live capture (`/Ox /GS- /c`, `c2rs capture`),
     /// and it is a **crash** fixture: the argument sources index the *formals*
-    /// list, the permutation analysis in [`body::parse_segment`]'s multi-argument
+    /// list, the permutation analysis in the whole-body parser's multi-argument
     /// path indexed a `seen[]` sized by the *argument* count with one, and `2 >= 2`
     /// panicked `c2rs census` on two lines of ordinary C++. See the refusal at
     /// `call-arg-outer-formal`.

@@ -313,3 +313,4 @@ the header block this table is read from.
 | 2026-08-25 | w-keymap | [w-keymap](2026-08-25-w-keymap.md) | 9 | **+0.** **ZERO `crates/` bytes.** `git diff --stat` against |
 | 2026-08-25 | w-permeasure | [w-permeasure](2026-08-25-w-permeasure.md) | 9 | +0 |
 | 2026-08-25 | w-relsite | [w-relsite](2026-08-25-w-relsite.md) | 10 | +0 (no `crates/` byte changed) |
+| 2026-08-25 | w-unfuse | [w-unfuse](2026-08-25-w-unfuse.md) | 20 | +0 — no census key moves, and that is checked per SYMBOL and not by subtracting totals |

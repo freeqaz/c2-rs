@@ -39,7 +39,7 @@
 //! neither depends on the naming.
 
 use super::bind::{emit_offset_framed, Bindings};
-use super::body::parse_segment;
+use super::body::Decoded;
 use super::bundle::{split_functions_at, LO_MARKER};
 use super::gl::{
     drectve_is_boilerplate, gl_defined_names_framed, label_counter, GlBindStop, NameFit,
@@ -395,7 +395,16 @@ impl IlBundle {
         );
         let mut shapes = Vec::with_capacity(segs.len());
         for (i, seg) in segs.iter().enumerate() {
-            match parse_segment(seg, probe.locals(i)) {
+            // **W-UNFUSE — `bodies_out_of_class` is an ADMISSION count, and it
+            // says so now.** The name was always about the port's *class*, not
+            // about whether the bytes could be read; before the split the two
+            // were one value and the distinction could not be written down.
+            // The reach question — did the DECODE reach a grammar — is
+            // `Decoded::reached_shape`, and this diagnostic deliberately does
+            // not switch to it: that would silently redefine a published
+            // counter. Today the two are equal for every segment by
+            // `AdmissionPolicy::RecognizedShape`'s definition.
+            match Decoded::of(seg, probe.locals(i)).admitted_default() {
                 Some(s) => shapes.push(Some(s)),
                 None => {
                     out.bodies_out_of_class += 1;
