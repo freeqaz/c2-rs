@@ -27,6 +27,160 @@ use super::{GapReport, TuClass, TuResult, PORT_WRITER_SECTIONS, WHOLE_TU_RECOGNI
 ///
 /// **`plan-*` is NECESSARY but NOT SUFFICIENT for `match`** and the block says
 /// so on every run. It is an instrument; the byte judge is unchanged.
+/// **DECODE REACH — its own block, under its own disclaimer** (lane
+/// `w-decodereach`, decision 13's row 4a(i) / I1).
+///
+/// `docs/FUNCTION_BYTE_MATCH.md` §0 is the standing template for every gradient
+/// added after FBM and this is one: never in `scripts/gate.sh`, namespaced
+/// keys, **licenses no emit**, and `NO-RESULT` — never a zero — over an empty
+/// scan.
+fn render_decode_reach(report: &GapReport) {
+    let d = |k: &str| report.decode_total(k);
+    let (observable, reached, stopped, nobody) = (
+        d("decode-reach-observable"),
+        d("decode-reach-reached"),
+        d("decode-reach-stopped"),
+        d("decode-reach-nobody"),
+    );
+    let graded = reached + stopped;
+    // **THE POSITIVE CHECK, FIRST.** "The run must have GRADED something" —
+    // never an enumeration of the ways it can be empty. A zero here prints
+    // NO-RESULT loudly and publishes no number at all.
+    if graded == 0 {
+        println!(
+            "\n\x20 DECODE REACH: NO-RESULT — the general decode was offered NO body with a \
+             body to decode ({observable} rows observed, {nobody} of them bodiless).\n\
+             \x20   Nothing was graded. This is not `decode-reach-stopped 0`; a lane quoting a \
+             reach number off this scan has no number."
+        );
+        return;
+    }
+    println!(
+        "\n\x20 DECODE REACH (w-decodereach) — the progress signal for the GENERAL DECODE \
+         (decision 13, row 4a(i) / I1). A CHARACTERIZATION instrument, NEVER a gate, and it \
+         LICENSES NO EMIT.\n\
+         \x20   REACH IS NOT ADMISSION and must never become it. A body that decodes is not a \
+         body the port may emit — a wrong emit scores strictly below the refusal it replaced \
+         (`docs/PROGRESS_METRIC.md`). The byte judge is unchanged: real `c2.dll` under wibo.\n\
+         \x20   Read the THREE DENOMINATORS as a containment, never as a ratio: \
+         observable ⊇ reached ⊇ verified."
+    );
+    let pct = |n: usize, den: usize| {
+        if den == 0 {
+            "n/a".to_string()
+        } else {
+            format!("{:.2}%", 100.0 * n as f64 / den as f64)
+        }
+    };
+    let (badm, brea) = (
+        d("decode-reach-bytes-observable"),
+        d("decode-reach-bytes-reached"),
+    );
+    println!(
+        "\x20   ALL BODIES     observable {observable}  reached {reached} ({})  stopped \
+         {stopped}  nobody {nobody}\n\
+         \x20   …BY BYTE       observable {badm}  reached {brea} ({}) — a body count and a byte \
+         count are two denominators and neither is quoted alone",
+        pct(reached, observable),
+        pct(brea, badm),
+    );
+    let (eobs, erea, ever) = (
+        d("decode-reach-emit-observable"),
+        d("decode-reach-emit-reached"),
+        d("decode-reach-verified"),
+    );
+    println!(
+        "\x20   EMITTED ONLY   observable {eobs}  reached {erea} ({})  VERIFIED {ever} ({} of \
+         reached) — `verified` is the BYTE JUDGE's own word (`FnByte::Exact`: bytes AND \
+         relocations), asked of the bodies the decode reached. unbound {}",
+        pct(erea, eobs),
+        pct(ever, erea),
+        d("decode-reach-emit-unbound"),
+    );
+    // **THE CONTAINMENT NOBODY HAS ASKED**, and its own denominator beside it.
+    let (adm, admr, admn) = (
+        d("decode-reach-admitted"),
+        d("decode-reach-admitted-reached"),
+        d("decode-reach-admitted-not-reached"),
+    );
+    println!(
+        "\x20   ADMITTED ⊆ REACHED?  admitted {adm}  of which reached {admr}  NOT REACHED \
+         {admn} ({})\n\
+         \x20     This is NOT a known-answer-0 control. A body the incumbent parser accepts \
+         WHOLE that the general decode stops inside is two independent walkers disagreeing \
+         about the same bytes — a finding about the DECODE, not an alarm about this \
+         instrument.",
+        pct(admn, adm),
+    );
+    // **THE DISCRIMINATING CELL.** Printed with the threshold that reads it.
+    let sep = d(super::decode::SEPARATION_KEY);
+    println!(
+        "\x20   SEPARATION     reached-and-NOT-admitted {sep}  vs admitted {adm} — the \
+         discriminating cells. If this were 0 the instrument would be measuring ADMISSION \
+         wearing a reach key's name, which is `#3336` at program scale and the exact failure \
+         4a's risk column names.{}",
+        if sep == 0 {
+            "  ** ZERO — THIS INSTRUMENT IS NOT MEASURING REACH **"
+        } else {
+            ""
+        }
+    );
+    println!(
+        "\x20   controls (all known answer 0): partition-broken {}  population-broken {}  \
+         containment-broken {}   ·   GRADED {graded} cells",
+        d("decode-reach-partition-broken"),
+        d("decode-reach-population-broken"),
+        d("decode-reach-containment-broken"),
+    );
+    // The first-blocker histogram — labelled, and sorted by NAME.
+    let stops = report.decode_rows_by_name("decode-reach-stop|");
+    println!(
+        "\x20   where the decode STOPPED — {} distinct productions over {stopped} bodies. \
+         **A FIRST-BLOCKER KEY IS NOT A DISTANCE AND NOT A RANKING** (#3131: the port stops \
+         at its first refusal by design, so every stopped body names exactly one production \
+         however many it has; 19 greedy rungs off such a histogram bought reach ZERO). Sorted \
+         by NAME, never by mass (#3505, bound five times). The byte row above is the distance:",
+        stops.len()
+    );
+    if stops.is_empty() {
+        println!("\x20     (none)");
+    }
+    for (k, n) in stops.iter().take(16) {
+        println!("\x20     {n:>8}  {k}");
+    }
+    if stops.len() > 16 {
+        println!(
+            "\x20     … and {} more, all in `gap-metric`-adjacent per-TU rows",
+            stops.len() - 16
+        );
+    }
+    // The admitted-not-reached decomposition: a repair set, not a count.
+    let anr = report.decode_rows_by_name("decode-reach-admitted-not-reached|");
+    if !anr.is_empty() {
+        println!(
+            "\x20   …and WHICH production stopped an ADMITTED body — {} distinct, sorted by \
+             name. A count of disagreements that cannot be looked at is not a repair set:",
+            anr.len()
+        );
+        for (k, n) in anr.iter().take(12) {
+            println!("\x20     {n:>8}  {k}");
+        }
+    }
+    // The 2xN judge cross — the emit-path consumer, printed whole.
+    let cross = report.decode_rows_by_name("decode-reach-emit|");
+    println!(
+        "\x20   IS WHAT IT REACHES RIGHT? — the byte judge's own verdict crossed with reach, \
+         over c2's own emitted COMDAT leaders. The `refused` column is the denominator on \
+         which the judge CANNOT speak and is printed as a number rather than left out:"
+    );
+    if cross.is_empty() {
+        println!("\x20     (none — no emitted function was bound)");
+    }
+    for (k, n) in cross.iter() {
+        println!("\x20     {n:>8}  {k}");
+    }
+}
+
 fn render_plan(report: &GapReport) {
     let ctl = report.plan_control();
     println!(
@@ -1536,6 +1690,7 @@ pub(super) fn print_factorization(report: &GapReport) {
             }
         }
     }
+    render_decode_reach(report);
     // ---- W-FENCECOUNT: the per-fence hold-out counter -----------------------
     //
     // The instrument the two-sided fence-pricing rule (CLAUDE.md) needs on the
@@ -1631,6 +1786,7 @@ mod tests {
             fn_cflow: Default::default(),
             fn_cflow_off: Default::default(),
         fn_cfg_admit: Default::default(),
+        fn_decode: Default::default(),
             fn_eh: Default::default(),
             fn_dispatch: Default::default(),
             fn_complete: Default::default(),

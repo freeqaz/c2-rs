@@ -51,6 +51,7 @@ fn scan_one(
         fn_cflow: BTreeMap::new(),
         fn_cflow_off: BTreeMap::new(),
         fn_cfg_admit: BTreeMap::new(),
+        fn_decode: BTreeMap::new(),
         fn_eh: BTreeMap::new(),
         fn_dispatch: BTreeMap::new(),
         fn_complete: BTreeMap::new(),
@@ -925,7 +926,29 @@ fn scan_one(
         //         a parse-time claim the oracle has never graded on a TU that
         //         does not match; `fnbyte-exact` is the oracle's own predicate,
         //         applied to a unit the port can actually answer for.
-        super::fnbytes::measure(&mut res, &census, &captured.ref_obj);
+        let fbm_verdicts = super::fnbytes::measure(&mut res, &census, &captured.ref_obj);
+        // 1e''''a. **DECODE REACH (lane `w-decodereach`, `super::decode`) —
+        //          the progress signal decision 13's row 4a(i) has no other
+        //          source for.** How many bodies the general decode REACHES,
+        //          over three published denominators, crossed with what the
+        //          byte judge said about the ones it reached.
+        //
+        //          Additive only, `decode-reach-` keys only, its own
+        //          `TuResult` map, and it obeys FBM §0's separation rule
+        //          verbatim: never in `gate.sh`, its own block, namespaced,
+        //          **licenses no emit**, `NO-RESULT` over an empty scan.
+        //
+        //          **REACH IS NOT ADMISSION.** The separation is published as a
+        //          number (`decode-reach-reached-not-admitted`) rather than
+        //          asserted, because an instrument whose reach set IS the
+        //          admission set is `#3336` at program scale — which is the
+        //          failure 4a's own risk column names.
+        //
+        //          The judge's verdicts are PASSED IN from the walk that
+        //          produced them, never recomputed here.
+        if super::decode::enabled_from_env() {
+            super::decode::measure(&mut res, &census, &fbm_verdicts);
+        }
         // 1e'''''. **BLIND REACH (lane w-s0, `super::blind`) — S0 of
         //          `ROADMAP_SLICING_2026-08-21.md` §5's Phase 0.** FBM grades the
         //          functions the reader ACCEPTED; this grades the ones it

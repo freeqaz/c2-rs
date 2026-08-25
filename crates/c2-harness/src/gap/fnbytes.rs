@@ -1182,11 +1182,22 @@ fn contains_words(hay: &[u8], needle: &[u8]) -> bool {
 /// Additive only: no existing count is read or written. Called from
 /// [`super::scan`] step 1e'''' with the same census the emitted-census binding
 /// used, so the two cannot disagree about which row claims which symbol.
+/// **Returns the per-symbol verdict for every COMDAT leader it graded**, in
+/// this walk's own order.
+///
+/// Added by lane `w-decodereach` for [`super::decode`], which crosses the
+/// judge's verdict with the general decode's reach. It is **returned, never
+/// recomputed**: a second producer of the judge's verdict would double this
+/// walk's cost and could drift from it, and `fnbytes.rs:98`'s rule (*called,
+/// never copied*) plus #1464's (*never by subtracting two published totals*)
+/// both point the same way. Every existing count is untouched.
 pub(super) fn measure(
     res: &mut TuResult,
     census: &[(FnCensus, Result<IlFunction, &'static str>)],
     ref_obj: &ObjImage,
-) {
+) -> Vec<(String, FnByte)> {
+    // The out-parameter, filed in the same loop that files every `fnbyte-` key.
+    let mut verdicts: Vec<(String, FnByte)> = Vec::new();
     // Denominator-driven, off the REFERENCE obj. `None` here is the whole-obj
     // decode failure the emitted census already reports as `emit-obj-unreadable`;
     // FBM adds nothing and — critically — contributes no denominator, so a TU
@@ -1196,7 +1207,7 @@ pub(super) fn measure(
     let src_name = res.src.clone();
     let Some(entries) = ref_obj.text_comdat_functions_with_bytes() else {
         *res.emit.entry("fnbyte-obj-unreadable".into()).or_insert(0) += 1;
-        return;
+        return verdicts;
     };
     // **Mechanism E's one bundle-level input**, resolved once per TU over every
     // census row that parsed — never per function, and never from the emitted
@@ -1495,6 +1506,10 @@ pub(super) fn measure(
         };
         let graded = grade_one(row, Some(bytes.as_slice()), &tu, refrel);
         let v = graded.verdict;
+        // The per-symbol record for `super::decode`, filed in the same
+        // iteration that files the count below — so the two cannot disagree
+        // about which COMDAT this is.
+        verdicts.push((name.clone(), v));
         *res.emit.entry(v.key()).or_insert(0) += 1;
         if v.bare() != v.key() {
             *res.emit.entry(v.bare().into()).or_insert(0) += 1;
@@ -2650,6 +2665,7 @@ pub(super) fn measure(
             .entry("bytefrac-exact-exceeds-accepted".into())
             .or_insert(0) += 1;
     }
+    verdicts
 }
 
 /// **THE BYTE-FRACTION RANKER** (lane `w-tu3`, board **#500**) — how much of a

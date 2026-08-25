@@ -39,6 +39,7 @@ fn mk(reason: &str) -> TuResult {
         fn_cflow: BTreeMap::new(),
         fn_cflow_off: Default::default(),
         fn_cfg_admit: Default::default(),
+        fn_decode: Default::default(),
         fn_eh: BTreeMap::new(),
         fn_dispatch: BTreeMap::new(),
         fn_complete: BTreeMap::new(),

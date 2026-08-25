@@ -2436,6 +2436,96 @@ impl GapReport {
                 ));
             }
         }
+        // ---- DECODE REACH (lane `w-decodereach`, decision 13's row 4a(i)) ----
+        //
+        // The progress signal I1 has no other source for. Emitted
+        // UNCONDITIONALLY, every key on every scan **including as a zero**, for
+        // the reason the blind block above gives: an absent row reading as
+        // "nothing to see" is this project's most-repeated defect.
+        //
+        // **THREE DENOMINATORS, PUBLISHED AS CONTAINMENT AND NEVER AS A
+        // RATIO** — `observable ⊇ reached ⊇ verified`, and the byte-weighted
+        // twin of each, because a body count and a byte count are two
+        // denominators (#3356 / `w-objplan`: a containment claim of "seed ⊆
+        // emitted on 853 of 854 TUs" was **739 empty seeds**, undetectable
+        // until the claimant's own size was printed beside it). No ratio is
+        // published here at all.
+        //
+        // Nothing in this block reaches a numerator that grades the port,
+        // enters an accept/refuse path, or appears in `scripts/gate.sh`
+        // (`docs/FUNCTION_BYTE_MATCH.md` §0).
+        {
+            let d = |k: &str| self.decode_total(k);
+            let (observable, reached, stopped, nobody) = (
+                d("decode-reach-observable"),
+                d("decode-reach-reached"),
+                d("decode-reach-stopped"),
+                d("decode-reach-nobody"),
+            );
+            for (k, v) in [
+                // The denominator FIRST, always.
+                ("decode-reach-observable", observable),
+                ("decode-reach-reached", reached),
+                ("decode-reach-stopped", stopped),
+                ("decode-reach-nobody", nobody),
+                ("decode-reach-bytes-observable", d("decode-reach-bytes-observable")),
+                ("decode-reach-bytes-reached", d("decode-reach-bytes-reached")),
+                // The emitted population — a SECOND denominator, never mixed
+                // with the first.
+                ("decode-reach-emit-observable", d("decode-reach-emit-observable")),
+                ("decode-reach-emit-reached", d("decode-reach-emit-reached")),
+                ("decode-reach-verified", d("decode-reach-verified")),
+                (
+                    "decode-reach-emit-bytes-observable",
+                    d("decode-reach-emit-bytes-observable"),
+                ),
+                (
+                    "decode-reach-emit-bytes-reached",
+                    d("decode-reach-emit-bytes-reached"),
+                ),
+                ("decode-reach-emit-unbound", d("decode-reach-emit-unbound")),
+                // The admission cross — **the containment nobody has asked**.
+                ("decode-reach-admitted", d("decode-reach-admitted")),
+                (
+                    "decode-reach-admitted-reached",
+                    d("decode-reach-admitted-reached"),
+                ),
+                (
+                    "decode-reach-admitted-not-reached",
+                    d("decode-reach-admitted-not-reached"),
+                ),
+                // **THE DISCRIMINATING CELL.** If this is 0 the instrument is
+                // measuring admission and the lane that ships it has FAILED.
+                (super::decode::SEPARATION_KEY, d(super::decode::SEPARATION_KEY)),
+            ] {
+                m.push((k, v.to_string()));
+            }
+            // The controls, each a DEFECT count with a known answer of 0, and
+            // each recomputed HERE from the published totals as well as being
+            // filed per TU — so a control that stopped being written at the
+            // walk is visible as a disagreement rather than as agreement.
+            m.push((
+                "decode-reach-partition-broken",
+                ((reached + stopped + nobody != observable) as usize
+                    + d("decode-reach-partition-broken"))
+                .to_string(),
+            ));
+            m.push((
+                "decode-reach-population-broken",
+                d("decode-reach-population-broken").to_string(),
+            ));
+            m.push((
+                "decode-reach-containment-broken",
+                d("decode-reach-containment-broken").to_string(),
+            ));
+            // **THE POSITIVE CHECK.** How many cells this instrument actually
+            // graded. A zero here is a loud failure for any lane quoting these
+            // numbers — never an enumeration of the ways it could be empty.
+            m.push((
+                "decode-reach-graded",
+                (reached + stopped).to_string(),
+            ));
+        }
         // **THE BYTE-FRACTION RANKER** (board #500) and its control (#501).
         //
         // The head is emitted as three keys — name, numerator, denominator —
