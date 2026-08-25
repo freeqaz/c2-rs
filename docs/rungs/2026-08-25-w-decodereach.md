@@ -11,11 +11,11 @@
     Base:      master `5a013b8f4` (the `w-unfuse` merge) — rebased; first round was `5db186426`
     Prereg:    `docs/rungs/_2026-08-25-w-decodereach-prereg.md`, the FIRST commit on
                `wt-w-decodereach` (`83b551585`)
-    Board:     #3561–#3566
+    Board:     #3561–#3566 (first round) · #3580–#3582 (second round, over `w-unfuse`)
     Spec:      `docs/DECISIONS_2026-08-22.md` decision 13 (owner — the general decode,
                row 4a(i) / I1) · `w-joint3` §9 item 4 · `ROADMAP_SLICING_2026-08-21.md` §5 S0
     Workload:  878 TUs, stamp `15a64d92f197+42949672950+42949672950`, read before AND
-               after every arm and **held** across all four scans
+               after every arm and **held** across all seven scans (both rounds)
 
 ---
 
@@ -578,6 +578,54 @@ Three of the five keys are exactly S0's relaxation population (`data-sym-*`,
 `#3392`) and one is `#3511`(b)'s named catch-all. **None of the bodies is new.
 What is new is that they are the residue of an incomplete unfusing rather than
 ordinary blockers.** Board **#3582**.
+
+---
+
+## 13.3 GATE EVIDENCE, second round — on the rebased tree
+
+Re-gated at the rebased tip against **master's own current table**,
+`work/coordinator/gatebase/base_5a013b8f4.txt`, with the committed instrument
+`w-guard` shipped (**#3579**) rather than a hand-typed pipeline:
+
+    GATE: PASS (HATCH-RED REFUSED)          ← the VERDICT LINE
+    GATE_EXIT = 0                           ← captured, not inferred (see below)
+    lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+    graded: 7,038 fixture-verdicts across all lanes
+    sweep:  19,460 GRADED of 19,556 selected
+    cross:  90,424 graded of 90,812 selected cells, 0 mismatch
+    debug:  18 of 18 lanes through a DEBUG-profile c2rs, 0 panics
+
+    $ scripts/gate_identity_diff.sh …/base_5a013b8f4.txt work/w-decodereach/gate_tip_r2.log
+    count-bearing rows: 21 base, 21 tip (enumerated, not asserted)
+    IDENTITY DIFF: 0 lines over 21 rows — required-zero byte delta HOLDS
+
+**And the zero is trusted because the tool was watched failing first.** Its own
+`--self-test` was run in this lane:
+
+    enumeration: 21 count-bearing rows          control: a table against itself -> 0 lines
+    #3515's one-TU-refused signature -> 14 lines, 7 rows, and it exits NONZERO
+    a TRUNCATED table -> exit 2 (a short extraction is not 'no differences')
+    SELF-TEST PASS
+
+**`GATE_EXIT` is 0, and it was captured rather than inferred.** The coordinator
+named the shape to watch for: `w-unfuse` hit `GATE: PASS` **and exit 1** from the
+tree-movement guard, the mirror of the `DIRTY` case. So the gate was run a
+second time with `echo $?` captured to a file — **0** — and the substantive
+check agrees independently: the **graded tree hash `32800abb6aba` is identical
+at both ends of the run**, so nothing was edited under a running gate. Both
+readings, because a status is not evidence and a hash is.
+
+    C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast
+       59 targets · 1,902 passed · 0 failed
+       `#[test]` count 1,899 (master) -> 1,912 (tip), +13 — all in `gap::decode`
+
+Toolchain asserted **by duration**, never by "0 `SKIP` lines" (#3341, vacuous
+under libtest): `census_gate` **74.91 s**, `cli_flags` **133.35 s**,
+`fixture_profiles` **51.72 s**.
+
+`hatch-red` REFUSED is unchanged and still not this lane's — the qualification is
+in master's own base table, and `crates/c2-il`'s tree hash is identical at tip
+and master (this lane writes none of it).
 
 ---
 
