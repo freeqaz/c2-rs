@@ -209,6 +209,26 @@ arms 1–3 and §4's account of what they missed.
 
 ---
 
+## 7.1 The corpus did not move — decline condition 3, checked, not assumed
+
+Prereg §4 floor 3 voids the run if `../dc3-decomp` moves between the control run
+and the measurement run. **Board #3500 is why that condition exists**: that tree
+has been observed to change its corpus *without changing its commit*, and a
+stamp reading `rev-parse HEAD` alone passed the pair that did it.
+
+Re-taken at the end of the lane, against the prereg's own §1.1 figures:
+
+| | prereg (start) | end of lane |
+|---|---|---|
+| `HEAD` | `15a64d92f1975868e55a1c670d312a8e464074c3` | **same** |
+| dirty files | 0 | **0** |
+| obj manifest digest | `45a06795a83cf6e770bc7a5a9d1769f8c1d7818ca84b37b077baa7b3c0032329` | **same** |
+
+**Not voided.** Every number in this rung is valid against that manifest and no
+other.
+
+---
+
 ## 8. Artifacts
 
 | path | what |
