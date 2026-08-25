@@ -25,7 +25,37 @@
 
 set -euo pipefail
 
-MAIN_REPO="$(cd "$(dirname "$0")/.." && pwd)"
+# ---- MAIN_REPO : ASK GIT, do not do path arithmetic on $0 ---------------------
+#
+# This was `MAIN_REPO="$(cd "$(dirname "$0")/.." && pwd)"` — the directory one
+# level above the script — and it is wrong for the case this script exists to
+# serve. Board **#3500** (`w-3475` §10.1):
+#
+#   Every worktree contains its own copy of `scripts/`. So for a worktree in a
+#   SIBLING directory, invoked through its own copy, `dirname $0/..` IS THE
+#   WORKTREE. The `$WORKTREE_PATH = $MAIN_REPO` test below then fires, the script
+#   prints "is the main repo; nothing to configure" and EXITS 0 — without linking
+#   `compilers/`, without copying the workload, and without running the toolchain
+#   assertion that is the entire point of the file. **Skipped for four of the
+#   five worktrees live on this box on 2026-08-24.**
+#
+# It is `#3516`'s defect class exactly: it reports success while doing something
+# other than what it says. And it fails SILENTLY and in the DANGEROUS direction —
+# an unconfigured worktree has no `compilers/`, so the differential degrades to
+# `SKIP: toolchain absent` and grades every change as passing.
+#
+# `--git-common-dir` is the main repo's `.git` **from any linked worktree and
+# from the main repo itself**, which is precisely the question being asked.
+# `--path-format=absolute` needs git 2.31+; the `$0` arithmetic survives only as
+# the fallback for a tree that is not a git checkout at all.
+if MAIN_GIT_DIR="$(git -C "$(dirname "$0")" rev-parse --path-format=absolute \
+                      --git-common-dir 2>/dev/null)" && [ -n "$MAIN_GIT_DIR" ]; then
+    MAIN_REPO="$(cd "$MAIN_GIT_DIR/.." && pwd)"
+else
+    echo "    WARN: git could not name the main repo; falling back to \$0 arithmetic," >&2
+    echo "          which is wrong for a sibling-directory worktree (board #3500)." >&2
+    MAIN_REPO="$(cd "$(dirname "$0")/.." && pwd)"
+fi
 
 WARM_CACHE=1
 POSITIONAL=()
@@ -199,8 +229,19 @@ cat <<EOF
 
     cd $WORKTREE_PATH
     cargo test --workspace                 # unit + integration
-    ./target/release/c2rs bench            # every fixture, the correctness gate
-    scripts/gate.sh --jobs 4               # EVERY mode lane; 0 mismatch or the
+    ./target/release/c2rs bench            # the ORACLE SELF-TEST — determinism and
+                                           # capture stability. It exercises the
+                                           # REFERENCE and never calls
+                                           # PortC2::build: a counting probe read
+                                           # 0 hits at build against a clean
+                                           # 'summary: 391 pass, 0 fail', vs
+                                           # 73,083 hits under gate.sh (#3516).
+                                           # This line used to say "every fixture,
+                                           # the correctness gate". It is NOT the
+                                           # correctness gate and never was; the
+                                           # next line is. CLAUDE.md § Layout has
+                                           # always had this right.
+    scripts/gate.sh --jobs 4               # THE CORRECTNESS GATE. EVERY mode lane; 0 mismatch or the
                                            # change is wrong. Quote the counts it
                                            # prints — a run that graded 0 is a
                                            # failure, not a pass. This used to
