@@ -81,18 +81,37 @@ fn no_worktree_holds_an_unlocked_pinned_artifact() {
         return;
     }
     let (ok, report) = run_audit(&[]);
+
+    // **A checkout with no linked worktrees is not a violation, and the script
+    // is right to exit 2 on it.** The two verdicts differ because the questions
+    // differ: for the SCRIPT a zero denominator must be loud (`#3470`, `#1002`
+    // — a clean estate report over nothing is not a clean report), while for
+    // this TEST there is simply nothing to audit. A fresh clone, CI, or anyone
+    // not using the worktree-per-lane protocol is in that state, and failing
+    // there would be a portable-lane test that is red for environmental
+    // reasons — which is how a real red stops being read.
+    //
+    // The skip is NARROW and prints its reason. It is keyed on the script's own
+    // zero-denominator line, not on the exit code, so it cannot swallow a
+    // genuine exit-2 (a corrupt repo) or a violation.
+    if report.contains("worktrees examined: 0") {
+        println!("SKIP: no linked worktrees at {} — nothing to audit", root.display());
+        return;
+    }
+
     assert!(
         ok,
         "reap guard FAILED — a worktree holds a pinned artifact and is NOT locked.\n\
          Remedy: scripts/wt_pin_audit.sh --lock\n{report}"
     );
 
-    // The denominator, asserted rather than trusted (`#3470`, `#1002`): a clean
-    // estate report over zero worktrees is not a clean report, and the script's
-    // own exit-2 path is what is being checked from the outside here.
+    // The denominator, asserted rather than trusted. Reaching here means the
+    // audit examined at least one worktree AND said so; a report with no
+    // denominator line at all is a different failure from a zero one, and it is
+    // the one that means the parser and the script have drifted apart.
     assert!(
-        report.contains("worktrees examined: ") && !report.contains("worktrees examined: 0"),
-        "the audit must print a NONZERO worktree denominator; got:\n{report}"
+        report.contains("worktrees examined: "),
+        "the audit must print its worktree denominator; got:\n{report}"
     );
 }
 
