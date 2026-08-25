@@ -40,3 +40,8 @@
 10b99a37	il-reader	medium	.in sub-record reader
 10bf7c59	ppc-codegen	high	xrefs ppc/code.c; never touches DAT_10c46310 — PPC instruction selection, NOT the IL reader
 10bf9f15	ppc-codegen	high	same region, same reasoning
+10bc2e08	il-dispatch	high	the two-level switch HEAD: mov edx,[ebp-0x34]; lea eax,[edx-1]; cmp eax,0xbc; ja 0x10bc4143; movzx eax,byte[eax+0x10bc424a]; jmp dword[eax*4+0x10bc4152]  (w-ilarms, #3567)
+10bc4152	il-dispatch	high	ARM TARGET TABLE, stride 4, 62 entries, 62 DISTINCT targets, all inside FUN_10bc2d7a; ends 0x10bc4249  -- NOT "size 4, unknown" (w-ilarms, #3567; WB_ILARMS_MAP.md §1)
+10bc424a	il-dispatch	high	BYTE INDEX TABLE, stride 1, 189 entries, opcode-1 -> arm 0..61; ends 0x10bc4306  -- 189 is the OPCODE count, not an arm count (w-ilarms, #3567)
+10bc4143	il-dispatch	high	arm 61, the REFUSAL: mov edx,0xcdf; mov ecx,0x10b17738; call 0x10b33526 = C1001 reader.c:3295. Target of the out-of-range ja AND of 94 in-range opcodes (w-ilarms, #3567)
+10bc4307	il-dispatch	high	the reader.c function immediately after the byte table; opens 55 8b ec = push ebp; mov ebp,esp -- read from raw bytes, which is what fixes the table's extent (w-ilarms, #3567)

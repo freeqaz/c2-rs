@@ -17,6 +17,28 @@ lane `w-read-r5`, board **#3415**–**#3421**. Prereg:
 [`../scripts/dump_ilrecord.py`](../scripts/dump_ilrecord.py), re-runnable and
 sha256-fenced.
 
+> **ADDED 2026-08-25 by lane `w-ilarms`, board #3567–#3572 — nothing below is
+> altered.** The dispatch's denominators were **re-derived from raw image
+> bytes by an implementation sharing no code with `dump_ilrecord.py`** (which
+> hard-codes both table VAs, both lengths and both opcode bounds, so
+> re-running it cannot test those constants). **The 61/95/94 split HOLDS**, and
+> §3's opcode column below is right on **all 62 rows**. Two things the
+> re-derivation adds: the 62 targets are **62 DISTINCT** — the test a
+> 62-entry table alone does not pass, and the one R2's `111 → 79` turned on —
+> and §1.1's table extent is now read from the **prologue bytes** at
+> `0x10bc4307` rather than from `c2_strings.tsv`.
+>
+> **The arm → port decode-site MAP is
+> [`../WB_ILARMS_MAP.md`](../WB_ILARMS_MAP.md)**: for each of these 62 arms,
+> what `crates/` already decodes and where, what it decodes narrowly, and
+> what it has no reader for. **41 of 61** real arms have a port site, **20**
+> have none, **68 of 95** handled opcodes are read, **1 of 94** refused
+> opcodes is read (`0x2d`, in the metadata prefix — the first exhibit for
+> §1.3's *"one consumer of the `.ex` stream, not the consumer"*), and **0 of
+> 61** arms have a port site that mints the arm's IR node. Instruments:
+> [`../scripts/dump_ilarms.py`](../scripts/dump_ilarms.py),
+> [`../scripts/scan_port_opcodes.py`](../scripts/scan_port_opcodes.py).
+
 ---
 
 > ## ⛔ THE READ PLAN'S "189 ARMS" IS AN OPCODE COUNT. THERE ARE 62 ARMS.
