@@ -946,8 +946,16 @@ fn scan_one(
         //
         //          The judge's verdicts are PASSED IN from the walk that
         //          produced them, never recomputed here.
+        //
+        //          **The GRAMMAR strength comes from `w-unfuse`'s
+        //          `IlBundle::decode_bodies` (board #3555), which is a SECOND
+        //          parse over the same segmentation.** That cost is real and it
+        //          is paid only here, on the scan, never on `PortC2::build`'s
+        //          path — and it is switchable by the same named parameter that
+        //          switches the rest of this instrument.
         if super::decode::enabled_from_env() {
-            super::decode::measure(&mut res, &census, &fbm_verdicts);
+            let decoded = captured.bundle.decode_bodies();
+            super::decode::measure(&mut res, &census, &fbm_verdicts, decoded.as_deref());
         }
         // 1e'''''. **BLIND REACH (lane w-s0, `super::blind`) — S0 of
         //          `ROADMAP_SLICING_2026-08-21.md` §5's Phase 0.** FBM grades the

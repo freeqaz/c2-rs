@@ -283,6 +283,90 @@ pub fn modeled_of_cflow(cflow: &str) -> bool {
     reach_of_cflow(cflow) == Reach::Reached && cflow.ends_with("+expr-modeled")
 }
 
+/// **THE THIRD STRENGTH — did the decode reach a whole-function GRAMMAR?**
+///
+/// Read off [`c2_il::IlBundle::decode_bodies`], the surface lane `w-unfuse`
+/// built for this instrument (board **#3555**): one `Decoded` per `.ex` segment,
+/// over the **census's** segmentation and binding, making no acceptance decision
+/// and refusing nothing.
+///
+/// # The I1 divergence detector — and its BASELINE IS 4,001, NOT ZERO
+///
+/// `AdmissionPolicy::RecognizedShape` is *the identity on the decode result*, so
+/// `reached_shape()` and `is_admitted()` are equal for every segment. **That is
+/// a tautology and it is worth nothing as a control**: `is_admitted` is
+/// *defined* as `reached_shape`, so the comparison cannot fail, and a criterion
+/// that cannot fail has abstained rather than passed (`#3336` — the finding this
+/// lane exists to prevent at program scale, and the one it already tripped over
+/// once in its own population control, board **#3565**).
+///
+/// So this key pairs the decode against the **census's** verdict, which *can*
+/// disagree — and **does, on 4,001 bodies at the wave-11 tip.** Every one is an
+/// `:eof` key, i.e. the parse ran to the end of the segment and the refusal came
+/// afterwards:
+///
+/// | census verdict | bodies |
+/// |---|---:|
+/// | `callee-unresolved-tail-call:eof` | 2,282 |
+/// | `data-sym-unresolved:eof` | 1,665 |
+/// | `data-sym-not-extern:eof` | 52 |
+/// | `callee-defined-in-tu:eof` · `data-sym-strlit-fenced:eof` | 1 · 1 |
+///
+/// **They are all SYMBOL BINDING.** `census_functions` runs `shape_to_function`
+/// after the admission predicate, and that step resolves callees and data
+/// symbols through `.gl`; a failure there overwrites the verdict. `Decoded` is
+/// upstream of it. So `w-unfuse` separated decode from admission **at the
+/// grammar layer**, and there is a **third layer below it — symbol binding —
+/// still fused into the census's admission verdict**, 4,001 bodies wide.
+///
+/// > **The I1 progress signal is therefore the CHANGE in this key against that
+/// > baseline, never its distance from 0.** A lane that read "0 means nothing
+/// > has landed" would have graded its first slice against a detector already
+/// > 4,001 off — which is `#3336`'s sibling: a baseline assumed instead of
+/// > measured.
+///
+/// Three of the five keys are exactly S0's population (`data-sym-*`) and one is
+/// `#3511`(b)'s named catch-all, so none of them is new — what is new is that
+/// they are now identified as *the residue of an incomplete unfusing* rather
+/// than as ordinary blockers.
+///
+/// # The three strengths are NOT a chain
+///
+/// `frame ⊇ model` holds. **`grammar` is inside neither and contains neither**,
+/// and the tree already publishes both counterexamples: `cflow-residue-inclass-\
+/// offclass` (admitted bodies that are not modeled) and
+/// `cflow-residue-straight-modeled-blocked` (modeled bodies the port refuses).
+/// A reader who assumes a ladder will mis-order three numbers that answer three
+/// different questions.
+pub fn grammar_reached(d: &c2_il::Decoded<'_>) -> bool {
+    d.reached_shape()
+}
+
+/// **The `ROADMAP_SLICING_2026-08-21.md` §3 predicate, computed here so the two
+/// can be compared instead of guessed at.**
+///
+/// That section prices row 4a(i) off *"the real hole is 83.5 % of bodies having
+/// ≥1 operand outside the semantic model"*. The negation of that predicate is
+/// `off_reason == None` — `control_flow.rs`'s `off_class` flag, whose invariant
+/// is *"`None` iff `off_class` is false"* — and it is collected **whether or not
+/// the walk finished**, because a body that left the class and then stopped left
+/// the class.
+///
+/// **That is a WIDER population than [`modeled_of_cflow`]'s**, which additionally
+/// requires the walk to have reached the tail. The two are published side by
+/// side with their denominators so a reader can never take one for the other;
+/// §3's own table is cumulated over a third denominator again.
+///
+/// `has_scan` excludes a body with no body to scan: for those `off_reason` is
+/// `""` because **no walk ran**, and folding them in would read an absence as an
+/// in-model body — this repo's most-repeated defect.
+pub fn in_semantic_model(cflow: &str, cflow_off: &str) -> Option<bool> {
+    match reach_of_cflow(cflow) {
+        Reach::NoBody => None,
+        _ => Some(cflow_off.is_empty()),
+    }
+}
+
 /// [`reach_of_cflow`] against a census row. The string form is the one the
 /// tests drive, so the grading is exercised without a toolchain and without
 /// constructing a `c2-il` type this crate does not own.
@@ -325,7 +409,91 @@ pub(super) fn measure(
     res: &mut TuResult,
     census: &[(FnCensus, Result<c2_il::IlFunction, &'static str>)],
     fbm: &[(String, FnByte)],
+    decoded: Option<&[c2_il::Decoded<'_>]>,
 ) {
+    // ---- the GRAMMAR strength, off `w-unfuse`'s seam ------------------------
+    //
+    // **Positionally paired, and the pairing is CHECKED.** `decode_bodies` and
+    // `census_functions` both walk `split_function_bodies_at` + `Bindings::
+    // census` (board #3555 — deliberately the census's splitters and not the
+    // gate's, which disagree on 634 of 871 TUs), so row `i` is the same segment
+    // in both. That is exactly the kind of pairing #918 was about, so it fails
+    // closed for the whole TU rather than grading one body's grammar against
+    // another body's admission.
+    match decoded {
+        None => {
+            // `.ex` absent. Its own key: "no `.ex`" and "an `.ex` that splits
+            // into nothing" are different facts (`STATUS.md` trap 5).
+            *res.fn_decode
+                .entry("decode-reach-grammar-no-ex".into())
+                .or_insert(0) += 1;
+        }
+        Some(ds) if ds.len() != census.len() => {
+            *res.fn_decode
+                .entry("decode-reach-grammar-desync".into())
+                .or_insert(0) += 1;
+        }
+        Some(ds) => {
+            let (mut grammar, mut bytes_grammar) = (0usize, 0usize);
+            let (mut g_not_a, mut a_not_g) = (0usize, 0usize);
+            let (mut g_and_m, mut g_not_m, mut m_not_g) = (0usize, 0, 0);
+            for (d, (c, _)) in ds.iter().zip(census.iter()) {
+                let g = grammar_reached(d);
+                let a = c.verdict.in_class();
+                let m = modeled_of_cflow(&c.cflow);
+                if g {
+                    grammar += 1;
+                    bytes_grammar += c.seg_len;
+                }
+                // **THE I1 DIVERGENCE DETECTOR.** Zero today by construction —
+                // `AdmissionPolicy::RecognizedShape` is the identity on the
+                // decode result — and nonzero on the day a general decode lands
+                // without a widening. Both directions, separately: "the decode
+                // reads more than the port emits" and "the port emits something
+                // the decode did not read" are different events and only one of
+                // them is progress.
+                match (g, a) {
+                    (true, false) => {
+                        g_not_a += 1;
+                        // **WHICH census key refuses a body whose grammar the
+                        // decode reached.** A count of disagreements that
+                        // cannot be looked at is not a repair set — this
+                        // module's own rule, applied to itself. Sorted by NAME
+                        // by the `BTreeMap` it lands in.
+                        *res.fn_decode
+                            .entry(format!(
+                                "decode-reach-grammar-not-admitted|{}",
+                                c.verdict.key()
+                            ))
+                            .or_insert(0) += 1;
+                    }
+                    (false, true) => a_not_g += 1,
+                    _ => {}
+                }
+                // The three strengths are NOT a chain, and these are the cells
+                // that say so rather than a claim that they are.
+                match (g, m) {
+                    (true, true) => g_and_m += 1,
+                    (true, false) => g_not_m += 1,
+                    (false, true) => m_not_g += 1,
+                    _ => {}
+                }
+            }
+            for (k, n) in [
+                ("decode-reach-grammar", grammar),
+                ("decode-reach-bytes-grammar", bytes_grammar),
+                ("decode-reach-grammar-not-admitted", g_not_a),
+                ("decode-reach-admitted-not-grammar", a_not_g),
+                ("decode-reach-grammar-and-model", g_and_m),
+                ("decode-reach-grammar-not-model", g_not_m),
+                ("decode-reach-model-not-grammar", m_not_g),
+            ] {
+                if n > 0 {
+                    *res.fn_decode.entry(k.into()).or_insert(0) += n;
+                }
+            }
+        }
+    }
     // ---- the census population: observable ⊇ reached ⊇ verified -------------
     //
     // Local accumulators. Every control below is computed from THESE, in this
@@ -335,6 +503,10 @@ pub(super) fn measure(
     let (mut reached_not_admitted, mut admitted_not_reached) = (0usize, 0);
     let (mut bytes_observable, mut bytes_reached, mut bytes_modeled) = (0usize, 0, 0);
     let mut modeled = 0usize;
+    // `ROADMAP_SLICING_2026-08-21.md` §3's own predicate — see
+    // [`in_semantic_model`]. A WIDER population than `modeled`, and published
+    // beside it precisely so the two can never be taken for one another.
+    let (mut inmodel, mut offmodel, mut inmodel_den) = (0usize, 0, 0);
     for (c, _) in census.iter() {
         let (r, adm) = grade_one(&c.cflow, c.verdict.in_class());
         observable += 1;
@@ -355,6 +527,14 @@ pub(super) fn measure(
             }
             Reach::Stopped => stopped += 1,
             Reach::NoBody => nobody += 1,
+        }
+        if let Some(im) = in_semantic_model(&c.cflow, c.cflow_off) {
+            inmodel_den += 1;
+            if im {
+                inmodel += 1;
+            } else {
+                offmodel += 1;
+            }
         }
         if adm {
             admitted += 1;
@@ -393,6 +573,9 @@ pub(super) fn measure(
         ("decode-reach-admitted-not-reached", admitted_not_reached),
         (SEPARATION_KEY, reached_not_admitted),
         ("decode-reach-modeled", modeled),
+        ("decode-reach-inmodel", inmodel),
+        ("decode-reach-offmodel", offmodel),
+        ("decode-reach-inmodel-denominator", inmodel_den),
         ("decode-reach-bytes-observable", bytes_observable),
         ("decode-reach-bytes-reached", bytes_reached),
         ("decode-reach-bytes-modeled", bytes_modeled),
@@ -657,6 +840,32 @@ mod tests {
             assert!(modeled_of_cflow(cflow));
             assert_eq!(reach_of_cflow(cflow), Reach::Reached);
         }
+    }
+
+    /// **`ROADMAP_SLICING` §3's PREDICATE IS WIDER THAN MODEL REACH, and the
+    /// test states the containment in the direction that can be checked without
+    /// a corpus.**
+    ///
+    /// A body that STOPPED can still have had nothing take it out of the model —
+    /// the walk simply did not get far enough — so §3's predicate counts it as
+    /// in-model and [`modeled_of_cflow`] does not. That is the whole reason the
+    /// two numbers differ, and it is asserted rather than argued.
+    #[test]
+    fn the_slicing_predicate_is_wider_than_model_reach() {
+        // Reached and nothing off-class: both say yes.
+        assert!(modeled_of_cflow("cflow-straight+expr-modeled"));
+        assert_eq!(in_semantic_model("cflow-straight+expr-modeled", ""), Some(true));
+        // STOPPED with nothing off-class yet: §3 says in-model, MODEL reach does
+        // not. This single row is the difference between the two numbers.
+        assert!(!modeled_of_cflow("cf-expr-0x59"));
+        assert_eq!(in_semantic_model("cf-expr-0x59", ""), Some(true));
+        // Reached with an operand off-class: both say no.
+        assert!(!modeled_of_cflow("cflow-straight"));
+        assert_eq!(in_semantic_model("cflow-straight", "off-add"), Some(false));
+        // **A body with no scan is NEITHER**, and it is `None` rather than
+        // `false`: `cflow_off` is `""` there because NO WALK RAN, and folding
+        // that in would read an absence as an in-model body.
+        assert_eq!(in_semantic_model("cf-no-body", ""), None);
     }
 
     /// The decoder identity is recorded, because the reach number is a property

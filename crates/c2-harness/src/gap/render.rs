@@ -118,6 +118,63 @@ fn render_decode_reach(report: &GapReport) {
         pct(ever, erea),
         d("decode-reach-emit-unbound"),
     );
+    // **THE THIRD STRENGTH and the I1 DIVERGENCE DETECTOR** (`w-unfuse`'s
+    // `decode_bodies` seam, board #3555).
+    let (gram, gna, ang) = (
+        d("decode-reach-grammar"),
+        d("decode-reach-grammar-not-admitted"),
+        d("decode-reach-admitted-not-grammar"),
+    );
+    println!(
+        "\x20   GRAMMAR-reached {gram} ({}) — off `IlBundle::decode_bodies`, a SECOND parse \
+         over the census's own segmentation.\n\
+         \x20     ADMISSION THAT IS NOT DECODE: grammar-not-admitted {gna}  \
+         admitted-not-grammar {ang}. **{gna} IS THE BASELINE, NOT ZERO**, and it is the size \
+         of a THIRD layer `w-unfuse`'s split does not reach: the grammar reads these bodies \
+         WHOLE and the census refuses them at `shape_to_function`'s SYMBOL BINDING, downstream \
+         of `AdmissionPolicy`. Every one is an `:eof` key. `reached_shape() == is_admitted()` \
+         IS zero by construction — but that is a tautology (`is_admitted` is defined as \
+         `reached_shape`), and a criterion that cannot fail has abstained, not passed \
+         (`#3336`). This pairing is against the CENSUS's verdict and it can fail; it does.\n\
+         \x20     So the I1 signal is the CHANGE in {gna}, measured against this baseline — \
+         never against 0.\n\
+         \x20     THE THREE STRENGTHS ARE NOT A CHAIN: grammar∧model {}  grammar-not-model {} \
+          model-not-grammar {}. `frame ⊇ model` holds; `grammar` contains neither and is \
+         contained in neither. Three questions, three numbers, no ladder.",
+        pct(gram, observable),
+        d("decode-reach-grammar-and-model"),
+        d("decode-reach-grammar-not-model"),
+        d("decode-reach-model-not-grammar"),
+    );
+    let gna_rows = report.decode_rows_by_name("decode-reach-grammar-not-admitted|");
+    if !gna_rows.is_empty() {
+        println!(
+            "\x20     …and WHICH census verdict refuses a body whose grammar the decode \
+             reached — {} distinct, sorted by name. A count of disagreements that cannot be \
+             looked at is not a repair set:",
+            gna_rows.len()
+        );
+        for (k, n) in gna_rows.iter().take(10) {
+            println!("\x20       {n:>8}  {k}");
+        }
+    }
+    // `ROADMAP_SLICING` §3's own predicate, measured here so the two can be
+    // compared instead of guessed at.
+    let (inm, offm, inden) = (
+        d("decode-reach-inmodel"),
+        d("decode-reach-offmodel"),
+        d("decode-reach-inmodel-denominator"),
+    );
+    println!(
+        "\x20   §3's PREDICATE  in-semantic-model {inm} ({} of {inden} scanned bodies)  \
+         off-model {offm} ({}) — this is `ROADMAP_SLICING_2026-08-21.md` §3's *\"≥1 operand \
+         outside the semantic model\"*, negated, over ITS population (every body a walk ran \
+         on, finished or not). **It is WIDER than MODEL reach above**, which also requires \
+         the walk to have reached the tail. Two predicates, two denominators, published side \
+         by side so neither can be taken for the other.",
+        pct(inm, inden),
+        pct(offm, inden),
+    );
     // **THE CONTAINMENT NOBODY HAS ASKED**, and its own denominator beside it.
     let (adm, admr, admn) = (
         d("decode-reach-admitted"),

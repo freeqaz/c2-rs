@@ -2472,6 +2472,35 @@ impl GapReport {
                 // the first without the second would be this instrument's own
                 // over-claim.
                 ("decode-reach-modeled", d("decode-reach-modeled")),
+                // **THE THIRD STRENGTH**, off `w-unfuse`'s `decode_bodies`
+                // seam, and the I1 DIVERGENCE DETECTOR beside it. Zero today by
+                // construction; nonzero on the day a general decode lands
+                // without a widening, which is the outcome the split is for.
+                ("decode-reach-grammar", d("decode-reach-grammar")),
+                ("decode-reach-bytes-grammar", d("decode-reach-bytes-grammar")),
+                (
+                    "decode-reach-grammar-not-admitted",
+                    d("decode-reach-grammar-not-admitted"),
+                ),
+                (
+                    "decode-reach-admitted-not-grammar",
+                    d("decode-reach-admitted-not-grammar"),
+                ),
+                // The three strengths are NOT a chain, and these three cells
+                // are what says so.
+                ("decode-reach-grammar-and-model", d("decode-reach-grammar-and-model")),
+                ("decode-reach-grammar-not-model", d("decode-reach-grammar-not-model")),
+                ("decode-reach-model-not-grammar", d("decode-reach-model-not-grammar")),
+                ("decode-reach-grammar-desync", d("decode-reach-grammar-desync")),
+                ("decode-reach-grammar-no-ex", d("decode-reach-grammar-no-ex")),
+                // `ROADMAP_SLICING` §3's OWN predicate, over its own
+                // denominator, so the two can be compared instead of guessed at.
+                ("decode-reach-inmodel", d("decode-reach-inmodel")),
+                ("decode-reach-offmodel", d("decode-reach-offmodel")),
+                (
+                    "decode-reach-inmodel-denominator",
+                    d("decode-reach-inmodel-denominator"),
+                ),
                 ("decode-reach-stopped", stopped),
                 ("decode-reach-nobody", nobody),
                 ("decode-reach-bytes-observable", d("decode-reach-bytes-observable")),
