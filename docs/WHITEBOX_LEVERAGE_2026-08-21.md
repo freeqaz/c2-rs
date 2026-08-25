@@ -86,7 +86,7 @@ three (§4), and five live caveats (§5). The short version:
 | R2 | the encoder: 2 tables + **79 distinct arms** ✅ (not 111 — coordinator re-measured from the pinned image) | 2–4 | **I2**, priced 1.5–4.5 eng-mo raw black-box; ~~also unlocks mismatch anatomy (§5 below)~~ **(that clause struck 2026-08-22 — mismatch anatomy is shipped and does not depend on these tables; R2 stands on I2 alone. §5 banner)** |
 | R3 | the label charge: 31+132 enumerable call sites, closed by construction | 2–4 | the fitted `LABEL_SEED_GAP = 9` / `/Gy +3`, and §2.3(b)'s "not derivable" premise |
 | R4 | `FUN_10b55732` — globregs promotion (item F1) | 3–5 | F1's 2-raw/10-calibrated lanes; may explain the 52,416-config null |
-| R5 | `FUN_10bc2d7a` — the 189-arm IL→tuple dispatch | 15–25 | **I1** (1.5–4.5 eng-mo raw) + the shared input to all ten Phase-1 slices |
+| R5 | `FUN_10bc2d7a` — ~~the 189-arm IL→tuple dispatch~~ **61 REAL ARMS over 95 opcodes, plus one refusal over 94 — "189" is the OPCODE count; the 15–25 d in the next cell is priced against the struck number. [`WB_ILARMS_MAP.md`](whitebox/WB_ILARMS_MAP.md) §1, `DECISIONS_2026-08-22.md` decision 13** | 15–25 | **I1** (1.5–4.5 eng-mo raw) + the shared input to all ten Phase-1 slices |
 | R6–R9 | expansion switches · scheduler confirm · block order · `0x4F` | 13–23 | S1's instrument, item F0, `CEILING` phase 1, the last transcribed width |
 
 **Dispatch order R1 → R2 → R3** (≈5–9 days, three `DISCLOSURE.md` rows,

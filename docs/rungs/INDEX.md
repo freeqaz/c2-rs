@@ -308,6 +308,7 @@ the header block this table is read from.
 | 2026-08-24 | w-relread | [w-relread](2026-08-24-w-relread.md) | 10 | +0 (no `crates/` byte changed) |
 | 2026-08-24 | w-s1c3 | [w-s1c3](2026-08-24-w-s1c3.md) | 12 | +0 — a re-expression, not a widening; required-zero byte delta |
 | 2026-08-25 | w-hygiene | [w-hygiene](2026-08-25-w-hygiene.md) | 10 | +0 — no census key moves; the identity diff is the grade |
+| 2026-08-25 | w-ilarms | [w-ilarms](2026-08-25-w-ilarms.md) | 10 | +0 (no `crates/` byte changed) |
 | 2026-08-25 | w-keymap | [w-keymap](2026-08-25-w-keymap.md) | 9 | **+0.** **ZERO `crates/` bytes.** `git diff --stat` against |
 | 2026-08-25 | w-permeasure | [w-permeasure](2026-08-25-w-permeasure.md) | 9 | +0 |
 | 2026-08-25 | w-relsite | [w-relsite](2026-08-25-w-relsite.md) | 10 | +0 (no `crates/` byte changed) |

@@ -1,0 +1,107 @@
+== the dispatch head, decoded from raw bytes ==
+  10bc2e08  8b55cc          mov edx, [ebp-0x34]
+  10bc2e0b  8d42ff          lea eax, [edx-0x1]
+  10bc2e0e  3dbc000000      cmp eax, 0xbc
+  10bc2e13  0f872a130000    ja 0x10bc4143
+  10bc2e19  0fb6804a42bc10  movzx eax, byte ptr [eax + 0x10bc424a]
+  10bc2e20  ff24855241bc10  jmp dword ptr [eax*4 + 0x10bc4152]
+
+== derived, not assumed ==
+  opcode domain        0x01 .. 0xbd   (189 opcodes)   [from lea disp -1 + cmp bound 0xbc]
+  byte index table     0x10bc424a .. 0x10bc4306   stride 1, 189 entries   [.text]
+  arm target table     0x10bc4152 .. 0x10bc4249   stride 4, 62 entries   [.text]
+  index value range    0 .. 61  =>  n_arms = 62
+  out-of-range `ja`    0x10bc4143
+
+== T3: are the arm targets distinct? ==
+  62 table entries, 62 distinct targets
+
+== T2/T4: containment and the refusal ==
+  targets inside [0x10bc2d7a,0x10bc4152)   62 of 62
+  arm index(es) equal to the `ja` target        [61]
+  in-range opcodes routed there                 94 of 189
+  in-range opcodes handled                      95 of 189
+  real arms (excluding the refusal)             61 of 62
+
+== T6: the byte table's extent, read TWO ways ==
+  189 entries ends at 0x10bc4306; next VA 0x10bc4307 = 558bec83
+  prologue at 0x10bc4307: push ebp; mov ebp,esp
+  arm table ends 0x10bc4249; byte table starts 0x10bc424a  (gap 0 B)
+  body 0x10bc2d7a + 5080 = 0x10bc4152; arm table at 0x10bc4152
+
+== the alternative T2 does not exclude ==
+  16 bytes past the byte table: 55 8b ec 83 ec 30 53 8b d9 8b 03 56 8b 75 08 81
+  of those, 3 of 16 would be legal arm indices (a longer table would need ALL of them to be)
+arm      target    n  opcodes
+  0  0x10bc3ff6    4  01 2a 2b 43
+  1  0x10bc2ec1   10  02 03 04 05 06 09 0a 0b 0c 0d
+  2  0x10bc386f    1  08
+  3  0x10bc3868    1  0e
+  4  0x10bc37c3   10  0f 10 11 12 13 15 16 17 18 19
+  5  0x10bc31fb    1  1a
+  6  0x10bc3254    2  1b 1c
+  7  0x10bc38a1    6  1f 20 21 22 23 24
+  8  0x10bc2e27    1  26
+  9  0x10bc3891    1  27
+ 10  0x10bc3881    1  28
+ 11  0x10bc3117    1  29
+ 12  0x10bc2f75    2  2c 34
+ 13  0x10bc2ff1    2  30 5a
+ 14  0x10bc3784    1  32
+ 15  0x10bc2fc5    1  33
+ 16  0x10bc37d3    2  35 36
+ 17  0x10bc2f43    1  37
+ 18  0x10bc304d    2  38 39
+ 19  0x10bc30ec    1  3a
+ 20  0x10bc32ec    1  3b
+ 21  0x10bc34e0    1  3c
+ 22  0x10bc3510    1  3d
+ 23  0x10bc371c    2  3e bd
+ 24  0x10bc3697    1  40
+ 25  0x10bc3771    1  41
+ 26  0x10bc3555    1  42
+ 27  0x10bc3166    1  44
+ 28  0x10bc3621    1  46
+ 29  0x10bc3651    1  47
+ 30  0x10bc38ae    1  4b
+ 31  0x10bc3645    1  4c
+ 32  0x10bc38bb    1  4f
+ 33  0x10bc3580    1  53
+ 34  0x10bc35b4    1  54
+ 35  0x10bc3570    1  55
+ 36  0x10bc38d2    1  56
+ 37  0x10bc2ece    1  59
+ 38  0x10bc3b00    1  5c
+ 39  0x10bc3b10    2  5d 5e
+ 40  0x10bc3b7d    2  60 62
+ 41  0x10bc3b4f    1  61
+ 42  0x10bc3569    1  64
+ 43  0x10bc3fe0    1  66
+ 44  0x10bc39b6    1  67
+ 45  0x10bc3ba7    1  68
+ 46  0x10bc3a11    1  77
+ 47  0x10bc3c1c    1  8b
+ 48  0x10bc38f5    1  8d
+ 49  0x10bc3967    1  8e
+ 50  0x10bc3953    1  8f
+ 51  0x10bc396e    1  90
+ 52  0x10bc3987    1  99
+ 53  0x10bc39aa    1  9a
+ 54  0x10bc39c1    1  9b
+ 55  0x10bc3aef    1  9d
+ 56  0x10bc3c66    1  a0
+ 57  0x10bc3fd6    1  a2
+ 58  0x10bc2e38    1  b9
+ 59  0x10bc3975    1  bb
+ 60  0x10bc3159    1  bc
+ 61  0x10bc4143   94  07 14 1d 1e 25 2d 2e 2f 31 3f 45 48 49 4a 4d 4e 50 51 52 57 58 5b 5f 63 65 69 6a 6b 6c 6d 6e 6f 70 71 72 73 74 75 76 78 79 7a 7b 7c 7d 7e 7f 80 81 82 83 84 85 86 87 88 89 8a 8c 91 92 93 94 95 96 97 98 9c 9e 9f a1 a3 a4 a5 a6 a7 a8 a9 aa ab ac ad ae af b0 b1 b2 b3 b4 b5 b6 b7 b8 ba  <-- REFUSAL
+# 94 of 189 in-range opcodes route to the C1001 arm(s) [61]
+# OUT OF SCOPE for any I1 slice by construction.
+  07 14 1d 1e 25 2d 2e 2f 31 3f 45 48 49 4a 4d 4e
+  50 51 52 57 58 5b 5f 63 65 69 6a 6b 6c 6d 6e 6f
+  70 71 72 73 74 75 76 78 79 7a 7b 7c 7d 7e 7f 80
+  81 82 83 84 85 86 87 88 89 8a 8c 91 92 93 94 95
+  96 97 98 9c 9e 9f a1 a3 a4 a5 a6 a7 a8 a9 aa ab
+  ac ad ae af b0 b1 b2 b3 b4 b5 b6 b7 b8 ba
+# as runs:
+  07 14 1d-1e 25 2d-2f 31 3f 45 48-4a 4d-4e 50-52 57-58 5b 5f 63 65 69-76 78-8a 8c 91-98 9c 9e-9f a1 a3-b8 ba

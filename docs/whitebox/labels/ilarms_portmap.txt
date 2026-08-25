@@ -1,0 +1,273 @@
+arm      target  ops  hit  files
+  0  0x10bc3ff6    4    1  expr.rs,mod.rs,control_flow.rs,mcall_tail.rs
+  1  0x10bc2ec1   10   10  codec.rs,expr.rs,mcall.rs,mod.rs,control_flow.rs,leaf_float.rs,ptr_walk_chain_loop.rs
+  2  0x10bc386f    1    0  
+  3  0x10bc3868    1    1  control_flow.rs
+  4  0x10bc37c3   10   10  expr.rs,control_flow.rs,counted_accum_loop.rs
+  5  0x10bc31fb    1    1  expr.rs,mod.rs,control_flow.rs
+  6  0x10bc3254    2    2  mod.rs,control_flow.rs
+  7  0x10bc38a1    6    6  expr.rs,mod.rs,control_flow.rs,mod.rs
+  8  0x10bc2e27    1    1  codec.rs,expr.rs,mcall.rs,mod.rs,control_flow.rs,mcall_tail.rs,pool_free_list.rs,bundle.rs
+  9  0x10bc3891    1    1  codec.rs,expr.rs,mcall.rs,control_flow.rs,mcall_tail.rs
+ 10  0x10bc3881    1    1  expr.rs,mcall.rs,control_flow.rs,mcall_tail.rs
+ 11  0x10bc3117    1    1  expr.rs,mod.rs,control_flow.rs
+ 12  0x10bc2f75    2    1  codec.rs,expr.rs,mcall.rs,mod.rs,control_flow.rs,mcall_tail.rs
+ 13  0x10bc2ff1    2    1  codec.rs,expr.rs,mcall.rs,control_flow.rs,mcall_tail.rs
+ 14  0x10bc3784    1    1  codec.rs,expr.rs,mcall.rs,control_flow.rs,mcall_tail.rs
+ 15  0x10bc2fc5    1    1  codec.rs,expr.rs,mcall.rs,control_flow.rs,leaf_float.rs,leaf_store.rs,mcall_tail.rs,no_effect.rs
+ 16  0x10bc37d3    2    2  expr.rs,control_flow.rs
+ 17  0x10bc2f43    1    0  
+ 18  0x10bc304d    2    2  expr.rs,mod.rs,control_flow.rs,mcall_tail.rs
+ 19  0x10bc30ec    1    1  codec.rs,expr.rs,mod.rs,control_flow.rs
+ 20  0x10bc32ec    1    1  mod.rs,control_flow.rs
+ 21  0x10bc34e0    1    1  mod.rs,control_flow.rs
+ 22  0x10bc3510    1    1  mod.rs,control_flow.rs
+ 23  0x10bc371c    2    1  codec.rs,expr.rs,mcall.rs,control_flow.rs,mcall_tail.rs
+ 24  0x10bc3697    1    1  expr.rs,mod.rs,control_flow.rs
+ 25  0x10bc3771    1    1  codec.rs,expr.rs,mcall.rs,control_flow.rs,leaf_float.rs,mcall_tail.rs
+ 26  0x10bc3555    1    0  
+ 27  0x10bc3166    1    1  expr.rs,control_flow.rs
+ 28  0x10bc3621    1    1  codec.rs
+ 29  0x10bc3651    1    0  
+ 30  0x10bc38ae    1    1  expr.rs,mcall.rs,control_flow.rs,mcall_tail.rs
+ 31  0x10bc3645    1    1  codec.rs,expr.rs,mcall.rs,control_flow.rs,no_effect.rs
+ 32  0x10bc38bb    1    1  codec.rs,expr.rs,control_flow.rs
+ 33  0x10bc3580    1    1  codec.rs,expr.rs,control_flow.rs,bundle.rs
+ 34  0x10bc35b4    1    1  codec.rs,expr.rs,control_flow.rs
+ 35  0x10bc3570    1    1  codec.rs,expr.rs,mcall.rs,control_flow.rs
+ 36  0x10bc38d2    1    0  
+ 37  0x10bc2ece    1    0  
+ 38  0x10bc3b00    1    1  expr.rs,control_flow.rs
+ 39  0x10bc3b10    2    2  expr.rs,control_flow.rs
+ 40  0x10bc3b7d    2    0  
+ 41  0x10bc3b4f    1    0  
+ 42  0x10bc3569    1    1  control_flow.rs
+ 43  0x10bc3fe0    1    1  expr.rs,mcall.rs,mod.rs,control_flow.rs,mcall_tail.rs
+ 44  0x10bc39b6    1    1  expr.rs,control_flow.rs,mcall_tail.rs
+ 45  0x10bc3ba7    1    0  
+ 46  0x10bc3a11    1    0  
+ 47  0x10bc3c1c    1    0  
+ 48  0x10bc38f5    1    0  
+ 49  0x10bc3967    1    0  
+ 50  0x10bc3953    1    0  
+ 51  0x10bc396e    1    0  
+ 52  0x10bc3987    1    1  expr.rs,mcall.rs,control_flow.rs,mcall_tail.rs
+ 53  0x10bc39aa    1    1  control_flow.rs,mcall_tail.rs
+ 54  0x10bc39c1    1    1  expr.rs,control_flow.rs,mcall_tail.rs,no_effect.rs
+ 55  0x10bc3aef    1    0  
+ 56  0x10bc3c66    1    0  
+ 57  0x10bc3fd6    1    0  
+ 58  0x10bc2e38    1    1  codec.rs,expr.rs,mcall.rs,control_flow.rs,leaf_float.rs,leaf_store.rs,mcall_tail.rs,no_effect.rs,pool_free_list.rs
+ 59  0x10bc3975    1    0  
+ 60  0x10bc3159    1    0  
+
+arms with >= 1 port site      41 of 61 real arms
+arms with NO port site        20 of 61
+handled opcodes with a site   68 of 95
+REFUSED opcodes with a site   1 of 94   0x2d
+port literals outside the dispatch domain 0x01..0xbd: 0  
+
+arms reachable from each port file (an arm may appear in several):
+   40 of 61   crates/c2-il/src/func/body/shapes/control_flow.rs
+   33 of 61   crates/c2-il/src/func/body/expr.rs
+   18 of 61   crates/c2-il/src/func/body/shapes/mcall_tail.rs
+   17 of 61   crates/c2-il/src/codec.rs
+   16 of 61   crates/c2-il/src/func/body/mcall.rs
+   15 of 61   crates/c2-il/src/func/body/mod.rs
+    4 of 61   crates/c2-il/src/func/body/shapes/leaf_float.rs
+    4 of 61   crates/c2-il/src/func/body/shapes/no_effect.rs
+    2 of 61   crates/c2-il/src/func/body/shapes/leaf_store.rs
+    2 of 61   crates/c2-il/src/func/body/shapes/pool_free_list.rs
+    2 of 61   crates/c2-il/src/func/bundle.rs
+    1 of 61   crates/c2-il/src/func/body/shapes/counted_accum_loop.rs
+    1 of 61   crates/c2-il/src/func/body/shapes/ptr_walk_chain_loop.rs
+    1 of 61   crates/c2-il/src/func/mod.rs
+
+operand class (raw read of 0x10b25e48) vs port coverage, over the 95 HANDLED opcodes only:
+  class 00  26/41   01- 02 03 04 05 06 08- 09 0a 0b 0c 0d 0e 1a 1b 1c 1f 20 21 22 23 24 37- 43 44 46 47- 4b 4c 53 56- 59- 60- 62- 68- 8b- 8e- 8f- 90- 9d- bc-   <-- PARTIAL: same payload grammar, read on some and not others
+  class 01  20/24   0f 10 11 12 13 15 16 17 18 19 27 30 32 35 36 40 41 55 5a- 64 77- 8d- 9a a0-   <-- PARTIAL: same payload grammar, read on some and not others
+  class 02  7/8   26 28 29 38 39 3a 3b 42-   <-- PARTIAL: same payload grammar, read on some and not others
+  class 03  0/1   2a-
+  class 04  0/1   2b-
+  class 05  1/2   2c 34-   <-- PARTIAL: same payload grammar, read on some and not others
+  class 06  1/1   33
+  class 07  1/2   3c bb-   <-- PARTIAL: same payload grammar, read on some and not others
+  class 08  1/1   3d
+  class 09  0/1   3e-
+  class 0c  1/1   4f
+  class 0d  1/1   54
+  class 12  1/1   9b
+  class 13  1/1   5c
+  class 14  2/2   5d 5e
+  class 15  0/1   61-
+  class 17  0/1   a2-
+  class 18  1/1   b9
+  class 19  1/1   bd
+  class 1a  1/1   66
+  class 1b  1/1   67
+  class 1c  1/1   99
+  5 of 22 classes are covered only partly
+
+prereg verdicts over the 95 HANDLED opcodes:
+  MATCHED*       68 of 95
+  NARROW(gate)   0 of 95
+  ABSENT         27 of 95
+  WIDTH-or-NAME-ONLY (no operand field survives): 24 of 95   43 06 0e 0f 10 11 12 13 15 16 17 18 19 1a 1b 1c 35 36 40 44 5c 64 67 9a
+
+per-arm opcode detail (HIT = the port names this byte somewhere)
+arm  0 0x10bc3ff6
+    0x01 ABSENT
+    0x2a ABSENT
+    0x2b ABSENT
+    0x43 MATCHED*      crates/c2-il/src/func/body/expr.rs:805:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/mod.rs:1848:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:1066:operand[U,width] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:314:at[G-shp,name]
+arm  1 0x10bc2ec1
+    0x02 MATCHED*      crates/c2-il/src/codec.rs:1278:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:748:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2055:parse_expr_classed[G-adm,field] ; crates/c2-il/src/func/body/mcall.rs:1325:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1554:eat_call_value[G-shp,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:848:operand[U,width] ; crates/c2-il/src/func/body/shapes/leaf_float.rs:79:try_parse_float_leaf[G-shp,field] ; crates/c2-il/src/func/body/shapes/ptr_walk_chain_loop.rs:225:chain_op_kind[G-shp,name]
+    0x03 MATCHED*      crates/c2-il/src/codec.rs:1279:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:748:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2060:parse_expr_classed[G-adm,field] ; crates/c2-il/src/func/body/mcall.rs:1325:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1554:eat_call_value[G-shp,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:848:operand[U,width] ; crates/c2-il/src/func/body/shapes/leaf_float.rs:83:try_parse_float_leaf[G-shp,field]
+    0x04 MATCHED*      crates/c2-il/src/codec.rs:1280:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:748:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2065:parse_expr_classed[G-adm,field] ; crates/c2-il/src/func/body/mcall.rs:1325:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1554:eat_call_value[G-shp,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:848:operand[U,width] ; crates/c2-il/src/func/body/shapes/leaf_float.rs:87:try_parse_float_leaf[G-shp,field] ; crates/c2-il/src/func/body/shapes/ptr_walk_chain_loop.rs:226:chain_op_kind[G-shp,name]
+    0x05 MATCHED*      crates/c2-il/src/func/body/expr.rs:761:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:886:operand[U,width] ; crates/c2-il/src/func/body/shapes/leaf_float.rs:91:try_parse_float_leaf[G-shp,field]
+    0x06 MATCHED*      crates/c2-il/src/func/body/expr.rs:761:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:886:operand[U,width]
+    0x09 MATCHED*      crates/c2-il/src/func/body/expr.rs:762:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2103:parse_expr_classed[G-adm,field] ; crates/c2-il/src/func/body/mod.rs:1829:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:887:operand[U,width]
+    0x0a MATCHED*      crates/c2-il/src/func/body/expr.rs:762:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2136:parse_expr_classed[G-adm,field] ; crates/c2-il/src/func/body/mod.rs:1830:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:887:operand[U,width]
+    0x0b MATCHED*      crates/c2-il/src/func/body/expr.rs:762:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2085:parse_expr_classed[G-adm,field] ; crates/c2-il/src/func/body/mod.rs:1831:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:888:operand[U,width]
+    0x0c MATCHED*      crates/c2-il/src/func/body/expr.rs:762:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2090:parse_expr_classed[G-adm,field] ; crates/c2-il/src/func/body/mod.rs:1832:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:888:operand[U,width] ; crates/c2-il/src/func/body/shapes/ptr_walk_chain_loop.rs:227:chain_op_kind[G-shp,name]
+    0x0d MATCHED*      crates/c2-il/src/func/body/expr.rs:762:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2095:parse_expr_classed[G-adm,field] ; crates/c2-il/src/func/body/mod.rs:1833:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:888:operand[U,width] ; crates/c2-il/src/func/body/shapes/ptr_walk_chain_loop.rs:228:chain_op_kind[G-shp,name]
+arm  2 0x10bc386f
+    0x08 ABSENT
+arm  3 0x10bc3868
+    0x0e MATCHED*      crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:888:operand[U,width]
+arm  4 0x10bc37c3
+    0x0f MATCHED*      crates/c2-il/src/func/body/expr.rs:763:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:897:operand[U,width]
+    0x10 MATCHED*      crates/c2-il/src/func/body/shapes/control_flow.rs:897:operand[U,width] ; crates/c2-il/src/func/body/shapes/counted_accum_loop.rs:191:accum_op[G-shp,name]
+    0x11 MATCHED*      crates/c2-il/src/func/body/shapes/control_flow.rs:897:operand[U,width] ; crates/c2-il/src/func/body/shapes/counted_accum_loop.rs:192:accum_op[G-shp,name]
+    0x12 MATCHED*      crates/c2-il/src/func/body/shapes/control_flow.rs:897:operand[U,width]
+    0x13 MATCHED*      crates/c2-il/src/func/body/shapes/control_flow.rs:897:operand[U,width]
+    0x15 MATCHED*      crates/c2-il/src/func/body/shapes/control_flow.rs:897:operand[U,width] ; crates/c2-il/src/func/body/shapes/counted_accum_loop.rs:193:accum_op[G-shp,name]
+    0x16 MATCHED*      crates/c2-il/src/func/body/shapes/control_flow.rs:897:operand[U,width] ; crates/c2-il/src/func/body/shapes/counted_accum_loop.rs:194:accum_op[G-shp,name]
+    0x17 MATCHED*      crates/c2-il/src/func/body/shapes/control_flow.rs:897:operand[U,width] ; crates/c2-il/src/func/body/shapes/counted_accum_loop.rs:195:accum_op[G-shp,name]
+    0x18 MATCHED*      crates/c2-il/src/func/body/shapes/control_flow.rs:897:operand[U,width] ; crates/c2-il/src/func/body/shapes/counted_accum_loop.rs:196:accum_op[G-shp,name]
+    0x19 MATCHED*      crates/c2-il/src/func/body/shapes/control_flow.rs:897:operand[U,width] ; crates/c2-il/src/func/body/shapes/counted_accum_loop.rs:197:accum_op[G-shp,name]
+arm  5 0x10bc31fb
+    0x1a MATCHED*      crates/c2-il/src/func/body/expr.rs:764:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/mod.rs:1826:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:889:operand[U,width]
+arm  6 0x10bc3254
+    0x1b MATCHED*      crates/c2-il/src/func/body/mod.rs:1827:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:889:operand[U,width]
+    0x1c MATCHED*      crates/c2-il/src/func/body/mod.rs:1828:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:889:operand[U,width]
+arm  7 0x10bc38a1
+    0x1f MATCHED*      crates/c2-il/src/func/mod.rs:1411:from_opcode[G-adm,name] ; crates/c2-il/src/func/body/expr.rs:765:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2160:parse_expr_classed[G-adm,field](guarded) ; crates/c2-il/src/func/body/mod.rs:1820:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width]
+    0x20 MATCHED*      crates/c2-il/src/func/mod.rs:1412:from_opcode[G-adm,name] ; crates/c2-il/src/func/body/expr.rs:765:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2160:parse_expr_classed[G-adm,field](guarded) ; crates/c2-il/src/func/body/mod.rs:1821:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width]
+    0x21 MATCHED*      crates/c2-il/src/func/mod.rs:1413:from_opcode[G-adm,name] ; crates/c2-il/src/func/body/expr.rs:765:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2160:parse_expr_classed[G-adm,field](guarded) ; crates/c2-il/src/func/body/mod.rs:1822:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width]
+    0x22 MATCHED*      crates/c2-il/src/func/mod.rs:1414:from_opcode[G-adm,name] ; crates/c2-il/src/func/body/expr.rs:765:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2160:parse_expr_classed[G-adm,field](guarded) ; crates/c2-il/src/func/body/mod.rs:1823:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width]
+    0x23 MATCHED*      crates/c2-il/src/func/mod.rs:1415:from_opcode[G-adm,name] ; crates/c2-il/src/func/body/expr.rs:765:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2160:parse_expr_classed[G-adm,field](guarded) ; crates/c2-il/src/func/body/mod.rs:1824:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width]
+    0x24 MATCHED*      crates/c2-il/src/func/mod.rs:1416:from_opcode[G-adm,name] ; crates/c2-il/src/func/body/expr.rs:765:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2160:parse_expr_classed[G-adm,field](guarded) ; crates/c2-il/src/func/body/mod.rs:1825:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:882:operand[U,width]
+arm  8 0x10bc2e27
+    0x26 MATCHED*      crates/c2-il/src/codec.rs:1134:try_prefix_token[U,field] ; crates/c2-il/src/codec.rs:1229:try_ex_token[U,field] ; crates/c2-il/src/func/bundle.rs:457:bare_lo_after_prefix[U,field] ; crates/c2-il/src/func/body/expr.rs:766:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2478:parse_expr_classed[G-adm,field] ; crates/c2-il/src/func/body/mcall.rs:1211:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1446:eat_call_value[G-shp,field] ; crates/c2-il/src/func/body/mod.rs:1849:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/mod.rs:2044:parse_segment_shape[G-adm,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:842:operand[U,width] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:310:at[G-shp,name] ; crates/c2-il/src/func/body/shapes/pool_free_list.rs:203:try_parse_pool_free_list[G-shp,field]
+arm  9 0x10bc3891
+    0x27 MATCHED*      crates/c2-il/src/codec.rs:1297:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:767:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2291:parse_expr_classed[G-adm,field](guarded) ; crates/c2-il/src/func/body/mcall.rs:1274:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1492:eat_call_value[G-shp,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:938:operand[U,width] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:297:at[G-shp,name]
+arm 10 0x10bc3881
+    0x28 MATCHED*      crates/c2-il/src/func/body/expr.rs:768:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/mcall.rs:1282:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1497:eat_call_value[G-shp,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:1033:operand[U,width] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:297:at[G-shp,name]
+arm 11 0x10bc3117
+    0x29 MATCHED*      crates/c2-il/src/func/body/expr.rs:769:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2185:parse_expr_classed[G-adm,field](guarded) ; crates/c2-il/src/func/body/mod.rs:1792:cflow_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:751:step[U,field]
+arm 12 0x10bc2f75
+    0x2c MATCHED*      crates/c2-il/src/codec.rs:1315:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:770:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2350:parse_expr_classed[G-adm,field] ; crates/c2-il/src/func/body/mcall.rs:1264:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1487:eat_call_value[G-shp,field] ; crates/c2-il/src/func/body/mod.rs:1834:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:1044:operand[U,width] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:313:at[G-shp,name]
+    0x34 ABSENT
+arm 13 0x10bc2ff1
+    0x30 MATCHED*      crates/c2-il/src/codec.rs:1306:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:771:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/mcall.rs:1292:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1503:eat_call_value[G-shp,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:943:operand[U,width] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:298:at[G-shp,name]
+    0x5a ABSENT
+arm 14 0x10bc3784
+    0x32 MATCHED*      crates/c2-il/src/codec.rs:1323:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:771:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/mcall.rs:1158:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:909:operand[U,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:912:operand[U,width] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:304:at[G-shp,name]
+arm 15 0x10bc2fc5
+    0x33 MATCHED*      crates/c2-il/src/codec.rs:1256:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:778:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:1993:parse_expr_classed[G-adm,field] ; crates/c2-il/src/func/body/mcall.rs:1178:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1458:eat_call_value[G-shp,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:829:operand[U,width] ; crates/c2-il/src/func/body/shapes/leaf_float.rs:105:try_parse_float_leaf[G-shp,field] ; crates/c2-il/src/func/body/shapes/leaf_store.rs:537:parse_store_stmt[G-shp,field] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:274:at[G-shp,name] ; crates/c2-il/src/func/body/shapes/no_effect.rs:208:eat_no_effect_call_stmt[G-shp,field]
+arm 16 0x10bc37d3
+    0x35 MATCHED*      crates/c2-il/src/func/body/expr.rs:799:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:897:operand[U,width]
+    0x36 MATCHED*      crates/c2-il/src/func/body/shapes/control_flow.rs:897:operand[U,width]
+arm 17 0x10bc2f43
+    0x37 ABSENT
+arm 18 0x10bc304d
+    0x38 MATCHED*      crates/c2-il/src/func/body/expr.rs:769:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/mod.rs:1793:cflow_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:757:step[U,field] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:308:at[G-shp,name]
+    0x39 MATCHED*      crates/c2-il/src/func/body/expr.rs:769:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/mod.rs:1794:cflow_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:757:step[U,field] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:308:at[G-shp,name]
+arm 19 0x10bc30ec
+    0x3a MATCHED*      crates/c2-il/src/codec.rs:1331:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:769:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2185:parse_expr_classed[G-adm,field](guarded) ; crates/c2-il/src/func/body/mod.rs:1795:cflow_opcode_name[U,name] ; crates/c2-il/src/func/body/mod.rs:2017:parse_segment_shape[G-adm,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:763:step[U,field]
+arm 20 0x10bc32ec
+    0x3b MATCHED*      crates/c2-il/src/func/body/mod.rs:1797:cflow_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:769:step[U,field]
+arm 21 0x10bc34e0
+    0x3c MATCHED*      crates/c2-il/src/func/body/mod.rs:1798:cflow_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:774:step[U,field]
+arm 22 0x10bc3510
+    0x3d MATCHED*      crates/c2-il/src/func/body/mod.rs:1799:cflow_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:780:step[U,field]
+arm 23 0x10bc371c
+    0x3e ABSENT
+    0xbd MATCHED*      crates/c2-il/src/codec.rs:1233:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:1110:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/mcall.rs:1228:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1519:eat_call_value[G-shp,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:1182:operand[U,width] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:309:at[G-shp,name]
+arm 24 0x10bc3697
+    0x40 MATCHED*      crates/c2-il/src/func/body/expr.rs:800:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/mod.rs:1845:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:1054:operand[U,width]
+arm 25 0x10bc3771
+    0x41 MATCHED*      crates/c2-il/src/codec.rs:1288:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:804:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/mcall.rs:1160:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:909:operand[U,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:913:operand[U,width] ; crates/c2-il/src/func/body/shapes/leaf_float.rs:132:try_parse_float_leaf[G-shp,field] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:307:at[G-shp,name]
+arm 26 0x10bc3555
+    0x42 ABSENT
+arm 27 0x10bc3166
+    0x44 MATCHED*      crates/c2-il/src/func/body/expr.rs:806:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:1025:operand[U,width]
+arm 28 0x10bc3621
+    0x46 MATCHED*      crates/c2-il/src/codec.rs:1138:try_prefix_token[U,field] ; crates/c2-il/src/codec.rs:1343:try_ex_token[U,field]
+arm 29 0x10bc3651
+    0x47 ABSENT
+arm 30 0x10bc38ae
+    0x4b MATCHED*      crates/c2-il/src/func/body/expr.rs:807:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2193:parse_expr_classed[G-adm,field](guarded) ; crates/c2-il/src/func/body/mcall.rs:1160:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:789:step[U,field] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:307:at[G-shp,name]
+arm 31 0x10bc3645
+    0x4c MATCHED*      crates/c2-il/src/codec.rs:1192:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:887:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/mcall.rs:1243:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1528:eat_call_value[G-shp,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:1205:operand[U,width] ; crates/c2-il/src/func/body/shapes/no_effect.rs:203:eat_no_effect_call_stmt[G-shp,field]
+arm 32 0x10bc38bb
+    0x4f MATCHED*      crates/c2-il/src/codec.rs:1120:try_prefix_token[U,field] ; crates/c2-il/src/codec.rs:1204:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:888:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:795:step[U,field]
+arm 33 0x10bc3580
+    0x53 MATCHED*      crates/c2-il/src/codec.rs:1133:try_prefix_token[U,field] ; crates/c2-il/src/codec.rs:1203:try_ex_token[U,field] ; crates/c2-il/src/func/bundle.rs:456:bare_lo_after_prefix[U,field] ; crates/c2-il/src/func/body/expr.rs:889:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:723:step[U,field]
+arm 34 0x10bc35b4
+    0x54 MATCHED*      crates/c2-il/src/codec.rs:1335:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:890:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:730:step[U,field]
+arm 35 0x10bc3570
+    0x55 MATCHED*      crates/c2-il/src/codec.rs:1281:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:891:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/mcall.rs:1159:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1254:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1549:eat_call_value[G-shp,field](guarded) ; crates/c2-il/src/func/body/shapes/control_flow.rs:909:operand[U,width]
+arm 36 0x10bc38d2
+    0x56 ABSENT
+arm 37 0x10bc2ece
+    0x59 ABSENT
+arm 38 0x10bc3b00
+    0x5c MATCHED*      crates/c2-il/src/func/body/expr.rs:1000:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:969:operand[U,width]
+arm 39 0x10bc3b10
+    0x5d MATCHED*      crates/c2-il/src/func/body/expr.rs:1029:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2577:parse_expr_classed[G-adm,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:984:operand[U,width]
+    0x5e MATCHED*      crates/c2-il/src/func/body/expr.rs:1029:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:2577:parse_expr_classed[G-adm,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:984:operand[U,width]
+arm 40 0x10bc3b7d
+    0x60 ABSENT
+    0x62 ABSENT
+arm 41 0x10bc3b4f
+    0x61 ABSENT
+arm 42 0x10bc3569
+    0x64 MATCHED*      crates/c2-il/src/func/body/shapes/control_flow.rs:1154:operand[U,width]
+arm 43 0x10bc3fe0
+    0x66 MATCHED*      crates/c2-il/src/func/body/expr.rs:1047:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/mcall.rs:1319:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1508:eat_call_value[G-shp,field] ; crates/c2-il/src/func/body/mod.rs:1847:expr_opcode_name[U,name] ; crates/c2-il/src/func/body/shapes/control_flow.rs:1088:operand[U,width] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:315:at[G-shp,name]
+arm 44 0x10bc39b6
+    0x67 MATCHED*      crates/c2-il/src/func/body/expr.rs:1048:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:1110:operand[U,width] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:311:at[G-shp,name]
+arm 45 0x10bc3ba7
+    0x68 ABSENT
+arm 46 0x10bc3a11
+    0x77 ABSENT
+arm 47 0x10bc3c1c
+    0x8b ABSENT
+arm 48 0x10bc38f5
+    0x8d ABSENT
+arm 49 0x10bc3967
+    0x8e ABSENT
+arm 50 0x10bc3953
+    0x8f ABSENT
+arm 51 0x10bc396e
+    0x90 ABSENT
+arm 52 0x10bc3987
+    0x99 MATCHED*      crates/c2-il/src/func/body/expr.rs:1053:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/mcall.rs:1157:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1308:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1511:eat_call_value[G-shp,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:1164:operand[U,width] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:306:at[G-shp,name]
+arm 53 0x10bc39aa
+    0x9a MATCHED*      crates/c2-il/src/func/body/shapes/control_flow.rs:1129:operand[U,width] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:311:at[G-shp,name]
+arm 54 0x10bc39c1
+    0x9b MATCHED*      crates/c2-il/src/func/body/expr.rs:1054:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/shapes/control_flow.rs:1170:operand[U,width] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:312:at[G-shp,name] ; crates/c2-il/src/func/body/shapes/no_effect.rs:207:eat_no_effect_call_stmt[G-shp,field]
+arm 55 0x10bc3aef
+    0x9d ABSENT
+arm 56 0x10bc3c66
+    0xa0 ABSENT
+arm 57 0x10bc3fd6
+    0xa2 ABSENT
+arm 58 0x10bc2e38
+    0xb9 MATCHED*      crates/c2-il/src/codec.rs:1242:try_ex_token[U,field] ; crates/c2-il/src/func/body/expr.rs:1055:chain_skip_form[G-env,width] ; crates/c2-il/src/func/body/expr.rs:1956:parse_expr_classed[G-adm,field] ; crates/c2-il/src/func/body/mcall.rs:1166:walk_detail[G-shp,field] ; crates/c2-il/src/func/body/mcall.rs:1451:eat_call_value[G-shp,field] ; crates/c2-il/src/func/body/shapes/control_flow.rs:818:operand[U,width] ; crates/c2-il/src/func/body/shapes/leaf_float.rs:69:try_parse_float_leaf[G-shp,field] ; crates/c2-il/src/func/body/shapes/leaf_store.rs:528:parse_store_stmt[G-shp,field] ; crates/c2-il/src/func/body/shapes/mcall_tail.rs:305:at[G-shp,name] ; crates/c2-il/src/func/body/shapes/no_effect.rs:221:eat_no_effect_call_stmt[G-shp,field] ; crates/c2-il/src/func/body/shapes/pool_free_list.rs:202:try_parse_pool_free_list[G-shp,field]
+arm 59 0x10bc3975
+    0xbb ABSENT
+arm 60 0x10bc3159
+    0xbc ABSENT

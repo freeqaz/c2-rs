@@ -965,7 +965,7 @@ engineering one**, and no amendment to this document can supply it.~~
 >   `0x10c39b18` encode form) plus **79 distinct arms** off the jump table at
 >   `0x10bfae2d` — 111 entries, 79 targets, **all inside `FUN_10bf9f15`'s
 >   3,861 B**, coordinator-verified against the pinned image. **2–4 days.**
-> * **I1** ← **R5**, `FUN_10bc2d7a` (5,080 B), the **189-arm** IL-record →
+> * **I1** ← **R5**, `FUN_10bc2d7a` (5,080 B), the ~~**189-arm**~~ **61-real-arm (95 opcodes + 94 refusals — "189" is the OPCODE count; [`WB_ILARMS_MAP.md`](whitebox/WB_ILARMS_MAP.md) §1, decision 13; and *"zero arms read today"* below is ALSO stale, all 62 read at #3415)** IL-record →
 >   codegen-tuple dispatch, **zero arms read today**. **15–25 days**, and it is
 >   also the shared input to all ten Phase-1 construct slices.
 >

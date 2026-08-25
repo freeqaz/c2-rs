@@ -160,7 +160,7 @@ promised decision-0 synthesis; this section *is* that report):
 - **R2 succeeded totally and still declined to re-price I2** — 79/79 arms,
   both tables, and `P_ENCODE.md` §9's six reasons the spec is not yet
   buildable, first among them that it starts at a finished machine tuple and
-  building the tuple is R5 (189 arms, unstarted, 15–25 d).
+  building the tuple is R5 (~~189 arms, unstarted~~ **61 real arms over 95 opcodes + 94 refusals, READ at #3415 — decision 13 below carries this correction; [`WB_ILARMS_MAP.md`](whitebox/WB_ILARMS_MAP.md) §1**, 15–25 d).
 - **R3 found a latent defect in shipped code** (#3388):
   `crates/c2-core/src/coff/label.rs`'s `LABEL_SEED_GAP = 9` is
   `7 + 2·[/Og] + 1·[/GF ∧ string pooled in the data phase]`, and the `/Od`
@@ -194,7 +194,7 @@ promised decision-0 synthesis; this section *is* that report):
 
 **What still needs the owner** (asked in the same turn, recorded here):
 whether to fund **R4** (globregs mint order, 3–5 d — now the destination of
-R1's unanswered question) and **R5** (the 189-arm IL→codegen dispatch,
+R1's unanswered question) and **R5** (the ~~189-arm~~ **61-real-arm (95 opcodes + 94 refusals — decision 13 below; [`WB_ILARMS_MAP.md`](whitebox/WB_ILARMS_MAP.md) §1)** IL→codegen dispatch,
 15–25 d — the shared input to all ten Phase-1 slices and the closure of
 R2's `[R]` bound). Decision 1 funded R1–R3 only; R5 is material spend and is
 **not** started under this decision. Nothing else blocks on an answer.
@@ -227,7 +227,7 @@ sole open spend question. It is now answered.
   mechanism at all**. R4 reads the mint order and merge rule as an ordered
   algorithm — the missing input to the already-read comparator, and the
   standing account owed to the 52,416-configuration null.
-- **R5** — `FUN_10bc2d7a` (5,080 B), the **189-arm** IL-record → codegen
+- **R5** — `FUN_10bc2d7a` (5,080 B), the ~~**189-arm**~~ **61-real-arm (95 opcodes + 94 refusals — decision 13 below; [`WB_ILARMS_MAP.md`](whitebox/WB_ILARMS_MAP.md) §1)** IL-record → codegen
   dispatch, **15–25 days**. The largest row on the critical path: it is
   I1 (the general decode), the shared input to all ten Phase-1 construct
   slices, and the closure of the `[R]` bound R2 named in `P_ENCODE.md` §9 —

@@ -199,7 +199,7 @@ self-contained module: `0x10bd0f55`–`0x10bd22a7` (target-independent) plus
 
 | VA | role |
 |---|---|
-| `0x10bc2d7a` | `reader.c`'s 189-arm dispatch ([`P_ILRECORD.md`](P_ILRECORD.md), R5's). Arms `0x3b`/`0x3c`/`0x3d` build the case list |
+| `0x10bc2d7a` | `reader.c`'s ~~189-arm~~ **61-real-arm (95 opcodes + 94 refusals — [`WB_ILARMS_MAP.md`](../WB_ILARMS_MAP.md) §1)** dispatch ([`P_ILRECORD.md`](P_ILRECORD.md), R5's). Arms `0x3b`/`0x3c`/`0x3d` build the case list |
 | `0x10bd22a7` | **the switch-lowering entry point** |
 | `0x10bd13f5` | case-list normalize/merge; returns the count |
 | `0x10bd1634` | statistics: value count, test count, distinct labels, 64-bit range |
