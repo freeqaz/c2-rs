@@ -526,6 +526,35 @@ that c2 contributes from the arm:
 
 Full listing: `work/w-read-r2/control_p1.txt`.
 
+> **⛔ AMENDED BESIDE — lane `w-encmap`, 2026-08-26, board #3641. THE SENTENCE
+> ABOVE IS TRUE AND ITS SCOPE IS NARROWER THAN IT HAS BEEN READ.**
+>
+> ~~*"`encode.rs` accumulated 89 PPC words one captured obj at a time, never
+> looking at `c2.dll`"*~~ — **the tense is the whole point and it is past.** The
+> sentence describes **how the port's words were originally obtained**, and it
+> stays true of that. It is **not** a statement about the tree it is read on:
+> lane `w-s1` (2026-08-22, board `#3379`) moved all 85 primary/extended opcode
+> literals into `mop.rs`'s read table, so the bits are no longer accumulated
+> — verified on this tree, the live half of `encode.rs` composes **zero** words.
+> What is still black-box-derived is the **choice of opcode and operand role per
+> helper**, which `w-s1` did not touch. See §11 for the full adjudication of
+> `#3634` against this sentence.
+>
+> **The consequence that matters, because a lane was priced on it.** `#3617`
+> quoted this paragraph as the reason the `encode` row's `ported` strength was
+> **not defined at all** — *"derived black-box from captured objs, never from
+> these arms … so `sites the port implements` is not defined against the 79-arm
+> population."* That inference does not hold. **How a port function was
+> obtained has no bearing on whether it lands on an arm**; the map is a join on
+> the **form**, which both sides carry, and `mop::plan` had already been citing
+> the arm addresses one by one since `w-s1`. `ported` is **27 of 79** (§10) and
+> the map cost a join, not a read. The residue was real; its stated reason was
+> not.
+>
+> **What is NOT amended:** the 82-of-89 comparison, its seven residuals, and
+> their attribution to named forms are `w-read-r2`'s measurement and stand
+> unre-taken. §10 cites them; it does not re-derive them.
+
 ### 8.2 The arm rules against 500 real objs `[O]`
 
 For every non-padding word of executable `.text` in 500 `dc3-decomp`
@@ -641,3 +670,232 @@ I2 is *"the general lowering to `coff::Function`"*):
    bits in the right place from the wrong operand passes §8.2 and would still
    be wrong. That distinction is exactly `C2_MAP_METHOD.md` §7's, and closing
    it needs the tuple stream from (1).
+
+---
+
+## 10. The arm → PORT map — lane `w-encmap`, 2026-08-26, boards #3636–#3641
+
+**No evidence mark appears in this section, deliberately.** §1–§9 read
+`c2.dll`; this section reads **the port**, against §1–§9's result. Marking a
+port-side row with an evidence letter would both misuse the legend and silently
+move the `encode` row's published agreement census (obj-marks 9 of 28 — the
+counter
+in `crates/c2-harness/src/subsys.rs` counts every mark after the page's first
+`---`). A map of what we built is not new evidence about what c2 does.
+
+**Nothing was re-read for this section.** All 79 arms were already read by
+`w-read-r2` (`#3376`), and [`../READ_PLAN_2026-08-21.md`](../READ_PLAN_2026-08-21.md)
+carries them in its already-read half. This section is a **join**, not a read.
+
+### 10.1 The headline, with its denominator and why that denominator
+
+**`ported` = 27 of 79 arms (34.18 %).**
+
+The denominator is the **79 arms**, and the choice is published rather than
+silent because this page has **three** defensible ones that differ by up to
+5.6×:
+
+| candidate | value | why not |
+|---|---:|---|
+| Ghidra function entries in the encoder band | 14 | `SUBSYS.md` §1's cell. A different population entirely — functions, not rules. `w-submetric` already recorded the 5.6× trap on this row |
+| jump-table **entries** | 111 | **re-measured on this tree: the 111 entries ARE 111 forms, and every form belongs to exactly one arm** (0 forms served by two arms). Counting entries counts one arm up to 12 times — `10bfae1b` alone owns 12 |
+| **distinct arm targets** | **79** | **chosen.** `read` on this row is already `79 distinct encode arms`, so the tuple's containment `sites ⊇ read ⊇ ported` is well formed only in the arm unit |
+
+### 10.2 The predicate, and the two readings published beside it
+
+An arm counts as **ported** iff some form it serves has **both** a field plan
+in `mop::plan` **and** an `OPCODES` row that reaches it. Requiring the second
+half is the conservative choice: a plan no opcode reaches composes nothing.
+
+| reading | value | what it means |
+|---|---:|---|
+| strict — *every* form of the arm reachable | **25** | 3 arms are served partially: `10bfa2a5` (55 yes, 3 no), `10bfa34f` (14 yes, 12 no), `10bfad76` (68 yes, 69 no) |
+| **published** — some form reachable, plan **and** opcode | **27** | |
+| loose — a plan exists, opcode or not | **28** | the extra arm is `10bfa26c` (form 2, `bgip`): the port has the placement rule and no instruction that uses it |
+
+**The published rule grants an arm on one of its forms, so it OVER-states
+partial coverage.** That bias is stated here and re-stated in the instrument's
+own caveat; `the_three_ported_readings_are_distinct` fails if the three ever
+collapse onto each other, so the caveat cannot decay into decoration.
+
+### 10.3 The map — 27 arms
+
+Port sites are `crates/c2-core/src/codegen/mop.rs`, whose `plan()` **already
+cites the c2 arm address it was read from, arm by arm**. This table is the
+inverse of those citations, joined against `ENCODE_ARMS.txt` and checked to be
+total.
+
+| c2 arm | form(s) | c2 opcodes | port field plan | port mnemonics through it |
+|---|---|---:|---|---|
+| `10bfa456` | 22,49 | 77 | `mop.rs:673` | 14: `add`, `adde`, `divw`, `divwu`, `fadd`, `fadds`, `fdiv`, `fdivs`, `fsub` … |
+| `10bfa4df` | 25 | 28 | `mop.rs:679` | 2: `fmr`, `frsp` |
+| `10bfa53b` | 39 | 28 | `mop.rs:685` | 10: `and`, `andc`, `eqv`, `or`, `or.`, `orc`, `slw`, `sraw`, `srw` … |
+| `10bfa1a1` | 28,61 | 23 | `mop.rs:731` | 2: `stdx`, `stfsx` |
+| `10bfa17f` | 26,50 | 22 | `mop.rs:730` | 3: `lfsx`, `lhzx`, `lwzx` |
+| `10bfa4c8` | 47 | 20 | `mop.rs:691` | 3: `addze`, `neg`, `subfze` |
+| `10bfa667` | 21,45,46 | 16 | `mop.rs:720/727` | 7: `lbz`, `lbzu`, `ld`, `lfd`, `lfs`, `lhz`, `lwz` |
+| `10bfa676` | 27,58,71 | 13 | `mop.rs:721/728` | 10: `stb`, `std`, `stdu`, `stfd`, `stfs`, `stfsu`, `sth`, `sthu`, `stw` … |
+| `10bfa587` | 38 | 9 | `mop.rs:693` | 4: `cntlzw`, `extsb`, `extsb.`, `extsh` |
+| `10bfad76` | 68 (+69 not reached) | 8 | `mop.rs:715` | 2: `rldicl`, `rldimi` |
+| `10bfa56b` | 43 | 6 | `mop.rs:698` | 2: `ori`, `xori` |
+| `10bfa4ed` | 51 | 6 | `mop.rs:695` | 6: `addi`, `addic`, `addic.`, `addis`, `mulli`, `subfic` |
+| `10bfa2a5` | 55 (+3 not reached) | 5 | `mop.rs:741` | 2: `bctrl`, `blr` |
+| `10bfa34f` | 14 (+12 not reached) | 4 | `mop.rs:758` | 2: `cmp`, `cmpl` |
+| `10bfa2b0` | 4 | 4 | `mop.rs:743` | 2: `bcctr`, `bclr` |
+| `10bfa549` | 36 | 4 | `mop.rs:689` | 1: `mr` |
+| `10bfa326` | 5 | 4 | `mop.rs:746` | 1: `bc` |
+| `10bfa478` | 23 | 4 | `mop.rs:677` | 2: `fmul`, `fmuls` |
+| `10bfa6dc` | 42 | 2 | `mop.rs:703` | 2: `rlwinm`, `rlwinm.` |
+| `10bfa801` | 64 | 2 | `mop.rs:761` | 1: `twi` |
+| `10bfa2c2` | 1 | 2 | `mop.rs:751` | 1: `bdnz` |
+| `10bfa263` | 6 | 2 | `mop.rs:754` | 1: `b` |
+| `10bfa685` | 41 | 2 | `mop.rs:700` | 1: `srawi` |
+| `10bfa719` | 56 | 2 | `mop.rs:703` | 1: `rlwimi` |
+| `10bfa415` | 16 | 1 | `mop.rs:759` | 1: `cmpli` |
+| `10bfa7a3` | 62 | 1 | `mop.rs:736` | 1: `mtspr` |
+| `10bfa3ba` | 15 | 1 | `mop.rs:759` | 1: `cmpi` |
+
+### 10.4 The 52 arms nothing in the port implements — the load-bearing half
+
+They are **not uniform**, and reading them as one number would be the mistake:
+
+| class | arms | c2 opcodes | note |
+|---|---:|---:|---|
+| VMX / VMX128 | **25** | **243** | includes the default arm `10bf9f91` alone at **104** opcodes (form 78 — §3.2's *"the default arm is an ENCODING, not a refusal"*). §8.2's residual is the same population: 1,214 of its 1,231 unexplained words are primary opcode 4 |
+| everything else | **27** | **100** | enumerated below |
+
+The 27 non-VMX unmapped arms, by c2 opcode count:
+
+| arm | forms | opcodes | family |
+|---|---|---:|---|
+| `10bfa81d` | 8,9,10,11,13,48,60 | 19 | CR-logical (`crand`, `cror`, …) |
+| `10bfa49a` | 24 | 18 | FP multiply-add (`fmadd`, `fmsub`, `fnmadd`, …) |
+| `10bfa1ad` | 37 | 13 | the nop family — **its own second jump table** (`0x10bfafe9`, 9 entries), decoded at §4 by `w-r8idiom` |
+| `10bfa8ae` | 111 | 9 | cache ops (`dcbf`, `dcbz`, `dcbz128`, …) |
+| `10bfad3b` | 66,67 | 4 | `rldcl`/`rldcr` |
+| `10bfa75c` | 20,44 | 4 | `mfcr`, `mffs`, `mfmsr` |
+| `10bfae1b` | 35,52,53,59,72,73,87,89,95,96,98,100 | 3 | **the single exit** — the no-field arm; every form that composes nothing routes here |
+| `10bfa79e` | 57 | 3 | `mtmsr` family |
+| `10bfadb7` | 70 | 2 | `sradi` |
+| `10bfa83a` | 19 | 2 | `mtfsf` |
+| `10bfa7f4` | 63 | 2 | `td`/`tw` |
+| `10bfa741` | 31 | 2 | `lcarry` |
+| `10bfa6a1` | 40 | 2 | `rlwnm` |
+| `10bfa5b4` | 32 | 2 | `lea` |
+| **`10bfa5a0`** | 33 | 2 | **`li`/`lis` — and the port DOES emit both** (§10.5) |
+| **`10bfa285`** | 7 | 2 | **`bl`/`bla` — and the port DOES emit `bl`** (§10.5) |
+| `10bfae00` | 109 | 1 | `mfocrf` |
+| `10bfade3` | 110 | 1 | `mtocrf` |
+| `10bfa84e` | 65 | 1 | `DCD` |
+| **`10bfa846`** | 18 | 1 | **`emit`** — the arm that copies an operand word verbatim. §8.2 found this is how `__lwsync()` reaches `.text`, and `#3482` found `mr r8,r8` is `emit 0x7d084378`. The port implements neither |
+| `10bfa827` | 17 | 1 | `mtcrf` |
+| `10bfa7d0` | 108 | 1 | `mftb` |
+| **`10bfa76a`** | 54 | 1 | **`mfspr` — and the port DOES emit `mflr`** (§10.5) |
+| `10bfa646` | 34 | 1 | `loffs` |
+| `10bfa61e` | 29 | 1 | `lal` |
+| `10bfa602` | 30 | 1 | `lau` |
+| `10bfa26c` | 2 | 1 | `bgip` — the port has the **plan** and no opcode (§10.2's loose reading) |
+
+### 10.5 What building the map FOUND: `mop` is not the port's only word composer
+
+Three of the rows above are marked because **the port emits those instructions
+and does not go through the arm's rule to do it.** Following that thread found
+the finding of this lane, and it is not the one the wave expected.
+
+`crates/c2-core/src/codegen/mop.rs`'s module doc says, twice, and
+`codegen/encode.rs`'s says once more:
+
+> *"`base_word` is now the port's **only** source of a primary opcode, so the
+> two derivations can no longer drift apart silently."*
+
+**That claim is false on this tree.** Enumerating every live (non-`cfg(test)`)
+instruction-word production in `crates/c2-core/src` finds **eleven** outside
+`mop::encode_op`:
+
+| site | word | c2 opcode | form | arm | `mop` could compose it? |
+|---|---|---|---:|---|---|
+| `codegen/calls.rs:36` `encode_tail_branch` | `0x48000000 \| disp` | `b` `0x001f` | 6 | `10bfa263` | **YES — and does, `op::B`** |
+| `codegen/calls.rs:142` `encode_call_branch` | `0x48000000 \| disp \| 1` | `bl` `0x002b` | 7 | `10bfa285` | no — no `OPCODES` row |
+| `codegen/calls.rs:98` `lis` | `0x3C000000 \| d<<21` | `addis` `0x000e` | 51 | `10bfa4ed` | **YES — and does, `op::ADDIS`** |
+| `codegen/calls.rs:102` `addi` | `0x38000000 \| d<<21 \| a<<16` | `addi` `0x000b` | 51 | `10bfa4ed` | **YES — and does, `op::ADDI`** |
+| `codegen/calls.rs:106` `li` | `0x38000000 \| d<<21 \| k` | `addi` `0x000b` | 51 | `10bfa4ed` | **YES — and does** |
+| `codegen/frame.rs:54` `FRAME_LR_STORE` | `0x9181FFF8` | `stw` `0x017a` | 58 | `10bfa676` | **YES — and does, `op::STW`** |
+| `codegen/frame.rs:57` `FRAME_LR_LOAD` | `0x8181FFF8` | `lwz` `0x00d6` | 45 | `10bfa667` | **YES — and does, `op::LWZ`** |
+| `codegen/frame.rs:60` `FRAME_MFLR_R12` | `0x7D8802A6` | `mfspr` `0x00e6` | 54 | `10bfa76a` | no — no `OPCODES` row |
+| `codegen/frame.rs:63` `FRAME_MTLR_R12` | `0x7D8803A6` | `mtspr` `0x00f8` | 62 | `10bfa7a3` | **YES — and does, `op::MTSPR`** |
+| `codegen/frame.rs:70` `FRAME_STWUX` | `0x7C21616E` | `stwux` `0x017f` | 61 | `10bfa1a1` | plan yes, no `OPCODES` row |
+| `codegen/frame.rs:74` `FRAME_BACKCHAIN` | `0x80210000` | `lwz` `0x00d6` | 45 | `10bfa667` | **YES — and does, `op::LWZ`** |
+
+**Seven of the eleven are the same word produced twice by two different rules,
+both live on the emit path.** Worked by hand from this page's own §5 rules,
+`mop` reproduces each of the seven exactly — e.g. `stw r12,-8(r1)` through form
+58 is `0x90000000 | 12<<21 | 1<<16 | 0xFFF8` = `0x9181FFF8`, which is
+`FRAME_LR_STORE` to the bit. **They agree today**, which is precisely why
+nothing has caught them: this is a **latent** duplicate, not a live wrong emit,
+and the gate is green.
+
+**This is the failure class the repo has recorded most often** — two
+independent producers of one quantity, caught once only by a name collision —
+and the eleven sites are exactly the population `mop.rs`'s "no longer drift
+apart silently" sentence claims does not exist. Consumers of the pledge should
+read it as: *`base_word` is the only source of a primary opcode **for
+instructions that go through `MachineOp`***.
+
+**Not repaired here, deliberately.** Routing `calls.rs` and `frame.rs` through
+`mop` is an **emit change** and needs its own two-sided price; and
+`crates/c2-core/src/codegen/**` is another lane's fence this wave. Filed as
+board **#3637** (the duplicate productions) and **#3638** (the false
+"only source" claim, which is `#3632`'s class found by a different route).
+
+### 10.6 Two stale counts in `mop.rs`, found by re-measuring rather than carrying
+
+Both are doc comments in a file this lane may not write; reported, not fixed.
+
+| claim | says | this tree | where |
+|---|---|---|---|
+| the `OPCODES` subset | *"71 of c2's 660 rows"* | **85 rows** | `mop.rs:257` |
+| the form reach | *"the port's 71 opcodes reach 24 of c2's 109 forms"* | **85 opcodes reach 34 forms**; `plan()` answers **35** | `mop.rs:664–665` |
+
+Neither is load-bearing for an emitted byte — they are descriptions of a table,
+not the table — but both are quoted as denominators, and `#3617` quoted the
+`89`/`82` pair from §8.1 as the reason `ported` could not be computed at all.
+Filed as **#3639**.
+
+---
+
+## 11. `#3634` adjudicated — both readings are true, and the doc comment is the thing that is wrong
+
+Board `#3634` says `encode.rs`'s black-box re-derivation *"was retired"*, leaving
+*"9 S-marks and 2 O-marks, zero F-marks"*. Decision 16 says `encode.rs`'s module doc
+*"still declares itself a black-box re-derivation"* and asks which is right.
+
+**Both quote the same doc comment, and the doc comment contradicts itself.**
+`crates/c2-core/src/codegen/encode.rs` carries, in one `//!` block:
+
+* **lines 8–25** — *"**This file is a black-box re-derivation of two tables c2
+  states plainly, and the read is priced — comment only, nothing here
+  changes.**"* Written 2026-08-22 **before** read R2 landed, describing R2 as
+  future work (*"Read **R2** (2–4 d) dumps both tables"*).
+* **lines 35–58**, twenty-seven lines later — *"**2026-08-22, lane `w-s1` — THE
+  BLACK-BOX RE-DERIVATION IS RETIRED.**"*
+
+The first paragraph was **never struck** when the second was appended. `#3634`
+read the bottom; decision 16 read the top; neither is misreading the file.
+
+**The adjudication, per object:**
+
+| object | status | evidence |
+|---|---|---|
+| the **primary/extended opcode literals** (85 of them) | **RETIRED — `#3634` is right** | every one is now `MachineOp::new(op::X)` naming a read table row. Verified on this tree: the live half of `encode.rs` (lines 1–2006) contains **zero** `to_be_bytes` and every `<<` is inside a doc comment |
+| the **11 remaining named constants** | **9 S-marks + 2 O-marks, 0 F-marks — `#3634` is right** | not re-counted here; that is the provenance census's key |
+| the **89 helper functions' choice of opcode and operand roles** | **STILL black-box-derived — decision 16's concern is right** | `w-s1` moved where the *bits* come from. It did not re-derive *which* c2 opcode a given port lowering should name, or which operand plays which role; those still come from captured objs, and §8.1's per-function evidence notes are still what the port is graded on |
+| the module doc's **opening paragraph** | **STALE, and it is the actual defect** | it describes R2 as unstarted work and the file as unchanged by it |
+
+**So `#3634` is a census of constants and is correct as such; it is an over-read
+only if quoted as "nothing in `encode.rs` is black-box-derived any more", which
+its own text does not say.** The two claims are compatible and the file is what
+is wrong.
+
+**The fix site is `crates/c2-core/src/codegen/encode.rs`, which is fenced to
+lane `w-disclose` this wave (comment-only edits in `codegen/**`).** This lane
+therefore **STOPS and reports** rather than editing it. Filed as **#3640**.
