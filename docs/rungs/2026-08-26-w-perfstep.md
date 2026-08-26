@@ -237,7 +237,7 @@ lane editing it would move a stamp:
 | `scripts/gate.sh --jobs 16 --require-graded` | **`GATE: PASS (HATCH-RED REFUSED)`** — the verdict line, never the exit code (§8.1) |
 | `scripts/gate_identity_diff.sh` vs `base_c13cebbca.txt` | **`IDENTITY DIFF: 0 lines over 21 rows`**, `21 base, 21 tip` (§8.2) |
 | `scripts/expr_sweep.sh` | `checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0`, exit 0; and watched RED at `C2RS_SWEEP_MAX_UNGRADED=0` |
-| `scripts/perf_arms.py --self-test` | `PASS`, every control watched failing first |
+| `scripts/perf_arms.py --self-test` | `PASS`, every control watched failing first — **run by hand, NOT wired into a gate; see §12** |
 | `scripts/cost_arms.py --self-test` | unchanged by this lane; `perf_arms` imports it |
 | `scripts/tracked_artifact_audit.sh` | forbidden artifact names **0**, absolute machine paths in code surfaces **0** |
 | `scripts/board_audit.sh` | duplicate row numbers 0, unresolved anchors 0, rows-behind-prose 0 |
@@ -461,3 +461,32 @@ why the first attempt at this read produced `summary: 0 port Match … (of 0)`.
 
     scripts/expr_sweep.sh                              # ungraded=96, exit 0
     C2RS_SWEEP_MAX_UNGRADED=0 scripts/expr_sweep.sh    # the list, exit 1
+
+## 12. One claim of this lane's own was false, and it is corrected rather than dropped
+
+`scripts/perf_arms.py`'s module doc said its `--self-test` *"does run under
+`scripts/gate.sh`"*. **It does not.** The sentence was written by analogy with
+`cost_arms.py`, whose `--self-test` genuinely is run — by
+`crates/c2-harness/tests/cost_arms_preflight.rs` — and it was false the moment
+it was typed. `grep -rl perf_arms crates/` is **empty**.
+
+It matters because **#1406** is exactly the rule that an instrument whose output
+is quoted as evidence must run under `cargo test` or `scripts/gate.sh`, and this
+one's output *is* quoted as evidence — in §8.3, in this rung, as the reds this
+lane watched fire.
+
+**The wiring is owed and is NOT done here**, for two reasons stated so a reader
+can weigh them rather than take them:
+
+* `crates/c2-harness/tests/` was outside this lane's fence (`scripts/**` and
+  `crates/c2-harness/src/perf.rs`), and the standing instruction for a lane that
+  needs a peer's file is to stop and report;
+* adding a test target under `crates/` changes the gate's content-hashed graded
+  tree and the suite's target count, which would have invalidated the §8
+  evidence already collected and cost a third full gate run.
+
+Neither is a good reason to leave a false sentence in a tracked file, which is
+why the sentence is fixed and the *work* is what is deferred. The correction is
+in the module doc beside the claim, naming `cost_arms_preflight.rs` as the file
+to copy. **Found by checking a claim of my own the same way §8.3 checks the
+instrument's — the rung asserted a green, so the green was looked up.**

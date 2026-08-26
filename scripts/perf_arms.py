@@ -79,8 +79,26 @@ comes from `argv`.
 
 It measures **this box, now**, over the fixture population the arms share. It
 is a timing instrument, not a grader — `#1406`'s tension, recorded in
-`cost_arms.py` and inherited whole. Its `--self-test` is pure arithmetic and
-parsing and does run under `scripts/gate.sh`; the timing half cannot.
+`cost_arms.py` and inherited whole.
+
+**`--self-test` is NOT wired into any gate yet, and this paragraph said it was.**
+The claim was written by analogy with `cost_arms.py`, whose `--self-test` *is*
+run by `crates/c2-harness/tests/cost_arms_preflight.rs`, and it was false the
+moment it was typed — `grep -rl perf_arms crates/` is empty. Corrected rather
+than left standing, because `#1406` is precisely the rule that an instrument
+whose output is quoted as evidence must run under `cargo test` or
+`scripts/gate.sh`, and this file's output *is* quoted as evidence in
+`docs/rungs/2026-08-26-w-perfstep.md`.
+
+**The wiring is one sibling of `cost_arms_preflight.rs` and it is OWED, not
+done**: that file lives under `crates/c2-harness/tests/`, which was outside
+`w-perfstep`'s fence, and adding a target there would have invalidated the gate
+and identity-diff evidence the lane had already collected. Named for whoever
+holds `crates/c2-harness` next. Until then, run it by hand:
+
+    python3 scripts/perf_arms.py --self-test        # PASS, exit 0
+
+The timing half cannot run under a gate at all, for `cost_arms.py`'s reasons.
 
 Std-lib only.
 """
