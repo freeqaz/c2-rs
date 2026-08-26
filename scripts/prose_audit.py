@@ -880,7 +880,25 @@ def check_mentions(root, files):
                         f"`{tok}` reads as a MENTION, not a mark "
                         f"({'backticked' if backticked else 'meta: ' + meta[0]})"
                         f" — provenance_census.py counts it either way"))
-    # the P_*.md surface
+    pages = subsys_page_census(root)
+    for rel, st in pages:
+        checked += st["marks"]
+    return risks, checked, pages
+
+
+def subsys_page_census(root):
+    """Per-page: how many of `subsys.rs::count_marks`' evidence marks are
+    distinguishable from a mention, by either candidate rule.
+
+    **This is a MEASUREMENT and not a finding list, because the measurement is
+    the result.** The first draft emitted one risk per backticked token and
+    produced 481 rows, which is not a report — and the 481 was itself the
+    answer: on this surface backticks do NOT separate a mark from a mention,
+    because the pages write EVERY evidence mark in backticks. Nor does
+    position: `P_ENCODE.md` — the page #3641 was found on — has 0 marks in
+    table rows and 28 in prose.
+    """
+    out = []
     for page in SUBSYS_PAGES:
         rel = os.path.join("docs/whitebox/ref", page)
         text = read(os.path.join(root, rel))
@@ -889,19 +907,20 @@ def check_mentions(root, files):
         body = _after_first_rule(text)
         if body is None:
             continue
-        for i, line in enumerate(body.split("\n"), 1):
+        st = {"marks": 0, "backticked": 0, "in_table": 0, "in_prose": 0}
+        for line in body.split("\n"):
+            row = line.lstrip().startswith("|")
             for m in SUBSYS_MARK_RE.finditer(line):
-                checked += 1
-                backticked = (
-                    m.start() > 0 and line[m.start() - 1] == "`"
-                    and m.end() < len(line) and line[m.end()] == "`")
-                if backticked:
-                    risks.append(Finding(
-                        "C5", rel, "?",
-                        f"`{m.group(0)}` is backticked — a MENTION by the "
-                        f"convention this tool proposes, and counted as an "
-                        f"evidence mark by subsys.rs::count_marks today"))
-    return risks, checked
+                st["marks"] += 1
+                if (m.start() > 0 and line[m.start() - 1] == "`"
+                        and m.end() < len(line) and line[m.end()] == "`"):
+                    st["backticked"] += 1
+                if row:
+                    st["in_table"] += 1
+                else:
+                    st["in_prose"] += 1
+        out.append((rel, st))
+    return out
 
 
 def _looks_like_discussion(line):
@@ -1036,7 +1055,7 @@ def audit(root, verbose=False, strict=False, quiet=False):
     f2, dated2, quoted2, n2 = check_absence(root, files, ledger, strict)
     f3, n3, cands = check_selfcount(root, verbose)
     f4, n4, oks = check_bindings(root, files)
-    f5, n5 = check_mentions(root, files)
+    f5, n5, pages5 = check_mentions(root, files)
     f6, n6 = check_adopted_paths(root, ledger)
 
     dated = dated1 + dated2
@@ -1097,16 +1116,49 @@ def audit(root, verbose=False, strict=False, quiet=False):
                 f" — e.g. {paths[0]}")
         say("")
 
+    say("C5 MENTION-RISK — #3641's class: a counter cannot tell an evidence")
+    say("mark from a mention of one, and writing prose ABOUT mark letters moved")
+    say("a subsystem's own agreement census 9/28 -> 13/34.")
+    say("")
+    say("  SURFACE 1 — `PROV[X]` in `crates/`, counted by provenance_census.py")
     if f5:
-        say(f"C5 MENTION-RISK — {len(f5)} site(s)")
-        say("  #3641: a counter cannot tell an evidence mark from a mention of")
-        say("  one, and writing prose ABOUT mark letters moved a subsystem's own")
-        say("  agreement census 9/28 -> 13/34.")
         for f in f5[:40]:
             say(str(f))
         if len(f5) > 40:
             say(f"  … and {len(f5) - 40} more")
-        say("")
+    else:
+        say("    no site reads as a mention. The delimiter convention "
+            "(backticked = mention)")
+        say("    is therefore adoptable here at ZERO cost, and it is: see "
+            "MARK_RE.")
+    say("")
+    say("  SURFACE 2 — `[R]`/`[O]`/`[I]` on the ten `P_*.md` pages, counted by")
+    say("  `subsys.rs::count_marks`. **NOT a finding list — a measurement, and")
+    say("  the measurement is the result.**")
+    ph = f"    {'page':<34} {'marks':>6} {'`btk`':>6} {'table':>6} {'prose':>6}"
+    say(ph)
+    say("    " + "-" * (len(ph) - 4))
+    t5 = {"marks": 0, "backticked": 0, "in_table": 0, "in_prose": 0}
+    for rel, st in pages5:
+        say(f"    {os.path.basename(rel):<34} {st['marks']:>6} "
+            f"{st['backticked']:>6} {st['in_table']:>6} {st['in_prose']:>6}")
+        for k in t5:
+            t5[k] += st[k]
+    say("    " + "-" * (len(ph) - 4))
+    say(f"    {'TOTAL':<34} {t5['marks']:>6} {t5['backticked']:>6} "
+        f"{t5['in_table']:>6} {t5['in_prose']:>6}")
+    say("")
+    say("    NEITHER CANDIDATE RULE SEPARATES A MARK FROM A MENTION HERE.")
+    say("    * Backticks cannot: these pages write EVERY evidence mark in")
+    say("      backticks, so 'backticked = mention' would zero the census.")
+    say("    * Position cannot: `P_ENCODE.md` — the page #3641 was found on —")
+    say("      carries 0 marks in table rows and 28 in prose.")
+    say("    So on this surface the census cell of any `P_*.md` page still")
+    say("    moves when a lane amends its prose, and nothing can see it. The")
+    say("    only convention that would work is a DISTINCT TOKEN rather than a")
+    say("    delimiter, which is a migration of every mark on ten pages and is")
+    say("    a peer's fence. Reported, not taken.")
+    say("")
 
     sp, sh, sf = sup1
     say("SUPPRESSION CLASSES — printed, never silent (doc_cite_audit.sh's rule)")
