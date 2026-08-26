@@ -1100,3 +1100,124 @@ which is an owner decision, not a lane's.
 `#3661`–`#3666` `w-secported` · `#3667`–`#3672` `w-provaudit`.
 **`#3647` remains RESERVED-AND-UNSPENT in the pool and is not reused here.**
 Next free `#3673`.
+
+## Decision 18 — OWNER: Phase 1 is CLOSED (overturnable, with the conditions written down), `work/` is a tracked evidence shelf, and the register allocator is next (2026-08-26)
+
+**Four owner answers, given in one turn.** Recorded verbatim where they
+decide something.
+
+### 1. Phase 1 — CLOSED, and the owner asked that it be closable BACK
+
+> *"close it but document why so we can overturn that if needed."*
+
+**Phase 1 is closed as `declined-on-measurement`.** It is NOT closed as
+"done", "wrong", or "impossible" — it is closed because the read its own
+hold was conditioned on came back, and came back negative.
+
+**The record, so an overturn is a decision and not an archaeology
+project:**
+
+- **The hold.** Decision 11 (2026-08-24) put Phase 1 on hold *pending the
+  `#3509` mapping read*. That is the owner's hold and it was never a
+  judgement about Phase 1's value.
+- **The read ran.** Lane `w-keymap` executed it. **`#3509` is CLOSED and its
+  answer is TU reach 0** — 0 of 845 for each of the ten Phase-1 constructs
+  taken separately, 0 for their union, and **0 even when every byteless key
+  was granted for free**. The last clause is the load-bearing one: the
+  result is not an artifact of a strict key filter.
+- **What survives and is not retracted**: the **97.2 % construct-floor**
+  result, and every measurement under it. Phase 1's constructs are real
+  constructs; what measured zero is their *TU reach on this workload*.
+
+**Overturn conditions — any ONE of these reopens it, and none requires the
+owner to re-argue the case:**
+
+1. **The workload changes.** TU reach 0 is a statement about 845 TUs of
+   `dc3`. A different corpus, or a materially advanced one, is a different
+   denominator and the read must be re-taken before the closure binds.
+2. **A downstream construct makes the ten reachable.** Reach was measured
+   against today's admitted set. If a later lane widens what the port
+   admits such that a Phase-1 construct becomes the *first* blocker on some
+   TU, the zero is stale by construction.
+3. **The instrument is refuted.** `w-keymap`'s mapping is a measurement and
+   this project has refuted its own instruments repeatedly (`#3505`,
+   `#3649`). If the key mapping is shown wrong, the reach number falls with
+   it.
+4. **The goal changes such that reach stops being the criterion.** Phase 1
+   was priced against TU conversion. Under decision 15's per-subsystem
+   scoreboards, a construct with 0 TU reach can still be worth building
+   **for characterization** — and if it is chosen on that basis, this
+   closure does not stand in the way. **It never argued the constructs were
+   valueless; only that they convert nothing today.**
+
+### 2. `work/` — a tracked evidence shelf. `#3615` is SETTLED.
+
+The owner asked what the files are and whether they can be public. **They
+already are public** — `origin` is a public GitHub repository and all 8,114
+files have been pushed. So the live question was never "can we publish" but
+"should what is already published stay, and under what rule". **Audited by
+the coordinator before answering** (tree `0dcfca959`):
+
+| what | count | verdict |
+|---|---:|---|
+| tracked files under `work/` | **8,114** (21 MB) | the shelf |
+| `.cpp` | 3,146 | **ours** — synthetic probe fixtures and generated padding (`int pad14999;`), **not `dc3` source** |
+| `.txt` / `.py` / `.log` / `.sh` / `.md` / `.out` | 4,472 | lane evidence: measurements, analysis scripts, prereg records, transcripts |
+| captured IL (`_CL_*`, `*.il`) | **0** | clean |
+| `*.obj` `*.o` `*.exe` `*.dll` `*.lib` `*.pdb` | **0** | clean |
+| files naming `e:/lazer_build_gmc1` / `dc3-decomp` | 366 | **prose about build roots — `CLAUDE.md` says these are INTENTIONAL and must not be scrubbed.** No game source is copied in |
+| secret-scanner hits | 5 | **all false positives** (`room_for_token`, `BADTOKEN`, and a sentence asserting *"no secrets"`) |
+| **tracked ELF executable** | **1** | **DEFECT — see below** |
+| files carrying `/home/free` absolute paths | **488** | **DEFECT — `CLAUDE.md` forbids absolute machine paths in those words** |
+
+**THE RULE, adopted:** `work/` is a **tracked evidence shelf**. Committing
+lane evidence there is correct and is not a `.gitignore` violation — it is
+what 8,114 files already do and what every citation in `ROADMAP.md` and
+`BOARD.md` depends on. **Two carve-outs are absolute and now enforceable:**
+**no binaries or build artifacts**, and **no absolute machine paths**.
+`.gitignore`'s `/work` line stays (it governs the *default* for untracked
+scratch); force-adding evidence under `work/` is sanctioned by this
+decision, and `scripts/tracked_artifact_audit.sh`'s scope widens to cover
+`work/` so it can enforce the carve-outs it currently cannot see.
+
+**The defect that proves the rule was needed.** `work/w-biquad/c2rs.base`
+is a **3,835,864-byte statically-linked ELF executable, tracked at HEAD**.
+Decision 12 removed 21 binaries from this very directory on 2026-08-25 and
+`work/w-biquad/REMOVED_ARTIFACTS.md` reports that removal as complete —
+**`c2rs.base` is not on its list of 21.** A removal documented as total,
+with one survivor. **And the reason nothing caught it is on the record
+already**: the coordinator's first scan used `grep -P '\x00'`, which
+**silently does not fire on NUL** (board `#1236`, known since 2026-08-08);
+the `tr -d '\000'` byte-count comparison found it immediately. The guard
+that would have caught this is the one that was already known broken.
+
+### 3. Next subsystems — the **register allocator** first, the inliner continued
+
+> *"those are all valuable. register allocator is very valuable. inliner is also."*
+
+All four candidates (register allocator, DAG+scheduler, EH, label numbering)
+are ratified as valuable. **Priority: the register allocator**, with the
+inliner continued. Both are chosen for **goal (1) — understanding, to help
+decomp** — and neither is required to move `match` to be worth funding.
+Dispatch follows wave 15; this decision funds no lane by itself.
+
+### 4. The broader goal does **not** resume yet
+
+> *"not yet. we are still mid review and planning here."*
+
+Decision 15's frame stands unchanged: per-subsystem scoreboards are the
+working goal, the paused items (the one-arm byte-judged slice, 4a(ii)/I2,
+4b/IR3, step 5) stay paused, and no lane resumes parity work.
+
+### The lane this decision dispatches
+
+`w-shelf` — enforce the two carve-outs: remove the surviving ELF (**no
+history rewrite**, matching decision 12's precedent, with the removal note
+corrected to say what it actually removed), scrub the 488 files, **repair
+the NUL guard wherever the broken `grep -P` form is used**, and widen
+`tracked_artifact_audit.sh` to cover `work/`. It owns `work/**` hygiene,
+`.gitignore`, `scripts/tracked_artifact_audit.sh`, and the wave-15 lanes'
+worktrees are **off limits** — three peers are live.
+
+**Board:** `#3673` this decision · `#3674`–`#3679` `w-shelf`.
+`#3647` remains reserved-and-unspent in the pool. Next free `#3680`.
