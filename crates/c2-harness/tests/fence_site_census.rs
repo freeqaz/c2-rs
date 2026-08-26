@@ -83,6 +83,13 @@ fn repo_root() -> PathBuf {
 /// Measured at master `1744ced1` by lane `w-deadsites`
 /// (`docs/rungs/2026-08-18-deadsites.md`).
 const EXPECTED: &[(&str, usize, usize)] = &[
+    // **W-ATEND, `docs/rungs/2026-08-26-w-atend.md`** — the ADMISSION layer's
+    // own refusal reason, raised by `AdmissionPolicy::Nothing` for a body the
+    // decode read WHOLE. It is the one key in this table that a production scan
+    // does **not** reach, because no production call site selects a non-default
+    // policy; see `EXPECTED_AT_END_SITES_BY_FILE` for the partition that keeps
+    // that fact visible instead of absorbed into a total.
+    ("admission-declined", 1, 0),
     ("callee-defined-in-tu", 1, 0),
     ("callee-unresolved-call-sequence", 1, 0),
     ("callee-unresolved-dtor-delegation", 1, 0),
@@ -130,7 +137,59 @@ const EXPECTED_REFUSE_SITES: usize = 23;
 /// asked over the whole file including tests and doc comments and got a larger
 /// raw number; this is the same population under this file's stated rule, and
 /// the two are not the same measurement.
-const EXPECTED_AT_END_SITES: usize = 7;
+///
+/// **7 → 8 by lane `w-atend`** (`docs/rungs/2026-08-26-w-atend.md`, board
+/// **#3592**), which is the named follow-up board **#3556** left. Read
+/// `EXPECTED_AT_END_SITES_BY_FILE` below before quoting this total: the 8 are
+/// **not** one population any more.
+const EXPECTED_AT_END_SITES: usize = 8;
+
+/// **THE PARTITION, AND IT IS THE POINT OF THE 7 → 8 RATHER THAN A DECORATION.**
+///
+/// The rule this file used to state about `Block::at_end(` — *"every one
+/// renders a `:eof` key a scan reports, so one landing unscored is a published
+/// key nothing measured"* — was true of all 7 and is **not** true of all 8.
+///
+/// * `crates/c2-il/src/func/census.rs` — **7**, the post-parse gates. A
+///   production scan reaches every one of their keys, and a peer sized the
+///   population: board **#3582** measured `decode-reach-grammar-not-admitted`
+///   at **4,001** bodies over the 878-TU workload under five `:eof` keys.
+/// * `crates/c2-il/src/func/body/decode.rs` — **1**, `ADMISSION_DECLINED`,
+///   raised only under `AdmissionPolicy::Nothing`. **No production call site
+///   selects a non-default policy**, so no scan reaches it: it is an
+///   *instrument state* in the sense of `docs/rungs/README.md` § Lane kinds,
+///   THE DECISION-SURFACE CLAUSE.
+///
+/// Bumping the bare total to `8` would have hidden exactly the hazard #3556
+/// correctly identified — a published key nothing measures — inside a number
+/// that still looked like one population. Keying the expectation on the FILE is
+/// the same move this file's header already makes for the per-key table
+/// (*"a single integer is satisfied by any change that adds one site and
+/// removes another"*), one axis over: a refactor that moved a fence from
+/// `census.rs` into `decode.rs` would leave the total at 8 and be invisible.
+///
+/// **The scoring of the instrument-only site**, which is what this file's own
+/// failure message demands before a row moves: three tests in
+/// `crates/c2-il/src/func/body/decode.rs` fail if it moves —
+/// `the_admission_layer_owns_a_reason_only_where_it_alone_refused` pins the
+/// rendered key `admission-declined:eof`, its offset and its completeness;
+/// `the_yes_no_and_the_emitting_form_cannot_disagree_under_any_policy` sweeps
+/// every policy; `all_is_complete_and_indexed` refuses a variant that is
+/// indexed but unlisted. **The day a production caller does select a
+/// non-default policy, this row moves back into the reachable column** — and
+/// that caller owes its own two-sided price for widening the decision surface
+/// into production.
+const EXPECTED_AT_END_SITES_BY_FILE: &[(&str, usize)] = &[
+    ("crates/c2-il/src/func/body/decode.rs", 1),
+    ("crates/c2-il/src/func/census.rs", 7),
+];
+
+/// How many of [`EXPECTED_AT_END_SITES`] are reachable only under a
+/// **non-default** parameter — i.e. are instrument states rather than sites a
+/// scan's key histogram can ever show. Stated as its own number so that
+/// "how many published keys does nothing measure" is a *quantity* on this page
+/// and not a paragraph.
+const EXPECTED_AT_END_SITES_INSTRUMENT_ONLY: usize = 1;
 
 // ---------------------------------------------------------------------------
 // The enumeration rule, spelled out in code because a rule in prose drifts.
@@ -380,12 +439,15 @@ fn every_census_fence_key_has_the_sites_this_repo_last_scored() {
     let raises: usize = declared.iter().map(|(_, r, _)| r).sum();
     assert_eq!(
         (declared.len(), raises),
-        (20, 23),
-        "20 census fence keys over 23 raise sites is what `w-deadsites` leaves \
-         at its tip — it MEASURED 24 at base 1744ced1 and deleted one, \
-         `leaf_store.rs:2456`, as provably dead (board #3277). Got {} keys over \
-         {raises} raises. `2026-08-18-calleeguard.md` §4.2's 18/22 is the same \
-         base tree read with a `[A-Z_]`-classed grep, which drops the two `_O1` keys",
+        (21, 24),
+        "21 census fence keys over 24 raise sites is what `w-atend` leaves \
+         (`docs/rungs/2026-08-26-w-atend.md`, board #3592): it added exactly one \
+         key at exactly one raise site, `ADMISSION_DECLINED`. Before it, \
+         `w-deadsites` left 20/23 — it MEASURED 24 raises at base 1744ced1 and \
+         deleted one, `leaf_store.rs:2456`, as provably dead (board #3277). Got \
+         {} keys over {raises} raises. `2026-08-18-calleeguard.md` §4.2's 18/22 \
+         is that older tree read with a `[A-Z_]`-classed grep, which drops the \
+         two `_O1` keys",
         declared.len()
     );
 }
@@ -429,6 +491,7 @@ fn the_two_textual_fence_populations_are_the_size_this_rule_measured() {
     let mut refuse = 0usize;
     let mut at_end = 0usize;
     let mut refuse_where: Vec<String> = Vec::new();
+    let mut at_end_by_file: BTreeMap<String, usize> = BTreeMap::new();
     let root = repo_root();
     for f in c2_il_sources() {
         let text = std::fs::read_to_string(&f).expect("read");
@@ -443,6 +506,7 @@ fn the_two_textual_fence_populations_are_the_size_this_rule_measured() {
             let mut j = 0;
             while let Some(ix) = code[j..].find("Block::at_end(") {
                 at_end += 1;
+                *at_end_by_file.entry(rel.clone()).or_insert(0) += 1;
                 j += ix + 14;
             }
         }
@@ -457,8 +521,53 @@ fn the_two_textual_fence_populations_are_the_size_this_rule_measured() {
     assert_eq!(
         at_end, EXPECTED_AT_END_SITES,
         "`Block::at_end(` production sites moved ({EXPECTED_AT_END_SITES} -> \
-         {at_end}). Every one renders a `:eof` key a scan reports, so one \
-         landing unscored is a published key nothing measured"
+         {at_end}). Sites now: {at_end_by_file:?}. \
+         **Read `EXPECTED_AT_END_SITES_BY_FILE` before changing this number.** \
+         The rule this assertion used to state — *every one renders a `:eof` \
+         key a scan reports* — was true of all 7 and is not true of all 8, and \
+         the partition below is what keeps that from being hidden in a total"
+    );
+
+    // THE PARTITION. Keyed on the FILE, because a refactor that moved a fence
+    // from the reachable population into the instrument-only one would leave
+    // the total at 8 — the same defect this file's header describes for a
+    // count-shaped per-key census, one axis over.
+    let declared: Vec<(String, usize)> =
+        at_end_by_file.iter().map(|(k, v)| (k.clone(), *v)).collect();
+    let expected: Vec<(String, usize)> = EXPECTED_AT_END_SITES_BY_FILE
+        .iter()
+        .map(|(f, n)| ((*f).to_string(), *n))
+        .collect();
+    assert_eq!(
+        declared, expected,
+        "the `Block::at_end(` partition moved. This is not a bug in this test — \
+         somebody moved, added or removed a post-parse fence. Score the site \
+         (can any test fail on it? does a production scan reach its key, or is \
+         it an instrument state?), land a rung, and update \
+         `EXPECTED_AT_END_SITES_BY_FILE` in the same commit"
+    );
+    assert_eq!(
+        declared.iter().map(|(_, n)| n).sum::<usize>(),
+        at_end,
+        "the partition does not sum to the total — the two counts came from one \
+         walk and disagreeing is impossible unless this test is broken"
+    );
+
+    // …and the instrument-only quantity, named. `decode.rs`' site is reachable
+    // only under a non-default `AdmissionPolicy`; nothing in production selects
+    // one. If a production caller ever does, this number goes to 0 and the site
+    // joins the reachable column — and that caller owes its own price.
+    let instrument_only = declared
+        .iter()
+        .filter(|(f, _)| f == "crates/c2-il/src/func/body/decode.rs")
+        .map(|(_, n)| *n)
+        .sum::<usize>();
+    assert_eq!(
+        instrument_only, EXPECTED_AT_END_SITES_INSTRUMENT_ONLY,
+        "the number of `Block::at_end(` sites whose key NO scan reaches moved \
+         ({EXPECTED_AT_END_SITES_INSTRUMENT_ONLY} -> {instrument_only}). That \
+         quantity is board #3556's hazard as a number rather than a paragraph, \
+         and it must never move silently in either direction"
     );
 }
 
