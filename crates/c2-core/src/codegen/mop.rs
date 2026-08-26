@@ -285,7 +285,21 @@ pub mod op {
 /// 85 of c2's 660 rows. `W-MID-2` adopts the two table ADDRESSES and their
 /// strides into `middle_interfaces.rs` and says no entry is copied there; this
 /// row is the entries, here, on the emit path.
-pub static OPCODES: &[OpRow] = &[
+pub static OPCODES: &[OpRow] = OPCODE_ROWS;
+
+/// The table's storage, as a `const` rather than a `static`, so that
+/// [`const_word`] can read it at **compile time**.
+///
+/// **This is not a second table and cannot become one.** [`OPCODES`] *is* this
+/// value; there is one list of literals in this file and two names for it. The
+/// split exists for one language reason: a `const fn` may not read a `static`
+/// (E0013), and [`OPCODES`] must stay a `static` because
+/// [`EncodeParams::row`]'s O(1) fast path compares `self.rows.as_ptr()` against
+/// `OPCODES.as_ptr()` — a `const` may be promoted to a *different* allocation
+/// at each use site, which would silently demote every emit to the 85-row
+/// linear scan that lane `w-s1` measured at **+10.67 % mean port time per obj**
+/// (board **#3336**). One address, one table, two spellings.
+const OPCODE_ROWS: &[OpRow] = &[
     row(op::ADD, "add", 0x7c00_0214, 49),
     row(op::ADDE, "adde", 0x7c00_0114, 49),
     row(op::SUBF, "subf", 0x7c00_0050, 49),
@@ -395,8 +409,8 @@ static OPCODE_INDEX: [u8; MAX_C2_OPCODE + 1] = build_opcode_index();
 const fn build_opcode_index() -> [u8; MAX_C2_OPCODE + 1] {
     let mut ix = [0u8; MAX_C2_OPCODE + 1];
     let mut i = 0;
-    while i < OPCODES.len() {
-        let op = OPCODES[i].op.0 as usize;
+    while i < OPCODE_ROWS.len() {
+        let op = OPCODE_ROWS[i].op.0 as usize;
         // A `const` panic here is a compile error, which is the right place for
         // "someone added a row whose opcode is out of the table's extent" and
         // for "someone added an 86th row past what a u8 index can name".
@@ -712,7 +726,7 @@ pub fn mnemonic_of(op: C2Op) -> Option<&'static str> {
 /// wave, so adding one here would move a peer's census number. Reported as
 /// owed, not taken (board **#3646**).
 #[inline(always)]
-pub fn plan(form: Form) -> Option<FieldPlan> {
+pub const fn plan(form: Form) -> Option<FieldPlan> {
     use Slot::*;
     // Every arm below cites an address in `code.c` that the placement was read
     // from — **for most arms that is the jump-table arm itself, and for the
@@ -861,19 +875,22 @@ pub fn encode_op(m: &MachineOp, params: &EncodeParams) -> Result<u32, BackendErr
         ))
     })?;
 
-    let mut word = row.base | fp.fixed;
-
     // **The default path carries no per-field branches.** `width_override` and
     // `drop_override` are instrument states — a permuter's search surface, not
     // something an emit ever sets — so testing them once per FIELD put two
     // `Option` compares on the port's hottest loop to serve a configuration no
     // emit uses. Hoisted, so the mutation machinery costs the default nothing.
+    //
+    // The default body is [`compose`], which is the SAME function
+    // [`const_word`] evaluates at compile time. Lane `w-mopfold` split it out
+    // so a `const` instruction word could be a [`MachineOp`] instead of a hex
+    // literal; a second copy of this loop for the const path would have been
+    // the very defect that lane exists to close (board **#3637**).
     if params.width_override.is_none() && params.drop_override.is_none() {
-        for field in fp.fields() {
-            word |= (slot_of(m, field.slot) & mask_of(field.width)) << field.shift;
-        }
-        return Ok(word);
+        return Ok(compose(row.base, &fp, m));
     }
+
+    let mut word = row.base | fp.fixed;
 
     for (i, field) in fp.fields().iter().enumerate() {
         if params.drop_override == Some((row.form.0, i)) {
@@ -888,8 +905,92 @@ pub fn encode_op(m: &MachineOp, params: &EncodeParams) -> Result<u32, BackendErr
     Ok(word)
 }
 
+/// **The composition itself**, with the row and the plan already in hand:
+/// `base | fixed | every field the form places`.
+///
+/// A `const fn`, and that is the whole reason it is a separate function. It is
+/// the body of [`encode_op`]'s default path *and* the body of [`const_word`],
+/// so a compile-time word and a run-time word are produced by **one** rule
+/// rather than two that happen to agree. Lane `w-mopfold`, board **#3637**:
+/// two rules that agree are invisible to the byte judge for exactly as long as
+/// they agree, and the port had eight such pairs when that lane started.
+///
+/// `word_matches_encode_op_over_the_whole_table` in [`super::word_seam`] runs
+/// both entry points over every row and every slot pattern and requires
+/// equality, so the sharing is checked rather than asserted.
 #[inline(always)]
-fn slot_of(m: &MachineOp, slot: Slot) -> u32 {
+pub const fn compose(base: u32, fp: &FieldPlan, m: &MachineOp) -> u32 {
+    let mut word = base | fp.fixed;
+    let mut i = 0;
+    // `while` rather than `for`: iterators are not const.
+    while i < fp.n {
+        let field = fp.fields[i];
+        word |= (slot_of(m, field.slot) & mask_of(field.width)) << field.shift;
+        i += 1;
+    }
+    word
+}
+
+/// The row for an opcode, looked up at **compile time** by linear scan.
+///
+/// [`EncodeParams::row`]'s `OPCODE_INDEX` fast path cannot be used here — it is
+/// a `static`, and a `const fn` may not read one — so this is the 85-row scan
+/// the fast path exists to avoid. That costs nothing: every caller is a `const`
+/// initialiser evaluated once by rustc, never at run time.
+/// `the_const_row_and_the_runtime_row_agree` in [`super::word_seam`] pins the
+/// two lookups against each other over the entire opcode space.
+const fn const_row(op: C2Op) -> &'static OpRow {
+    let mut i = 0;
+    while i < OPCODE_ROWS.len() {
+        if OPCODE_ROWS[i].op.0 == op.0 {
+            return &OPCODE_ROWS[i];
+        }
+        i += 1;
+    }
+    panic!(
+        "const_word: opcode is not in the port's base-word table.          Add the row from docs/whitebox/ref/ENCODE_OPCODES.txt (and its          DISCLOSURE provenance) before naming it in a const."
+    )
+}
+
+/// **[`encode_op`] at [`EncodeParams::C2`], evaluated at COMPILE TIME.**
+///
+/// This exists so that a `const` instruction word can be written as the
+/// instruction it is — `const_word(mop_stw(12, 1, -8))` rather than
+/// `0x9181_FFF8`. Board **#3637** found eight words in `calls.rs` and
+/// `frame.rs` spelled as literals that this port's own read table already
+/// composed, by a second rule; four of them were `const` items, and a `const`
+/// is exactly where a literal is hardest to dislodge, because `encode_op` is
+/// fallible and allocates its error message.
+///
+/// **It is not a second producer and the difference matters.** The word comes
+/// from [`compose`] over [`plan`] over [`OPCODE_ROWS`] — the same three values
+/// [`encode_op`] uses. What differs is only *how the row is found* (a const
+/// linear scan instead of a `static` index) and *how failure is reported* (a
+/// compile error instead of a [`BackendError`]). Grading is still at the
+/// default and nowhere else: there is no [`EncodeParams`] argument, because a
+/// non-default parameter set is an instrument state and an instrument state may
+/// not reach a `const` on the emit path.
+///
+/// Panics at compile time — never at run time — if the opcode has no row or its
+/// form has no field plan.
+#[inline(always)]
+pub const fn const_word(m: MachineOp) -> u32 {
+    let row = const_row(m.op);
+    // Form 68's two split immediates cannot be a `FieldPlan` (see `encode_op`),
+    // so it composes in code there and is refused here rather than duplicated.
+    // Nothing this port emits as a `const` is a 64-bit rotate.
+    if row.form.0 == 68 {
+        panic!("const_word: form 68 composes in code; use encode_op");
+    }
+    let fp = match plan(row.form) {
+        Some(p) => p,
+        None => panic!("const_word: this form has no field plan in the port"),
+    };
+    compose(row.base, &fp, &m)
+}
+
+#[inline(always)]
+const fn slot_of(m: &MachineOp, slot: Slot) -> u32 {
     match slot {
         Slot::S => m.s,
         Slot::D0 => m.d0,
@@ -902,7 +1003,7 @@ fn slot_of(m: &MachineOp, slot: Slot) -> u32 {
 }
 
 #[inline(always)]
-fn mask_of(width: u32) -> u32 {
+const fn mask_of(width: u32) -> u32 {
     if width >= 32 {
         u32::MAX
     } else {
@@ -1643,6 +1744,16 @@ mod ops_tests {
         assert_eq!(e::mop_bctrl().word(), e::encode_bctrl());
         for a in 0..32u8 {
             assert_eq!(e::mop_mtctr(a).word(), e::encode_mtctr(a), "mop_mtctr at {a}");
+            assert_eq!(e::mop_mtlr(a).word(), e::encode_mtlr(a), "mop_mtlr at {a}");
+            // The two SPRs must not collide: `mtlr` is SPR 8 and `mtctr` SPR 9,
+            // and both are written low-half-first, so a copy-paste that kept the
+            // wrong number still assembles. This is the assertion that would
+            // have caught it.
+            assert_ne!(
+                e::mop_mtlr(a).word(),
+                e::mop_mtctr(a).word(),
+                "mtlr and mtctr composed the same word at r{a} — the SPR split is wrong"
+            );
         }
     }
 
@@ -1660,7 +1771,15 @@ mod ops_tests {
         let mut encoders = 0usize;
         let mut mops = 0usize;
         for line in src.lines() {
-            let l = line.trim_start_matches("pub ").trim_start_matches("pub(crate) ");
+            // `const ` is stripped alongside the visibility: lane `w-mopfold`
+            // made `mop_stw`, `mop_lwz` and `mop_mtlr` `const fn` so a `const`
+            // word could be a `MachineOp`, and a scanner that did not know that
+            // counted 83 twins for 85 encoders and blamed the wrong thing. A
+            // population control that miscounts is worse than none.
+            let l = line
+                .trim_start_matches("pub ")
+                .trim_start_matches("pub(crate) ")
+                .trim_start_matches("const ");
             if !l.starts_with("fn ") || !line.starts_with("pub") && !line.starts_with("fn ") {
                 continue;
             }
@@ -1677,6 +1796,15 @@ mod ops_tests {
              requires one twin per encoder"
         );
         // The absolute number, so that a DROP of both is not silently green.
-        assert_eq!(encoders, 85, "the encoder population moved; update the sweeps too");
+        //
+        // **85 -> 86 on 2026-08-26, lane `w-mopfold`**: `encode_mtlr`/`mop_mtlr`
+        // are new. The port has always *emitted* `mtlr r12` — it was the literal
+        // `0x7D88_03A6` in `frame.rs`, one of board **#3637**'s eight duplicate
+        // word productions — so this is an encoder the file was missing, not an
+        // encoder the port gained. **It does NOT track `OPCODES`' 85 rows**, and
+        // the two numbers being equal until today was a coincidence: `mtlr` and
+        // `mtctr` are two encoders over one `MTSPR` row, as `blr`/`bctrl` are
+        // two over form 55.
+        assert_eq!(encoders, 86, "the encoder population moved; update the sweeps too");
     }
 }

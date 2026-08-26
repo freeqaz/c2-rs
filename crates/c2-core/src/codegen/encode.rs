@@ -411,6 +411,42 @@ pub fn mop_mtctr(rs: u8) -> MachineOp {
         .imm_d2(SPR_CTR >> 5)
 }
 
+/// `mtlr rS` — `mtspr 8,rS`: the epilogue's link-register restore.
+///
+/// The evidence and the split-field trap are on [`mop_mtlr`] below, because
+/// **this pair is the one place in the file where the `mop_*` half came first**:
+/// lane `w-mopfold` needed a `const fn` for `frame::FRAME_MTLR_R12`, and the
+/// `encode_*` twin exists so `mtlr` is shaped like every other instruction here
+/// rather than being the file's one lone `mop_*`. It has no caller today; that
+/// is the honest state of an encoder whose only consumer is a `const`.
+pub fn encode_mtlr(rs: u8) -> [u8; 4] {
+    mop_mtlr(rs).word()
+}
+
+/// `mtlr rS` — `mtspr 8,rS`: the epilogue's link-register restore, the same
+/// opcode and the same split field as [`mop_mtctr`] one SPR number over.
+///
+/// **Added by lane `w-mopfold` so `frame.rs` stops spelling this instruction as
+/// the literal `0x7D88_03A6`** (board **#3637**: `FRAME_MTLR_R12` was one of
+/// eight words the port composed by a second rule). `mtspr`'s base word carries
+/// the SPR field at **zero** and c2's form-62 arm does the five-and-five split
+/// itself (`mop::plan`'s arm `10bfa7a3`, `P_ENCODE.md` §8.1 residual 5), which
+/// is precisely why a baked full word cannot show which half is which and this
+/// constructor can.
+///
+/// `const fn` because its one caller is a `const`. Evidence: `7d8803a6` is
+/// `mtlr r12` in every framed epilogue this project has captured, and
+/// `word_seam`'s inventory pins the historical literal against it.
+#[inline(always)]
+pub const fn mop_mtlr(rs: u8) -> MachineOp {
+    // PROV[S] PowerPC ISA — `SPR` 8 is `LR`. Not from c2; the neighbouring `SPR_CTR` is the same fact one number over.
+    const SPR_LR: u32 = 8;
+    MachineOp::new(op::MTSPR)
+        .s(rs)
+        .imm_d1(SPR_LR & 0x1F)
+        .imm_d2(SPR_LR >> 5)
+}
+
 /// **W-MMIO3 — `bctrl`**: branch to CTR, unconditional, and set LR.
 ///
 /// `4e800421`, one word with no operands at all. `XL`-form:
@@ -501,7 +537,7 @@ pub fn encode_lwz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
 /// [`encode_lwz`] directly above, and stays there.** This function adds
 /// nothing to it but the absence of the final `.word()`.
 #[inline(always)]
-pub fn mop_lwz(rd: u8, ra: u8, d: i16) -> MachineOp {
+pub const fn mop_lwz(rd: u8, ra: u8, d: i16) -> MachineOp {
     MachineOp::new(op::LWZ).s(rd).d0(ra).disp(d as i32)
 }
 
@@ -645,7 +681,7 @@ pub fn encode_stw(rs: u8, ra: u8, d: i16) -> [u8; 4] {
 /// [`encode_stw`] directly above, and stays there.** This function adds
 /// nothing to it but the absence of the final `.word()`.
 #[inline(always)]
-pub fn mop_stw(rs: u8, ra: u8, d: i16) -> MachineOp {
+pub const fn mop_stw(rs: u8, ra: u8, d: i16) -> MachineOp {
     MachineOp::new(op::STW).d0(rs).s(ra).disp(d as i32)
 }
 

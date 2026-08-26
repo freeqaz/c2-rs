@@ -15,7 +15,11 @@ use crate::codegen::encode::{
     encode_std,
     encode_stfd,
     encode_stwu,
+    mop_lwz,
+    mop_mtlr,
+    mop_stw,
 };
+use crate::codegen::mop;
 use crate::codegen::select::out_of_class;
 
 // ---------------------------------------------------------------------------
@@ -47,31 +51,73 @@ pub const FRAME_MAX_SAVED_NO_SPILL: u8 = 17;
 /// `ld r12,-8192(r1)`, … .
 pub const FRAME_PAGE: u32 = 4096;
 
+// ---------------------------------------------------------------------------
+// The frame's six fixed instructions — four composed, two still literal
+// ---------------------------------------------------------------------------
+//
+// **2026-08-26, lane `w-mopfold` — four of these six stopped being literals.**
+// Board **#3637** found eleven live instruction-word productions outside
+// `mop::encode_op`, of which these four were duplicates: the port's own READ
+// base-word table already composed the identical 32 bits, by a second rule.
+// They agreed to the bit, which is exactly why nothing caught them — a byte
+// compare cannot see a *concurring* second producer, and `mismatch 0` stays
+// silent right up until the day the two rules disagree, at which point the
+// defect is indistinguishable from a lowering bug.
+//
+// `mop::const_word` evaluates `mop::encode_op`'s composition at compile time,
+// so these are still `const u32` with the same values and the same consumers
+// (`prologue`, `epilogue`, and `coff::ehscope::plan_text`); not one emitted
+// byte moved. The historical literals are pinned in `word_seam`'s inventory,
+// which is where a regression in this direction goes red.
+//
+// **The two that did NOT fold are `FRAME_MFLR_R12` and `FRAME_STWUX`, and the
+// reason is a missing table row rather than a disagreement** — see their own
+// notes below. `word_seam` carries them as inventoried exceptions and *arms*
+// the refusal: the day `mfspr` or `stwux` is transcribed into `mop::OPCODES`,
+// the seam test turns red on these two and asks for this fold to finish.
+
 /// `stw r12,-8(r1)` — spill the just-`mflr`'d link register into the caller's
 /// frame. The LR slot is the topmost doubleword of *this* function's frame
 /// (`F-8(r1)` after the `stwu`), which is why it is written before the frame is
 /// allocated and read back after it is freed.
-pub(crate) const FRAME_LR_STORE: u32 = 0x9181_FFF8;
+pub(crate) const FRAME_LR_STORE: u32 = mop::const_word(mop_stw(12, 1, -8));
 
 /// `lwz r12,-8(r1)` — the matching reload.
-pub(crate) const FRAME_LR_LOAD: u32 = 0x8181_FFF8;
+pub(crate) const FRAME_LR_LOAD: u32 = mop::const_word(mop_lwz(12, 1, -8));
 
 /// `mflr r12` (`mfspr r12,8`).
+///
+/// **Still a literal, and this one is NOT a duplicate.** `mop::OPCODES` has no
+/// `mfspr` row and `mop::plan` has no arm for its form, so nothing in this port
+/// can compose this word — there is no second rule here to disagree with.
+/// c2 does carry the row (`docs/whitebox/ref/ENCODE_OPCODES.txt`: opcode
+/// `0x00e6`, base `7c0002a6`, **form 54**, arm `10bfa76a`), so finishing the
+/// fold is a *transcription*, not a derivation — but a transcription is an
+/// **adoption**, it moves `DISCLOSURE.md`'s `W-MOP-2`/`W-MOP-3` counts, and
+/// form 54's field placement is not among the 27 arms lane `w-read-r2` read.
+/// Priced and declined by `w-mopfold`; see `word_seam`'s inventory row.
 pub(crate) const FRAME_MFLR_R12: u32 = 0x7D88_02A6;
 
 /// `mtlr r12` (`mtspr 8,r12`).
-pub(crate) const FRAME_MTLR_R12: u32 = 0x7D88_03A6;
+pub(crate) const FRAME_MTLR_R12: u32 = mop::const_word(mop_mtlr(12));
 
 /// `stwux r1,r1,r12` — opcode 31, XO 183. The variable-size frame allocation
 /// c2 emits immediately after `bl _RtlCheckStack12`, which takes `−F` in r12.
 /// Captured, and pinned by a test, for a shape [`FrameLayout`] refuses: keeping
 /// the measured word beside the threshold that gates it is what stops the next
 /// implementer from guessing it.
+///
+/// **Still a literal, and not a duplicate either** — same reason as
+/// [`FRAME_MFLR_R12`], one step closer to foldable: c2's row is opcode
+/// `0x017f`, base `7c00016e`, **form 61**, and this port *already* has a field
+/// plan for form 61 (it emits `stdx`). So `stwux` needs one transcribed row and
+/// no new arm, which makes it the cheapest of the three refusals — and still an
+/// adoption this lane may not make.
 pub const FRAME_STWUX: u32 = 0x7C21_616E;
 
 /// `lwz r1,0(r1)` — deallocate through the back chain, used when `+F` does not
 /// fit an `addi` immediate.
-const FRAME_BACKCHAIN: u32 = 0x8021_0000;
+const FRAME_BACKCHAIN: u32 = mop::const_word(mop_lwz(1, 1, 0));
 
 
 /// `__savegprlr_N` indexed by `N`, for every `N` a layout this emitter can build

@@ -18,7 +18,7 @@ use crate::codegen::encode::{
 };
 use crate::codegen::frame::FrameLayout;
 use crate::codegen::labels::{Form, LabelMap};
-use crate::codegen::mop::{ops_to_bytes, MachineOp, Ops};
+use crate::codegen::mop::{op, ops_to_bytes, MachineOp, Ops};
 use c2_il::LINK_FIRST_SLOT;
 use crate::codegen::select::{ARG_REGS, OptMode, RET_REG, SCRATCH_REG, out_of_class};
 use crate::codegen::straightline::select_text;
@@ -31,10 +31,22 @@ use crate::codegen::straightline::select_text;
 /// offset 0; the linker then patches the 24-bit field from the target symbol.
 /// Verified: a tail-call `b` at offset 0 → `0x48000000`; at offset 8 →
 /// `0x4BFFFFF8` (displacement −8).
+///
+/// **2026-08-26, lane `w-mopfold`: the word is composed by `mop`, not here.**
+/// This function used to write `0x4800_0000 | (disp & 0x03FF_FFFC)` — its own
+/// copy of `b`'s primary opcode and its own spelling of the `LI` field, against
+/// a table that already carries both (board **#3637**). The two rules were
+/// **identical functions on all of `i32`**, not merely equal on the inputs that
+/// occur: `((disp >> 2) & 0xFFFFFF) << 2` is `disp & 0x03FF_FFFC` for every
+/// value, because the mask's low two bits are zero and its 24-bit width
+/// discards the sign extension the arithmetic shift introduces. So this fold is
+/// byte-neutral by algebra rather than by coverage, which is the only reason a
+/// difference in the *displacement convention* between this and
+/// [`super::encode::encode_b_intra`] was safe to leave alone: they are the same
+/// opcode with different callers (board **#191**), and now the same composition
+/// too.
 pub fn encode_tail_branch(text_offset: u32) -> [u8; 4] {
-    let disp = -(text_offset as i32);
-    let word: u32 = 0x4800_0000 | (disp as u32 & 0x03FF_FFFC);
-    word.to_be_bytes()
+    MachineOp::new(op::B).disp(-(text_offset as i32)).word()
 }
 
 /// **W-R1c — the `??__E` dynamic-initializer thunk's `.text$yc` body**, built
@@ -93,17 +105,26 @@ pub fn dyninit_thunk_text(k: i32) -> Option<DynInitBody> {
     if !LI_IMM.contains(&k) {
         return None;
     }
-    /// `lis rD, 0` — `addis rD, r0, 0`, primary opcode 15.
+    // **2026-08-26, lane `w-mopfold`: these three compose through `mop` now.**
+    // They used to carry their own copies of primaries 15 and 14 as literals —
+    // three of board **#3637**'s eight duplicate word productions — against the
+    // read table that already holds both. `mop_addis`/`mop_addi` are the named
+    // constructors the rest of the port uses for exactly these instructions;
+    // the three wrappers stay because the *names* are the schedule's vocabulary
+    // (the block comment below reads "the `lis` block", "the `li` block"), and
+    // deleting them would cost more clarity than the literals cost.
+    /// `lis rD, 0` — `addis rD, r0, 0`.
     fn lis(d: u32) -> [u8; 4] {
-        (0x3C00_0000u32 | (d << 21)).to_be_bytes()
+        mop_addis(d as u8, 0, 0).word()
     }
-    /// `addi rD, rA, 0` — primary opcode 14, the low half of an address.
+    /// `addi rD, rA, 0` — the low half of an address.
     fn addi(d: u32, a: u32) -> [u8; 4] {
-        (0x3800_0000u32 | (d << 21) | (a << 16)).to_be_bytes()
+        mop_addi(d as u8, a as u8, 0).word()
     }
-    /// `li rD, k` — `addi rD, r0, k`.
+    /// `li rD, k` — `addi rD, r0, k`. `k` is inside `LI_IMM` above, so the
+    /// narrowing to the 16-bit signed field is checked rather than assumed.
     fn li(d: u32, k: i32) -> [u8; 4] {
-        (0x3800_0000u32 | (d << 21) | (k as u32 & 0xFFFF)).to_be_bytes()
+        mop_addi(d as u8, 0, k as i16).word()
     }
     let mut text: Vec<u8> = Vec::with_capacity(0x18);
     // The `lis` block: scratch registers descending from r11, taken in REVERSE
@@ -137,6 +158,25 @@ pub fn dyninit_thunk_text(k: i32) -> Option<DynInitBody> {
 /// REL24 relocation. Same MSVC displacement convention as [`encode_tail_branch`]
 /// (`disp = −(own .text offset)`) plus the link bit. Verified: `bl` at offset
 /// 0xC → `0x4BFFFFF5` (disp −0xC, LK=1).
+///
+/// **This one did NOT fold onto `mop`, and it is not a duplicate** (lane
+/// `w-mopfold`, board **#3637**). `bl` is not `b` with a bit set: c2 files it
+/// as its **own opcode** on its **own form** — `docs/whitebox/ref/
+/// ENCODE_OPCODES.txt` opcode `0x002b`, base `48000001`, **form 7**, arm
+/// `10bfa285` — and `mop::OPCODES` transcribes neither the row nor the arm. So
+/// no `(row, operands)` pair in this port composes `0x4BFFFFF5`, there is no
+/// second rule to disagree with, and the fence is a missing transcription
+/// rather than a conflict. Finishing it is an **adoption**: it moves
+/// `DISCLOSURE.md`'s `W-MOP-2`/`W-MOP-3` counts and needs form 7's placement,
+/// which is not among the 27 arms `w-read-r2` read. Priced and declined; the
+/// refusal is *armed* rather than merely recorded — `word_seam`'s inventory
+/// re-derives this word every test run and goes red the moment `mop` can
+/// compose it.
+///
+/// **Do not "fix" this by writing `op::B` with a `| 1`.** That would put a
+/// field c2's form 6 does not place into a word the table claims to own, which
+/// is a worse defect than the literal: it would make `mop::OPCODES` *look*
+/// like the source of a word it is not the source of.
 pub fn encode_call_branch(text_offset: u32) -> [u8; 4] {
     let disp = -(text_offset as i32);
     let word: u32 = 0x4800_0000 | (disp as u32 & 0x03FF_FFFC) | 1;
