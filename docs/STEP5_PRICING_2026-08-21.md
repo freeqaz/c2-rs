@@ -119,7 +119,15 @@ operand.
 Arch review finding 3. Neither appears in any `§5` row of the proposal, and both
 are on the critical path of **any byte-judged output** from a ported pass.
 
-| # | row | why it is a prerequisite | raw estimate | **×5 lower bound** |
+> **⛔ RE-PRICED 2026-08-26 — READ §2.1 BEFORE QUOTING ANY CELL OF THIS TABLE.**
+> The digits below are unchanged and stand. What §2.1 adds is each figure's
+> **derivation** — and it establishes that **none of the three inputs wave 11
+> corrected was ever an input to this table**, that the corrections' net
+> direction is **UP** and they do **not** cancel, and that the ~~"×5 lower
+> bound"~~ column head is **`raw × 5` where the 5 was fitted on rung counts,
+> not on time** (§2.1(e)). Lane `w-price4a`, board **#3603**–**#3608**.
+
+| # | row | why it is a prerequisite | raw estimate | ~~**×5 lower bound**~~ **`raw × 5` — §2.1(e)** |
 |---|---|---|---:|---:|
 | **I1** | **general op-level IL decode** | IR0 stops at a two-variant byte framing; `BodyShape`'s 35 whole-function grammars are simultaneously the admission gate. A ported COLOR consumes a *semantic middle* that does not exist. Probe A sharpens this: c2's own middle is a tuple list with per-tuple categories and two operand lists, and the port has neither — probe C measures the gap at **4.4–4.75× more tuples than emitted instructions** on four byte-exact functions | 1.5–4.5 eng-months (reviewer's 3–9 for the pair, split by the reviewer's own ordering) | **7.5–22.5 eng-months** |
 | **I2** | **general lowering to `coff::Function`** | today a 35-arm per-shape dispatch (`comdat.rs`, 43 `Selected::` refs). Without it a ported pass's only progress signal is stage-parity — **#3336 at program scale**, an instrument with no emit-path consumer | 1.5–4.5 eng-months | **7.5–22.5 eng-months** |
@@ -161,6 +169,245 @@ are on the critical path of **any byte-judged output** from a ported pass.
 >    correctly out of a clean function and was wrong about c2. Every read ends
 >    in a confirmation probe, and the byte judge is untouched by all of it.
 
+### 2.1 ⛔ 2026-08-26 — **I1 RE-PRICED. THE DIRECTION IS UP, THE MAGNITUDE IS NOT RE-PRICEABLE BY ARITHMETIC, AND THE REASON IS THAT NONE OF THE CORRECTED INPUTS WAS EVER AN INPUT TO THIS TABLE.**
+
+> *Lane `w-price4a`, wave 12, funded by
+> [`DECISIONS_2026-08-22.md`](DECISIONS_2026-08-22.md) **decision 14**. Board
+> **#3603**–**#3608**; rung [`rungs/2026-08-26-w-price4a.md`](rungs/2026-08-26-w-price4a.md).
+> **This is the canonical re-price block; every other pricing surface in the
+> tree points here rather than restating it.** No digit in §2's table above or
+> §4's table below is edited — what is added is each figure's **derivation**,
+> which is what none of them carried, and the direction of the residual.*
+
+**Every number below was reproduced in this lane, not inherited.** The whole
+reason the lane exists is that a published figure was wrong three ways.
+
+#### (a) The five inputs, and the direction each pushes
+
+| # | input | as the price was written | as landed at `f202268f6` | reproduced how, in this lane | on I1's **BUILD** | on R5's **READ** |
+|---|---|---|---|---|:-:|:-:|
+| 1 | dispatch size | **189 arms** | **61 real arms serving 95 opcodes**, plus one refusal arm serving 94; 62 targets, **62 distinct** | `dump_ilarms.py --verify` on sha256 `c80981c0…a66258`: domain `0x01..0xbd`, arm table 62 entries, 62 distinct, arm 61 = the `ja` target, 94 routed there | ↓ unquantified | ↓ ~3× — **and already SPENT** |
+| 2 | off-model share | **83.5 %** | **88.61 %** | one line: §3's ten rows sum to **2,036,842**, and `0.835 × 2,404,438 = 2,007,706` — **smaller than the rows it contains** (101.45 % of its own population) | ↑ | — |
+| 3 | decode reach | **98.2 %** | that is **FRAME** reach (98.25 %); **MODEL** reach is **11.39 %** of bodies, **5.47 %** by byte | the standing `decode-reach-*` keys, quoted with their strength and stamp; `inmodel` **275,295** equals `reached − modeled`'s complement exactly | ↑ **— and see (b)** | — |
+| 4 | port-side mapping | never stated | 41 of 61 arms have ≥1 port reader, 68 of 95 opcodes — **but 24 of those 68 carry no operand field at all**, and **0 production sites mint an IR node** | `scan_port_opcodes.py --coverage` (41/61, 20/61, 68/95, 24 WIDTH-or-NAME-ONLY) + an independent hex scan of **202,610** Rust lines for the ≥ `0x2af` node space | ↑ | — |
+| 5 | layer count | 1 fused layer (decode ∧ admission) | **3** — `w-unfuse` split decode from admission, and symbol binding sits under both: **4,001** bodies at `shape_to_function`, every one `:eof` | read from the landed `AdmissionPolicy` seam and `grammar-not-admitted` | ↑ | — |
+
+#### (b) They do NOT cancel, and the four are three
+
+**They cannot cancel, structurally.** The one input that pushes *down* applies
+to a **different row** — R5's read — from the four that push *up*, which apply
+to I1's build. This page's own annotation note 1 above says why that is not a
+transfer: *"a read produces a **spec**; I1 and I2 are **implementations**."*
+
+**And inputs 2 and 3 are one measurement counted twice.** `decode-reach-inmodel`
+and the complement of `decode-reach-offmodel` are **both 275,295** — checked,
+not asserted. The count of *independent* corrections to this row is **three**,
+not four.
+
+#### (c) The magnitude: NOT re-priceable, and here is the derivation that shows why
+
+| figure | its actual derivation | does it read input 1, 2, 3, 4 or 5? |
+|---|---|:-:|
+| I1 raw **1.5–4.5 eng-mo** | this page's own §2 cell: *"(reviewer's **3–9** for the pair, split by the reviewer's own ordering)"* — `ARCH_REVIEW_2026-08-21.md:116`, halved | **no** |
+| I1 **7.5–22.5** | `1.5–4.5 × 5` | **no** |
+| 4a whole **15–45** | `3–9 × 5` | **no** |
+| bottom-up **31–59** (`ROADMAP_SLICING` §1) | `n_slices × flat 2–4 wk × 5` + the characterization rows — **every Phase-1 slice is priced 2–4 wk regardless of its mass**, so C1's 696,164 bodies and a pooled row cost the same | **no** |
+
+**All four published figures are input-free.** Correcting 189 → 61,
+83.5 → 88.61 and frame → model reach therefore cannot move any of them: the
+corrections are not corrections *to* these numbers, because these numbers never
+read them. **A figure whose inputs cannot be corrected cannot be re-priced. It
+can only be withdrawn, or left standing with its derivation printed beside
+it** — which is what none of them had until this block. They are left standing.
+
+**This is not "unresolved".** It is a specific and checkable claim: *the figures
+are not estimates of the thing they are quoted for.* What is genuinely
+unresolved is the magnitude, and (e) names what would resolve it.
+
+#### (d) What DID move: the denominator, by 50.5×
+
+A lane measured on **FRAME** reach begins at 98.25 % with **1.75 points** and
+**42,404 bodies** of residue. A lane measured on **MODEL** reach — the strength
+a *general decode* is defined by — begins at 11.39 % with **88.61 points** and
+**2,142,499 bodies** of residue.
+
+| | FRAME residue | MODEL residue | ratio |
+|---|---:|---:|---:|
+| bodies | 42,404 | 2,142,499 | **50.5×** |
+| bytes | 24,397,092 | 611,476,251 | **25.1×** |
+
+**`IL_DECODE_REACH.md`'s banner ratios (8.6× / 17.6×) are ratios of *reach*.**
+A cost estimate is proportional to *residue*, and the residue ratios are the two
+above. **They are published here for the first time.**
+
+> **⚠ AND THEY ARE NOT A COST MULTIPLIER.** Cost is not linear in residue and
+> nobody has measured how it scales. 50.5× is the honest correction to the
+> **denominator** a re-price would use *if either published figure were
+> denominated in anything*, and (c) establishes that neither is. Quoting
+> "50.5× more expensive" would be this page's own §2 error inverted.
+
+#### (e) The calibration is outside its fitted domain — in two directions at once, and one is now measured
+
+**(i) `CEILING.md` §5's ~5:1 was fitted on WORK QUANTITY, not on time.** Its own
+words: *"the misses are specifically on **FORWARD COST** — frontier depth,
+refusal counts, rung counts."* §4's last row of this page already states that
+applying it to a **read** is a units error. Applying it to an **engineer-month**
+figure is outside the same fitted domain — and this page does that two rows up.
+**Neither 7.5–22.5 nor 15–45 is "calibrated" in the sense `CEILING` §5
+licenses; both are `raw × 5` where the 5 was measured on rung counts.**
+
+**(ii) Three rows of this program have since been EXECUTED, and all three
+missed PESSIMISTIC on the unit actually spent.** Spans read from git, not
+estimated:
+
+| row | priced at | prereg → rung (git) | direction |
+|---|---|---|---|
+| **R2** — the encoder read, → I2 | 2–4 days | `f663fd27b` 10:26:26 → `c0a9e596d` 12:02:34, **1 h 36 m** | pessimistic ~30–60× |
+| **R5** — `FUN_10bc2d7a`, → **I1** | **15–25 days** | funded `1cb1526b9` 00:11:43 → rung `8ff81967b` 00:41:35, **30 min** | pessimistic ~700–1,200× |
+| **C1** — Phase 1's largest construct | 2–4 wk raw / 10–20 wk LB | `fef66f750` 07:05:04 → `c563744e9` 08:23:10, **1 h 18 m**; its own rung says ~0.2 engineer-days | pessimistic ~50–100× on raw |
+
+These are **agent-lane wall clock, not human effort**, and that is exactly the
+finding: **this program's forward-cost figures are denominated in a unit the
+program does not spend.** `CEILING` §5's 5:1 *optimistic* was fitted on *how
+many rungs*; these three are *how long a rung takes*. Both can be true at once,
+they compose in **opposite** directions, and **nobody has ever multiplied them
+out.**
+
+**The one thing all three executed rows share: none converted anything.** C1
+bought **+8 emitted functions, 0 TUs**; R5 bought a spec and its own
+`P_ILRECORD.md` §8.6 **declines to re-price**; S0 bought a decline (**#3393**).
+So the executed evidence says the **construction** is cheap and the
+**conversion** is not — which is a statement about *which term* these estimates
+should have been carrying.
+
+#### (f) The upward pressure that appears in NO published price, and it is the largest
+
+`whitebox/ref/P_ILRECORD.md` §8 item 5, verbatim: *"**This seam's output never
+appears in any artifact** — it is an in-memory tree in a private opcode range.
+`READ_PLAN` §3's 'the tap cannot see this seam' is not a tooling gap; it is
+structural."*
+
+Corroborated from the port side by this lane: the port's **entire** contact with
+c2's ≥ `0x2af` node-opcode space is **two constants in one test file**
+(`crates/c2-harness/tests/pwords_bijection.rs:57`,
+`const OP_PROLOGUE: [u32; 2] = [0x2f0, 0x2f4]`) over the **nine words** of a
+fenced three-function bijection — and **zero production sites**.
+*(`WB_ILARMS_MAP.md` §0 says "zero non-comment hits"; the exact count is **one**,
+and the one is a test. The substance — no production site mints an IR node —
+stands unchanged. Reported here rather than amended there: `docs/whitebox/` is
+`w-opclass`'s fence this wave.)*
+
+**Consequence: 4a(i) funded alone inherits row 4a's own risk column.** Row 4a
+exists because a step-5 lane's only progress signal would be an instrument with
+**no emit-path consumer** — `#3336` at program scale with no contrast case. I1
+built alone has exactly that property **at its own boundary**: its output has no
+observable, so its correctness first becomes visible at the far end of
+I2 + lowering + emit, through the byte judge. **The row created to prevent
+unconsumable instruments is, in its first-funded half, one.** That is not an
+argument against funding it. It is a term its price does not contain.
+
+#### (g) What would resolve the magnitude — named, and priced
+
+1. **The depth-2 read.** R5 read **depth-1 only**: 61 arms route into **76
+   distinct direct callees over 174 call sites**, and **19 of 61 arms are
+   DEFER** — their semantics entirely below R5's bound. `P_ILRECORD.md` §8.1
+   names the highest-value target itself: **`0x10bbfebb`, 256 B**, the C1
+   `off-add` builder covering **33.3 %** of the residue. Priced off R5's own
+   *measured* rate (5,080 B, 62 arms and three tables in one lane), the four
+   largest callees total **7,347 B** ≈ 1.4× R5's body: **1–2 characterization
+   lanes.** This is the read-before-probe answer and the cheapest item here.
+   *(It belongs in `whitebox/READ_PLAN_2026-08-21.md` §3 as a new row; this
+   lane may not write `docs/whitebox/` and **reports it rather than writing
+   it**.)*
+2. **The one experiment that gives I1 an observable: a single-arm end-to-end
+   slice.** Decode one arm generally → tuple → lowering → obj, **byte-judged by
+   real c2**. This is the experiment **#3393** recorded that S0 *had not run* —
+   S0 relaxed an **admission** gate, and **113,165 of 113,557** of its
+   population (**99.66 %**) never reached the lowering at all (`no-decode`).
+   **1 construct rung**, required-zero on the incumbent 21-row gate table, with
+   `ROADMAP_SLICING` §5's registered stop condition unchanged: *if
+   `fnbyte-exact` moves at all, the pricing basis is void.* **This is the only
+   item here that can move the magnitude in either direction.**
+3. **Publish the unit conversion. It costs one table and it is (e)(ii) above.**
+   §4 declines to convert lanes into engineer-months rather than invent a rate,
+   and that was right when it was written. Three rows have executed since. What
+   they yield is a **distribution, not a rate** — which is the point: the
+   estimates and the outcomes are not in the same units. **Cost: 0. Done.**
+
+**What none of the three resolves**, stated so absence is not read as coverage:
+`ROADMAP_SLICING` §4's question — *is the port's byte-exactness a model or a
+fit* — which that section says decides whether 4a is one program or two and, if
+a fit, makes it **unbounded**. **Every correction in this lane leaves it
+exactly where it was.**
+
+#### (h) So the figures, as they should now be quoted
+
+| figure | amended reading |
+|---|---|
+| **R5, 15–25 days** | ~~an estimate~~ **SPENT — it executed** (30 min, `8ff81967b`). Quote it as an outcome. Its successor is (g)1, **1–2 lanes** |
+| **I1 raw 1.5–4.5 eng-mo** | stands, **with its derivation printed**: `ARCH_REVIEW:116`'s top-down 3–9 for the pair, halved by ordering. Reads none of the corrected inputs. **Residual direction: UP** |
+| **I1 7.5–22.5 eng-mo** | digits stand; **the word "calibrated" is WITHDRAWN.** It is `raw × 5` where the 5 was fitted on rung counts — see (e) |
+| **4a whole, 15–45 eng-mo** | identical treatment. Digits stand, basis printed |
+| **bottom-up 31–59** (`ROADMAP_SLICING` §1) | digits stand; its **flat 2–4 wk per slice** basis is refuted on its one executed row (C1) by 50–100×, pessimistic, at a conversion buy of **0 TUs** |
+
+#### (i) It bears on Phase 1, and this lane STOPS there
+
+`ROADMAP_SLICING` §3's ten constructs **are** Phase 1's ten slices, and they are
+decomposed from the very table whose denominator was refuted. **The slice
+structure survives the correction**: the ten rows sum to exactly
+`reached − modeled` (**2,100,095 = 2,375,390 − 275,295**, checked in this lane),
+so the decomposition is intact and only its denominator moved. What the
+correction does **not** touch is **#3529**'s Phase-1 TU reach **0** or
+`w-joint3`'s **97.2 %** per-TU construct floor.
+
+**Decision 11's hold is the owner's. Decisions 13 and 14 each explicitly
+declined to lift it. This lane does not either — it reports that its result
+bears on the question and stops.**
+
+#### (j) Live pricing surfaces OUTSIDE this lane's fence — reported, not written
+
+Decision 14 fences `w-price4a` to five docs and forbids `docs/whitebox/`. A
+**by-enumeration** sweep of 1,183 files (not a topic grep — `w-ilarms` found a
+banner-named consumer list short by two, and every *other* `98.2 %` in this tree
+is a different 98.2 % at four unrelated sites) found these carrying 4a(i)'s
+price and reachable by **no** token this lane could search on:
+
+* **`SHIPPING_ROADMAP_2026-08-22.md:778`** — a price-table row reading
+  `| row 4a … | 15–45 engineer-months | … The critical path for goal (2) |`,
+  with `:779` carrying 31–59. **The single most quotable statement of the price
+  in the tree, and it is in neither `w-decodereach`'s 11-file list nor decision
+  14's fence.**
+* **`CEILING.md`** — carries **no** token at all (`4a`, `I1`, `15–45`,
+  `1.5–4.5`: zero occurrences), yet its **§5 is the ~5:1 multiplier that
+  produces 15–45 from 3–9**. Six live documents cite it *by reference*. The
+  arithmetic lives in a file no token search reaches.
+* **`crates/c2-harness/tests/stage_region_trace.rs:196`** — a **live assertion
+  message** that fails *into* a re-pricing instruction (*"…the cost curve in
+  `docs/STEP5_PRICING_2026-08-21.md` must be re-priced rather than this
+  assertion relaxed"*), with no token at all.
+* **`crates/c2-harness/src/gap/decode.rs:348`** — quotes the **refuted 83.5 %**
+  as row 4a(i)'s basis, in a live doc comment.
+* **`crates/c2-il/src/func/body/decode.rs:78-83`** — a verbatim restatement of
+  `1.5–4.5` / `15–45` in a Rust doc comment.
+* **`docs/rungs/README.md:279`** — live standing doctrine (*"STEP5's I1/I2
+  eng-month prices are BLACK-BOX numbers and may not be quoted as the cost of
+  the facts"*) on the `docs/rungs/` shelf, which every "pricing doc"
+  enumeration in this tree treats as dated-record territory. **It is not.**
+* **`docs/README.md:46-47`** — index rows paraphrasing the price as
+  *"deliverables shorter than **45 months**"*, which matches neither `15-45`
+  nor `15–45`.
+* **`whitebox/ref/P_ILRECORD.md`**, **`ref/P_ENCODE.md:624`**,
+  **`ref/P_BLOCKORDER.md:202`**, **`C2_MAP.md:1012`**, **`WB_ILARMS_MAP.md`**,
+  **`READ_PLAN_2026-08-21.md` §3** — inside the `docs/whitebox/` write-fence.
+
+**Both enumerations were short.** `w-decodereach` §12.4's 11-file list and
+decision 14's 5-file fence each miss live surfaces, and the `docs/whitebox/ref/`
+shelf is short *by fence* this time rather than by oversight — which means the
+wave lands a re-price whose `ref/` restatements still read 15–45 unless
+`w-opclass` carries them.
+
+---
+
 **Priced two-sided, per `CLAUDE.md`.** The cost of *not* doing them is not zero
 and is not "step 5 is slower": it is that every step-5 lane lands an
 unconsumable instrument, and the project has a measured precedent for exactly
@@ -170,6 +417,13 @@ program scale the same shape has no contrast case to catch it. The review's
 prophylactic — *every step-5 lane names in its rung header which
 `coff::Function` field its pass would eventually write* — is adopted here as the
 minimum, and it is a smoke alarm, not a substitute.
+
+> **↳ 2026-08-26 — AND §2.1(f) TURNS THIS PARAGRAPH ON I1 ITSELF.** The
+> *"unconsumable instrument"* argument was written about step-5 lanes that
+> would land *behind* 4a. `P_ILRECORD.md` §8.5 establishes that I1's own output
+> is structurally unobservable, so the same argument applies to 4a(i) built
+> alone. The paragraph is unchanged and correct; what is new is that its scope
+> reaches one row further back than it was written for.
 
 ---
 
@@ -224,9 +478,17 @@ search lanes, not construction lanes. Item F's total goes **17 → 13 lanes raw
 
 ## 4. The whole curve
 
-| row | raw | **×5 lower bound** | on the critical path of a byte-judged output? |
+> **⛔ 2026-08-26 — the `I1` row of this table is RE-PRICED at §2.1, and the
+> re-price does not change a digit here.** Direction **UP**, magnitude **not
+> re-priceable by arithmetic** (none of the corrected inputs is an input to the
+> figure), denominator **50.5× larger in bodies / 25.1× by byte** than the
+> published `98.2 %` implied. **And this table's own last row already knows the
+> units problem** — *"applying it to a read is a **units error**"* — while its
+> first two rows apply the same multiplier to engineer-months. Lane `w-price4a`.
+
+| row | raw | ~~**×5 lower bound**~~ **`raw × 5` — §2.1(e)** | on the critical path of a byte-judged output? |
 |---|---:|---:|---|
-| **I1** general op-level IL decode | 1.5–4.5 eng-mo | **7.5–22.5 eng-mo** | **YES** |
+| **I1** general op-level IL decode | 1.5–4.5 eng-mo | **7.5–22.5 eng-mo** *(re-priced §2.1)* | **YES** |
 | **I2** general lowering to `coff::Function` | 1.5–4.5 eng-mo | **7.5–22.5 eng-mo** | **YES** |
 | characterization, all stages (§3) | 5–6 lanes | **25–30 lanes** | no — it is the input to the construct rows |
 | item F construct, re-priced (§3) | 13 lanes | **65 lanes** | YES |

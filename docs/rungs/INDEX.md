@@ -316,3 +316,4 @@ the header block this table is read from.
 | 2026-08-25 | w-relsite | [w-relsite](2026-08-25-w-relsite.md) | 10 | +0 (no `crates/` byte changed) |
 | 2026-08-25 | w-unfuse | [w-unfuse](2026-08-25-w-unfuse.md) | 20 | +0 — no census key moves, and that is checked per SYMBOL and not by subtracting totals |
 | 2026-08-26 | w-atend | [w-atend](2026-08-26-w-atend.md) | 27 | +0 — no census key moves, checked per SYMBOL over 2,417,794 rows and not by subtracting totals |
+| 2026-08-26 | w-price4a | [w-price4a](2026-08-26-w-price4a.md) | 10 | +0 — no `crates/`, `scripts/` or `fixtures/` file is written; |

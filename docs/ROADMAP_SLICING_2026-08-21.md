@@ -23,6 +23,32 @@ against the review's top-down **15–45**. The review's figure lands at the
 optimistic end of the enumeration, which is what a lower bound is supposed to
 do; **the direction is the finding.**
 
+> **⛔ 2026-08-26 — `31–59` IS INPUT-FREE AND ITS PER-SLICE BASIS IS NOW REFUTED
+> ON ITS ONE EXECUTED ROW.** *Lane `w-price4a`, canonical block
+> [`STEP5_PRICING_2026-08-21.md`](STEP5_PRICING_2026-08-21.md) §2.1; board
+> **#3603**–**#3608**. **No digit here changes and nothing below is
+> rewritten.***
+>
+> The derivation is `n_slices × flat 2–4 wk × 5` plus the characterization
+> rows: **a slice's mass never enters its own price**, so C1's 696,164 bodies
+> and a pooled row cost the same. That is why the three inputs wave 11
+> corrected — 189→61 arms, 83.5→88.61 % off-model, 98.2 % framing → 11.39 %
+> model reach — move this figure by exactly zero. **They were never inputs to
+> it.**
+>
+> **And C1 has since executed.** Phase 1's *largest* construct, priced here at
+> 2–4 wk raw / 10–20 wk LB, landed in **1 h 18 m** of lane wall clock
+> (`fef66f750` → `c563744e9`; its own rung says ~0.2 engineer-days) for
+> **+8 emitted functions and 0 TUs**. So the flat per-slice price is
+> **pessimistic by 50–100× on cost** and the enumeration is pricing the term
+> that turned out to be nearly free. **Both this figure and the top-down 15–45
+> are `raw × 5` where the 5 was fitted on RUNG COUNTS, not on time**
+> (`CEILING` §5's own words: *"frontier depth, refusal counts, rung counts"*)
+> — §2.1(e).
+>
+> **What §1's conclusion does NOT lose:** *"slicing does not make the total
+> smaller"* survives every correction. It was never resting on the digits.
+
 Three mechanisms make the enumeration read higher, and all three are real:
 
 1. **Enumeration exposes rows a layer-level estimate absorbs.** The review
@@ -212,6 +238,39 @@ principle so the coincidence cannot be mistaken for an identity.
 83.5% said, not smaller, and the 16.5% "already in the model" is 11.39%.**
 Row 4a(i)'s direction is unchanged; its headroom is 5 points wider.
 
+#### ⛔ 2026-08-26 — AND "5 POINTS WIDER" IS THE SMALL HALF. THE RESIDUE IS **50.5× LARGER IN BODIES AND 25.1× BY BYTE.**
+
+*Lane `w-price4a`, board **#3604**; canonical block
+[`STEP5_PRICING_2026-08-21.md`](STEP5_PRICING_2026-08-21.md) §2.1(d). **Nothing
+above is retracted** — "5 points wider" is the correct reading of `83.5 → 88.61`
+and stands. What it is not is the pricing-relevant comparison.*
+
+A cost estimate is proportional to **residue**, not to reach. `IL_DECODE_REACH`'s
+banner publishes the *reach* ratios — 8.6× in bodies, 17.6× by byte. The
+residue ratios have never been published, and they are larger:
+
+| | FRAME residue | MODEL residue | ratio |
+|---|---:|---:|---:|
+| bodies | 42,404 | **2,142,499** | **50.5×** |
+| bytes | 24,397,092 | **611,476,251** | **25.1×** |
+
+A lane measured on FRAME reach starts at **1.75 points** of headroom; on MODEL
+reach it starts at **88.61**. That is the whole of what this section's `(i)`
+paragraph below turns on.
+
+> **⚠ IT IS NOT A COST MULTIPLIER.** Cost is not linear in residue and nobody
+> has measured how it scales. **"50.5× more expensive" would be this section's
+> own 83.5 % error inverted** — a ratio quoted against a denominator it was not
+> derived over.
+
+**Two arithmetic checks, both run in-lane rather than inherited:** the ten
+construct rows sum to exactly `reached − modeled` (**2,100,095 = 2,375,390 −
+275,295**), so the **slice decomposition survives the correction intact and only
+its denominator moved**; and `decode-reach-inmodel` equals the complement of
+`decode-reach-offmodel` at **275,295 on both**, so **§3.0's two corrections are
+one measurement counted twice** — the tree's "three wrong inputs" to row 4a(i)
+are, independently, **two**.
+
 ---
 
 **(i) is not "write a decoder."** A decode-only walker already reaches
@@ -346,6 +405,28 @@ C7 compare · C8 bitwise · C9 materialize-64 · C10 virtual-slot. Each ships on
 value-type variant + its type resolution + one general lowering; each is
 **byte-judged on new fixtures**, plus a required-zero identity diff on the
 incumbent gate table. **2–4 wk raw / 10–20 wk LB each.**
+
+> **⛔ 2026-08-26 — TWO OF THE TEN HAVE EXECUTED, AND THE FLAT PRICE IS WRONG IN
+> THE PESSIMISTIC DIRECTION WHILE THE BUY IS ZERO.** *Lane `w-price4a`, board
+> **#3605**; the measurements are `w-c1`'s and `w-c7`'s, not this lane's — what
+> is new is putting them beside the price they were written against. `ROADMAP.md`
+> §11.4(c) already records both. **Nothing above is rewritten**, and **this
+> block does not rule on Phase 1**: decision 11's hold is the owner's and
+> decisions 13 and 14 each declined to lift it.*
+>
+> | slice | priced here | executed | bought |
+> |---|---|---|---|
+> | **C1** off-add — the **largest** row, 696,164 bodies | 2–4 wk raw / 10–20 wk LB | **1 h 18 m** lane wall clock (`fef66f750` → `c563744e9`); its own rung says **~0.2 engineer-days** | **+8 emitted functions, 0 TUs** — its own §8 calls this *"the floor of the range, not a sample"* |
+> | **C7** compare | 2–4 wk raw / 10–20 wk LB | **DECLINED** — the general relational lowering already existed in history, byte-graded green on 552 cells, measured **+0**, reverted 2026-07-31 (`CMP_PRODUCES_A_VALUE.md`; **#3487**) | family ceiling **6 emitted functions, 0 TUs** |
+>
+> **`2–4 wk` is a flat price that reads no slice's mass**, so it says the same
+> thing about C1's 696,164 bodies and about a pooled row — and on the one row
+> that ran it was **50–100× pessimistic**. The estimate was pricing
+> *construction*, which is measurably nearly free, and pricing **nothing** about
+> the term that is not: **making the constructed layer produce a byte the judge
+> accepts.** Both executed rows converted **0 TUs**, and **#3529** measured
+> Phase-1 TU reach at **0** per construct, jointly, and granting every byteless
+> key free. `STEP5_PRICING_2026-08-21.md` §2.1(e).
 
 Two orderings that differ from naive mass order:
 
