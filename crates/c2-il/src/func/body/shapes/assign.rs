@@ -319,6 +319,7 @@ enum StoreTypeSink {
 }
 
 fn store_type_sink() -> StoreTypeSink {
+    // PROV[N] not load-bearing — a `OnceLock` measurement sink, the same contract as `expr.rs`'s five.
     static ON: std::sync::OnceLock<StoreTypeSink> = std::sync::OnceLock::new();
     *ON.get_or_init(|| match std::env::var("C2RS_SINK_STORE_TYPE").as_deref() {
         Ok("ptr4") => StoreTypeSink::Ptr4,

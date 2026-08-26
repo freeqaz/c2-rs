@@ -93,6 +93,7 @@ use crate::func::readers::{
 use crate::func::{ChainOp, ChainOpKind, ChainRhs, PtrWalkChainLoop};
 
 /// The scope depth the body opens at, mirrored from `expr::BODY_SCOPE_DEPTH`.
+/// PROV[N] derived — mirrored from `expr::BODY_SCOPE_DEPTH`, which carries the provenance.
 const BODY_SCOPE_DEPTH: usize = 2;
 
 /// The largest chain this production will build.
@@ -104,6 +105,7 @@ const BODY_SCOPE_DEPTH: usize = 2;
 /// `M + 2` words and every branch in it is checked against its field width
 /// anyway, so this constant can only ever be the *first* refusal, never the
 /// only one.
+/// PROV[F] a verified-extent bound on chain length for this class; a longer chain refuses.
 const MAX_CHAIN: usize = 10;
 
 /// The **one-byte signed** element class — `char` / `signed char` under a

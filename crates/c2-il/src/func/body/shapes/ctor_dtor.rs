@@ -315,10 +315,12 @@ pub(crate) fn try_parse_empty_dtor_delegation(
 ) -> Option<BodyShape> {
     /// The `void` result TYPE, required literally: this shape's whole licence to
     /// emit a bare branch is that there is no result to place.
+    /// PROV[O] `82 07 03`, the `void` result TYPE, read off captures and required literally — this shape's whole licence to emit a bare branch is that there is no result to place.
     const VOID_TYPE: [u8; 3] = [0x82, 0x07, 0x03];
     /// The measured `(statement-trailer flag, sub-object-trailer flag)` pairs:
     /// `/EH…` clears bit `0x10` in both, and they always agree. Anything else
     /// refuses. See the doc comment.
+    /// PROV[O] the two measured `(statement-trailer, sub-object-trailer)` pairs. `/EH…` clears bit `0x10` in both and they always agree; anything else refuses. Same pairs as `mcall::TRAILER_FLAGS`, and `func::mod`'s `DTOR_DELEGATE`/`DTOR_DELEGATE_NOEH` are the same function captured on each side.
     const TRAILER_FLAGS: [(u8, u8); 2] = [(0x11, 0x31), (0x01, 0x21)];
 
     let mut p = start;
@@ -445,6 +447,7 @@ pub(crate) fn try_parse_empty_dtor_delegation(
 /// token. See [`try_parse_empty_dtor_delegation`]'s `RECV-BASE`.
 fn eat_dtor_base_receiver(seg: &[u8], p: &mut usize) -> Option<u32> {
     /// `33 <int> 80 41 08 00 00` — selector 2113 `this-adjust`, wide form.
+    /// PROV[O] `80 41 08 00 00`, selector 2113 `this-adjust` in its wide form, read off captures.
     const SELECTOR_2113: [u8; 5] = [0x80, 0x41, 0x08, 0x00, 0x00];
 
     // The `this`-adjust intrinsic, whose result is the receiver.
@@ -655,13 +658,16 @@ pub(crate) fn try_parse_empty_ctor_base_delegation(
     depth: usize,
 ) -> Option<BodyShape> {
     /// The `void` result TYPE of the unwind action, required literally.
+    /// PROV[O] the same `void` result TYPE for the unwind action, required literally. Read off captures.
     const VOID_TYPE: [u8; 3] = [0x82, 0x07, 0x03];
     /// `(5C statement-trailer flag, 5D count-trailer flag)`, the same two
     /// measured profiles the destructor form admits: `/EH…` clears bit `0x10`.
     /// The `eh-none` body carries neither trailer at all.
+    /// PROV[O] the `(5C statement-trailer, 5D count-trailer)` pairs — the same two measured profiles the destructor form admits. The `eh-none` body carries neither trailer at all.
     const TRAILER_FLAGS: [(u8, u8); 2] = [(0x11, 0x31), (0x01, 0x21)];
     /// The `kind` byte of the constructed object's type on every witness. A
     /// scalar here would be a different production entirely.
+    /// PROV[O] `46`, the kind byte of the constructed object's type on every witness. A scalar here would be a different production entirely.
     const CLASS_KIND: u8 = 0x46;
 
     let mut p = start;

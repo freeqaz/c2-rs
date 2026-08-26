@@ -110,6 +110,7 @@ use crate::func::readers::{
 use crate::func::PoolCtorChain;
 
 /// The one alignment with an obj behind it. See the module header's pinned list.
+/// PROV[O] "the one alignment with an obj behind it" — its own doc, and the module header carries the pinned list. Read out of real c2 output.
 const ALIGN: i32 = 4;
 
 fn eat_ptr4(seg: &[u8], p: &mut usize) -> Option<()> {

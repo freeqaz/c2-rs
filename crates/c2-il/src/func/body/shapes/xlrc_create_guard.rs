@@ -109,6 +109,7 @@ use crate::func::XlrcCreateGuard;
 
 /// How many formals this class admits. They land in r3–r6 and are copied to
 /// r30–r27 by four words the emitter does not vary.
+/// PROV[F] the formal count this class admits, fitted to the captured shape: they land in r3–r6 and are copied to r30–r27 by four words the emitter does not vary. A fifth formal is the off-sample case.
 const XLRC_FORMALS: usize = 4;
 
 /// One TYPE as this class needs it: the two discriminating fields `read_type`
@@ -587,6 +588,7 @@ pub(crate) fn try_parse_xlrc_create_guard(
     }
     // The function tail. Landing exactly on it is the whole acceptance claim: a
     // walk that ends anywhere else consumed a byte it did not understand.
+    // PROV[O] the seven-byte `.ex` function tail, read off captures. See `alloc_init_or_fail::FN_TAIL`.
     const FN_TAIL: [u8; 7] = [0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00];
     if seg.get(p..p + FN_TAIL.len()) != Some(&FN_TAIL[..]) {
         return Err(blk(seg, p, "xlrc-not-the-function-tail"));

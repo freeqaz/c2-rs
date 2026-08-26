@@ -177,6 +177,7 @@ pub enum AdmissionPolicy {
 impl AdmissionPolicy {
     /// The policy every production call site uses. Reproduces the pre-split
     /// admitted set exactly.
+    /// PROV[N] not load-bearing — the port's own default admission POLICY, a measurement profile in DISCLOSURE's sense. It selects which of this crate's gates run; it derives no value from c2.
     pub const DEFAULT: AdmissionPolicy = AdmissionPolicy::RecognizedShape;
 
     /// **Every policy**, for an instrument that sweeps the decision surface —
@@ -187,6 +188,7 @@ impl AdmissionPolicy {
     /// [`Self::index`] is an **exhaustive match**, so a new variant does not
     /// compile until it is given an index, and `all_is_complete_and_indexed`
     /// then fails until it is also given a place here.
+    /// PROV[N] not load-bearing — the enumeration of this crate's own policy variants, derived entirely from the enum it lists.
     pub const ALL: &'static [AdmissionPolicy] =
         &[AdmissionPolicy::RecognizedShape, AdmissionPolicy::Nothing];
 

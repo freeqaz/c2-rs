@@ -52,6 +52,30 @@ use crate::IlBundle;
 /// — a histogram keyed on them is meant to be comparable across sessions, so
 /// they are appended to, never renamed.
 pub mod cause {
+    //! PROV-BLOCK[N] not load-bearing — **every constant in this module is a
+    //! NAME the port chose for one of its own refusals, not a value derived
+    //! from `c2.dll` or from its output.** Change one and the same TUs are
+    //! refused for the same reasons; only the histogram row's label moves.
+    //!
+    //! That is exactly `DISCLOSURE.md`'s `[N]` clause ("sentinels", "fixture
+    //! names"), and tagging them is what makes the untagged residue elsewhere
+    //! in `c2-il` a statement instead of an artifact of a proxy that counts
+    //! every `const`.
+    //!
+    //! **What IS load-bearing here is the predicate each name is attached to**,
+    //! and those are rules, which `DISCLOSURE.md` counts separately as rule
+    //! marks with no denominator. The module doc above already carries the one
+    //! property that matters about them — this file is a DIAGNOSTIC and must
+    //! never become a gate.
+    //!
+    //! The strings are additionally an **interface** (see the doc on this
+    //! module): a histogram keyed on them is meant to be comparable across
+    //! sessions, so they are appended to and never renamed. `[N]` is a claim
+    //! about provenance, not a licence to edit them.
+    //
+    // (No blank line here, deliberately: this lane's required-zero proof is the
+    // mechanical claim that EVERY added line in `crates/` begins `///`, `//!`
+    // or `//`, and a blank line would be the one exception nobody could grep.)
     /// The bundle has no `.gl` file at all.
     pub const NO_GL: &str = "no-gl";
     /// The bundle has no `.ex` file at all.

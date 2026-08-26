@@ -83,11 +83,13 @@ use crate::func::readers::{
 
 /// The element stride of the run, in bytes: the class stores 8-byte scalars and
 /// the two cells that move (`SetNonce`, `EncOff::SetNonce`) both step by 8.
+/// PROV[O] the run's 8-byte element stride, read off both moving cells (`SetNonce`, `EncOff::SetNonce`).
 pub(crate) const ELEM: i32 = 8;
 
 /// How many statements the class is. **Not a parameter**: `SetNonce1` and
 /// `SetNonce3` above are two different register plans, so the number is part of
 /// what was measured rather than something the recognizer counts and passes on.
+/// PROV[O] how many statements the class is — and its own doc insists it is "**Not a parameter**": `SetNonce1` and `SetNonce3` are two different register plans, so two is part of what was measured rather than something the recognizer counts and passes on.
 pub(crate) const RUN_LEN: usize = 2;
 
 /// One `dst[i] = src[i] + (u64)addend;` statement, decoded.

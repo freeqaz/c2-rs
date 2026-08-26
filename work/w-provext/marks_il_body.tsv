@@ -1,0 +1,80 @@
+# crates/c2-il/src/func/body/*.rs — the DECODE/ADMISSION layer.
+# This is the population decision 16 said would test wave 13's reading that
+# "c2-il's decode vocabulary is where [F] should actually live".
+crates/c2-il/src/func/body/chain.rs	MAX_SUBST_OPS	F] a substitution budget, chosen so a doubling chain cannot blow up. Nothing measured 32 as c2's own bound; it is this port's cap on its own work, and a real chain above it is refused. Fitted, failing closed.
+crates/c2-il/src/func/body/chain.rs	ARG_REG_COUNT	S] the PowerPC EABI's eight integer argument registers r3..r10. Fixed by the ABI, not by c2; a ninth parameter is stack-homed by the same rule. Mirrors `c2_core::codegen::ARG_REGS`.
+crates/c2-il/src/func/body/chain.rs	MAX_SWEPT_TERMS	F] a sweep bound on the additive path, which its own comment says "is not bounded by anything" otherwise. Fitted to the shapes measured; a longer real sweep is the off-sample case.
+crates/c2-il/src/func/body/chain.rs	MAX_VERIFIED_LEAVES_WITH_SUB	F] the name is the citation: the count of leaves this composition was VERIFIED on. A fifth leaf is precisely the case the verification could not see.
+crates/c2-il/src/func/body/decode.rs	DEFAULT	N] not load-bearing — the port's own default admission POLICY, a measurement profile in DISCLOSURE's sense. It selects which of this crate's gates run; it derives no value from c2.
+crates/c2-il/src/func/body/decode.rs	ALL	N] not load-bearing — the enumeration of this crate's own policy variants, derived entirely from the enum it lists.
+crates/c2-il/src/func/body/expr.rs	BODY_SCOPE_DEPTH	O] the `.ex` lexical depth a function body's own scope sits at, read off captures: depth 1 is the formals group and 2 the body (`sy::SECTION`'s doc tabulates the preorder). `sy::BODY_SCOPE_CLOSE` is the matching close token and cites the same captures.
+crates/c2-il/src/func/body/expr.rs	MAX_SCOPE_DEPTH	N] not load-bearing — a recursion ceiling on the parser so a malformed segment cannot run away. It bounds a parse, not an emit.
+crates/c2-il/src/func/body/expr.rs	ON	N] not load-bearing — a `OnceLock` holding a lazily-read environment switch for a measurement sink. Its VALUE is a cell, not a constant; the sink it gates publishes no verdict the byte judge grades.
+crates/c2-il/src/func/body/expr.rs	ON:469	N] not load-bearing — a second measurement-sink `OnceLock`, same contract as the first.
+crates/c2-il/src/func/body/expr.rs	ON:543	N] not load-bearing — the branch-sink `OnceLock`, same contract.
+crates/c2-il/src/func/body/expr.rs	ON:1211	N] not load-bearing — a chain-sink `OnceLock`, same contract.
+crates/c2-il/src/func/body/expr.rs	ON:1411	N] not load-bearing — the second chain-sink `OnceLock`, same contract.
+crates/c2-il/src/func/body/expr.rs	FN_TAIL	O] `4F 12`, one more `4F xx` record tag (see `bundle::LO_RECORD`'s enumeration of the family), read off `.ex` captures.
+crates/c2-il/src/func/body/expr.rs	STMT_SITE_BODY	N] not load-bearing — a descriptor naming WHERE a measurement sink is installed. An instrument's own wiring; no byte and no verdict's content depends on it.
+crates/c2-il/src/func/body/expr.rs	STMT_SITE_RSC	N] not load-bearing — the second sink-site descriptor, same contract.
+crates/c2-il/src/func/body/expr.rs	EXPR_TYPED_OP	N] not load-bearing — a census key NAME, the same class as everything in `func::diag::cause`. Changing it renames a histogram row and refuses the same bodies.
+crates/c2-il/src/func/body/expr.rs	DIV_MOD_OPS	O] the `.ex` DIV and MOD opcode bytes `05`/`06`, read off captures — the same two `div_mod_leaf::IL_DIV`/`IL_MOD` name individually.
+crates/c2-il/src/func/body/mcall.rs	CALL_IN_EXPR	N] not load-bearing — a census key NAME. See `func::diag::cause`'s block marker for the argument.
+crates/c2-il/src/func/body/mcall.rs	FORM_BITS	N] not load-bearing — a field width in the PORT'S OWN census-key packing, described in full by the comment above it. Nothing in `c2.dll` or in any capture contains this layout; it exists because `Block` carries one `u64` and `ctx` is a `&'static str`, so the selector id cannot go in the name.
+crates/c2-il/src/func/body/mcall.rs	FORM_MASK	N] not load-bearing — derived from [`FORM_BITS`]; the port's own key packing.
+crates/c2-il/src/func/body/mcall.rs	PAYLOAD_BITS	N] not load-bearing — the port's own key packing. See [`FORM_BITS`].
+crates/c2-il/src/func/body/mcall.rs	PAYLOAD_MASK	N] not load-bearing — derived from [`PAYLOAD_BITS`].
+crates/c2-il/src/func/body/mcall.rs	WHOLE_BIT	N] not load-bearing — derived from [`FORM_BITS`] and [`PAYLOAD_BITS`]; the port's own key packing.
+crates/c2-il/src/func/body/mcall.rs	BLK_SHIFT	N] not load-bearing — the port's own key packing. See [`FORM_BITS`].
+crates/c2-il/src/func/body/mcall.rs	BLK_BITS	N] not load-bearing — the port's own key packing.
+crates/c2-il/src/func/body/mcall.rs	BLK_MASK	N] not load-bearing — derived from [`BLK_BITS`].
+crates/c2-il/src/func/body/mcall.rs	BLK_PAYLOAD_SHIFT	N] not load-bearing — derived from [`BLK_SHIFT`] and [`BLK_BITS`].
+crates/c2-il/src/func/body/mcall.rs	BLK_PAYLOAD_BITS	N] not load-bearing — derived from [`FORM_BITS`] and [`PAYLOAD_BITS`].
+crates/c2-il/src/func/body/mcall.rs	BLK_PAYLOAD_MASK	N] not load-bearing — derived from [`BLK_PAYLOAD_BITS`].
+crates/c2-il/src/func/body/mcall.rs	NEED_SHIFT	N] not load-bearing — derived; the port's own key packing.
+crates/c2-il/src/func/body/mcall.rs	NEED_MASK	N] not load-bearing — the port's own key packing (a 3-bit grant count).
+crates/c2-il/src/func/body/mcall.rs	NEED_UNMEASURED	N] not load-bearing — a SENTINEL in the port's own key packing, which DISCLOSURE names under [N] explicitly. It encodes "no production exists for the second blocker", a statement about this port.
+crates/c2-il/src/func/body/mcall.rs	NEED_MORE	N] not load-bearing — the other sentinel of the same field.
+crates/c2-il/src/func/body/mcall.rs	KIND_SHIFT	N] not load-bearing — derived; the port's own key packing.
+crates/c2-il/src/func/body/mcall.rs	KIND_BITS	N] not load-bearing — the port's own key packing (the third construct's coarse kind).
+crates/c2-il/src/func/body/mcall.rs	KIND_MASK	N] not load-bearing — derived from [`KIND_BITS`].
+crates/c2-il/src/func/body/mcall.rs	SYMS_SHIFT	N] not load-bearing — derived; the port's own key packing.
+crates/c2-il/src/func/body/mcall.rs	SYMS_MASK	N] not load-bearing — the port's own key packing (a 2-bit data-symbol count class).
+crates/c2-il/src/func/body/mcall.rs	SYMS_UNSET	N] not load-bearing — the not-applicable sentinel of that field.
+crates/c2-il/src/func/body/mcall.rs	MAX_TOKENS	N] not load-bearing — a 4,096-token ceiling on a diagnostic token count (`call_tokens`'s own doc: "diagnostic only; nothing here is consulted by the emitter or by acceptance").
+crates/c2-il/src/func/body/mcall.rs	MAX_ADMIT	F] the greedy chain's grant budget, and the constant the `NEED_MORE` sentinel is defined against: "granting up to MAX_ADMIT constructs was still not enough". Fitted to the chains measured; a body needing a fifth grant is reported `-more` rather than measured.
+crates/c2-il/src/func/body/mcall.rs	BARE_BINARY_OPS	F] an enumerated SET of binary opcodes admitted in the bare position, assembled from the bodies measured. An opcode outside the set is the off-sample case the observations could not see.
+crates/c2-il/src/func/body/mcall.rs	MAX_STMTS	F] a statement-count bound on the shapes this matcher was verified over. A longer real body is refused rather than mis-matched, but 64 is a fit and not a read.
+crates/c2-il/src/func/body/mcall.rs	TRAILER_FLAGS	O] the two `.ex` statement-trailer flag pairs `(11,31)` and `(01,21)`, read off captures. `func::mod`'s pinned segments show both: bit `0x10` is the `/EH` half, and `DTOR_DELEGATE` / `DTOR_DELEGATE_NOEH` are the same function captured with and without it.
+crates/c2-il/src/func/body/mcall.rs	ON:2156	N] not load-bearing — a trailer-sink `OnceLock`, the same measurement-sink contract as `expr.rs`'s five.
+crates/c2-il/src/func/body/mcall.rs	BASES	N] not load-bearing — an enumeration of this crate's own `CallForm` variants, derived from the enum it lists.
+crates/c2-il/src/func/body/mcall.rs	MAX_CHAIN	F] a chain-length bound fitted to the chains measured; a longer real chain refuses.
+crates/c2-il/src/func/body/mod.rs	DISP_NOT_RUN	N] not load-bearing — a census key NAME. See `func::diag::cause`'s block marker for the full argument; it applies verbatim to every key in this file.
+crates/c2-il/src/func/body/mod.rs	PROD_NOT_ENTERED	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	PROD_ENTERED_UNTAGGED	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	PROD_ACCEPTED	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	PROD_COMMITTED_REFUSAL	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	DISPATCH	N] not load-bearing — a thread-local CELL holding whichever key above is current. Scratch state, initialized from an already-marked constant.
+crates/c2-il/src/func/body/mod.rs	PROD	N] not load-bearing — the second such thread-local cell.
+crates/c2-il/src/func/body/mod.rs	FN_TYPE_ID_MIN	F] a floor on the per-TU function-type id space, inside a function whose own doc says "diagnostic only. Nothing here is consulted by the emitter or by acceptance". Fitted to the ids observed; kept [F] rather than [N] because a wrong floor changes a published diagnostic count, which is DISCLOSURE's third load-bearing clause.
+crates/c2-il/src/func/body/mod.rs	OPT_MODE	N] not load-bearing — a census key NAME. See `func::diag::cause`. The RULE it names (that this port has never been verified at this mode, and that it is applied LAST so it does not replace every function's real blocking feature) is what carries the weight, and it is documented on the item.
+crates/c2-il/src/func/body/mod.rs	PTR_WALK_LOOP_NOT_O1	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	PTR_WALK_CHAIN_LOOP_NOT_O1	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	CALLEE_UNRESOLVED_TAIL	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	CALLEE_DEFINED_IN_TU	N] not load-bearing — a census key NAME. See `func::diag::cause`. The measurement behind the refusal it names (444 of 444 functions, board #2082) is on the item.
+crates/c2-il/src/func/body/mod.rs	STORE_RUN_CALL_NO_CARRIER	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	STATIC_SCAN_LOOP_OBJECT	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	STORE_RUN_BIND_NO_CARRIER	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	STORE_RUN_BIND_MIXED_KIND	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	STORE_RUN_BIND_ADDR_PRODUCER	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	STORE_RUN_BIND_MULTI_PRODUCER	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	STORE_RUN_BIND_SYMBOL_CROSSINGS	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	STORE_RUN_BIND_CALL_TAIL_RETIRED	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	STORE_RUN_BIND_GROUP_SHAPE	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	CALLEE_UNRESOLVED_DTOR	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	CALLEE_UNRESOLVED_FRAMED	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	CALLEE_UNRESOLVED_SEQ	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	DATA_SYM_UNRESOLVED	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	DATA_SYM_LINKAGE	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	DATA_SYM_STRLIT_FENCED	N] not load-bearing — a census key NAME. See `func::diag::cause`.
+crates/c2-il/src/func/body/mod.rs	ADMISSION_DECLINED	N] not load-bearing — a census key NAME. See `func::diag::cause`.

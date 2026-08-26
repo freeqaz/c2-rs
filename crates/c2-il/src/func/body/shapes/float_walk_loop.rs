@@ -121,11 +121,13 @@ use crate::func::{FloatWalkLoop, FloatWalkOp, FloatWalkShape};
 /// arrives at the guard's `B9` with the `if` scope open at depth 3. Requiring it
 /// exactly is what makes the two literal scope-closes below (`54 04`, `54 03`)
 /// a statement about this stream rather than a coincidence.
+/// PROV[N] derived from `expr::BODY_SCOPE_DEPTH`, which carries the provenance.
 const ENTRY_DEPTH: usize = BODY_SCOPE_DEPTH + 1;
 
 /// The element scale the class is pinned to: `float` is 4 bytes, and the `addi
 /// r11,r11,4` / `4(r11)` displacements are literals in the emitter. `c11`
 /// (`double`) is the cell on the other side.
+/// PROV[S] `sizeof(float)` on this target is 4, fixed by the ABI and the language, not by c2. The `addi r11,r11,4` displacement that encodes it is c2's; the number is not.
 const FLOAT_SCALE: i32 = 4;
 
 /// **Clause 8, named so the module header can point at it.** For
@@ -133,6 +135,7 @@ const FLOAT_SCALE: i32 = 4;
 /// **increasing formal order**, because that — and not IL order — is what
 /// selects the walker. `probe/walk.cpp`'s `c1` is the descending spelling; it is
 /// byte-identical to `Mul` and this reader refuses it.
+/// PROV[O] a rule PINNED BY A COUNTER-WITNESS, which is what makes it an observation rather than an assumption: `probe/walk.cpp`'s `c1` is the descending spelling, it is byte-identical to `Mul`, and this reader refuses it. Increasing formal order — not IL order — is what selects the walker.
 const RIGHT_HAND_INDICES_MUST_INCREASE: bool = true;
 
 /// Consume `B9 <tok>` and return the token, leaving the cursor on the TYPE.

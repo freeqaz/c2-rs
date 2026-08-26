@@ -81,22 +81,28 @@ use crate::func::readers::{eat, eat_byte, eat_opt_stmt_marker, read_token_var, r
 
 /// The `<<` shift the round applies to the live half. Fixed: no cell separates
 /// it from the schedule, and the `slwi r6,rX,4` word encodes it.
+/// PROV[S] XTEA's published round structure (Needham & Wheeler, 1997) shifts the live half left by 4. This is a constant of the SOURCE PROGRAM being compiled, not of `c2.dll`; the `slwi r6,rX,4` word is c2 encoding somebody else's algorithm.
 const SHL_K: i64 = 4;
 /// The `>>` shift. Fixed for [`SHL_K`]'s reason (`srwi r7,rX,5`).
+/// PROV[S] XTEA's published right shift of 5 (`srwi r7,rX,5`). See [`SHL_K`].
 const SHR_K: i64 = 5;
 /// The second half-round's extra `>>` on `sum` before the mask. Fixed: the
 /// `rlwinm r7,r11,23,28,29` word folds it with the mask and the scale, and
 /// `23 == 32 - 11 + 2`.
+/// PROV[S] XTEA's published `sum >> 11` in the second half-round. The `rlwinm r7,r11,23,28,29` word folds it with the mask and the scale, and `23 == 32 - 11 + 2`.
 const SUM_SHR_K: i64 = 11;
 /// The key index mask. Fixed: it is `mb`/`me` = 28/29 in both `rlwinm`s.
+/// PROV[S] XTEA's published four-word key index mask, `& 3`. It is `mb`/`me` = 28/29 in both `rlwinm`s.
 const KEY_MASK: i64 = 3;
 /// The key element's byte scale — `unsigned int`.
+/// PROV[S] `sizeof(unsigned int)` is 4 on this ABI. A language/ABI fact, not a c2 one.
 const KEY_SCALE: i64 = 4;
 /// The round constant. Carried rather than fixed (the `addis`/`addi` immediates
 /// are computed from it), but its LOW half must be below 0x8000: above that the
 /// `addis` immediate needs the borrow adjustment no cell here witnesses.
 /// Sign-extended, because [`eat_lit`] returns the 4-byte escape's payload the
 /// way a signed `int` literal reads it and `0x9E3779B9` has bit 31 set.
+/// PROV[S] XTEA's published round constant `0x9E3779B9` (the golden-ratio derivative). Its sign-extension here is a property of how `eat_lit` reads a 4-byte escape, and the low-half bound the doc names is a c2 fact about `addis` borrow adjustment — but the VALUE is Needham and Wheeler's.
 pub(crate) const DELTA: i64 = 0x9E37_79B9u32 as i32 as i64;
 
 /// The loop's own `i` bound, and the `li r8,N` immediate. The one thing cell

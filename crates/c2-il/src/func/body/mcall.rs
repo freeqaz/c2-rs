@@ -79,6 +79,7 @@ use crate::func::readers::ValueClass;
 
 /// The `ctx` every block from this module carries. [`Block::feature`] keys on it
 /// and formats the sub-bucket name out of [`Block::aux`]; nothing else uses it.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`'s block marker for the argument.
 pub(crate) const CALL_IN_EXPR: &str = "expr-call-in-expr";
 
 /// What a `0x26` met inside `parse_expr` turned out to open.
@@ -150,31 +151,46 @@ pub(crate) enum CallForm {
 // stated as an invariant rather than as a promise. The low 24 bits are
 // bit-for-bit what D2 packed, so every §14/§15 key still renders identically.
 
+// PROV[N] not load-bearing — a field width in the PORT'S OWN census-key packing, described in full by the comment above it. Nothing in `c2.dll` or in any capture contains this layout; it exists because `Block` carries one `u64` and `ctx` is a `&'static str`, so the selector id cannot go in the name.
 const FORM_BITS: u32 = 6;
+// PROV[N] not load-bearing — derived from [`FORM_BITS`]; the port's own key packing.
 const FORM_MASK: u64 = (1 << FORM_BITS) - 1;
+// PROV[N] not load-bearing — the port's own key packing. See [`FORM_BITS`].
 const PAYLOAD_BITS: u32 = 17;
+// PROV[N] not load-bearing — derived from [`PAYLOAD_BITS`].
 const PAYLOAD_MASK: u64 = (1 << PAYLOAD_BITS) - 1;
+// PROV[N] not load-bearing — derived from [`FORM_BITS`] and [`PAYLOAD_BITS`]; the port's own key packing.
 const WHOLE_BIT: u64 = 1 << (FORM_BITS + PAYLOAD_BITS);
 
 /// Where the second blocker's discriminant starts.
+/// PROV[N] not load-bearing — the port's own key packing. See [`FORM_BITS`].
 const BLK_SHIFT: u32 = 24;
+// PROV[N] not load-bearing — the port's own key packing.
 const BLK_BITS: u32 = 6;
+// PROV[N] not load-bearing — derived from [`BLK_BITS`].
 const BLK_MASK: u64 = (1 << BLK_BITS) - 1;
 /// Where its payload starts, wide enough for a nested `(disc, payload)` pair.
+/// PROV[N] not load-bearing — derived from [`BLK_SHIFT`] and [`BLK_BITS`].
 const BLK_PAYLOAD_SHIFT: u32 = BLK_SHIFT + BLK_BITS;
+// PROV[N] not load-bearing — derived from [`FORM_BITS`] and [`PAYLOAD_BITS`].
 const BLK_PAYLOAD_BITS: u32 = FORM_BITS + PAYLOAD_BITS;
+// PROV[N] not load-bearing — derived from [`BLK_PAYLOAD_BITS`].
 const BLK_PAYLOAD_MASK: u64 = (1 << BLK_PAYLOAD_BITS) - 1;
 /// Where the 3-bit **grant count** starts: how many extra constructs it took to
 /// finish the segment, or one of the two sentinels below.
+/// PROV[N] not load-bearing — derived; the port's own key packing.
 const NEED_SHIFT: u32 = BLK_PAYLOAD_SHIFT + BLK_PAYLOAD_BITS;
+// PROV[N] not load-bearing — the port's own key packing (a 3-bit grant count).
 const NEED_MASK: u64 = 0x7;
 /// The chain's completeness is **UNMEASURED**: no production exists for the second
 /// blocker, so "would granting it finish the body" has no answer. A key with no
 /// `-whole…`/`-more` suffix says exactly that, and `blocker_is_measured` is what
 /// gates it — the same discipline `form_is_measured` applies one level up.
+/// PROV[N] not load-bearing — a SENTINEL in the port's own key packing, which DISCLOSURE names under [N] explicitly. It encodes "no production exists for the second blocker", a statement about this port.
 const NEED_UNMEASURED: u64 = 0;
 /// MEASURED: granting up to [`MAX_ADMIT`] constructs was still not enough, or the
 /// chain ran into something unmodelable partway.
+/// PROV[N] not load-bearing — the other sentinel of the same field.
 const NEED_MORE: u64 = 7;
 /// Where the **third** construct's coarse kind starts (5 bits), present only when
 /// the greedy chain needed two or more grants.
@@ -187,8 +203,11 @@ const NEED_MORE: u64 = 7;
 /// hand-read witness could not settle it. The type classes are spelled out
 /// individually for exactly that reason; the inner detail of a nested *call* is
 /// dropped, which is stated in [`Blocker::kind_name`].
+/// PROV[N] not load-bearing — derived; the port's own key packing.
 const KIND_SHIFT: u32 = NEED_SHIFT + 3;
+// PROV[N] not load-bearing — the port's own key packing (the third construct's coarse kind).
 const KIND_BITS: u32 = 5;
+// PROV[N] not load-bearing — derived from [`KIND_BITS`].
 const KIND_MASK: u64 = (1 << KIND_BITS) - 1;
 /// Where the **data-symbol count class** starts (2 bits), set only on a body the
 /// matcher actually finished (`-whole…`) and only for the two data designators.
@@ -204,10 +223,13 @@ const KIND_MASK: u64 = (1 << KIND_BITS) - 1;
 /// row was ranked for — so the count has to be *visible in the census*, not inferred
 /// from a sample, or the row gets re-ranked wrong again next session
 /// (`docs/IL_CALL_IN_EXPR.md` §17).
+/// PROV[N] not load-bearing — derived; the port's own key packing.
 const SYMS_SHIFT: u32 = KIND_SHIFT + KIND_BITS;
+// PROV[N] not load-bearing — the port's own key packing (a 2-bit data-symbol count class).
 const SYMS_MASK: u64 = 0x3;
 /// Not applicable / not measured: the matcher never finished this body, or its form
 /// is not a data designator so "how many data symbols" is not the operative number.
+/// PROV[N] not load-bearing — the not-applicable sentinel of that field.
 const SYMS_UNSET: u64 = 0;
 
 impl CallForm {
@@ -1112,6 +1134,7 @@ enum Stop {
 /// Bound on the walk. A blocked function is walked once per census, so this is
 /// only a runaway guard; the longest real production in the sample is a
 /// four-deep member-call chain at well under 100 tokens.
+/// PROV[N] not load-bearing — a 4,096-token ceiling on a diagnostic token count (`call_tokens`'s own doc: "diagnostic only; nothing here is consulted by the emitter or by acceptance").
 const MAX_TOKENS: usize = 4096;
 
 /// Tokenize forward from the `26` at `start` and classify what it opened.
@@ -1684,6 +1707,7 @@ struct Admit {
 /// distribution over 1…4 answers it directly, where a yes/no at 1 cannot. A body
 /// still refusing after four is `-more`, and four unrelated constructs is not a rung
 /// under any reading.
+/// PROV[F] the greedy chain's grant budget, and the constant the `NEED_MORE` sentinel is defined against: "granting up to MAX_ADMIT constructs was still not enough". Fitted to the chains measured; a body needing a fifth grant is reported `-more` rather than measured.
 const MAX_ADMIT: usize = 4;
 
 impl Admit {
@@ -1949,6 +1973,7 @@ fn blocker_is_measured(blk: Blocker) -> bool {
 /// than oversights: `1A` (`!`) is unary, not a binary operator over two stack
 /// values; and `1B`/`1C` (`||`/`&&`) short-circuit to branches and no capture
 /// shows the byte at all (1 and 3 functions on the workload).
+/// PROV[F] an enumerated SET of binary opcodes admitted in the bare position, assembled from the bodies measured. An opcode outside the set is the off-sample case the observations could not see.
 const BARE_BINARY_OPS: &[u8] =
     &[0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24];
 
@@ -2059,6 +2084,7 @@ fn body_matches(seg: &[u8], lo: usize, adm: Admit, fail: &mut Fail) -> bool {
 /// an unbounded loop over a corrupt stream is not acceptable in an instrument that
 /// runs over 2.4 M functions. Reported as `struct-stmt-limit`, not as a value
 /// refusal, so hitting it can never be mistaken for a construct.
+/// PROV[F] a statement-count bound on the shapes this matcher was verified over. A longer real body is refused rather than mis-matched, but 64 is a fit and not a read.
 const MAX_STMTS: usize = 64;
 
 /// The measured `(statement-trailer flag, sub-object-trailer flag)` pairs of the
@@ -2067,6 +2093,7 @@ const MAX_STMTS: usize = 64;
 /// (`/Ox`, no `/EH`) gives `(0x11, 0x31)` and the dc3 workload profile
 /// (`/O1 /Oi /EHsc`) gives `(0x01, 0x21)`, and the reference emits the same bytes
 /// for both. A third value refuses.
+/// PROV[O] the two `.ex` statement-trailer flag pairs `(11,31)` and `(01,21)`, read off captures. `func::mod`'s pinned segments show both: bit `0x10` is the `/EH` half, and `DTOR_DELEGATE` / `DTOR_DELEGATE_NOEH` are the same function captured with and without it.
 const TRAILER_FLAGS: [(u8, u8); 2] = [(0x11, 0x31), (0x01, 0x21)];
 
 /// Consume an optional `5C <int-TYPE> <flag>` statement trailer, reporting nothing
@@ -2153,6 +2180,7 @@ enum TrailerSink {
 }
 
 fn trailer_sink() -> TrailerSink {
+    // PROV[N] not load-bearing — a trailer-sink `OnceLock`, the same measurement-sink contract as `expr.rs`'s five.
     static ON: std::sync::OnceLock<TrailerSink> = std::sync::OnceLock::new();
     *ON.get_or_init(|| match std::env::var("C2RS_SINK_MCALL_TRAILER").as_deref() {
         Ok("flag") => TrailerSink::Flag,
@@ -3210,6 +3238,7 @@ fn eat_chained_call(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> b
     // The innermost receiver, tried over every designator this module names. A
     // named-object base is not tried here: it was already consumed as the last
     // head push, which is what the `heads.len() - 1` fallback covers.
+    // PROV[N] not load-bearing — an enumeration of this crate's own `CallForm` variants, derived from the enum it lists.
     const BASES: [CallForm; 5] = [
         CallForm::RecvLoad,
         CallForm::RecvDeref,
@@ -3249,6 +3278,7 @@ fn eat_chained_call(seg: &[u8], p: &mut usize, adm: Admit, fail: &mut Fail) -> b
 }
 
 /// Bound on a chain's length. The deepest chain in the D2 sample is four links.
+/// PROV[F] a chain-length bound fitted to the chains measured; a longer real chain refuses.
 const MAX_CHAIN: usize = 8;
 
 /// The receiver designator of each named form, and only that form's.

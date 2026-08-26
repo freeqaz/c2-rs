@@ -113,6 +113,7 @@ use crate::func::readers::{
 use crate::func::PtrWalkModLoop;
 
 /// The scope depth the body opens at, mirrored from `expr::BODY_SCOPE_DEPTH`.
+/// PROV[N] derived — mirrored from `expr::BODY_SCOPE_DEPTH`.
 const BODY_SCOPE_DEPTH: usize = 2;
 
 /// `mulli` is the whole multiply, measured over 38 constants × both

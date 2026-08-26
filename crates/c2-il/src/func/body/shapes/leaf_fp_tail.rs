@@ -112,11 +112,13 @@ use super::this_binding::{parse_this_token, ThisBinding};
 /// not a register move — the same boundary the W13 leaf and the FP store draw,
 /// and for the same reason (`docs/CODEGEN_FP_ARGS.md` §5: the 14-parameter
 /// capture frames and spills, so it is not a leaf at all).
+/// PROV[S] the PowerPC EABI's thirteen floating-point argument registers f1..f13. `docs/CODEGEN_FP_ARGS.md` §5 records the 14-parameter capture framing and spilling, which is the ABI behaving as specified rather than a c2 choice.
 const MAX_FP_FORMALS: usize = 13;
 
 /// The most arguments a call in this class may carry. Past the eighth an
 /// argument is stack-homed and needs a frame — the same boundary
 /// `super::calls`' `MAX_REGISTER_FORMALS` draws on the formals side.
+/// PROV[S] the same eight-GPR ABI boundary `calls::MAX_REGISTER_FORMALS` draws on the formals side. Past the eighth an argument is stack-homed by the ABI.
 const MAX_ARGS: usize = 8;
 
 /// One parsed call argument: its token, and which register file its `.ex` TYPE

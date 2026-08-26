@@ -123,6 +123,7 @@ use crate::func::readers::{eat_byte, eat_opt_stmt_marker, read_token_var, read_t
 /// The intrinsic selector id for `memset` (`docs/IL_INTRINSIC_CALL.md` §3).
 /// Named here rather than spelled `173` at the site, because the *number* is
 /// what the whole production hangs on.
+/// PROV[O] the intrinsic selector id for `memset`, `docs/IL_INTRINSIC_CALL.md` §3. Named rather than spelled at the site because the number is what the whole production hangs on.
 const INTRINSIC_MEMSET: i32 = 173;
 
 /// **The recognizer.** `Some(callee_token)` when this segment's body emits
@@ -241,6 +242,7 @@ fn eat_no_effect_call_stmt(
 /// *which* value it computes is irrelevant only for as long as the operator
 /// cannot be one with a side effect of its own. `l02`, `l12` and the workload's
 /// `??$__destroy_range_aux@…` all carry `0F`; nothing else is graded.
+/// PROV[O] `0F`, the `.ex` add-assign operator byte, read off captures — `l02`, `l12` and the workload's `??$__destroy_range_aux@…` all carry it.
 const OP_ADD_ASSIGN: u8 = 0x0F;
 
 /// The comparison opcodes the loop's exit test may use, **each with the cell
@@ -252,6 +254,7 @@ const OP_ADD_ASSIGN: u8 = 0x0F;
 /// a soundness one, and it is a list rather than "any byte" because a byte this
 /// grid has not seen may not be a comparison at all. `38 <label>` is required
 /// immediately after it, which pins the operator's width to one.
+/// PROV[F] an enumerated SET, and its own doc says why it is a list and not a predicate: "a byte this grid has not seen may not be a comparison at all". A comparison opcode outside the two is the off-sample case.
 const LOOP_CMP_OPS: [u8; 2] = [0x20, 0x22];
 
 /// **The destroy-loop body.** `Some(callee_token)` when this segment's whole
@@ -379,6 +382,7 @@ pub(crate) fn no_effect_loop(seg: &[u8]) -> Option<u32> {
 /// type id and pinning it would make this reader a property of one bundle's type
 /// table. The tag and the kind are what say *this literal is `void`*, and `void`
 /// is what makes it free of [`CallRet::discarded`]'s hazard.
+/// PROV[O] `82 07` — the TAG and the KIND only, deliberately without the type id, because pinning the id would make this reader a property of one bundle's type table. Read off captures.
 const VOID_TYPE: [u8; 2] = [0x82, 0x07];
 
 /// **The body that emits nothing AT ALL.** `true` when this segment's whole

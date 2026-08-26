@@ -102,6 +102,7 @@ use crate::func::readers::{eat_byte, eat_opt_stmt_marker, read_token_var, read_t
 /// long, `81 20` an enum, `83 08` a pointer) and every id sharing a `(tag,
 /// kind)` pair emits the same word — `int`, `long` and an `enum` are all
 /// `86 41 …` and all `stw`.
+/// PROV[F] an enumerated `(tag, kind, width)` table assembled from the type ids observed. Its own doc notes the grouping that makes it work — `int`, `long` and an enum are all `86 41 …` and all `stw` — but a `(tag, kind)` pair outside the table is the off-sample case.
 const STORE_WIDTHS: &[(u8, u8, u8)] = &[
     (0x82, 0x11, 1), // signed char
     (0x82, 0x12, 1), // unsigned char, and `bool` (id `30`)

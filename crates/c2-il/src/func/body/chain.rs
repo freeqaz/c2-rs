@@ -2,10 +2,12 @@ use crate::func::IlOp;
 
 /// The largest substituted operand stream accepted, so that a chain of
 /// assignments each doubling the previous cannot blow up.
+/// PROV[F] a substitution budget, chosen so a doubling chain cannot blow up. Nothing measured 32 as c2's own bound; it is this port's cap on its own work, and a real chain above it is refused. Fitted, failing closed.
 pub(crate) const MAX_SUBST_OPS: usize = 32;
 
 /// Integer argument registers r3..r10. A ninth parameter is stack-homed, which
 /// needs a frame; mirrors `c2_core::codegen::ARG_REGS`.
+/// PROV[S] the PowerPC EABI's eight integer argument registers r3..r10. Fixed by the ABI, not by c2; a ninth parameter is stack-homed by the same rule. Mirrors `c2_core::codegen::ARG_REGS`.
 const ARG_REG_COUNT: usize = 8;
 
 /// The census `ctx` of a straight-line body that parses cleanly but `select_text`
@@ -289,6 +291,7 @@ pub(crate) fn canonicalize_chain(ops: &[IlOp], params: &[u32]) -> Option<Vec<IlO
     // accumulator is r11 forever — so the bound has to be here.
     //
     // Raising this requires extending the sweep first, not the other way round.
+    // PROV[F] a sweep bound on the additive path, which its own comment says "is not bounded by anything" otherwise. Fitted to the shapes measured; a longer real sweep is the off-sample case.
     const MAX_SWEPT_TERMS: usize = 4;
     if terms.len() > MAX_SWEPT_TERMS {
         return None;
@@ -400,6 +403,7 @@ pub(crate) fn additive_chain_canonical(ops: &[IlOp]) -> bool {
     // subtraction is present, which is where the divergence was found.
     //
     // Raising it requires extending the sweep first.
+    // PROV[F] the name is the citation: the count of leaves this composition was VERIFIED on. A fifth leaf is precisely the case the verification could not see.
     const MAX_VERIFIED_LEAVES_WITH_SUB: usize = 4;
     let has_sub = ops.iter().any(|o| matches!(o, IlOp::Sub));
     if has_sub {

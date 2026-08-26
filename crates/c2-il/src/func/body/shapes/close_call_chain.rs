@@ -101,6 +101,7 @@ use crate::func::readers::{
 /// The most arguments this class will read in one call's argument region. Not a
 /// fact about c2 — a bound so a malformed stream cannot make the reader loop.
 /// Every witness argument region here is 1, 2 or 4 long.
+/// PROV[N] not load-bearing, and its own doc says it in those words: "Not a fact about c2 — a bound so a malformed stream cannot make the reader loop". Every witness argument region is 1, 2 or 4 long.
 const MAX_ARGS: usize = 8;
 
 /// One argument of a call, in **stream** order (which is the reverse of source

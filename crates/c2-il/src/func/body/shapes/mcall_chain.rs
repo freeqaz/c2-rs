@@ -127,6 +127,7 @@ use super::params::parse_params;
 /// parser build an unbounded list. The deepest chain in the D2 sample is four
 /// (`mcall::MAX_CHAIN`, the completeness walk's own bound, which every function
 /// in this row has already passed) and this is the acceptance side of it.
+/// PROV[F] the acceptance side of a bound whose completeness-walk counterpart is `mcall::MAX_CHAIN`. The deepest chain in the D2 sample is four; eight is the fit.
 const MAX_CHAIN_LINKS: usize = 8;
 
 /// Try the chained member call at `at`, which is the **second** `26` of the

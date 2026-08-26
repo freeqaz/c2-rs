@@ -143,7 +143,9 @@ use crate::func::GuardChainSharedTail;
 /// `r10` is spilled to `84(r1)` at the call site and nothing is hoisted at all.
 /// That cell is `work/w-vsnprnc/probe/n8.obj` and it is a boundary **witness**,
 /// not a guess about where the class stops.
+/// PROV[F] the lower end of the class's formal-count window. No counter-witness below it is named, unlike [`FORMALS_MAX`], so this end of the window is fitted to where the captures happen to start.
 const FORMALS_MIN: usize = 3;
+// PROV[O] a boundary PINNED BY A CELL ON THE OTHER SIDE — `work/w-vsnprnc/probe/n8.obj`, where r10 is spilled to `84(r1)` and nothing is hoisted at all. Its own doc calls it "a boundary witness, not a guess about where the class stops", and that is exactly DISCLOSURE's worked [O] test.
 const FORMALS_MAX: usize = 7;
 
 /// Consume any TYPE and discard it.
@@ -941,6 +943,7 @@ pub(crate) fn try_parse_guard_chain_shared_tail(
     }
     // The function tail. Landing exactly on it is the whole acceptance claim: a
     // walk that ends anywhere else consumed a byte it did not understand.
+    // PROV[O] the seven-byte `.ex` function tail, read off captures. See `alloc_init_or_fail::FN_TAIL`.
     const FN_TAIL: [u8; 7] = [0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00];
     if seg.get(p..p + FN_TAIL.len()) != Some(&FN_TAIL[..]) {
         return Err(blk(seg, p, "gcst-not-the-function-tail"));

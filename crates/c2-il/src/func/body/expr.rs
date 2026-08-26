@@ -115,8 +115,10 @@ pub(crate) fn intrinsic_name(id: i32) -> String {
 
 /// The lexical depth of a function body: `.sy` numbers the formals scope 1 and the
 /// body 2, and the `.ex` scope opcodes agree.
+/// PROV[O] the `.ex` lexical depth a function body's own scope sits at, read off captures: depth 1 is the formals group and 2 the body (`sy::SECTION`'s doc tabulates the preorder). `sy::BODY_SCOPE_CLOSE` is the matching close token and cites the same captures.
 pub(crate) const BODY_SCOPE_DEPTH: usize = 2;
 /// Deeper than any real function; a stream claiming more is not one.
+/// PROV[N] not load-bearing — a recursion ceiling on the parser so a malformed segment cannot run away. It bounds a parse, not an emit.
 const MAX_SCOPE_DEPTH: usize = 64;
 
 /// Consume any run of line markers and **lexical scope** opens and closes at a
@@ -434,6 +436,7 @@ pub(crate) fn eat_fn_tail(seg: &[u8], p: &mut usize) -> Result<(), Block> {
 /// (board **#149**), which C1 did not ship — see
 /// `docs/rungs/2026-08-24-w-c1.md`.
 pub(crate) fn off_add_admitted() -> bool {
+    // PROV[N] not load-bearing — a `OnceLock` holding a lazily-read environment switch for a measurement sink. Its VALUE is a cell, not a constant; the sink it gates publishes no verdict the byte judge grades.
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var("C2RS_OFF_ADD").as_deref() != Ok("off"))
 }
@@ -466,6 +469,7 @@ pub(crate) fn off_add_admitted() -> bool {
 ///
 /// OFF and free on every gate lane and every default scan.
 pub(crate) fn rel_sink_enabled() -> bool {
+    // PROV[N] not load-bearing — a second measurement-sink `OnceLock`, same contract as the first.
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var("C2RS_SINK_REL").as_deref() == Ok("expr"))
 }
@@ -540,6 +544,7 @@ pub(crate) enum BranchSink {
 ///
 /// OFF and free on every gate lane and every default scan.
 pub(crate) fn branch_sink() -> BranchSink {
+    // PROV[N] not load-bearing — the branch-sink `OnceLock`, same contract.
     static ON: std::sync::OnceLock<BranchSink> = std::sync::OnceLock::new();
     *ON.get_or_init(|| match std::env::var("C2RS_SINK_BRANCH").as_deref() {
         Ok("expr") => BranchSink::Expr,
@@ -1208,6 +1213,7 @@ impl ChainSink {
 ///
 /// OFF and free on every gate lane and every default scan.
 pub(crate) fn chain_sink() -> &'static ChainSink {
+    // PROV[N] not load-bearing — a chain-sink `OnceLock`, same contract.
     static ON: std::sync::OnceLock<ChainSink> = std::sync::OnceLock::new();
     ON.get_or_init(|| match std::env::var("C2RS_SINK_CHAIN") {
         Ok(spec) => ChainSink::parse(&spec),
@@ -1408,6 +1414,7 @@ fn chain_step_with(
 ///
 /// OFF and free on every gate lane and every default scan.
 pub(crate) fn stmt_sink() -> &'static ChainSink {
+    // PROV[N] not load-bearing — the second chain-sink `OnceLock`, same contract.
     static ON: std::sync::OnceLock<ChainSink> = std::sync::OnceLock::new();
     ON.get_or_init(|| match std::env::var("C2RS_SINK_STMT") {
         Ok(spec) => ChainSink::parse(&spec),
@@ -1426,6 +1433,7 @@ pub(crate) fn stmt_sink() -> &'static ChainSink {
 /// ambiguous key again — and a walk that ate `4F 12` would run straight out of
 /// this function's segment into the next one and report a reach that is not
 /// there, which is the one way this instrument could lie.
+/// PROV[O] `4F 12`, one more `4F xx` record tag (see `bundle::LO_RECORD`'s enumeration of the family), read off `.ex` captures.
 const FN_TAIL: [u8; 2] = [0x4F, 0x12];
 
 /// Walk the statement layer from `p` by WIDTH, and return the refusal that says
@@ -1536,6 +1544,7 @@ pub(crate) struct StmtSinkSite {
 
 /// `super::parse_body`'s dispatcher `_` arm — the site behind `body-cflow-label`
 /// (2,832), `body-0x9B` (2,213), `body-0x67` (1,044) and `body-0x5D` (8).
+/// PROV[N] not load-bearing — a descriptor naming WHERE a measurement sink is installed. An instrument's own wiring; no byte and no verdict's content depends on it.
 pub(crate) const STMT_SITE_BODY: StmtSinkSite = StmtSinkSite {
     chain: "stmt-chain",
     fntail: "stmt-chain-fntail",
@@ -1546,6 +1555,7 @@ pub(crate) const STMT_SITE_BODY: StmtSinkSite = StmtSinkSite {
 
 /// [`eat_return_head`]'s scope-close run — the site behind
 /// `return-scope-close-cflow-label` (1,814).
+/// PROV[N] not load-bearing — the second sink-site descriptor, same contract.
 pub(crate) const STMT_SITE_RSC: StmtSinkSite = StmtSinkSite {
     chain: "rsc-chain",
     fntail: "rsc-chain-fntail",
@@ -1693,11 +1703,13 @@ pub(crate) fn parse_expr(seg: &[u8], p: &mut usize, stop: u8) -> Result<Vec<IlOp
 /// generic `"expr"` fall-through produces `expr-brfalse`, `expr-op-0x30`,
 /// `expr-op-0x41` and a dozen more that must keep their published spellings.
 /// One ctx, one rekey, one row of the board to pay for it.
+/// PROV[N] not load-bearing — a census key NAME, the same class as everything in `func::diag::cause`. Changing it renames a histogram row and refuses the same bodies.
 pub(crate) const EXPR_TYPED_OP: &str = "expr-typed-op";
 
 /// The two operand-stream opcodes this ctx covers: `05` divide and `06` modulo
 /// (`docs/BOARD.md` #782 — `div_mod_leaf` is the shape whose census bucket these
 /// two used to feed).
+/// PROV[O] the `.ex` DIV and MOD opcode bytes `05`/`06`, read off captures — the same two `div_mod_leaf::IL_DIV`/`IL_MOD` name individually.
 pub(crate) const DIV_MOD_OPS: [u8; 2] = [0x05, 0x06];
 
 /// Record the `<tag> <kind>` of the TYPE at `p`, if that is what is there.

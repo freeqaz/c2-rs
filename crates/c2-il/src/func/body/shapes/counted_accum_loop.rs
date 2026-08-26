@@ -176,6 +176,7 @@ use crate::func::readers::{
 use crate::func::{CountedAccumLoop, CountedAccumOp};
 
 /// The scope depth the body opens at, mirrored from `expr::BODY_SCOPE_DEPTH`.
+/// PROV[N] derived — mirrored from `expr::BODY_SCOPE_DEPTH`, which carries the provenance. DISCLOSURE lists values derived from another marked constant under [N].
 const BODY_SCOPE_DEPTH: usize = 2;
 
 /// The IL compound-assignment opcode of an accepted accumulate, or `None`.

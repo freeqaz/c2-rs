@@ -142,13 +142,16 @@ fn permutation_cycles(sources: &[usize]) -> Option<(usize, usize)> {
 /// The order c2 actually picks past three is **not characterized** — the six
 /// four-cycles split four/two on a property the grid describes but does not
 /// explain — so the boundary is drawn at the measured edge rather than fitted.
+/// PROV[F] a VERIFIED-EXTENT bound. Its own doc says "the order c2 actually picks past three is **not characterized** ... so the boundary is drawn at the measured edge rather than fitted" — and for this census that IS the fit: the constant is a parameter chosen to agree with the observations, and the six four-cycles splitting four/two on an unexplained property is the off-sample failure it exists to refuse.
 pub(crate) const MAX_VERIFIED_PERM_CYCLE: usize = 3;
 
 /// The `li rD,k` immediate — `addi rD,0,k`'s signed 16-bit field. A literal
 /// argument outside it is `lis`+`ori`, measured one line apart in
 /// `work/WLA/probe/p1.cpp`: `g3(a,b,32767)` is `li 5,32767` and
 /// `g3(a,b,70000)` is `lis 5,1 ; ori 5,5,4464`.
+/// PROV[S] the PowerPC `li`/`addi` signed 16-bit immediate field, -0x8000..0x7FFF, fixed by the ISA. `work/WLA/probe/p1.cpp` measures c2 respecting it (`g3(a,b,32767)` is `li`, `g3(a,b,70000)` is `lis`+`ori`), but the RANGE is the architecture's and not c2's.
 pub(crate) const LI_IMM_MIN: i32 = -0x8000;
+// PROV[S] the upper half of the same ISA immediate field. See [`LI_IMM_MIN`].
 pub(crate) const LI_IMM_MAX: i32 = 0x7FFF;
 
 /// **WLA — the literal call argument**: `g3(a, b, 7)`, `p->gk(j, 7)`.
@@ -1110,6 +1113,7 @@ fn off_add_arg_sink(seg: &[u8], p: &mut usize) -> Option<Vec<IlOp>> {
         Ceiling,
         Zero,
     }
+    // PROV[N] not load-bearing — a `OnceLock` holding a lazily-read measurement mode.
     static MODE: std::sync::OnceLock<Mode> = std::sync::OnceLock::new();
     let mode = *MODE.get_or_init(|| match std::env::var("C2RS_SINK_OFF_ADD_ARG").as_deref() {
         Ok("honest") => Mode::Honest,
@@ -1344,6 +1348,7 @@ pub(crate) fn eat_call_postop(seg: &[u8], p: &mut usize) -> Result<i32, Block> {
 /// move, which [`crate`]'s consumer `c2_core::codegen::select_text` refuses. Kept
 /// in the parser so the census and the gate cannot disagree about it (the
 /// under-claiming direction of `docs/GAPS.md` §6).
+/// PROV[S] the PowerPC EABI's eight integer argument registers r3..r10. A ninth formal is stack-homed by the ABI, not by a c2 choice. Kept in the parser so the census and the gate cannot disagree, which is a placement decision and not a provenance one.
 pub(crate) const MAX_REGISTER_FORMALS: usize = 8;
 
 /// **W-MCALL — ONE MEMBER CALL IN STATEMENT POSITION**, read as a
@@ -2452,6 +2457,7 @@ fn park_in_class(
 /// (`docs/CODEGEN_FRAMED_CALLS.md` §2.3, §4.3, §4.4). Captured here as `u3.cpp`'s
 /// neighbour `void f(int a,int b,int c,int d){ v1(a); v2(b); v3(c); v1(d); }`,
 /// which is 60 B and helper-based. Refused, not guessed.
+/// PROV[F] a measured boundary: past two saved GPRs c2 goes helper-based (`docs/CODEGEN_FRAMED_CALLS.md` §2.3/§4.3/§4.4, with the 60-byte neighbour of `u3.cpp` as the witness). Refused rather than guessed — but the value is a parameter chosen to agree with those cells.
 const MAX_INLINE_SAVED_GPRS: usize = 2;
 
 /// **Which formals become callee-saved, and in what order** — the half of
@@ -2649,6 +2655,7 @@ pub(crate) fn plan_saved_gprs(
 /// make the parser build an unbounded list. Far above anything measured (the
 /// widest probe is four) and far below anything a real body reaches before some
 /// other production refuses it.
+/// PROV[N] not load-bearing — an anti-runaway parse bound, and its own doc says so: "far above anything measured (the widest probe is four) and far below anything a real body reaches before some other production refuses it".
 const MAX_SEQ_CALLS: usize = 64;
 
 #[cfg(test)]

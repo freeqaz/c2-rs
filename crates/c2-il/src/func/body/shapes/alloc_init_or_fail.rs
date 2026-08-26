@@ -598,6 +598,7 @@ pub(crate) fn try_parse_alloc_init_or_fail(
     }
     // The function tail. Landing exactly on it is the whole acceptance claim: a
     // walk that ends anywhere else consumed a byte it did not understand.
+    // PROV[O] the seven-byte `.ex` function tail `4F 12 47 54 01 54 00`, read off captures. Its own comment carries the acceptance claim: a walk that ends anywhere else consumed a byte it did not understand.
     const FN_TAIL: [u8; 7] = [0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00];
     if seg.get(p..p + FN_TAIL.len()) != Some(&FN_TAIL[..]) {
         return Err(blk(seg, p, "aiof-not-the-function-tail"));
