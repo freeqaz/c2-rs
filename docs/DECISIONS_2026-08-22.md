@@ -1013,3 +1013,90 @@ predicate repair (`#3577`); the `expr_sweep` pin-by-name lane (`#3614`).
 Next free `#3654`.
 
 **Nothing is waiting on the owner.**
+
+## Decision 17 — wave 15: the duplicate producer is repaired as a CONSTRUCT rung, section gets `ported`, and the prose-truth gap gets an instrument (2026-08-26)
+
+**Asked and answered in one turn.** Wave 14 closed with three findings that
+outrank its own deliverables and two one-line repairs no lane could make
+inside a peer's fence. The owner's instruction was to dispatch them. **All
+are funded.**
+
+**Nothing here relaxes the correctness rule.** One lane touches the emit
+path and it is a **construct rung**: `Fixtures: none`, `Census: +0`,
+**required-zero byte delta**, graded by an identity diff of the 21
+count-bearing rows. **It may not change one emitted byte.** If byte
+neutrality turns out to be impossible, that is a **STOP-and-price**, not a
+licence — a wrong emit still scores strictly below the refusal it replaced.
+
+### The three lanes
+
+| lane | kind | the question it must answer | why now |
+|---|---|---|---|
+| `w-mopfold` | **construct rung** | **Fold the seven second-rule word compositions onto the table that already covers them** — `calls.rs:36/98/102/106` (`b`, `addis`, `addi`, `li`) and `frame.rs:54/57/63/74` (`stw`, `lwz`, `mtspr`, `lwz`), board `#3637`. They agree with `mop` today, verified by hand to the bit. **The durable deliverable is not the fold — it is the CONTROL that makes the next one impossible**: `w-encmap`'s enumeration (every live non-`cfg(test)` word production in `crates/c2-core/src`) must become a test that fails when a new second producer appears. Also repair `#3638`'s three false pledges that `base_word` is the port's only source of a primary opcode | **the gate is structurally blind to a CONCURRING second producer.** `mismatch 0` is silent about it, and it stays silent right up until the day the two rules disagree — at which point the defect is indistinguishable from a lowering bug. This is the only class of defect the project's sole judge cannot see |
+| `w-secported` | characterization + construct | **Convert `ported` from residue to a number on the `section` row.** `w-encmap` named it the only other subsystem whose sites are **rules rather than addresses** — the property that made the encoder cost a join instead of a read. The enumeration: `P_SECTION.md`'s `.gl` record dispatcher `0x10b9b8e9`, its **27-entry byte-index table `0x10b9c615`** and 16-entry jump table `0x10b9c5d5`, plus the section-kind decision `0x10b982d6` whose arms are already `[O]` by `.gl` mutation | one of ten rows now has all four strengths as numbers. A second row proves the encoder was not a special case — and if it is a special case, **that is the finding**, and `declined` with the reason is the right outcome |
+| `w-provaudit` | instrument | **Build the instrument for the class nothing covers: a COUNT OR CLAIM INSIDE a marker or doc that is FALSE.** `#3643` (a `PROV[R]` marker said "71 distinct opcodes" where the truth is 85, wrong since the file's first commit, correct figure one comment away) and `#3641` (writing prose *about* mark letters moved a census 9/28 → 13/34, because the counter cannot tell a mark from a mention) are one family. **Every control this repo owns fabricates a NUMBER; this defect fabricates none.** Plus the two queued repairs: `#3645` and `#3644` | the census now covers 78 % of constants and can say whether each is tagged. It cannot say whether the tag is **true**. That is the difference between a provenance record and a provenance *claim*, and goal (1) rests on the former |
+
+### Concurrency fences — writing is fenced, reading is not
+
+`w-mopfold` owns **`crates/c2-core/src/codegen/**`** (code and comments —
+`calls.rs`, `frame.rs`, `mop.rs`, `encode.rs`) and `work/w-mopfold/**`.
+`w-secported` owns **`docs/whitebox/ref/P_SECTION.md`**,
+**`crates/c2-harness/src/subsys.rs`** + **`src/cli/subsys.rs`**,
+**`docs/SUBSYS_METRICS.md`**, `scripts/subsys_metrics.sh`, and
+`work/w-secported/**`. `w-provaudit` owns **root `README.md`**,
+**comment-only** edits in `crates/c2-reference/**`,
+**`docs/whitebox/DISCLOSURE.md`**, **`docs/whitebox/ref/README.md`**,
+**`scripts/provenance_census.py`** and new `scripts/prose_*` files, and
+`work/w-provaudit/**`.
+
+**Shared facts, fenced by name — file ownership alone has failed here three
+times:**
+
+1. **`w-provaudit` may NOT write `crates/c2-core/src/codegen/**`.** If its
+   audit finds a false claim there — and it will, that is where `#3643`
+   lived — it **reports** it; `w-mopfold` owns the repair.
+2. **The `PROV[X]` marker grammar.** `w-provaudit` owns the script and is
+   therefore the one who must not break it: any `MARK_RE` change must be
+   proved to leave all **777** existing markers counting identically, and
+   said so explicitly.
+3. **The census counts.** `w-mopfold`'s comment repairs move them.
+   `w-provaudit`'s tests pin **planted-fixture counts or invariants,
+   NEVER live per-module tree counts** — the rule that held last wave.
+4. **`w-secported` adds no second provenance or census reader**, and
+   `w-mopfold` adds no metric key.
+
+### What every lane is told, and what none of them may do
+
+- **Prereg first**, committed before the first measurement, graded honestly;
+  a MISS is said in that word. **11 of 11 HIT is a weak result** if the
+  measurements predate the prereg — say so, as `w-disclose` did.
+- **No lane widens emission.** Required-zero byte delta on the 21 rows for
+  anything touching `crates/`, comments included.
+- **Re-measure every denominator on your own tree**; the coordinator has NOT
+  verified the figures in these briefs — the seven sites, the 27 entries,
+  the 777 markers are all quoted from other lanes and are yours to confirm
+  or correct. Every brief figure a lane has checked this month has needed
+  correcting at least once.
+- **A control you have not watched FAIL is decoration.** Plant the defect,
+  see red, revert, quote the green.
+- **Read the gate's verdict line, never the exit code**; run it detached; do
+  not commit while one runs.
+- **A lane that produced none of its deliverable says `FAILED`** in those
+  words; a priced `declined` is legitimate and, for `w-secported`, is a
+  real possible outcome.
+
+### Deliberately not dispatched
+
+`FUNCTION_BYTE_MATCH.md` §0's sixth-gradient box (**third wave outside every
+fence — it now needs an owner, not another pass**); wiring the census under
+`cargo test` (**two lanes have been comment-only-fenced out of it**;
+`w-provaudit` owns the script and may take it if cheap, else it is named);
+`codegen/**`'s 205 untagged register numbers; `P_LABEL`'s unreproducible
+`25`; the emit-set ceiling predicate (`#3577`); `expr_sweep` pin-by-name
+(`#3614`). **Phase 1 stays HELD** — and its gating read has now returned,
+which is an owner decision, not a lane's.
+
+**Board:** `#3654` this decision · `#3655`–`#3660` `w-mopfold` ·
+`#3661`–`#3666` `w-secported` · `#3667`–`#3672` `w-provaudit`.
+**`#3647` remains RESERVED-AND-UNSPENT in the pool and is not reused here.**
+Next free `#3673`.
