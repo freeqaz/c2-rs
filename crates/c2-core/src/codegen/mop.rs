@@ -50,10 +50,44 @@
 //! `base_word[op]` on **82 of 89**, with **zero** disagreements in a primary
 //! opcode or an extended opcode, and all seven residuals a **field the port
 //! bakes that c2's arm supplies**. This module keeps that measurement live
-//! rather than as a one-off: [`base_word`] is now the port's *only* source of a
-//! primary opcode, so the two derivations can no longer drift apart silently,
-//! and the seven residuals are visible as exactly what they are — ops whose
-//! constructor passes a constant into a slot.
+//! rather than as a one-off: ~~[`base_word`] is now the port's *only* source of
+//! a primary opcode, so the two derivations can no longer drift apart
+//! silently~~ — **STRUCK 2026-08-26, see § "The exclusivity claim" below; the
+//! true statement is *only source for instructions that go through
+//! [`MachineOp`]*** — and the seven residuals are visible as exactly what they
+//! are: ops whose constructor passes a constant into a slot.
+//!
+//! # The exclusivity claim, corrected
+//!
+//! **2026-08-26, board **#3638**, lane `w-mopfold`.** The struck sentence above
+//! was written by lane `w-s1` about `encode.rs`, where it was true, and it was
+//! read ever after as a statement about the crate, where it was not. When
+//! `w-encmap` checked it, `calls.rs` was sourcing primaries **18** (`b`/`bl`)
+//! and **14**/**15** (`addi`/`addis`) from its own literals and `frame.rs` was
+//! sourcing **31**/**32**/**36** from baked full words: **eight** live word
+//! productions this table already composed, by a second rule, agreeing to the
+//! bit (**#3637**).
+//!
+//! `w-mopfold` folded all eight. **The claim is still not true, and the honest
+//! form of it is the one that survives a fold:**
+//!
+//! > [`base_word`] is the port's only source of a primary opcode **for
+//! > instructions that go through [`MachineOp`]** — which is every instruction
+//! > whose opcode this table transcribes. Three instructions the port emits are
+//! > **not** in the table (`bl`, `mfspr`, `stwux`) and each sources its primary
+//! > from a literal at a site named in `super::word_seam`'s `EXCEPTIONS`.
+//!
+//! **Why the weaker sentence is the one worth writing.** The strong claim was
+//! unfalsifiable in the only way that matters: no test could express it, so it
+//! stayed wrong for four days across two files while being quoted as a reason
+//! (`DISCLOSURE.md`'s `W-MOP-1` closing note quotes it). The weak claim is
+//! *checked* — `word_seam` enumerates the exceptions, runs each one, and fails
+//! if the count grows or if the table turns out to compose one after all. **A
+//! module doc on the emit path has now been wrong about its own provenance
+//! twice** (**#3632** asserted a `DISCLOSURE.md` row that did not exist;
+//! **#3638** asserted an exclusivity that did not hold) **and both times the
+//! detector was a lane reading it for another purpose.** That is what the
+//! neighbouring control is for.
 //!
 //! # The decision surface
 //!
@@ -125,8 +159,13 @@ pub mod op {
     //! `c2-reference/tests/middle_interfaces.rs`, and says in its own text *"no
     //! table entry is copied"* — true there, and false here: the 85 constants
     //! below are 85 of the table's positions, written out as literals, on the
-    //! **emit path** (`base_word` is the port's only source of a primary
-    //! opcode). The row that says so is `W-MOP-1`, filed by lane `w-disclose`
+    //! **emit path** (`base_word` is the port's only source of a primary opcode
+    //! ~~*full stop*~~ **for instructions that go through `MachineOp`** —
+    //! corrected 2026-08-26, board **#3638**; three the port emits are outside
+    //! the table and `super::word_seam` enumerates them. The parenthesis is
+    //! still the reason this block is `[R]` and on the emit path, which is the
+    //! only work it was doing here). The row that says so is `W-MOP-1`, filed
+    //! by lane `w-disclose`
     //! (board **#3642**) after `scripts/provenance_census.py` found the hole
     //! (**#3632**).
     //!
@@ -691,7 +730,21 @@ impl EncodeParams {
 }
 
 /// Look up c2's base word for an opcode, or `None` if this port does not emit
-/// it. **The port's only source of a primary opcode.**
+/// it.
+///
+/// ~~**The port's only source of a primary opcode.**~~ **STRUCK 2026-08-26,
+/// board #3638** — see this module's § "The exclusivity claim, corrected". The
+/// true statement is *the port's only source of a primary opcode **for
+/// instructions that go through [`MachineOp`]***. `#3638` reported this claim
+/// at three sites in two files; **this was the fourth, and the one it missed**,
+/// which is the sharper half of the finding: the sentence sat on the function
+/// it is about, where a reader is likeliest to take it at face value and least
+/// likely to go looking for a qualifier.
+///
+/// The `None` arm is the whole content of the qualifier: an opcode this port
+/// emits but does not transcribe returns `None` here and gets its primary from
+/// a literal instead. `super::word_seam` names all three (`bl`, `mfspr`,
+/// `stwux`) and fails if a fourth appears.
 pub fn base_word(op: C2Op) -> Option<u32> {
     EncodeParams::C2.row(op).map(|r| r.base)
 }
