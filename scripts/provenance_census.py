@@ -112,7 +112,40 @@ MARKS = ("R", "O", "F", "S", "N")
 # marker from an array index — at tree `6c753ead0` the brief's sixth "marker"
 # was `params[src]` in `c2-il/src/func/mod.rs:2013` — and three prose `[R]`s
 # in `codegen/` module docs would otherwise be counted as tags they are not.
-MARK_RE = re.compile(r"PROV\[([RSOFN])\]")
+#
+# ── THE MENTION RULE (board **#3669**, lane `w-provaudit`, from **#3641**) ──
+#
+# **A marker written inside backticks is a MENTION and is NOT counted.** The
+# prefix above solves *"is this token a marker or an array index"*. It does not
+# solve *"is this token a marker or a discussion OF a marker"*, and that is the
+# defect `#3641` measured on the neighbouring instrument: writing prose about
+# mark letters moved a subsystem's own agreement census **9/28 → 13/34**, from
+# four prose sites, **one of which was the sentence explicitly warning against
+# the hazard**. Nothing could see it, because a counter cannot tell an
+# annotation from a citation of one.
+#
+# So the delimiter carries the distinction: `` `PROV[R]` `` in prose is a
+# mention; a bare `PROV[R]` is a mark. Anything wanting to *discuss* a marker —
+# this comment, `DISCLOSURE.md`'s legend, a rung — backticks it and is silent.
+#
+# **THE COST WAS MEASURED BEFORE THE RULE WAS ADOPTED, in both directions.** At
+# tree `0dcfca959`, `crates/` carries **649** `PROV`/`PROV-BLOCK` tokens
+# producing **777** tagged constants and **6** rule marks, and **0 of the 649
+# are backticked** — so the rule is adoptable at exactly zero cost and every
+# one of the 777 counts identically after it. Proved with `--since` rather than
+# asserted (`work/w-provaudit/census_since_markre.txt`: →tag 0, →untag 0,
+# reclass 0, +new 0, -gone 0, on every module), and the `--self-test` carries a
+# planted backticked marker that MUST NOT be counted plus a bare one beside it
+# that must.
+#
+# **AND IT IS NOT TRANSFERABLE TO THE OTHER COUNTED SURFACE — measured, and
+# that is the finding.** `subsys.rs::count_marks` counts literal `[R]`/`[O]`/
+# `[I]` on the ten `ref/P_*.md` pages, and those pages write **481 of their 488
+# evidence marks in backticks**. Adopting this rule there would zero the
+# census, not clean it; position does not separate them either (`P_ENCODE.md`,
+# the page `#3641` was found on, has **0** marks in table rows and **28** in
+# prose). See `scripts/prose_audit.py`'s C5 surface-2 table.
+MARK_RE = re.compile(r"(?<!`)PROV\[([RSOFN])\](?!`)")
 
 # The BLOCK form. One citation covering every population member lexically
 # inside the block it is declared in, so a 91-entry transcribed opcode table
@@ -120,7 +153,7 @@ MARK_RE = re.compile(r"PROV\[([RSOFN])\]")
 # still counted PER CONSTANT — the count is what the census publishes, so the
 # saving is in the source and not in the number. An item's own marker always
 # wins over the block it sits in.
-BLOCK_RE = re.compile(r"PROV-BLOCK\[([RSOFN])\]")
+BLOCK_RE = re.compile(r"(?<!`)PROV-BLOCK\[([RSOFN])\](?!`)")
 
 # A `const`/`static` item declaration. Anchored at line start with optional
 # indentation so a `const` in expression position is not matched; requires a
@@ -840,6 +873,11 @@ pub fn a_rule() -> u32 { 0 }
 /// marker and the census must not count either.
 pub const PROSE_TRAP: u32 = 8;
 
+/// The MENTION trap (#3641, #3669). This sentence discusses `PROV[R]` and
+/// `PROV-BLOCK[F]` by name, in backticks. Both are mentions, neither is a
+/// mark, and this constant must land in the untagged residue.
+pub const MENTION_TRAP: u32 = 88;
+
 /// A block marker: one citation covering every const in this module.
 pub mod table {
     //! PROV-BLOCK[R] W-FAKE-3 — transcribed from a made-up table dump.
@@ -870,12 +908,19 @@ mod tests {
 # Expected, by construction from FIXTURE above. Enumerated by hand so the
 # fixture and the expectation are two independent statements: the population
 # is READ_ONE, OBJ_ONE, FIT_ONE, SPEC_ONE, NOT_LOAD_BEARING, UNTAGGED_ONE,
-# UNTAGGED_TWO, PROSE_TRAP, T0, T1, T2, AFTER_BLOCK = 12; the residue is
-# UNTAGGED_ONE, UNTAGGED_TWO, PROSE_TRAP and AFTER_BLOCK = 4 (the block must
-# NOT leak past its closing brace); `a_rule`'s marker is the one rule mark;
-# everything inside `mod tests` is invisible. [R] = READ_ONE + T0 + T1 = 3,
-# because T2 carries its own [F] and an item marker beats its block.
-EXPECT = {"pop": 12, "R": 3, "O": 1, "F": 2, "S": 1, "N": 1, "untagged": 4, "rules": 1}
+# UNTAGGED_TWO, PROSE_TRAP, MENTION_TRAP, T0, T1, T2, AFTER_BLOCK = 13; the
+# residue is UNTAGGED_ONE, UNTAGGED_TWO, PROSE_TRAP, MENTION_TRAP and
+# AFTER_BLOCK = 5 (the block must NOT leak past its closing brace);
+# `a_rule`'s marker is the one rule mark; everything inside `mod tests` is
+# invisible. [R] = READ_ONE + T0 + T1 = 3, because T2 carries its own [F] and
+# an item marker beats its block.
+#
+# MENTION_TRAP is the **#3669** control: its doc comment contains a backticked
+# `PROV[R]` AND a backticked `PROV-BLOCK[F]`, so a census without the mention
+# rule reads it as `[R]` = 4 and, worse, treats the block form as opening a
+# block at that point. With the rule it is untagged, which is what a sentence
+# that merely talks about markers deserves.
+EXPECT = {"pop": 13, "R": 3, "O": 1, "F": 2, "S": 1, "N": 1, "untagged": 5, "rules": 1}
 
 
 # ---------------------------------------------------------------------------
@@ -1227,6 +1272,34 @@ def self_test():
         rg2 = list(rowsg2.values())[0]
         check("removing the glob moves NOTHING (it never should have)",
               (rg2["pop"], rg2["untagged"]), (rg["pop"], rg["untagged"]))
+
+    print()
+    print("[11] #3669 — THE MENTION RULE, watched in BOTH directions. A")
+    print("     backticked marker is a MENTION and must not be counted; the")
+    print("     bare one beside it must.")
+    with tempfile.TemporaryDirectory() as td:
+        src = os.path.join(td, "mention.rs")
+        both = (
+            "/// PROV[R] W-FAKE-1 — a real mark, bare.\n"
+            "pub const BARE: u32 = 1;\n"
+            "\n"
+            "/// A sentence about `PROV[R]` and `PROV-BLOCK[R]`, in backticks.\n"
+            "pub const MENTIONED: u32 = 2;\n")
+        with open(src, "w", encoding="utf-8") as fh:
+            fh.write(both)
+        rowsm, _, _ = census([src])
+        rm = list(rowsm.values())[0]
+        check("population is two", rm["pop"], 2)
+        check("exactly ONE is tagged [R]", rm["R"], 1)
+        check("and the mention is in the residue", rm["untagged"], 1)
+        # THE RED: strip the backticks and the same file counts differently.
+        # A rule that cannot be made to change the answer is not a rule.
+        with open(src, "w", encoding="utf-8") as fh:
+            fh.write(both.replace("`PROV[R]`", "PROV[R]"))
+        rowsm2, _, _ = census([src])
+        rm2 = list(rowsm2.values())[0]
+        check("un-backticking the mention MOVES the count", rm2["R"], 2)
+        check("and empties the residue", rm2["untagged"], 0)
 
     if not since_self_test(check):
         ok = False
