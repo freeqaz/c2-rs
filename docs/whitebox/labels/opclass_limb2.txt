@@ -1,0 +1,143 @@
+== controls (run before any verdict) ==
+  PASS  the port table covers exactly the 68 MATCHED* opcodes  mine=68 portmap=68 missing=[] extra=[]
+  PASS  every cited control_flow.rs line equals the line DERIVED from the match arm that names the opcode  0 drifted: []
+  PASS  every callee the arm walk produced is named in C2_PRIM  unnamed: []
+  PASS  every VA named in C2_PRIM is one the arm walk produced  stale: []
+  => ALL CONTROLS PASS
+
+== the cross, ordered by OPCODE (not by mass — prereg §7 item 6) ==
+  op  cls  c2 fields [R]                       port fields [src]       verdict
+  02  00   (payload-free)                      (payload-free)          MATCHED
+  03  00   (payload-free)                      (payload-free)          MATCHED
+  04  00   (payload-free)                      (payload-free)          MATCHED
+  05  00   (payload-free)                      (payload-free)          MATCHED
+  06  00   (payload-free)                      (payload-free)          MATCHED
+  09  00   (payload-free)                      (payload-free)          MATCHED
+  0a  00   (payload-free)                      (payload-free)          MATCHED
+  0b  00   (payload-free)                      (payload-free)          MATCHED
+  0c  00   (payload-free)                      (payload-free)          MATCHED
+  0d  00   (payload-free)                      (payload-free)          MATCHED
+  0e  00   (payload-free)                      (payload-free)          MATCHED
+  0f  01   TYPE                                ty                      NARROW(fields)
+  10  01   TYPE                                ty                      NARROW(fields)
+  11  01   TYPE                                ty                      NARROW(fields)
+  12  01   TYPE                                ty                      NARROW(fields)
+  13  01   TYPE                                ty                      NARROW(fields)
+  15  01   TYPE                                ty                      NARROW(fields)
+  16  01   TYPE                                ty                      NARROW(fields)
+  17  01   TYPE                                ty                      NARROW(fields)
+  18  01   TYPE                                ty                      NARROW(fields)
+  19  01   TYPE                                ty                      NARROW(fields)
+  1a  00   (payload-free)                      (payload-free)          MATCHED
+  1b  00   (payload-free)                      (payload-free)          MATCHED
+  1c  00   (payload-free)                      (payload-free)          MATCHED
+  1f  00   (payload-free)                      (payload-free)          MATCHED
+  20  00   (payload-free)                      (payload-free)          MATCHED
+  21  00   (payload-free)                      (payload-free)          MATCHED
+  22  00   (payload-free)                      (payload-free)          MATCHED
+  23  00   (payload-free)                      (payload-free)          MATCHED
+  24  00   (payload-free)                      (payload-free)          MATCHED
+  26  02   varU                                tok                     MATCHED
+           (payload-free)                                                 ^ alt: DAT_10c67fc0 == 0 AND the opcode IS 0x42      [0x10b3d656]
+                                                                          (env-guarded, 2 branches)
+  27  01   TYPE                                ty                      NARROW(fields)
+  28  02   varU                                fix00                   NARROW(fields)
+           (payload-free)                                                 ^ alt: DAT_10c67fc0 == 0 AND the opcode IS 0x42      [0x10b3d656]
+                                                                          (env-guarded, 2 branches)
+  29  02   varU                                tok                     MATCHED
+           (payload-free)                                                 ^ alt: DAT_10c67fc0 == 0 AND the opcode IS 0x42      [0x10b3d656]
+                                                                          (env-guarded, 2 branches)
+  2c  05   TYPE GetByte                        ty vint                 WIDE(fields)
+  30  01   TYPE                                ty                      NARROW(fields)
+  32  01   TYPE                                ty                      NARROW(fields)
+  33  06   TYPE dec10                          ty lit                  UNRESOLVED
+           TYPE i64c                                                      ^ alt: node[+4] & 0x0fff == 8 — an 8-byte scalar     [0x10b3d794]
+           TYPE i32c                                                      ^ alt: otherwise                                     [0x10b3d798]
+                                                                          (input-guarded, 3 branches)
+  35  01   TYPE                                ty                      NARROW(fields)
+  36  01   TYPE                                ty                      NARROW(fields)
+  38  02   varU                                tok                     MATCHED
+           (payload-free)                                                 ^ alt: DAT_10c67fc0 == 0 AND the opcode IS 0x42      [0x10b3d656]
+                                                                          (env-guarded, 2 branches)
+  39  02   varU                                tok                     MATCHED
+           (payload-free)                                                 ^ alt: DAT_10c67fc0 == 0 AND the opcode IS 0x42      [0x10b3d656]
+                                                                          (env-guarded, 2 branches)
+  3a  02   varU                                tok                     MATCHED
+           (payload-free)                                                 ^ alt: DAT_10c67fc0 == 0 AND the opcode IS 0x42      [0x10b3d656]
+                                                                          (env-guarded, 2 branches)
+  3b  02   varU                                tok                     MATCHED
+           (payload-free)                                                 ^ alt: DAT_10c67fc0 == 0 AND the opcode IS 0x42      [0x10b3d656]
+                                                                          (env-guarded, 2 branches)
+  3c  07   TYPE varU                           ty tok                  NARROW(fields)
+  3d  08   varU                                tok                     MATCHED
+  40  01   TYPE                                ty                      NARROW(fields)
+  41  01   TYPE                                ty                      NARROW(fields)
+  43  00   (payload-free)                      esc43                   WIDE(fields)
+  44  00   (payload-free)                      (payload-free)          MATCHED
+  46  00   (payload-free)                      (payload-free)          MATCHED
+  4b  00   (payload-free)                      (payload-free)          MATCHED
+  4c  00   (payload-free)                      (payload-free)          MATCHED
+  4f  0C   i16c sub4F                          end4F                   NARROW(fields)
+  53  00   (payload-free)                      (payload-free)          MATCHED
+  54  0D   i32c                                b                       NARROW(fields)
+  55  01   TYPE                                ty                      NARROW(fields)
+  5c  13   TYPE i32c                           ty vint                 NARROW(fields)
+  5d  14   i32c i32c                           vint vint               MATCHED
+  5e  14   i32c i32c                           vint vint               MATCHED
+  64  01   TYPE                                ty                      NARROW(fields)
+  66  1A   i32c skip                           desc                    NARROW(fields)
+  67  1B   i32c varU                           vint tok                MATCHED
+  99  1C   TYPE i32c                           ty vint                 NARROW(fields)
+           TYPE                                                           ^ alt: [DAT_10c472e8+0xcac] == 0                     [0x10b3d920]
+                                                                          (env-guarded, 2 branches)
+  9a  01   TYPE                                ty                      NARROW(fields)
+  9b  12   TYPE varU                           ty tok                  NARROW(fields)
+  b9  18   varU TYPE                           tok ty                  NARROW(fields)
+  bd  19   TYPE GetByte i32c                   ty b vint               NARROW(fields)
+           TYPE GetByte i16c                                              ^ alt: DAT_10c2edc4 == 0                             [0x10b3d8ce]
+                                                                          (env-guarded, 2 branches)
+
+== limb 2, over the 68 `MATCHED*` opcodes `WB_ILARMS_MAP.md` §4 counts ==
+  MATCHED           35 of 68
+  NARROW(fields)    30 of 68
+  WIDE(fields)       2 of 68
+  UNRESOLVED         1 of 68
+  -> 33 of 68 rows change verdict away from MATCHED
+
+== the 65 `w-ilarms` called genuinely unchecked (the 68 less 0x28, 0x2c, 0x54) ==
+  MATCHED           35 of 65
+  NARROW(fields)    28 of 65
+  WIDE(fields)       1 of 65
+  UNRESOLVED         1 of 65
+  -> 30 of 65 change verdict
+
+== the strict FIELD-COUNT reading (secondary denominator) ==
+  port field COUNT == class field COUNT on 57 of 68
+  (the primary reading is the width-function one — prereg §1, and it is
+   `w-ilarms`'s own precedent at 0x28, where the counts are equal and the
+   verdict is NARROW(fields) anyway)
+
+== root causes, so the count is not read as N independent facts ==
+   26  ty vs TYPE
+    1  b vs i32c
+    1  desc vs i32c
+    1  end4F vs i16c
+    1  esc43 vs (nothing)
+    1  fix00 vs varU
+    1  lit vs dec10
+    1  vint vs GetByte
+  8 distinct root cause(s)
+
+== environment globals the port has BAKED (not folded into any verdict) ==
+  0x10c472e8+0xcac
+      read at 0x10b3d5ab (the TYPE trailing skip) and again at 0x10b3d919 (class 1C's trailing i32c). The port reads BOTH unconditionally, so it has hard-coded this global as NON-ZERO in two places at once — and the two agreeing is what makes the assumption self-consistent rather than merely unnoticed
+  0x10c67fc0
+      read at 0x10b3d64d — when it is ZERO, opcode 0x42 alone takes NO operand and class 02's whole body is skipped. The port has no reader for 0x42 at all, so it has not baked a value; the arm that consumes 0x42's bytes is the 0x43 escape, which assumes the NON-zero branch
+  0x10c2edc4
+      read at 0x10b3d8ce — class 19 (opcode 0xBD) reads an i32c when it is set and an i16c when it is clear. The port reads Scan::vint (== i32c) unconditionally, baking NON-ZERO
+
+== the UNRESOLVED rows, with the read that would close each ==
+  33 (class 06):
+      lit vs dec10: [node] both sides read TEN raw bytes for a real literal, so the WIDTH agrees; the DISCRIMINATOR does not — the port tests `kind & 0x0f == 0x0a` on the raw kind byte and c2 tests `node[+4] & 0xf000 == 0x5000` on the LOWERED word
+      lit vs i64c: [node] the port takes 1+8 when the raw tag is 0x88 and 1+4 otherwise; c2's i64c is 1 or 9. Same intent, two different fields — needs the lowering
+      lit vs i32c: [otherwise] the port switches on the RAW tag byte (`tag == 0x88`) and c2 on the LOWERED type word `node[+4]`; equivalence needs FUN_10b3d40a (0x10b3d40a) and FUN_10c1fe9d (0x10c1fe9d), which this lane did not read

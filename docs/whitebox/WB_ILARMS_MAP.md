@@ -55,9 +55,19 @@ cursor advances by the right amount — and it is **not** a statement that 72 %
 of I1 exists. **No port site anywhere mints an IR node**: `P_ILRECORD.md` §6
 fixes the node space at `≥ 0x2af`, and a grep of all five crates for the
 sixteen node opcodes that dispatch mints (`0x2af`, `0x2b4`, `0x2b5`, `0x2c5`,
-`0x2d4`, `0x2dd`, `0x2f4`, `0x2f5`, `0x310`, `0x311`, …) returns **zero
-non-comment hits**. The port has no analogue of the artifact these arms
-build. Width is the part that is cheap; `P_ILRECORD.md` §8.1 already said the
+`0x2d4`, `0x2dd`, `0x2f4`, `0x2f5`, `0x310`, `0x311`, …) returns ~~**zero
+non-comment hits**~~ **exactly ONE — and §0's conclusion survives it.
+CORRECTED 2026-08-26 (`w-price4a` found it, `w-opclass` confirmed it and owns
+this page; §10).** The hit is
+`crates/c2-harness/tests/pwords_bijection.rs:57`,
+`const OP_PROLOGUE: [u32; 2] = [0x2f0, 0x2f4];` — **a `#[cfg(test)]` constant
+in a test**, naming `0x2f4` as an *expander pseudo-op* out of
+`ref/P_EXPAND.md` §4.1, not as an IL-record node. `0x2f4` is a **homograph**:
+it is minted by this dispatch *and* is a prologue arm of a different table, and
+the test means the second one. So no port site on any production path mints a
+node in this space, which is what the paragraph is for — but the sentence as
+written was false and is struck rather than reworded.** The port has no analogue
+of the artifact these arms build. Width is the part that is cheap; `P_ILRECORD.md` §8.1 already said the
 cost is in the **76 tree builders**, and nothing on this page moves that.
 
 ---
@@ -183,6 +193,10 @@ retained for a downstream consumer).
   clear and limb 2 — "consumes fewer operand fields than the arm's class
   implies" — is UNCHECKED for this row.** §6 is the sub-population where
   limb 2 is decidable, and it is decided there.
+  **THE ASTERISK IS RETIRED as of 2026-08-26 — §10 decides limb 2 on ALL 68,
+  and the 68 `MATCHED*` become 35 `MATCHED` · 30 `NARROW(fields)` ·
+  2 `WIDE(fields)` · 1 `UNRESOLVED`. Every count in §3 and §4 below is a
+  LIMB-1 count and stays exactly as measured; read them as such.**
 * **UNRESOLVED** — reported and counted, never guessed.
 
 The *primary port site* column names the **first ungated, cursor-moving**
@@ -422,12 +436,15 @@ The identical argument runs on `0x43` and lands the other way; see §7.
 |---|---|---|---|
 | `0x2c` | `05` | its only class sibling `0x34` is ABSENT, so there is nothing to cross-check against | `WB_READER_FINDINGS.md` §5 reads class `05` as `TYPE` + one **raw byte**, against the port's varint — a *latent desync at any payload ≥ `0x80`*. A lead for a later lane, not a finding of this one |
 | `0x54` | `0d` | it is the **only** class-`0d` opcode this dispatch handles — every other class-`0d` opcode (`50` `51` `52` `5b` `9e` `9f`) is in the 94 | same page reads class `0d` as `i32c`; `control_flow.rs:730` reads `+2` fixed and says byte-vs-varint is UNKNOWN in its own comment |
-| the other 65 | various | the class arms were not read | — |
+| the other 65 | various | ~~the class arms were not read~~ **CLOSED — §10** | — |
 
-**65 of the 68 `MATCHED*` rows have limb 2 genuinely unchecked**, and that is
+~~**65 of the 68 `MATCHED*` rows have limb 2 genuinely unchecked**, and that is
 published rather than rounded away. Reading `0x10b3d954`'s 29 class arms
 would close all of them at once and is the single cheapest follow-up this map
-exposes.
+exposes.~~ **CLOSED 2026-08-26 by lane `w-opclass` — §10 below. 30 of the 65
+change verdict. And the read this sentence prices as a follow-up had already
+been taken, four times, one of them by the page this section cites twice
+(§10.1).**
 
 ---
 
@@ -492,8 +509,12 @@ true instead.
 **And it names a live hazard.** A `varU` token with bit 15 set is **4** bytes,
 not 2, so `43 42` over a wide token is **6** bytes and the port's fixed `+4`
 walks two bytes into the payload. That is the same shape as `0x28`'s fixed
-`00 00` (§6.1) except that `0x28` refuses and this one **advances**. Not
-graded here — no cell was compiled — and reported as a hazard, not a defect.
+`00 00` (§6.1) except that `0x28` refuses and this one **advances**. ~~Not
+graded here — no cell was compiled — and reported as a hazard, not a defect.~~
+**MEASURED 2026-08-26 by `w-opclass` — §10.4: the hazard is REAL in the language
+and NOT WITNESSED in the workload. A token walk of 867 sources found 2,404 real
+`43 42` sites and ZERO wide tokens, and every top-level `0x42` in the workload
+is preceded by a `0x43`. It stays a hazard, and the reading above stays right.**
 
 ### 7.3 What this map does not give I1
 
@@ -553,3 +574,121 @@ DECODE arms of this dispatch would adopt, at minimum:
 
 So **≥ 23 rows for the DECODE subset and ≥ 67 for the whole dispatch**, and
 that is a floor: every callee body a slice reads adds its own.
+
+---
+
+# 10. SECOND ROUND — limb 2, closed
+
+> **Added 2026-08-26 by lane `w-opclass` (wave 12, board #3585–#3590), as a
+> clearly marked second-round section.** Nothing above is rewritten or deleted:
+> the strikes are inline at the affected lines and each names this section, per
+> [`../DOC_CONVENTIONS.md`](../DOC_CONVENTIONS.md) §2 mitigation 1. Full
+> write-up and the prereg grade:
+> [`WB_OPCLASS_FINDINGS.md`](WB_OPCLASS_FINDINGS.md). Instruments:
+> [`scripts/dump_opclass.py`](scripts/dump_opclass.py),
+> [`scripts/cross_opclass_port.py`](scripts/cross_opclass_port.py),
+> [`scripts/scan_esc43.py`](scripts/scan_esc43.py).
+
+## 10.1 First, the thing this map got wrong about itself
+
+§6 prices reading the 29 class arms as *"the single cheapest follow-up this map
+exposes"*. **The read had already been taken, four times**, and one of the four
+is a page **this map cites twice in §6.2**:
+
+* [`WB_READER_FINDINGS.md`](WB_READER_FINDINGS.md) §3 — all 29 arms, with VAs
+  and a one-line grammar each (`wb-reader`, 2026-08-08, board **#1591**);
+* `BOARD.md` **#1592** — nine port/c2 width disagreements, **including `0x28`
+  and *"`0x43` is not an escape"***, i.e. both hazards §6.1 and §7.2 name;
+* [`READ_PLAN_2026-08-21.md:73`](READ_PLAN_2026-08-21.md) — *"all 29 arms
+  read"*, in the **already-read** section of the tree's own read index. This
+  lane's consumer sweep amended **`:99`** and **`:174`** of that file;
+* `work/wb-eh/extok.py`, committed, and its output at
+  [`WB_EH_FINDINGS.md`](WB_EH_FINDINGS.md) §4.2 — a working tokenizer applying
+  all 29 arms to a real body.
+
+**What was genuinely unbuilt is the CROSS, not the read.** `WB_READER_FINDINGS.md`
+§3.4 crossed **nine positions**; nobody had crossed the class grammar against
+the port's readers over the handled set. That cross is §10.2, and it is what
+closes limb 2.
+
+## 10.2 The counts, with §4's own denominators
+
+Verdict vocabulary fixed **before** measurement
+(`../rungs/_2026-08-26-w-opclass-prereg.md` §1), four values, no fifth:
+`MATCHED` · `NARROW(fields)` · `WIDE(fields)` · `UNRESOLVED`.
+
+| | of **68** `MATCHED*` | of the **65** §6.2 called unchecked |
+|---|--:|--:|
+| **MATCHED** | 35 | 35 |
+| **NARROW(fields)** | 30 | 28 |
+| **WIDE(fields)** | **2** | 1 |
+| **UNRESOLVED** | 1 | 1 |
+| **change verdict** | **33** | **30** |
+
+Strict field-**count** reading, as a second denominator: the port's field count
+equals the class's on **57 of 68**. The width-function reading is primary, and
+that is §6.1's own precedent — `0x28`'s counts are equal and its verdict is
+`NARROW(fields)` on the width function alone.
+
+**33 rows, 8 root causes, and 26 of the 33 are ONE function.** The 26 are
+`readers::read_type` against c2's TYPE word, four separate narrownesses in one
+place (the one-byte short form; the three-byte form's unmasked middle byte; the
+aggregate escape below 32; the LEB id capped at 5 bytes). All four fail
+**closed**. The other seven causes are one row each: `0x2c`, `0x43`, `0x28`,
+`0x54`, `0x66`, `0x4f`, `0x33`.
+
+## 10.3 The rows that change verdict, and why — every one named
+
+| row | §3 said | now | why |
+|---|---|---|---|
+| `0f 10 11 12 13 15 16 17 18 19 35 36` (arm 4, 16) | `MATCHED*` | `NARROW(fields)` | `Scan::ty` vs the TYPE word — the shared primitive |
+| `27 30 32 40 41 55 64 9a` (arms 9, 13, 14, 24, 25, 35, 42, 53) | `MATCHED*` | `NARROW(fields)` | same |
+| `3c 5c 99 9b b9 bd` (arms 21, 38, 52, 54, 58, 23) | `MATCHED*` | `NARROW(fields)` | same, in a multi-field production |
+| **`0x2c`** (arm 12) | `UNRESOLVED` (§6.2) | **`WIDE(fields)`** | class `05` reads **one raw `GetByte`**; `Scan::vint` takes **5** bytes at the payload byte `0x80`. `#1592`'s latent desync, re-derived and sharpened: the trigger is **exactly `0x80`**, not `≥ 0x80` |
+| **`0x54`** (arm 34) | `UNRESOLVED` (§6.2) | `NARROW(fields)` | class `0D` is an **`i32c`**; the port reads a fixed byte. `IL_STMT_GRAMMAR.md` §12.1's *"byte-vs-varint UNKNOWN"* is resolved |
+| **`0x43`** (arm 0) | `MATCHED*` | **`WIDE(fields)`** | class `00` is payload-free — the port advances 4 or 2 where c2 advances 1. §10.4 |
+| **`0x28`** (arm 10) | `NARROW(fields)` (§6.1) | **`NARROW(fields)` — CONFIRMED** | class `02` calls `varU`; the port's `28 00 00` accepts exactly one of its values, and **refuses**, which is the right direction |
+| `0x66` (arm 43) | `MATCHED*` | `NARROW(fields)` | class `1A` reads the arity as an **`i32c`**, whose short form is **signed**; `eat_class_descriptor` reads one **unsigned** byte |
+| `0x4f` (arm 32) | `MATCHED*` | `NARROW(fields)` | class `0C` is `i16c` + a format-string interpreter over 64 field codes (`ref/P_SUB4F.md`); the port recognises four fixed `4F` shapes and ends the walk. Fail-closed |
+| **`0x33`** (arm 15) | `MATCHED*` | **`UNRESOLVED`** | widths agree on every branch; the **discriminators are different fields** — the port tests the raw `tag`/`kind`, c2 tests the **lowered** word `node[+4]`. Needs `FUN_10b3d40a` (`0x10b3d40a`) |
+
+The 35 that stay `MATCHED` are the payload-free class-`00` set, the `varU`
+tokens (`26 29 38 39 3a 3b 3d`, where `readers::read_token_var` is c2's `varU`
+bit for bit), the `i32c` pairs (`5d 5e 67`, where `readers::read_varint` is
+c2's `i32c` bit for bit), and `44 46 4b 4c 53`.
+
+## 10.4 §7.2's hazard, MEASURED
+
+§7.2 is **right** — `0x43` is class `00`, there is no escape, and the port's
+two witnessed widths fall out by coincidence. It names a hazard and says it was
+not graded. It is graded now:
+
+| | count |
+|---|--:|
+| workload `.ex` streams token-walked (one per source) | 867 |
+| bodies walked clean to a tail | 567,367 |
+| **`43 42` sites in real token position** | **2,404** |
+| … whose `varU` is **wide** (4 bytes) | **0** |
+| top-level `0x42` tokens **not** preceded by `0x43` | **0** of 2,404 |
+
+**Not witnessed.** The hazard is real in the language and constructible under
+the container model (`varU`'s wide form is `0x10c1f91b`'s own second branch and
+`readers::read_token_var` decodes both widths), but no workload site takes it.
+And §7.2's *pairing* claim is empirically exact: every `0x42` in the workload
+is a `43 42`.
+
+**A second way the fixed `+4` is wrong, which §7.2 does not have.** Class `02`'s
+arm tests the global `DAT_10c67fc0` at `0x10b3d64d`; when it is **zero**, opcode
+`0x42` alone takes **no operand**, so `43 42` is **two** bytes. The same
+constant over-reads by 2 in that environment and by 2 over a wide token — at
+opposite ends.
+
+## 10.5 What did NOT change
+
+* **Every limb-1 count in §3 and §4 stands** — `MATCHED*` 68, `NARROW(gate)`
+  **0**, `ABSENT` 27, and the 20 arms with no port site. This section decides a
+  different limb and re-derives none of them.
+* **§0's warning stands and is now sharper.** 68 of 95 was *"a statement about
+  width"*; 35 of 68 are width-**exact** and 33 are not, and **no** port site
+  still mints an IR node in the `≥ 0x2af` space.
+* **§5.1's `0x2d` finding stands**, untouched.
