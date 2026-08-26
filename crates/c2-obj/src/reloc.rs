@@ -40,6 +40,28 @@
 //! `U16<LE>`/`U32<LE>`. The first describes the section *payload*; the second
 //! describes the *structures*. Read one without the other and you conclude the
 //! opposite of the truth.
+//!
+//! # Provenance
+//!
+//! PROV-BLOCK[S] PE/COFF rev 6.0 (Feb 1999) and Microsoft's current live spec,
+//! completed from `gimli-rs/object` `src/pe.rs` as the two paragraphs above
+//! record. **Every `const` in this file is `[S]`** — a published external
+//! standard — and that is the whole point of the row: not one value in c2-rs's
+//! COFF *reader* was read out of `c2.dll` or fitted to its output, exactly as
+//! `#3633` measured for the COFF *writer* (56 of 56, `[R]` = 0). Two
+//! independent modules, two independent zero-`[R]` poles, and they calibrate
+//! the census: a high `[R]` count is a description of a subsystem's subject
+//! matter, never a score.
+//!
+//! **The block form covers this file to its end** (`DISCLOSURE.md` § The
+//! marker), so a constant added here later inherits `[S]` silently. That is the
+//! block form's one hazard and it is stated rather than hidden: a value in this
+//! file that does NOT come from the spec must carry its own `PROV[X]`, which
+//! beats the block. `IMAGE_SCN_LNK_NRELOC_OVFL` is spec (PE/COFF §4.1) even
+//! though it is a section flag rather than a relocation type, and
+//! `IMAGE_REL_PPC_FLAGMASK` is the union of four `[S]` values and is kept `[S]`
+//! rather than demoted to "derived", because a mask over spec constants is spec
+//! content and `Reloc::unknown_bits` publishes a finding from it.
 
 use crate::{ObjImage, COFF_HEADER_LEN, SECTION_HEADER_LEN};
 

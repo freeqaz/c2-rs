@@ -85,10 +85,13 @@ use crate::{
 };
 
 /// `IMAGE_SYM_CLASS_EXTERNAL`.
+/// PROV[S] PE/COFF §5.4.4 storage classes — `IMAGE_SYM_CLASS_EXTERNAL = 2`.
 const IMAGE_SYM_CLASS_EXTERNAL: u8 = 2;
 /// `IMAGE_SYM_UNDEFINED` — section number 0.
+/// PROV[S] PE/COFF §5.4.2 — section number 0 is `IMAGE_SYM_UNDEFINED`.
 const IMAGE_SYM_UNDEFINED: i16 = 0;
 /// The alignment nibble of `Characteristics`, `IMAGE_SCN_ALIGN_*`.
+/// PROV[S] PE/COFF §4.1 — the `IMAGE_SCN_ALIGN_*` values occupy bits 20..23 of `Characteristics`. The MASK is the spec's; WHICH alignment c2 picks per section is not, and is not adopted here.
 const IMAGE_SCN_ALIGN_MASK: u32 = 0x00F0_0000;
 
 /// **An index-free handle on one section.**

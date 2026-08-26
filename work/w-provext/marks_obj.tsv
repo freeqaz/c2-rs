@@ -1,0 +1,16 @@
+# crates/c2-obj/src — the COFF READER. Predicted, in work/w-provext/PREREG.md
+# §3 P1, to be the second zero-[R] calibration pole beside #3633's COFF WRITER.
+# reloc.rs is covered by a PROV-BLOCK[S] placed in its module doc by hand (31
+# items, one homogeneous vocabulary); this file carries the other 12.
+crates/c2-obj/src/lib.rs	TIMESTAMP_OFFSET	S] PE/COFF §3.3 — `TimeDateStamp` is the file header's third field, at offset 4. The value would be 4 if `c2.dll` had never existed. It is the one field the byte judge normalizes away (CLAUDE.md § The one correctness rule).
+crates/c2-obj/src/lib.rs	TIMESTAMP_END	S] PE/COFF §3.3 — `TimeDateStamp` is 4 bytes wide, so the normalized span ends at 8.
+crates/c2-obj/src/lib.rs	COFF_HEADER_LEN	S] PE/COFF §3.3 — `IMAGE_FILE_HEADER` is 20 bytes. Not a c2 choice.
+crates/c2-obj/src/lib.rs	SECTION_HEADER_LEN	S] PE/COFF §4 — `IMAGE_SECTION_HEADER` is 40 bytes.
+crates/c2-obj/src/lib.rs	SYMBOL_LEN	S] PE/COFF §5.4 — a symbol record, and every aux record, is 18 bytes.
+crates/c2-obj/src/lib.rs	IMAGE_SCN_LNK_COMDAT	S] PE/COFF §4.1 section flags — `IMAGE_SCN_LNK_COMDAT = 0x1000`.
+crates/c2-obj/src/lib.rs	IMAGE_SYM_CLASS_STATIC	S] PE/COFF §5.4.4 storage classes — `IMAGE_SYM_CLASS_STATIC = 3`.
+crates/c2-obj/src/lib.rs	IMAGE_SYM_CLASS_WEAK_EXTERNAL	S] PE/COFF §5.4.4 storage classes — `IMAGE_SYM_CLASS_WEAK_EXTERNAL = 105`, and §5.5.3 for the aux record this reader then decodes.
+crates/c2-obj/src/lib.rs	TEXT_SECTION_PREFIX	O] the ONE non-spec value in this crate, and the reason P1's prereg bias said "wrong toward more [O]". PE/COFF publishes the grouped-section `$` convention but names no section; that c2 puts emitted code in `.text` and its `$`-suffixed variants, `.text$yd` carrying the dynamic-initializer thunks, is read off real c2 objs — see `docs/SECTION_LAYOUT.md` and `crates/c2-core/src/coff/`'s own section table. A different compiler obeying the same spec would be free to choose otherwise.
+crates/c2-obj/src/plan.rs	IMAGE_SYM_CLASS_EXTERNAL	S] PE/COFF §5.4.4 storage classes — `IMAGE_SYM_CLASS_EXTERNAL = 2`.
+crates/c2-obj/src/plan.rs	IMAGE_SYM_UNDEFINED	S] PE/COFF §5.4.2 — section number 0 is `IMAGE_SYM_UNDEFINED`.
+crates/c2-obj/src/plan.rs	IMAGE_SCN_ALIGN_MASK	S] PE/COFF §4.1 — the `IMAGE_SCN_ALIGN_*` values occupy bits 20..23 of `Characteristics`. The MASK is the spec's; WHICH alignment c2 picks per section is not, and is not adopted here.
