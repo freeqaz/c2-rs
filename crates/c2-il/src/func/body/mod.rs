@@ -1485,6 +1485,56 @@ pub(crate) const DATA_SYM_LINKAGE: &str = "data-sym-not-extern";
 /// pricing rule; `docs/CFG_SHAPE.md` §6.3 rule 2).
 pub(crate) const DATA_SYM_STRLIT_FENCED: &str = "data-sym-strlit-fenced";
 
+/// **W-ATEND — the ADMISSION layer's OWN refusal reason**, raised when the
+/// decode read the body **whole** and the selected
+/// [`decode::AdmissionPolicy`] declined it anyway. Board **#3591**.
+///
+/// # Why this constant exists — `#3556` was too broad, and the tree already
+/// said so
+///
+/// Board **#3556** concluded that *"the admission layer cannot own a refusal
+/// REASON"*, on the ground that a [`Block`] says where the READ stopped and a
+/// policy refusing a whole-read body has no such point. **Every constant above
+/// this one is a counter-example.** [`OPT_MODE`] is *"the body parses in class
+/// and the optimization word is not one this port emits under"*;
+/// [`CALLEE_DEFINED_IN_TU`] is *"the body parses in class, the callee resolves,
+/// and the port may not emit"*. Neither says where a read stopped. Both are
+/// refusal reasons owned downstream of the decode, both are census keys, and
+/// [`Block::at_end`] exists **precisely** to spell them.
+///
+/// And a scan reaches them: `w-decodereach` (board **#3582**) measured
+/// `decode-reach-grammar-not-admitted` = **4,001** bodies over the 878-TU
+/// workload — the decode read them end to end and admission refused — under
+/// five `:eof` keys the scan publishes and ranks
+/// (`callee-unresolved-tail-call` 2,282 · `data-sym-unresolved` 1,665 ·
+/// `data-sym-not-extern` 52 · `callee-defined-in-tu` 1 ·
+/// `data-sym-strlit-fenced` 1).
+///
+/// # What DID survive of `#3556`, and it is a statement about CALL SITES
+///
+/// This key is reachable **only under a non-default policy**, because no
+/// production call site passes one — every one passes
+/// [`decode::AdmissionPolicy::DEFAULT`]. That makes it an **instrument state**
+/// in the sense of `docs/rungs/README.md` § Lane kinds, THE DECISION-SURFACE
+/// CLAUSE: legal, licensing no emit, graded at the default and nowhere else.
+///
+/// It is therefore the **first** `Block::at_end` site of which
+/// `crates/c2-harness/tests/fence_site_census.rs`' blanket rationale — *"every
+/// one renders a `:eof` key a scan reports"* — is false, and that guard counts
+/// the two populations **separately** rather than absorbing this one into an
+/// `8`. A hidden instrument-only site is exactly the hazard #3556 named, and
+/// naming it is how it stays visible.
+///
+/// # `:eof` is the TRUE statement here
+///
+/// [`decode::Decoded::into_admit`] raises this **only** on the `Ok` side of the
+/// decode — a body whose cursor reached `seg.len()`, since acceptance requires
+/// it (`eat_fn_tail`). On the `Err` side the decode's own [`Block`] is returned
+/// unchanged, because that reason was never admission's. So the layer owns a
+/// reason for exactly the bodies it alone refuses, which is the whole of the
+/// finding.
+pub(crate) const ADMISSION_DECLINED: &str = "admission-declined";
+
 /// **The grammar-completeness axis** — `docs/ROADMAP.md` §9.11 / §9.14.
 ///
 /// One closed vocabulary for the one question the roadmap ranks by: *is
