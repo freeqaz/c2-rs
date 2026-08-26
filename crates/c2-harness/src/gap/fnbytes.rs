@@ -809,6 +809,7 @@ pub fn grade_one(
 /// At most this many `fnbyte-calltarget-witness|…` keys per TU. A witness is
 /// worth its bytes only until the population repeats; the *counts* beside it are
 /// unbounded and are what a lane sizes work off.
+/// PROV[N] not load-bearing — how many witness names a row prints before the population repeats. The COUNTS beside it are unbounded and are what a lane sizes work off; this is display width.
 const MAX_CALLTARGET_WITNESSES: usize = 4;
 
 /// How many `no_effect_callee` hops `fnbyte-blr-stopN` will follow.
@@ -819,6 +820,7 @@ const MAX_CALLTARGET_WITNESSES: usize = 4;
 /// walk — the same reason `c2_core::elide`'s fixpoint carries a round ceiling it
 /// can never reach. Raise it when a scan reports a non-zero count at the last
 /// level, which is the observation that says the chain outran the instrument.
+/// PROV[N] not load-bearing — an instrument depth ceiling, with the raise condition stated on the item: a non-zero count at the last level is the observation that says the chain outran the instrument.
 pub(crate) const MAX_BLR_STOP_LEVELS: usize = 8;
 
 /// **Whom the PORT's body would call**, in emitted order, as mangled names —
@@ -1027,6 +1029,7 @@ fn callee_chain(
     claim: &std::collections::BTreeMap<&str, Vec<usize>>,
     census: &[(FnCensus, Result<IlFunction, &'static str>)],
 ) -> &'static str {
+    // PROV[N] not load-bearing — the level NAMES the scan prints, derived from `MAX_BLR_STOP_LEVELS`.
     const DEPTHS: [&str; 8] = [
         "chain1", "chain2", "chain3", "chain4", "chain5", "chain6", "chain7", "chain8",
     ];

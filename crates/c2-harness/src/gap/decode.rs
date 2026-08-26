@@ -101,6 +101,7 @@ use super::TuResult;
 /// **The env switch.** `on` (default) | `off`. A named, settable parameter
 /// rather than a baked constant (`docs/GOAL_DECISION_2026-08-21.md`
 /// § "AMENDED"); `off` is a legal instrument state and licenses nothing.
+/// PROV[N] not load-bearing — the instrument's on/off environment variable, exposed as a named parameter per `GOAL_DECISION_2026-08-21.md` § AMENDED; `off` is a legal instrument state and licenses nothing.
 pub const ENABLE_ENV: &str = "C2RS_DECODE_REACH";
 
 /// **Which population the printed HEADLINE is denominated in** — `all`
@@ -110,6 +111,7 @@ pub const ENABLE_ENV: &str = "C2RS_DECODE_REACH";
 /// the sentence, never the measurement, so a run cannot narrow its own
 /// denominator — which is the defect `calc_fuzzy_match_percent` has and FBM was
 /// built to avoid.
+/// PROV[N] not load-bearing — the variable naming the instrument's DENOMINATOR source, which exists so a numerator can never be published without one.
 pub const POP_ENV: &str = "C2RS_DECODE_REACH_POP";
 
 /// **The discriminating-cell key: bodies the general decode REACHES that the
@@ -123,6 +125,7 @@ pub const POP_ENV: &str = "C2RS_DECODE_REACH_POP";
 /// *"Absence reads as success. The fix that generalizes is a **positive**
 /// check — 'the run must have GRADED something' — never an enumeration of the
 /// ways it can be empty."*
+/// PROV[N] not load-bearing — a metric key NAME, the same class as `c2-il`'s census keys (see `func::diag::cause`).
 pub const SEPARATION_KEY: &str = "decode-reach-reached-not-admitted";
 
 /// **WHICH DECODER PRODUCED THESE NUMBERS.** Recorded on every scan as
@@ -135,6 +138,7 @@ pub const SEPARATION_KEY: &str = "decode-reach-reached-not-admitted";
 /// number is expected to DROP** — a stronger decode reaches less before it
 /// reaches more. A drop across that boundary is a change of instrument, not a
 /// regression, and only a recorded decoder identity can tell the two apart.
+/// PROV[N] not load-bearing — the instrument's own decoder IDENTITY string, recorded so a drop across a decoder change reads as a change of instrument rather than a regression.
 pub const DECODER: &str = "statement-layer";
 
 /// Whether the instrument runs. An unparseable value is **refused loudly**
@@ -225,6 +229,7 @@ impl Reach {
     }
 
     /// Every value, so the report can print each one including as a zero.
+    /// PROV[N] not load-bearing — every variant of this module's own `Reach` enum. Derived from the enum.
     pub const ALL: [Reach; 3] = [Reach::Reached, Reach::Stopped, Reach::NoBody];
 }
 

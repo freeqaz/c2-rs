@@ -63,12 +63,15 @@ use c2_reference::Toolchain;
 /// the literal's `.gl` record does not bind at all and cell `X` reports
 /// `data-sym-unresolved:eof` — measured at `d28326b4`. A cell captured at the
 /// wrong profile grades a different question and would pass with the fence gone.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// The key the fence mints, and the key a body in class reports. Spelled once
 /// each: a test that re-types the string its subject produces is a test of two
 /// spellings.
+/// PROV[N] not load-bearing — this port's own census key NAME. Same class as `func::diag::cause`.
 const FENCED: &str = "data-sym-strlit-fenced:eof";
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const IN_CLASS: &str = "multiarg-tail-call";
 
 /// The `.gl` shape that makes census clause (c) BLIND, prepended to every cell.
@@ -79,6 +82,7 @@ const IN_CLASS: &str = "multiarg-tail-call";
 /// hand). With the walk refusing, clause (c)'s `defined` set is empty and the
 /// question *"is this callee defined in this TU?"* falls through to clause (c2),
 /// which asks it against the **emit binding** instead.
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const BLIND: &str = "struct Bd { Bd(); ~Bd(); int b0; };\n\
                      struct M : Bd { M(); };\n\
                      struct D : M { D(); };\n\

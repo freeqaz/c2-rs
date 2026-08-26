@@ -24,6 +24,7 @@ use c2_il::{ExToken, IlBundle, IlModel};
 /// `/Bd /d2nop /Ox /GS- /c`) from the `4F 1F` marker. Byte-identical to the
 /// `VOLF_SEGMENT` fixture in `codec.rs` (the codec's round-trip test owns the
 /// provenance); duplicated here because that fixture is a private test const.
+/// PROV[O] a verbatim `.ex` SEGMENT captured from a live 16.00.11886.00 compile of a `Box::Volume`-class float leaf — the same capture `c2_il::codec::FLOAT_TYPE` cites. A transcription of real toolchain output.
 const VOLF_SEGMENT: &[u8] = &[
     0x4F, 0x1F, 0x80, 0x05, 0x00, 0xA0, 0x00, 0x4F, 0x20, 0x80, 0xFE, 0x00, 0x4F, 0x33, 0x0D, 0x66,
     0x12, 0x1C, 0x30, 0x22, 0x10, 0x01, 0x44, 0x01, 0x0B, 0x0B, 0x03, 0x0F, 0x10, 0x18, 0x01, 0x00,

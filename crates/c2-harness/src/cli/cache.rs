@@ -22,6 +22,7 @@ use c2_harness::capture_cache::{
 
 use crate::{Args, Arity, Spec};
 
+// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static CACHE_SPEC: Spec = Spec::new(
     "cache",
     &[
@@ -35,6 +36,7 @@ static CACHE_SPEC: Spec = Spec::new(
 )
 .positionals(2);
 
+// PROV[N] not load-bearing — the usage string listing this subcommand's verbs.
 const VERBS: &str = "stat | index | generations | show <key> | gc";
 
 pub(crate) fn cmd_cache(rest: &[String]) -> ExitCode {

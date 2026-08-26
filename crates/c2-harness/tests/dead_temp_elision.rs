@@ -41,6 +41,7 @@ use c2_reference::Toolchain;
 
 /// The workload's own profile, minus the `/I` paths a standalone cell cannot
 /// use. `/O1` implies `/Gy`; `/Ox` does not.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// `w-empty`'s ANCHOR, **prepended** to every cell: a callee this TU does not
@@ -56,6 +57,7 @@ const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 /// and `eat_fn_tail` refuses exactly that. Appended, the ANCHOR came back
 /// `Refused` in four of the eight cells and the control could not fire at all.
 /// Prepended, the trailer lands on `?use`, which no test asserts about.
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N]. This one is the shared external-call anchor every cell in the family carries.
 const ANCHOR: &str = "\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n";
 
 /// **The TAIL PAD**, appended after every cell — and it is a control's
@@ -78,6 +80,7 @@ const ANCHOR: &str = "\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n";
 /// c1xx emits the deeper instantiation later. Five levels puts the pad's leaf
 /// past it, and the census then reads `??$aux@…` as `empty-body` — which is what
 /// seeds the chain.
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N]. The shared trailing source every cell in the family carries.
 const TAIL: &str = "
 template <class T> inline T pad5(T v) { return v; }
 template <class T> inline T pad4(T v) { return pad5(v); }
@@ -87,16 +90,25 @@ template <class T> inline T pad1(T v) { return pad2(v); }
 int pad_use(int v) { return pad1(v); }
 ";
 
+// PROV[S] the PowerPC `blr` instruction word `4E 80 00 20` (`bclr 20,0,0`), big-endian, fixed by the ISA. Same word as `c2_harness::search::similarity::BLR_WORD`.
 const BLR: [u8; 4] = [0x4e, 0x80, 0x00, 0x20];
 
 // The FROZEN grid. `include_str!` and not a copy — see the module header.
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const M01: &str = include_str!("../../../work/w-inl0/cells/m01.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const M02: &str = include_str!("../../../work/w-inl0/cells/m02.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const M03: &str = include_str!("../../../work/w-inl0/cells/m03.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const M04: &str = include_str!("../../../work/w-inl0/cells/m04.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const M05: &str = include_str!("../../../work/w-inl0/cells/m05.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const M06: &str = include_str!("../../../work/w-inl0/cells/m06.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const M07: &str = include_str!("../../../work/w-inl0/cells/m07.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const M08: &str = include_str!("../../../work/w-inl0/cells/m08.cpp");
 
 fn work(tag: &str) -> PathBuf {

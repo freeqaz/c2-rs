@@ -99,6 +99,7 @@ use super::{GapReport, TuClass, TuResult, PORT_WRITER_SECTIONS, WHOLE_TU_RECOGNI
 /// `Claim::Partial` and a partial claim deliberately does not reach this list.
 /// See `cfg_class::SHIPPED_CFG_CLAIMS`, and `rungs/2026-08-19-cfgclass.md` §5
 /// for the two-sided price of promoting one.
+/// PROV[N] not load-bearing — a registry of THIS PORT's shipped CFG claims, kept beside `cfg_class::SHIPPED_CFG_CLAIMS`. It describes the port's coverage, not c2's behaviour.
 const PORT_CFG_CLASSES: &[CfgClass<'static>] = &[
     CfgClass { class: CflowClass::Straight.census_str(), sub: CfgSub::Whole },
     CfgClass { class: CflowClass::Straight.census_str_modeled(), sub: CfgSub::Whole },

@@ -14,6 +14,7 @@ use crate::cli::util::Scratch;
 /// Prints exactly one line of JSON on stdout and exits 0 for every well-formed
 /// verdict, including `not_implemented`. Exit 2 means "you called me wrong" —
 /// a caller must treat that as a hard error, never as a verdict.
+/// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static PREFILTER_SPEC: Spec = Spec {
     cmd: "prefilter",
     opts: &[

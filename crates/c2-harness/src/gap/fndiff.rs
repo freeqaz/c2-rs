@@ -193,6 +193,7 @@ fn f(name: &'static str, kind: Kind, hi: u8, lo: u8, w: u32) -> Field {
 /// The A-form extended opcodes of primary 59/63 — see the module docs for why
 /// membership in this set is a *sound* discriminator against X-form and not a
 /// heuristic.
+/// PROV[S] the PowerPC A-form extended-opcode values (Book I; `fmadd`/`fmsub`/`fdiv`/`fsel` and the rest of the floating multiply-add family). Fixed by the ISA, which is what makes membership a SOUND discriminator against X-form rather than a heuristic — its doc's own claim.
 const A_FORM_XO: [u32; 12] = [18, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30, 31];
 
 /// **Decode one big-endian instruction word**, or `None` if this file does not
@@ -583,6 +584,7 @@ pub enum Edit {
 /// The LCS cell budget. Bodies here are tens of words; the cap exists so one
 /// pathological pair cannot dominate a scan, and it is **counted**
 /// (`fndiff-align-capped`) rather than silently degrading the table.
+/// PROV[N] not load-bearing — a compute cap so a pathological pair cannot dominate a scan. Its own doc records that it is COUNTED (`fndiff-align-capped`) rather than silently degrading the table.
 const LCS_CELL_CAP: usize = 400_000;
 
 /// Align two word sequences at instruction granularity.
@@ -773,10 +775,12 @@ pub struct DiffSig {
 /// How many words of each body a row carries. Every differing body in the dc3
 /// workload is far shorter than this; the cap exists so one outlier cannot make
 /// the file unreadable, and it is reported per row rather than silently applied.
+/// PROV[N] not load-bearing — a rendering cap, reported per row rather than silently applied. The workload is far shorter than it.
 pub const BODY_CAP: usize = 64;
 
 /// How many substitutions a row carries verbatim. Enough to decode a cluster's
 /// worked example by hand; short enough that the JSONL stays a text file.
+/// PROV[N] not load-bearing — how many substitutions a row carries verbatim; a readability choice.
 pub const SUB_SAMPLE: usize = 8;
 
 fn words(b: &[u8]) -> Vec<u32> {

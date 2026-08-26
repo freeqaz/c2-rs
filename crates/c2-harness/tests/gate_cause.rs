@@ -34,6 +34,7 @@ use c2_reference::Toolchain;
 /// At `/Ox` these same three sources produce a different section order and a
 /// different `.ex`, so a cell graded there would not be grading `vec.cpp`'s
 /// question.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 fn work(tag: &str) -> PathBuf {

@@ -21,6 +21,7 @@ use c2_harness::gap::{gap_scan, GapConfig, TuClass};
 /// and rank the blockers. Exit is non-zero only on a *correctness* signal
 /// (`mismatch` TUs or a replay-soundness divergence) or a harness error —
 /// gaps themselves are the expected measurement, not a failure.
+/// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static GAP_SPEC: Spec = Spec {
     cmd: "gap",
     opts: &[

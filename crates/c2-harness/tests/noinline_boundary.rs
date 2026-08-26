@@ -80,12 +80,14 @@ use c2_reference::Toolchain;
 
 /// The workload's own profile, minus the `/I` paths a standalone cell cannot
 /// use. `/O1` implies `/Gy`, which is the regime FBM's denominator lives in.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// **GRID-W cell `w04a`** — `work/w-target/cells/w04a_noinline.cpp`. Kept as a
 /// literal rather than read from `work/`, which is gitignored: a test that
 /// silently skips because its input is not checked in is a test that reports
 /// absence as success.
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const W04A: &str = "\
 void ext();
 __declspec(noinline) void g() { ext(); }
@@ -96,6 +98,7 @@ void anchor() { ext_anchor(); }
 ";
 
 /// **GRID-W2 cell `w10`** — the same attribute on a leaf the splice DOES reach.
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const W10: &str = "\
 int gsink;
 __declspec(noinline) int g(int a) { return a + 1; }
@@ -108,6 +111,7 @@ void anchor() { ext_anchor(); }
 /// **GRID-W2 cell `w12`** — `w10` without the attribute. The negative control,
 /// in its own TU: a grid with only the suspicious cell cannot tell "the rule is
 /// wrong here" from "the rule is off in this build".
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const W12: &str = "\
 int gsink;
 int g(int a) { return a + 1; }

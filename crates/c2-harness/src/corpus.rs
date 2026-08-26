@@ -57,9 +57,11 @@ use c2_reference::{to_wibo_path, Toolchain};
 
 /// Bumped whenever the source-generation grammar changes in a way that alters
 /// the emitted corpus for a fixed `(seed, index)`. Recorded in `config.json`.
+/// PROV[N] not load-bearing — the port's own corpus-generator grammar version, recorded in `config.json` so a `(seed, index)` pair stays reproducible.
 pub const GENERATOR_VERSION: &str = "straightline_int_v1";
 
 /// Default per-capture wall-clock timeout.
+/// PROV[N] not load-bearing — a per-capture wall-clock timeout for this harness.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
 
 // ------------------------------------------------------------------------
@@ -102,7 +104,9 @@ pub struct GeneratedTu {
     pub functions: Vec<String>,
 }
 
+// PROV[N] not load-bearing — the identifier names the corpus GENERATOR emits into synthetic C++ source. Input to c2, not output of it.
 const PARAM_NAMES: [&str; 4] = ["a", "b", "c", "d"];
+// PROV[N] not load-bearing — the operator set the corpus generator emits, with its filename stems. Input to c2, not output of it.
 const OPS: [(&str, &str); 3] = [("+", "add"), ("-", "sub"), ("*", "mul")];
 
 /// Generate the C++ translation unit for `(seed, index)` — a pure function of
@@ -1120,6 +1124,7 @@ pub(crate) mod json {
 /// Lowercase-hex SHA-256 of `data`. Small, self-contained; used for content
 /// digests in the manifest (integrity + dedup keys for retrieval).
 pub fn sha256_hex(data: &[u8]) -> String {
+    // PROV[S] the 64 SHA-256 round constants (FIPS 180-4) — the first 32 bits of the fractional parts of the cube roots of the first 64 primes. Published; identical in every SHA-256 implementation, and used here to key the capture cache.
     const K: [u32; 64] = [
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4,
         0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe,

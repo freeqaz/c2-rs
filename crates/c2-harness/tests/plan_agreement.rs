@@ -56,14 +56,17 @@ use c2_reference::Toolchain;
 /// carried the fifteenth copy of the literal until the fix round adopted the
 /// funnel. A missed copy keeps grading the old profile and reads green, which is
 /// the absence family wearing a flags list.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 8] = WORKLOAD_FLAGS;
 
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const GY: &str = "\
 int a(int x) { return x + 1; }
 int b(int x) { return x * 3; }
 int c(int x) { return x - 7; }
 ";
 
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const WEAK: &str = "\
 struct B { virtual ~B(); virtual void f(); };
 struct D : B { ~D(); void f(); };
@@ -72,6 +75,7 @@ void D::f() {}
 B *make() { return new D(); }
 ";
 
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const RELO: &str = "\
 extern int g;
 void ext();

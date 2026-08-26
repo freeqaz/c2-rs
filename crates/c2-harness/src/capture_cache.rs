@@ -150,6 +150,7 @@ use crate::provenance::GitInfo;
 /// exactly. v1 entries are invalidated, not converted — and since v2 also moved
 /// the root, they are invalidated by a `cache-root` change no predicate could
 /// have matched anyway.
+/// PROV[N] not load-bearing — the port's own capture-cache format tag. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
 const CACHE_FORMAT: &str = "c2rs-capture-cache/v2";
 
 /// The one file a v2 entry's metadata, key and IL streams live in.
@@ -158,12 +159,14 @@ const CACHE_FORMAT: &str = "c2rs-capture-cache/v2";
 /// validator test, `c2rs cache show`, `scripts/gt_frame_class.py` — should test
 /// against one exported name rather than each hard-coding a string. Decode it
 /// with [`c2_il::decode_entry`]; do not parse it by hand.
+/// PROV[N] not load-bearing — the port's own cache entry filename. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
 pub const ENTRY_BLOB: &str = "entry.bin";
 
 /// Prefix for the write-then-rename temporary. **Must not start with `_CL_`**:
 /// `capture_reference_with` sweeps `_CL_*` out of its work dir before compiling
 /// and `find_bundle_base` matches `_CL_*ex`, so such a name would be deleted
 /// mid-write or mistaken for an IL stream.
+/// PROV[N] not load-bearing — the port's own temp-file prefix, chosen so `find_bundle_base`'s `_CL_*ex` glob cannot match it. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
 const TMP_PREFIX: &str = ".entry.tmp.";
 
 /// `meta.txt` line recording the **absolute path this entry's `out.obj` was
@@ -175,6 +178,7 @@ const TMP_PREFIX: &str = ".entry.tmp.";
 /// Deliberately NOT part of the key material: adding it there would cold-start
 /// every existing entry — ~450 s of CPU per scan, paid by every concurrent lane
 /// — to re-derive bytes that are already correct.
+/// PROV[N] not load-bearing — a field tag in the port's own cache key. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
 pub const CAPTURE_PATH_KEY: &str = "objpath ";
 
 /// 128-bit content digest — see [`c2_il::cachefmt::digest128`].
@@ -389,15 +393,18 @@ pub struct CaptureCache {
 /// instead of each hard-coding a string. Any GC over the root must skip it: the
 /// files inside are live cross-process locks, and deleting one on age grounds
 /// silently un-guards a key.
+/// PROV[N] not load-bearing — the port's own lock directory name. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
 pub const LOCK_DIR: &str = ".locks";
 
 /// Give up waiting and proceed unguarded. Nothing downstream blocks on the
 /// lock, so the failure mode is today's behaviour, not a wedged scan.
+/// PROV[N] not load-bearing — a wait ceiling; its own doc says nothing downstream blocks on the lock, so the failure mode is today's behaviour. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
 const LOCK_WAIT_MAX: Duration = Duration::from_secs(600);
 
 /// Break a lock whose holder is gone. A capture is one `cl.exe` invocation
 /// (~1–2 s); 30 minutes is ~1000× headroom, and without it a single SIGKILL
 /// would poison one key of the cache permanently.
+/// PROV[N] not load-bearing — a staleness ceiling with ~1000x headroom over the measured hold time. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
 const LOCK_STALE_AFTER: Duration = Duration::from_secs(1800);
 
 /// A cross-**process** mutex for one cache key, held for the length of one
@@ -916,6 +923,7 @@ fn write_entry(dir: &Path, material: &[u8], cap: &CapturedReference) -> io::Resu
     // NOT a `_CL_` prefix: `capture_reference_with` sweeps `_CL_*` out of its
     // work dir before compiling and `find_bundle_base` matches `_CL_*ex`, so a
     // tmp file named that way would be deleted mid-write or mistaken for IL.
+    // PROV[N] not load-bearing — a monotonic tmp-name tie-breaker; scratch state. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
     static SEQ: AtomicUsize = AtomicUsize::new(0);
     let tmp = dir.join(format!(
         "{TMP_PREFIX}{}.{}",
@@ -1093,8 +1101,10 @@ fn argv_without_il(argv: &[String]) -> Vec<&str> {
 // ---------------------------------------------------------------------------
 
 /// `src-arg\0` — the first NUL-delimited field of the per-TU key tail.
+/// PROV[N] not load-bearing — a NUL-delimited field tag in the port's own cache key. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
 const SRC_ARG_TAG: &[u8] = b"src-arg\x00";
 /// `\0cwd\0`.
+/// PROV[N] not load-bearing — the second such field tag. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
 const CWD_TAG: &[u8] = b"\x00cwd\x00";
 
 fn find_sub(hay: &[u8], needle: &[u8]) -> Option<usize> {

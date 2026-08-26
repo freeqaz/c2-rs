@@ -18,6 +18,7 @@ use c2_il::{ExToken, IlModel};
 use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::{CapturedReference, Toolchain};
 
+// PROV[N] not load-bearing — a wall-clock timeout for this test's subprocess.
 const TIMEOUT: Duration = Duration::from_secs(60);
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

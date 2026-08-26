@@ -50,6 +50,7 @@ use c2_reference::Toolchain;
 ///
 /// All four are required. A shape that stops appearing here fails the test with
 /// its own name, which is the difference between this and a corpus total.
+/// PROV[N] not load-bearing — FIXTURE NAMES paired with the shapes they carry.
 const SHAPE_FIXTURES: [(&str, &str); 4] = [
     ("tail", "mvp_call.cpp"),
     ("framed", "mvp_framed.cpp"),
@@ -59,6 +60,7 @@ const SHAPE_FIXTURES: [(&str, &str); 4] = [
 
 /// The workload's own profile. `/O1` implies `/Gy`; `/Ox` does not, and the
 /// fixtures' default profile is `/Ox`.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2. The `/GY` arm.
 const GY_FLAGS: [&str; 7] = [
     "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi",
 ];

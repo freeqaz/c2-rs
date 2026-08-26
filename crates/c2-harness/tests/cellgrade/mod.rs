@@ -49,6 +49,7 @@ use c2_reference::Toolchain;
 
 /// The workload's own profile, minus the `/I` paths a standalone cell cannot
 /// use. `/O1` implies `/Gy`; `/Ox` does not.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 pub const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// `w-empty`'s ANCHOR, **prepended** — a callee this TU does not define, whose
@@ -59,6 +60,7 @@ pub const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 /// source-order function, so an appended anchor lands on the module trailer that
 /// `eat_fn_tail` refuses. Appended, the ANCHOR came back `Refused` in four of eight
 /// cells and every verdict under it was worthless.
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N]. This one is the shared external-call anchor every cell in the family carries.
 pub const ANCHOR: &str = "\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n";
 
 /// **The TAIL PAD**, appended after every cell — scaffolding for the controls, not
@@ -69,6 +71,7 @@ pub const ANCHOR: &str = "\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\
 /// seeded from. A one-level pad was not enough — instantiations are not emitted in
 /// source order — and five is what the census reads back as `empty-body`
 /// (`w-inl0` §4, measured rather than guessed).
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N]. The shared trailing source every cell in the family carries.
 pub const TAIL: &str = "
 template <class T> inline T pad5(T v) { return v; }
 template <class T> inline T pad4(T v) { return pad5(v); }
@@ -80,6 +83,7 @@ int pad_use(int v) { return pad1(v); }
 
 /// The one word an elided body is, and the one word c2 emits for a function it
 /// emits nothing for.
+/// PROV[S] the PowerPC `blr` instruction word `4E 80 00 20` (`bclr 20,0,0`), big-endian, fixed by the ISA. Same word as `c2_harness::search::similarity::BLR_WORD`.
 pub const BLR: [u8; 4] = [0x4e, 0x80, 0x00, 0x20];
 
 /// `(shape, verdict, symbol, reference bytes, reference relocation count)` per

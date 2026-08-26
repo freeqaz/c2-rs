@@ -33,12 +33,14 @@ use c2_reference::Toolchain;
 
 /// The workload's own profile, minus the `/I` paths a standalone cell cannot
 /// use. `/O1` implies `/Gy`; `/Ox` does not.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// Every cell carries this, and its relocation must survive: a callee this TU
 /// does not define. Without it "the port emitted no branch" is indistinguishable
 /// from "nothing in this cell emitted anything", which is `docs/STATUS.md`
 /// trap 5 in its most literal form.
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N]. This one is the shared external-call anchor every cell in the family carries.
 const ANCHOR: &str = "\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n";
 
 fn work(tag: &str) -> PathBuf {
@@ -131,6 +133,7 @@ fn row<'a>(
     })
 }
 
+// PROV[S] the PowerPC `blr` instruction word `4E 80 00 20` (`bclr 20,0,0`), big-endian, fixed by the ISA. Same word as `c2_harness::search::similarity::BLR_WORD`.
 const BLR: [u8; 4] = [0x4e, 0x80, 0x00, 0x20];
 
 #[test]

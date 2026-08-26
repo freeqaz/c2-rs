@@ -34,6 +34,7 @@ fn hexdump_marked(bytes: &[u8], mark: usize) -> String {
     s
 }
 
+// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static CENSUS_SPEC: Spec = Spec::new(
     "census",
     &[

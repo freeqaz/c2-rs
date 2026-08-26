@@ -122,6 +122,7 @@ pub struct NamedSet {
 /// `factor_frontier` and `factor_frontier_if_a` do. Dropping that clause is the
 /// easiest way to make this file disagree with the scan by 11, which is why the
 /// control is mechanical.
+/// PROV[N] not load-bearing — this instrument's own named TU sets, whose agreement with the scan is asserted mechanically rather than by hand.
 pub const NAMED_SETS: &[NamedSet] = &[
     NamedSet {
         name: "factor-a",
@@ -249,6 +250,7 @@ pub fn count(rows: &[FactorRow], name: &str) -> Option<usize> {
 /// whose bits mean something else, and reading it positionally anyway is how a
 /// join produces a confident wrong answer. This constant going stale breaks a
 /// unit test in the same crate, not a lane's arithmetic three days later.
+/// PROV[N] not load-bearing — the instrument's own TSV header, pinned so going stale breaks a unit test in the same crate rather than a lane's arithmetic three days later.
 pub const TSV_COLUMNS: &str =
     "# columns: src<TAB>class<TAB>A<TAB>B<TAB>C<TAB>D<TAB>E<TAB>letters";
 

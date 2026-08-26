@@ -55,12 +55,14 @@ use c2_reference::Toolchain;
 
 /// The workload's own profile, minus the `/I` paths a standalone cell cannot
 /// use. `/O1` implies `/Gy`, which is the regime FBM's denominator lives in.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// **GRID-S cell `s12`, verbatim** — `work/w-seq/cells/s12_callee_calls_extern.cpp`.
 /// Kept as a literal rather than read from `work/`, which is gitignored: a test
 /// that silently skips because its input is not checked in is a test that
 /// reports absence as success.
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const S12: &str = "\
 void ext();
 void g() { ext(); }
@@ -71,6 +73,7 @@ void anchor() { ext_anchor(); }
 ";
 
 /// Per-CALL scratch counter. See [`work`].
+/// PROV[N] not load-bearing — a per-binary counter for unique scratch directories. Scratch state.
 static WORK_SEQ: AtomicUsize = AtomicUsize::new(0);
 
 /// A scratch directory that is private to **one `grade()` call**, not to the

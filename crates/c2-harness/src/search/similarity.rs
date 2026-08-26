@@ -81,6 +81,7 @@ pub(super) fn word_match_ratio(a: &[u8], b: &[u8]) -> f64 {
 /// `0.5` makes "fixed the opcode, operands still wrong" score halfway — strictly
 /// above "wrong opcode" (`≤ 0.15`) and strictly below a full match, so descending
 /// one field at a time is monotone.
+/// PROV[F] a fitted SCORING WEIGHT, chosen so the ordering is monotone: strictly above 'wrong opcode' (<= 0.15) and strictly below a full match. Nothing measured 0.5; it is a parameter of this instrument's rule and it has an off-sample failure mode (a pair whose true similarity the ordering inverts).
 const OPCODE_WEIGHT: f64 = 0.5;
 
 /// A PPC instruction word decoded down to the fields the gradient compares: an
@@ -389,6 +390,7 @@ pub fn insn_text_similarity(cand: &ObjImage, target: &ObjImage) -> f64 {
 /// PPC `blr` (`4E80 0020`) — the return terminator each MVP straight-line
 /// function ends with; used to split a `.text` word stream into per-function
 /// segments (each such function returns via exactly one `blr`).
+/// PROV[S] the PowerPC `blr` instruction word `0x4E800020` (`bclr 20,0,0`), fixed by the ISA. That every function in this class returns via exactly one `blr` is an observation; the WORD is the architecture's.
 const BLR_WORD: u32 = 0x4E80_0020;
 
 /// Split a decoded `.text` word stream into per-function segments at each `blr`
