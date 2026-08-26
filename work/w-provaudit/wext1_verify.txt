@@ -1,0 +1,30 @@
+image: compilers/X360/16.00.11886.00/c2.dll
+sha256: c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+pinned prefix c80981c0…: MATCH
+image base: 0x10b00000
+FUNCS.tsv: 4917 functions
+
+CONDITION 1 — `0x10c1fe40` is a function ENTRY
+  PASS  FUN_10c1fe40, size 93, tu ioin.c
+
+CONDITION 2 — every cited address lands inside a function, and the
+              `0x10b3d5*` group lands inside ONE function
+  ok    0x10c1fe40  in FUN_10c1fe40 (size 93, tu ioin.c)  — the TYPE word reader itself (the word)
+  ok    0x10b3d550  in FUN_10b3d546 (size 202, tu getattr.c)  — its one call site in the type reader
+  ok    0x10b3d5a6  in FUN_10b3d546 (size 202, tu getattr.c)  — the gated LEB skip, start
+  ok    0x10b3d5b4  in FUN_10b3d546 (size 202, tu getattr.c)  — the gated LEB skip, end
+  ok    0x10b3d5c1  in FUN_10b3d546 (size 202, tu getattr.c)  — shr ebx,9 / and ebx,7 — the size index
+  ok    0x10b3d5ea  in FUN_10b3d546 (size 202, tu getattr.c)  — the store
+  PASS  the four `0x10b3d5*` addresses share one owner, FUN_10b3d546
+
+CONDITION 3 — the bytes at `0x10b3d5c1` are `shr ebx,9` / `and ebx,7`
+  want  c1 eb 09 83 e3 07   (shr ebx,9 ; and ebx,7)
+  got   c1 eb 09 83 e3 07
+  PASS  byte-identical
+
+CORROBORATION (not a condition) — the 1/2/3-byte discriminator the
+port transcribes is `b1 & 0x80` then `b1 & 0x40`. The reader's own
+first bytes should test exactly those.
+  FUN_10c1fe40 +0: a1 10 63 c4 10 8b 08 8a 11 41 53 89 08 84 d2 79 47 a1 10 63 c4 10 8b 08 8a 19 41 89 08 0f b6 ca
+
+VERDICT: PROMOTE — W-EXT-1 (all three conditions hold)

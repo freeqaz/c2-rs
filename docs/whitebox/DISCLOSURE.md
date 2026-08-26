@@ -157,6 +157,7 @@ costs the project more than the analysis did.
 | **W-MOP-1** | **adoption** | **The 85 machine-opcode NUMBERS this port emits, and the opcode space's extent.** Each is c2's own **0-based index** into the mnemonic table `0x10b1b260` — the *same* index the base-word table `0x10c3a578` and the encode-form table `0x10c39b18` are read with — copied verbatim into `mod op`'s 85 `C2Op` constants; `MAX_C2_OPCODE = 0x294` is the `_last` sentinel index `0x295` minus one. **An index origin plus 85 table positions, so it is adoption and not navigation.** **This is not an extension of `W-MID-1` and the difference is the whole reason for the row.** That row adopts this table's *address, stride, index origin and sentinel*, and states in its own text that **"no table entry is copied"** — which is true of `crates/c2-reference/tests/middle_interfaces.rs`, where the strings are read out of the pinned image at run time, and **false of `mop.rs`**, where 85 of the table's positions are source literals. | **`0x10b1b260`** (the mnemonic table, stride 12, `{char *name, u32 form, u32 flags}`); **`0x10c3a578`** and **`0x10c39b18`**, indexed by the same number; `0x10c00900`–`0x10c00952` (the inline-asm name lookup whose `imul eax,eax,0xc` fixes stride 12 and whose `_last` string `0x10b19ce4` fixes the extent). Read out of the pinned image (sha256 `c80981c0…a66258`) by [`scripts/dump_opcode_tables.py`](scripts/dump_opcode_tables.py) and transcribed through [`ref/ENCODE_OPCODES.txt`](ref/ENCODE_OPCODES.txt), read **R2**, lane `w-read-r2` | `crates/c2-core/src/codegen/mop.rs` — `mod op`'s **85** `C2Op` constants (all covered by the `PROV-BLOCK[R]` at that module's head) and `MAX_C2_OPCODE` | adopted at **`227b90dd7`** (2026-08-22); row filed by `w-disclose`, board **#3642** | **THIS IS THE EMIT PATH, WHICH IS WHAT MAKES IT DIFFERENT FROM EVERY `W-MID-*` AND `W-STAGETAP-*` ROW ABOVE.** Those are instrument-only by their own text; `mop::base_word` is *the port's only source of a primary opcode*, and it is keyed by these numbers. **Verified against the image rather than against the transcription**: `work/w-disclose/verify_rows.py` check D re-dumps `c2.dll` live and agrees with all 85 on mnemonic **and** base word **and** form, with `MAX_C2_OPCODE` equal to the dumped extent `0x294`; check E finds `ENCODE_OPCODES.txt` byte-identical to that dump, 660 rows. **The grey-zone alternative does not exist and `W-MID-1` already says why**: `add` is opcode `0x0001`, form `49`, PPC primary `31`, PPC extended `266` — four small integers for one instruction, and **no obj exhibits an array index**. What an obj can show is the *word*; which number c2 files it under is visible only in the image. **The trap is named in the port's own doc and is repeated here because it is the failure this number invites**: the SECOND table at `0x10b1d180` has its own index space starting at 1, and read as a continuation of the first it decodes tuple `0x30f` as `tdlngi` in a function that is `return a+b+c` |
 | **W-MOP-2** | **adoption** | **Eighty-five whole ROWS of c2's own tables, copied as source literals**: for each of the opcodes above, the **base word** from `0x10c3a578` (the instruction word with every operand field zero), the **encode-form number** from `0x10c39b18`, and the **mnemonic string** from `0x10b1b260`. Table *content*, three fields deep, therefore adoption at its most literal. **`W-MID-2` adopts the two table addresses and their strides and says "no entry is copied … both are read out of the pinned image at run time". That stays exactly true where it was written.** Here the entries **are** copied — `OPCODES` is 85 `OpRow` literals — because the port must emit without the image present. **A subset by design, and the port's own doc says so**: 85 of c2's 660 rows, and the other **575** are deliberately not transcribed, since a row here is a claim the port makes about a word it emits and 575 unexercised claims would sit behind the same green test as the exercised ones. | **`0x10c3a578`** (base words) and **`0x10c39b18`** (forms), both stride 4, both indexed by the opcode number; **`0x10b1b260`** (the mnemonic); **`0x10bf9f3c`** / **`0x10bf9f43`** (`FUN_10bf9f15`, `code.c` — the sole readers of the pair in the image); `0x10bfae2d` (the 111-entry arm jump table `form − 1` indexes, named for orientation and read by `W-MOP-3`, not by this row) | `crates/c2-core/src/codegen/mop.rs` — `OPCODES`, and the three accessors over it, `base_word` / `form_of` / `mnemonic_of` | adopted at **`227b90dd7`** (2026-08-22); row filed by `w-disclose`, board **#3642** | **THE LEDGER'S FIRST `Adopted into` THAT AN EMITTED BYTE DEPENDS ON.** Every row above is either an instrument (`middle_interfaces.rs`, `stagetap.c`), a refusal-side reader (`c2-il`), or a constant whose own row records it as not reaching an emit (`W-OBJPLAN-1`). `base_word` reaches one directly. **Read-before-probe is visible here as a measured before/after**: board **#3379** compared the port's *previous* derivation — 85 hand-written encoder functions, each carrying its own primary and extended opcode as literals, i.e. 85 independent black-box re-derivations — against these rows, and they agree on **82 of 89** accumulated words with **zero** disagreements in a primary or an extended opcode, all seven residuals being a field the port baked that c2's arm supplies. That measurement is now structural rather than a one-off: there is one source of a primary opcode, so the two derivations cannot drift apart silently. **Verified at this row's filing, against the image and not against the transcription**: 85 of 85 agree on mnemonic, base word and form (`verify_rows.py` check D); `ENCODE_OPCODES.txt` reproduces byte-identically from the pinned image (check E). **A count in the port's own prose was wrong and is corrected in the same commit as this row, comment-only**: `mop.rs` said *"the port emits **71** distinct opcodes and the other **589** are not transcribed"* and *"the port's 71 opcodes reach **24** of c2's **109** forms"*. It is **85** and **575** — a number the same file already had right in `EncodeParams::row`'s comment — over **34** distinct forms, out of the **104** distinct form values c2's table actually contains (`ref/P_ENCODE.md` §3). Wrong since the file's first commit; **no value moved and none could**, the counts appear only in doc comments. Board **#3643** |
 | **W-MOP-3** | **adoption** | **The operand FIELD PLACEMENTS — for each encode form, which slot goes to which bit range.** Twenty-seven field plans covering **35** form numbers, plus two compositions a `(slot, shift, width)` triple cannot express and which are therefore written out in code: form **68**'s doubly-split 64-bit rotate (`SH[4:0]` at 11 with `SH[5]` alone at bit 1; `MB` stored low-bit-first as `(MB & 0x1f) << 1 \| (MB >> 5)` based at bit 5) and form **55**'s operand-free `\| 0x02800000`. A bit layout, therefore adoption. Transcribed from [`ref/P_ENCODE.md`](ref/P_ENCODE.md) §5, read **arm by arm, 79/79**, by lane `w-read-r2`. | The arms, one per placement, all inside `code.c`: **`0x10bfa456`** (form 49/22 — RT 21, RA 16, RB 11), `0x10bfa478` (23 — the multiplier is in **C** at bit 6, not B), `0x10bfa4df` (25), **`0x10bfa53b`** (39 — **the destination is the RA field**, `P_ENCODE.md` §5.1's *"single most safety-critical fact on this page"*), `0x10bfa549` (36), `0x10bfa4c8` (47), `0x10bfa587` (38), `0x10bfa4ed` (51), `0x10bfa56b` (43), `0x10bfa685` (41), `0x10bfa6dc` / `0x10bfa719` (42 / 56), `0x10bfad76` (68), `0x10bfa7a3` (62 — SPR written **low half first**), **`0x10bfa2a5`** (55), `0x10bfa2b0` (4), `0x10bfa326` (5), `0x10bfa2c2` (1), `0x10bfa263` → `0x10bfa26c` (6 / 2), `0x10bfa34f` / `0x10bfa3ba` / `0x10bfa415` (14 / 15 / 16), `0x10bfa801` (64). **Four placements are cited at the COMPOSER the arm calls, not at the arm** — `0x10bf9e55` (D-form load, arm `0x10bfa667`, forms 21/45/46), `0x10bf9eb5` (D-form store, arm `0x10bfa676`, forms 27/58/71), `0x10bf9788` (X-form load, arm `0x10bfa17f`, forms 26/50), `0x10bf97c8` (X-form store, arm `0x10bfa1a1`, forms 28/61) — because `P_ENCODE.md` §5.5 shows those arms do nothing but `call <composer>; or ebx,eax`, so the placement is in the composer | `crates/c2-core/src/codegen/mop.rs` — `EncodeParams::C2` (the default the required-zero byte delta is graded at), the `plan` arms it selects, and `encode_op`'s in-code form-68 composition | adopted at **`227b90dd7`** (2026-08-22); row filed by `w-disclose`, board **#3642** | **`W-MID-3` IS THE SAME SUBJECT AT A DIFFERENT SCALE AND ITS OWN CLOSING SENTENCE IS WHY THIS ROW IS SEPARATE.** That row reads **2** of the 111 arms and says so in those words — *"2 of the 111 arms are read, and the relocation/label half of the emit seam is read NOT AT ALL"*. This row is **27 of the 79 distinct arms**, and the second half of that sentence still holds: **no relocation and no label placement is adopted here.** **A stated imprecision in the code, found by checking rather than by reading**: `plan`'s header says *"every arm below cites the address of the c2 arm it was read from"*, and for the four memory groups it cites the composer instead — one level **deeper**, and the level the field placement actually lives at, but not what the sentence says. `verify_rows.py` check F accounts for every one of the **32** c2 addresses `mop.rs` cites (23 arms, 4 composers, 4 tables, and form 2's arm) so this cannot rot the way `WB_INLINE_FINDINGS.md`'s four addresses did for eight days (**#3626**). **The decision-surface clause is satisfied by this being a table and not a constant** (`docs/rungs/README.md`): the placements are `FieldPlan` data, `EncodeParams::C2` is the default that reproduces c2 byte-exactly and is the only value any emit uses, and `with_field_width` / `without_field` make **#3379**'s four hand-patched mutations (`D` 16→12 bits, `RB` 5→4, drop `RA`, `SPR` unsplit — 99.38 % → 91.40 % / 92.32 % / 73.49 % / 95.66 % over 634,457 words) parameter values a permuter can search without a patch. **A non-default `EncodeParams` licenses no emit.** Board **#3644** |
+| **W-EXT-1** | **adoption** | **The `.ex` TYPE word is a 1/2/3-byte variable-length integer, discriminated by two bits of its first byte.** `b1 & 0x80 == 0` → the word is **one byte** (the form the port's `<tag> <kind> <LEB128 id>` grammar cannot parse at all); else `b1 & 0x40` → **three** bytes; else **two**. The trailing continuation run follows the word and is a separate thing from it. **What is adopted is that width rule, and only it** — a bit layout, therefore adoption. **Deliberately NOT adopted, stated so absence does not read as coverage:** the word's VALUE decomposition, the type class `v & 0xF`, the **size index `(v >> 9) & 7`**, and the fact that the trailing LEB skip is *globally gated* on `[DAT_10c472e8 + 0xcac]` — all four are read, all four are cited below, and none is transcribed into `crates/`. The port's own `.ex` width vocabulary in `crates/c2-il` is a **separate, black-box derivation from captures** and is not this. | **`0x10c1fe40`** (`FUN_10c1fe40`, 93 B, `ioin.c` — the word reader; its first branch is `test dl,dl` / `jns`, i.e. the `0x80` test, at `+0x0d`/`+0x0f`); `0x10b3d550` (its one call site, inside `FUN_10b3d546`, 202 B, `getattr.c` — the type reader), `0x10b3d5a6`–`0x10b3d5b4` (the gated skip), `0x10b3d5c1` (`shr ebx,9` / `and ebx,7` — the size index, read and not adopted), `0x10b3d5ea` (the store). Pre-drafted in [`WB_READER_FINDINGS.md`](WB_READER_FINDINGS.md) §5.3(3) by lane `wb-reader`, board **#1594** | `crates/c2-reference/tests/middle_interfaces.rs` — `ex_token_width`'s `type_len` closure | pre-drafted `2026-08-08`; **carried 2026-08-26** by `w-provaudit`, board **#3670**, in the same commit as the citation repair | **CARRIED EIGHTEEN DAYS LATE, AND THE DELAY IS THE FINDING `#3645` NAMES.** `middle_interfaces.rs:634` has cited *"DISCLOSURE W-EXT-1"* since `da5a620f3`, against a ledger that had no such row — the **first dead citation found in the `crates/` → ledger direction, and that direction had never been checked** (`#3631` graded only the reverse). **The three promotion conditions were registered in this lane's prereg BEFORE the check ran**, because `#3626` is the precedent against carrying a pre-draft on sight: `W-INLINE-1`'s pre-draft held **two wrong addresses in bold for eight days**. All three hold against the pinned image (sha256 `c80981c0…a66258`, verified at run time): `0x10c1fe40` is a function entry (93 B, `ioin.c`); the four `0x10b3d5*` addresses land inside **one** function, `FUN_10b3d546`; and the bytes at `0x10b3d5c1` are `c1 eb 09 83 e3 07` — `shr ebx,9` / `and ebx,7`, **byte-identical** to the claim. Instrument: `work/w-provaudit/verify_wext1.py`; evidence: `work/w-provaudit/wext1_verify.txt`. **Corroboration the condition did not ask for**: `FUN_10c1fe40`'s own first bytes are `a1 … 8a 11 41 53 89 08 84 d2 79 47` — load `b1`, then `test dl,dl` / `jns`, which is the `0x80` discriminator the port transcribes, taken straight off the entry point. **OBJ-CONFIRMED, and by a demonstration the corpus cannot produce**: §5.3(3)'s three cells over two TUs — `A6 43 8B 20` baseline → `26 43 8B 20` structure-broken → `26 C3 8B 20` byte-identical — which no `<tag><kind><LEB id>` model can generate. **The grey-zone alternative does not exist and `#1594` says exactly why**: the port's rule is correct on **every byte the 878-TU workload contains**, because no workload TU emits a one-byte type word. *A corpus cannot falsify a rule it never exercises*, so this is a case where black-box work is not merely more expensive but structurally unable to reach the fact |
 | **W-EXCLASS-1** | **adoption** | **The `.ex` operand-class table's ADDRESS — `0x10b25e48`, one class byte per opcode over `0x00`–`0xBF`.** c2's whole `.ex` operand grammar is this one 192-entry byte array: the class byte gives the operand shape, and therefore the token width, of every opcode at once. **What is adopted is the address and the indexing rule (`class = image[0x10b25e48 + opcode]`), and nothing else.** No entry is transcribed — the decoder reads the byte out of the pinned image at run time — and it handles exactly four classes (`0x00`, `0x01`, `0x02`, `0x18`, plus `0x0d`), returning `None` and **refusing** for every opcode outside its traced subset rather than guessing, which is what keeps a green from meaning *"it skipped what it did not know"*. That refusal is why the debt here is one address and not a table. | **`0x10b25e48`** (the table); **`0x10b3d626`** (`movzx eax,BYTE PTR [ecx+0x10b25e48]` — the reader, and *"the whole `.ex` operand grammar in one array"*). Enumerated in [`WB_READER_FINDINGS.md`](WB_READER_FINDINGS.md) §3.1, board **#1591** / **#1595** | `crates/c2-reference/tests/middle_interfaces.rs` — `EX_CLASS_TABLE` and `ex_token_width` | adopted at **`da5a620f3`** (lane `w-ildecode`); row filed by `w-disclose`, board **#3645** | **INSTRUMENT-ONLY, and unlike `W-MOP-*` that is not a hedge but a checkable property**: the only reader is a `tests/` file, the decoder pushes no `IlOp` and reaches no emit path and no refusal predicate. The port's own `.ex` width vocabulary in `crates/c2-il` is a **separate, black-box** derivation from captures and is not this. **Found by `scripts/provenance_census.py` on its first real run** — the smaller of the two holes **#3632** named, and the marker on the constant said *"NO DISCLOSURE ROW EXISTS FOR THIS ADDRESS"* in those words for the two days between the census landing and this row. That sentence is now false and the marker is corrected beside this row's commit by its owner, not here: `middle_interfaces.rs` is **outside this lane's fence**, so the stale marker text is reported (**#3645**) and not edited. **One thing this row does NOT license.** `WB_READER_FINDINGS.md` §3.1's table names **nine positions where the port's published width table is silent, guessed, or wrong**, three of them latent desyncs waiting in the corpus (§3.4). Registering the address does not adopt those nine, and no lane has: the class table is *read*, the port's widths are still *transcribed from captures*, and the two have never been reconciled opcode by opcode. That reconciliation is a lane, and it is not this one |
 
 > ### **2026-08-09 — `WB_MEMCPY_FINDINGS.md` §9's other three pre-drafted rows are NOT carried, and each has a reason.**
@@ -297,7 +298,14 @@ above this line changes. Board **#3629**–**#3634**.*
 
 **This ledger is the register of adoptions. It is not a measure of the port.**
 It answers *"which disassembly-derived facts entered `crates/`, and from what
-address"* — seventeen rows, exhaustively. It cannot answer the question the
+address"* — **22 rows**, exhaustively.
+<!-- COUNT[ledger-rows] = 22 — checked by scripts/prose_audit.py C3 on every
+     run. This sentence read "seventeen rows" while the table held 21, which is
+     #3643's defect class turned on the ledger itself: a false count inside a
+     provenance document, well-formed and uncounted. Found by prose_audit's
+     SELF-COUNT check, board #3668. Do not hand-edit the number without moving
+     the binding; the binding is what makes the next drift impossible. -->
+It cannot answer the question the
 project's **primary** goal is written in: *how much of each module of the port
 is understood, versus copied off observations of its output.* A row exists only
 where something was **read**; the fitted majority leaves no trace here at all,
@@ -328,6 +336,52 @@ denominator.
 for every population member lexically inside the block it sits in; an item's own
 marker always wins over the block it sits in. Both are counted **per constant**,
 so the block form saves lines and never saves a number.
+
+### A MARKER INSIDE BACKTICKS IS A MENTION AND IS NOT COUNTED
+
+*Added 2026-08-26 by lane `w-provaudit`, board **#3669**, from **#3641**.*
+
+    PROV[R] …          a MARK. Counted.
+    `PROV[R]`          a MENTION of a mark. Not counted, by anything.
+
+The `PROV` prefix answers *"is this token a marker or an array index"* — that
+is what it was introduced for. It does not answer **"is this token a marker or
+a discussion OF one"**, and that is a live defect, not a hypothetical: board
+`#3641` measured prose about mark letters moving the neighbouring instrument's
+agreement census **9/28 → 13/34**, from four prose sites, **one of which was
+the sentence explicitly warning against the hazard**.
+
+So anything that wants to *talk about* a marker — this section, a rung, a
+board row, a module doc explaining the convention — **backticks it, and is
+silent to the census**. This paragraph contains six such mentions and moves
+nothing.
+
+**The cost was measured before the rule was adopted, and proved rather than
+asserted.** At tree `0dcfca959` `crates/` carried **649** `PROV`/`PROV-BLOCK`
+tokens producing the **777** tagged constants and **6** rule marks, and **0 of
+the 649 were backticked** — so every one of the 777 counts identically after
+the change. `provenance_census.py --since 0dcfca959` reports **+0 on all six
+classes**, `→tag 0 / →untag 0 / reclass 0 / +new 0 / -gone 0` on every module,
+decomposition identity holding 6 of 6
+(`work/w-provaudit/census_since_markre.txt`). The `--self-test` carries the
+control in both directions: a backticked marker beside a bare one counts 1 of
+2, and un-backticking it moves the count to 2 of 2.
+
+> **THE RULE IS NOT TRANSFERABLE TO THE OTHER COUNTED SURFACE, and the
+> measurement is the reason.** `crates/c2-harness/src/subsys.rs::count_marks`
+> counts literal `[R]`/`[O]`/`[I]` on the ten [`ref/P_*.md`](ref/) subsystem
+> pages — the census `#3641` actually moved. Those pages write **481 of their
+> 488 evidence marks in backticks**, so adopting the same rule there would
+> **zero** that census rather than clean it. Position does not separate them
+> either: [`ref/P_ENCODE.md`](ref/P_ENCODE.md), the page `#3641` was found on,
+> carries **0** marks in table rows and **28** in prose.
+>
+> **So on that surface a page's agreement cell still moves when a lane amends
+> its prose, and nothing can see it.** The only convention that would work
+> there is a **distinct token** rather than a delimiter — a migration of every
+> mark on ten pages, which is a real lane with a real price and is not this
+> one. Measured and reported by `scripts/prose_audit.py`'s C5 surface-2 table;
+> the per-page numbers print on every run.
 
 The vocabulary **extends** [`ref/README.md`](ref/README.md) §2's legend — the
 same `[R]` and `[O]` the whitebox pages already carry, so a reader does not
@@ -484,25 +538,107 @@ adoption decision and this lane annotates provenance rather than changing it.
 > against copying a pre-draft on sight — `W-INLINE-1`'s pre-draft carried two
 > wrong addresses **in bold** for eight days — and because the citing file is
 > outside this lane's fence. Board **#3645**.
+>
+> > ### **2026-08-26, same day, third lane — `W-EXT-1` IS NOW CARRIED, and the paragraph above stays as written because it was right when it was written.**
+> >
+> > `w-provaudit` (decision 17, board **#3670**) promoted it, and honoured
+> > `#3626` rather than waving at it: **the three promotion conditions were
+> > registered in that lane's prereg before the check ran**, and the check is a
+> > program against the pinned image, not a re-reading of the pre-draft.
+> > `0x10c1fe40` is a function entry (93 B, `ioin.c`); the four `0x10b3d5*`
+> > addresses land inside **one** function, `FUN_10b3d546`; and the bytes at
+> > `0x10b3d5c1` are `c1 eb 09 83 e3 07` — `shr ebx,9` / `and ebx,7`,
+> > byte-identical to the claim. `work/w-provaudit/verify_wext1.py`,
+> > evidence `wext1_verify.txt`.
+> >
+> > **Both repairs `#3645` asked for landed in one commit**, as that row
+> > required: the row, and the two stale sentences in
+> > `crates/c2-reference/tests/middle_interfaces.rs` (`W-EXT-1`'s dead
+> > attribution at the `type_len` closure, and `EX_CLASS_TABLE`'s *"NO
+> > DISCLOSURE ROW EXISTS FOR THIS ADDRESS"*, which `W-EXCLASS-1` had already
+> > falsified).
+> >
+> > **And the direction is now checked by a program rather than by a lane.**
+> > [`scripts/prose_audit.py`](../../scripts/prose_audit.py) check **C1** takes
+> > every `W-<NAME>-<N>` token in the tree and refuses one that is *attributed*
+> > to this ledger and is not in it; check **C2** refuses an absence claim the
+> > ledger falsifies. Both are on the tree at 0 findings as of this commit.
+> > `#3631` checked ledger → `crates/` once, by hand; this checks both
+> > directions on every run.
 
 ## Running it
 
     scripts/provenance_census.py                      per-module counts + denominators + tree sha
     scripts/provenance_census.py --by-file            per-file rows
     scripts/provenance_census.py --list-untagged M    name the residue of module M
-    scripts/provenance_census.py --self-test          planted fixture, exact counts, and three
+    scripts/provenance_census.py --since <sha>        what CHANGED per module between two trees
+    scripts/provenance_census.py --self-test          planted fixture, exact counts, four
                                                       demonstrated reds
 
+## And the second instrument — is the CLAIM inside the marker TRUE?
+
+*Added 2026-08-26 by lane `w-provaudit`, board **#3667**.*
+
+    scripts/prose_audit.py                            audit the tree; 0 = no findings
+    scripts/prose_audit.py --verbose                  also print every candidate considered
+    scripts/prose_audit.py --strict                   dated records count as findings too
+    scripts/prose_audit.py --self-test                15 sections, planted fixtures, both directions
+
+**The census can say whether a constant is TAGGED. It cannot say whether the
+tag is TRUE**, and those are different questions. Board `#3643`: a `PROV[R]`
+marker in `crates/c2-core/src/codegen/mop.rs` said the port emits *"71 distinct
+opcodes … the other 589 … 24 of c2's 109 forms"* where the truth is **85 / 575
+/ 34 of 104**. It was well-formed, cited, counted as a tag, wrong since the
+file's first commit, and copied forward into a board row and into this file.
+
+**Every other control this repo owns catches a FABRICATED NUMBER. This defect
+class fabricates none** — no value moved and none could, because every one of
+those figures is a doc comment and the identity diff is 0 over 21 rows by
+construction. So no existing control could be widened to reach it.
+
+`prose_audit.py` grades six shapes that CAN go red — `C1` a `W-<NAME>-<N>`
+token attributed to this ledger that is not in it; `C2` an absence claim the
+ledger falsifies; `C3` a document miscounting a table it itself contains; `C4`
+a prose number bound by `COUNT[<recipe>]` to a population the tool can
+recount; `C5` a counted mark in discussion context; `C6` an `Adopted into`
+path that no longer resolves — **and one inventory, `I7`, that cannot: the
+numeric claims on provenance surfaces that none of the six can reach.**
+
+> **`I7` is the honest half and it is printed on every run.** An audit whose
+> coverage is unstated will be read as total, which is trap 5 pointed at an
+> auditor instead of at a gate. The default state of a prose number in this
+> tree is **unreachable**; it becomes checkable only when somebody binds it.
+> The tool also names, by kind rather than by count, the four things it can
+> never see: a claim of fact about c2's behaviour (the image and the byte judge
+> grade those), whether a cited address holds the instruction claimed
+> (`addrcheck.py`'s question), whether a bound count is bound to the *right*
+> population, and `file.md:NNN` staleness (`doc_cite_audit.sh`'s stated limit).
+
 **On `#1406` (evidence must run under `cargo test` or `scripts/gate.sh`), and
-why this one does not.** The census is a **python** script, so it cannot live in
-the std-only workspace; the accepted shape for that is a committed instrument
-carrying its own self-test, and the precedent is
+why neither of these does.** Both are **python** scripts, so neither can live
+in the std-only workspace; the accepted shape for that is a committed
+instrument carrying its own self-test, and the precedent is
 `scripts/gate_identity_diff.sh --self-test`, which grades every `crates/` merge
-in this repo and is likewise not under `cargo test`. The lane that built this
-was fenced to **comment-only** edits in `crates/`, so wiring a Rust test would
-have violated its own required-zero constraint. **Named and not taken:** a
-`crates/*/tests/provenance.rs` that shells out to the script and asserts the
-per-module rows, which needs a lane that owns a `crates/` test file.
+in this repo and is likewise not under `cargo test`.
+
+> **THREE lanes have now been fenced out of closing it, and the third one owned
+> the script.** `w-provaudit` was dispatched with `#1406` explicitly offered —
+> *"you own the script, so you are the first lane that could"* — and **owning
+> the script turns out not to be the blocker.** The blocker is that the test
+> has to live in `crates/`, and all three lanes were fenced to **comment-only**
+> edits there. A `crates/*/tests/provenance.rs` is a new file, not a comment.
+> A `scripts/gate.sh` row is the other shape and `gate.sh` was in no lane's
+> fence either.
+>
+> **So the price is now known and it is not "a lane that owns a `crates/` test
+> file" in general — it is one hour of work behind a fence that has never been
+> granted.** The whole change is: one new `crates/c2-harness/tests/provenance.rs`
+> that shells out to both scripts' `--self-test`, asserts exit 0, and skips
+> cleanly when `python3` is absent (the `SKIP: toolchain absent` idiom, so it
+> cannot become a portability failure); plus the `gate.sh` row if a gate
+> verdict is wanted rather than a test. **It needs a lane with write access to
+> one `crates/` test file and to `scripts/gate.sh`, and it will keep not
+> happening until one is dispatched with exactly that fence.** Board **#3672**.
 
 **The control was watched failing before it was trusted** (`#3336`; this repo
 has shipped a `--check` flag that could not fail). With `MARK_RE` broken so it
