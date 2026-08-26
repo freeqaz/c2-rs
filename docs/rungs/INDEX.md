@@ -319,6 +319,7 @@ the header block this table is read from.
 | 2026-08-26 | w-disclose | [w-disclose](2026-08-26-w-disclose.md) | 9 | +0 |
 | 2026-08-26 | w-encmap | [w-encmap](2026-08-26-w-encmap.md) | 6 | +0 (no acceptance predicate moved, no emit widened, no `crates/c2-core` byte changed) |
 | 2026-08-26 | w-inlmetric | [w-inlmetric](2026-08-26-w-inlmetric.md) | 20 | 707728/2417794 → 707728/2417794 (29.27% → 29.27%), +0 |
+| 2026-08-26 | w-mopfold | [w-mopfold](2026-08-26-w-mopfold.md) | 5 | +0 (no acceptance predicate moved, no emit widened, no `.text` |
 | 2026-08-26 | w-opclass | [w-opclass](2026-08-26-w-opclass.md) | 10 | +0 (no `crates/` byte changed) |
 | 2026-08-26 | w-perfstep | [w-perfstep](2026-08-26-w-perfstep.md) | 16 | 707728/2417794 → 707728/2417794 (29.27% → 29.27%), +0 |
 | 2026-08-26 | w-price4a | [w-price4a](2026-08-26-w-price4a.md) | 10 | +0 — no `crates/`, `scripts/` or `fixtures/` file is written; |
