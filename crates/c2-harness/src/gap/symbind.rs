@@ -335,6 +335,39 @@ pub(super) fn measure(
                             rc.verdict.key()
                         ))
                         .or_insert(0) += 1;
+                    // **WHAT THE RESIDUE BODIES ACTUALLY ARE.**
+                    //
+                    // Added after this module's 12-TU pilot run, and the pilot
+                    // is why: it showed the residue keyed
+                    // `callee-unresolved-tail-call:eof` on **both** sides, i.e.
+                    // the relaxation moved nothing for those bodies, so the
+                    // refusal is not a name — and the two-key row cannot say
+                    // what it *is*. `FnCensus::dispatch` can: it names which
+                    // arm of the body-dispatch ladder claimed the body, is
+                    // recorded for every row in class or not, and is
+                    // decode-only (`census.rs`'s own doc: *"nothing reads this
+                    // field except the report"*).
+                    //
+                    // The strict key is in the row because a dispatch arm on
+                    // its own is not attributable to a refusal.
+                    *res.fn_symbind
+                        .entry(format!(
+                            "symbind-residue-dispatch|{}|{}",
+                            c.verdict.key(),
+                            c.dispatch
+                        ))
+                        .or_insert(0) += 1;
+                    // …and the frame class, because a body filed under a key
+                    // naming a CALLEE that issues **no call at all** is the
+                    // sharpest possible statement that the key is misnamed for
+                    // that row. `calls-0` is that cell.
+                    *res.fn_symbind
+                        .entry(format!(
+                            "symbind-residue-frame|{}|{}",
+                            c.verdict.key(),
+                            c.frame_class()
+                        ))
+                        .or_insert(0) += 1;
                 }
             }
             Cell::Fused => {
@@ -390,6 +423,15 @@ pub(super) fn measure(
                         .entry("symbind-fused-model".into())
                         .or_insert(0) += 1;
                 }
+                // The same two axes the residue carries, so the halves are
+                // comparable: which recognizer arm claimed the body, and
+                // whether it issues a call at all.
+                *res.fn_symbind
+                    .entry(format!("symbind-fused-dispatch|{}", c.dispatch))
+                    .or_insert(0) += 1;
+                *res.fn_symbind
+                    .entry(format!("symbind-fused-frameclass|{}", c.frame_class()))
+                    .or_insert(0) += 1;
                 // Crossed with the EMITTED census — *"for a body c2 never
                 // emits, in class is a parser-only claim no byte compare has
                 // ever graded or ever can"* (`FnCensus::emit_name`'s own doc).

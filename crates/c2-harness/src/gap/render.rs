@@ -406,6 +406,31 @@ fn render_symbind(report: &GapReport) {
             "symbind-residue|",
             12,
         ),
+        (
+            "…and WHAT THOSE RESIDUE BODIES ARE — the strict key x the body-dispatch arm that \
+             claimed them (`FnCensus::dispatch`, decode-only). A key naming a CALLEE whose rows \
+             sit under an arm that reads no callee is a MISNAMED key, not a missing symbol",
+            "symbind-residue-dispatch|",
+            16,
+        ),
+        (
+            "…and their FRAME CLASS. **`calls-0` under a `callee-unresolved-*` key is a body \
+             that issues NO CALL AT ALL** — the sharpest available statement that the key is \
+             misnamed for that row",
+            "symbind-residue-frame|",
+            12,
+        ),
+        (
+            "the FUSED population's dispatch arm, printed beside the residue's so the two \
+             halves are comparable",
+            "symbind-fused-dispatch|",
+            12,
+        ),
+        (
+            "…and the fused population's frame class",
+            "symbind-fused-frameclass|",
+            4,
+        ),
     ] {
         let rows = report.symbind_rows_by_name(prefix);
         println!(
