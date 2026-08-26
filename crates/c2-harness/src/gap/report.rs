@@ -444,6 +444,38 @@ impl GapReport {
         by.into_iter().collect()
     }
 
+    /// The same read-out over [`TuResult::fn_symbind`] — the SYMBOL BINDING map
+    /// (lane `w-symbind`). A separate accessor because it is a separate map,
+    /// and the maps are separate for [`Self::decode_total`]'s reason: a
+    /// `symbind-*|IN-CLASS`-shaped row landing in a swept map is precisely how
+    /// `cflow-residue-inclass-offclass` more than doubled with nothing in the
+    /// diff to explain it.
+    pub fn symbind_total(&self, key: &str) -> usize {
+        self.results
+            .iter()
+            .map(|r| r.fn_symbind.get(key).copied().unwrap_or(0))
+            .sum()
+    }
+
+    /// Every `fn_symbind` row whose key starts with `prefix`, aggregated across
+    /// the scan and returned **sorted by key NAME**.
+    ///
+    /// **Never by mass**, for [`Self::decode_rows_by_name`]'s reason: the rows
+    /// this serves are refusal keys, and the standing rule against dispatching
+    /// off a blocked-key size ranking has bound five times (`#3505`). A caller
+    /// that wants a ranking has to write the sort itself, in the open.
+    pub fn symbind_rows_by_name(&self, prefix: &str) -> Vec<(String, usize)> {
+        let mut by: std::collections::BTreeMap<String, usize> = Default::default();
+        for r in &self.results {
+            for (k, n) in &r.fn_symbind {
+                if let Some(rest) = k.strip_prefix(prefix) {
+                    *by.entry(rest.to_string()).or_default() += n;
+                }
+            }
+        }
+        by.into_iter().collect()
+    }
+
     /// **The read-out**: (in class ∩ emitted, emitted). The ratio is what
     /// `docs/ROADMAP.md` §8.2 ranks the plan by, and it is a **floor** — every
     /// emitted symbol the binding could not claim is residue, never a numerator.
