@@ -1,0 +1,49 @@
+---- self-test: baseline ----
+verify_rows.py -- DISCLOSURE.md has 17 rows in the adopted-findings table
+
+A  LEDGER -> CRATES  (every cited site is live)
+  PASS  16 rows name a code path                       16 live, 0 dead (13 of them name a crates/ path -- #3631's count)
+
+B  CRATES -> LEDGER  (every citation names a real row)
+  FAIL  cites a row that is NOT in the ledger: W-EXT-1 crates/c2-reference/tests/middle_interfaces.rs:634
+
+C  COVERAGE  (every [R] constant in codegen/ reaches a row)
+  FAIL  [R] constant not covered by a row              crates/c2-core/src/codegen/mop.rs:120 ADD cites W-MID-1, which does not name this file
+  FAIL  [R] constant not covered by a row              crates/c2-core/src/codegen/mop.rs:121 ADDE cites W-MID-1, which does not name this file
+  FAIL  [R] constant not covered by a row              crates/c2-core/src/codegen/mop.rs:122 SUBF cites W-MID-1, which does not name this file
+  FAIL  [R] constant not covered by a row              crates/c2-core/src/codegen/mop.rs:123 SUBFC cites W-MID-1, which does not name this file
+  FAIL  ... and 84 more                                (same class)
+        codegen/ [R] constants: 0 of 88 covered
+
+D  VALUES  (OPCODES vs the pinned image's own tables)
+  PASS  OPCODES vs c2's tables                         85 of 85 rows agree on mnemonic+base+form; MAX_C2_OPCODE = 0x294
+E  TRANSCRIPTION  (ENCODE_OPCODES.txt reproduces from the image)
+  PASS  ENCODE_OPCODES.txt                             byte-identical to a live dump, 660 rows
+F  ADDRESSES  (every c2 address cited in mop.rs is accounted for)
+  PASS  mop.rs addresses                               32 cited, all accounted for (23 arms, 4 composers, 4 tables)
+
+VERDICT: RED (6 failures)
+baseline: 6 failures
+
+
+---- self-test: planted defect A in docs/whitebox/DISCLOSURE.md ----
+plant A CAUGHT by its own check (+1 failure line(s)):
+    FAIL  W-OBJPLAN-1                                    path missing: crates/c2-core/src/plan/mod_NOT_A_FILE.rs
+
+---- self-test: planted defect B in crates/c2-core/src/codegen/mop.rs ----
+plant B CAUGHT by its own check (+5 failure line(s)):
+    FAIL  cites a row that is NOT in the ledger: W-BOGUS-9 crates/c2-core/src/codegen/mop.rs:100
+
+---- self-test: planted defect D in crates/c2-core/src/codegen/mop.rs ----
+plant D CAUGHT by its own check (+1 failure line(s)):
+    FAIL  value disagrees with the image                 ADD: base 7c000215, c2 says 7c000214
+
+---- self-test: planted defect E in docs/whitebox/ref/ENCODE_OPCODES.txt ----
+plant E CAUGHT by its own check (+1 failure line(s)):
+    FAIL  ENCODE_OPCODES.txt                             DIFFERS from a live dump of the pinned image
+
+---- self-test: planted defect F in crates/c2-core/src/codegen/mop.rs ----
+plant F CAUGHT by its own check (+1 failure line(s)):
+    FAIL  address cited by mop.rs is not a c2 table, arm or composer 10bfa999
+
+self-test PASSED

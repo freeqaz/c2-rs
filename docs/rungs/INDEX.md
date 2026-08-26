@@ -316,6 +316,7 @@ the header block this table is read from.
 | 2026-08-25 | w-relsite | [w-relsite](2026-08-25-w-relsite.md) | 10 | +0 (no `crates/` byte changed) |
 | 2026-08-25 | w-unfuse | [w-unfuse](2026-08-25-w-unfuse.md) | 20 | +0 — no census key moves, and that is checked per SYMBOL and not by subtracting totals |
 | 2026-08-26 | w-atend | [w-atend](2026-08-26-w-atend.md) | 27 | +0 — no census key moves, checked per SYMBOL over 2,417,794 rows and not by subtracting totals |
+| 2026-08-26 | w-disclose | [w-disclose](2026-08-26-w-disclose.md) | 9 | +0 |
 | 2026-08-26 | w-encmap | [w-encmap](2026-08-26-w-encmap.md) | 6 | +0 (no acceptance predicate moved, no emit widened, no `crates/c2-core` byte changed) |
 | 2026-08-26 | w-inlmetric | [w-inlmetric](2026-08-26-w-inlmetric.md) | 20 | 707728/2417794 → 707728/2417794 (29.27% → 29.27%), +0 |
 | 2026-08-26 | w-opclass | [w-opclass](2026-08-26-w-opclass.md) | 10 | +0 (no `crates/` byte changed) |

@@ -1,0 +1,20 @@
+verify_rows.py -- DISCLOSURE.md has 21 rows in the adopted-findings table
+
+A  LEDGER -> CRATES  (every cited site is live)
+  PASS  20 rows name a code path                       20 live, 0 dead (17 of them name a crates/ path -- #3631's count)
+
+B  CRATES -> LEDGER  (every citation names a real row)
+  FAIL  cites a row that is NOT in the ledger: W-EXT-1 crates/c2-reference/tests/middle_interfaces.rs:634
+
+C  COVERAGE  (every [R] constant in codegen/ reaches a row)
+        codegen/ [R] constants: 88 of 88 covered
+  PASS  codegen/ [R] constants                         88 of 88 reach a row that names their file
+
+D  VALUES  (OPCODES vs the pinned image's own tables)
+  PASS  OPCODES vs c2's tables                         85 of 85 rows agree on mnemonic+base+form; MAX_C2_OPCODE = 0x294
+E  TRANSCRIPTION  (ENCODE_OPCODES.txt reproduces from the image)
+  PASS  ENCODE_OPCODES.txt                             byte-identical to a live dump, 660 rows
+F  ADDRESSES  (every c2 address cited in mop.rs is accounted for)
+  PASS  mop.rs addresses                               36 cited, all accounted for (27 arms, 4 composers, 4 tables)
+
+VERDICT: RED (1 failures)
