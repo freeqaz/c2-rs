@@ -1,0 +1,28 @@
+TU pairs: 100
+
+=== leaf-term, leaf from the /O1 obj   graded callees: 8936   dropped (not in both objs): 0
+    accuracy 8565/8936 = 0.9585
+      predicted DECLINED     observed DECLINED       2300
+      predicted DECLINED     observed INLINED-ALL       8
+      predicted INLINED-ALL  observed DECLINED        363
+      predicted INLINED-ALL  observed INLINED-ALL    6265
+      INLINED-ALL: observed 6273  predicted 6628  precision 0.9452  recall 0.9987
+      MAJORITY-CLASS BASELINE 6273/8936 = 0.7020
+
+=== NO leaf-term (FROZEN by addendum 2)   graded callees: 8936   dropped (not in both objs): 0
+    accuracy 8648/8936 = 0.9678
+      predicted DECLINED     observed DECLINED       2457
+      predicted DECLINED     observed INLINED-ALL      82
+      predicted INLINED-ALL  observed DECLINED        206
+      predicted INLINED-ALL  observed INLINED-ALL    6191
+      INLINED-ALL: observed 6273  predicted 6397  precision 0.9678  recall 0.9869
+      MAJORITY-CLASS BASELINE 6273/8936 = 0.7020
+
+=== leaf-term, leaf from the /Ob0 obj (source-leaf)   graded callees: 8936   dropped (not in both objs): 0
+    accuracy 8620/8936 = 0.9646
+      predicted DECLINED     observed DECLINED       2429
+      predicted DECLINED     observed INLINED-ALL      82
+      predicted INLINED-ALL  observed DECLINED        234
+      predicted INLINED-ALL  observed INLINED-ALL    6191
+      INLINED-ALL: observed 6273  predicted 6425  precision 0.9636  recall 0.9869
+      MAJORITY-CLASS BASELINE 6273/8936 = 0.7020
