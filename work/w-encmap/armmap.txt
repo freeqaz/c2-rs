@@ -1,0 +1,31 @@
+MAPPED 27 of 79 arms
+
+| c2 arm | form(s) | c2 opcodes | port field plan | port mnemonics through it |
+|---|---|---:|---|---|
+| `10bfa456` | 22,49 | 77 | `mop.rs:673` | 14: `add`, `adde`, `divw`, `divwu`, `fadd`, `fadds`, `fdiv`, `fdivs`, `fsub` … |
+| `10bfa4df` | 25 | 28 | `mop.rs:679` | 2: `fmr`, `frsp` |
+| `10bfa53b` | 39 | 28 | `mop.rs:685` | 10: `and`, `andc`, `eqv`, `or`, `or.`, `orc`, `slw`, `sraw`, `srw` … |
+| `10bfa1a1` | 28,61 | 23 | `mop.rs:731` | 2: `stdx`, `stfsx` |
+| `10bfa17f` | 26,50 | 22 | `mop.rs:730` | 3: `lfsx`, `lhzx`, `lwzx` |
+| `10bfa4c8` | 47 | 20 | `mop.rs:691` | 3: `addze`, `neg`, `subfze` |
+| `10bfa667` | 21,45,46 | 16 | `mop.rs:720/727` | 7: `lbz`, `lbzu`, `ld`, `lfd`, `lfs`, `lhz`, `lwz` |
+| `10bfa676` | 27,58,71 | 13 | `mop.rs:721/728` | 10: `stb`, `std`, `stdu`, `stfd`, `stfs`, `stfsu`, `sth`, `sthu`, `stw` … |
+| `10bfa587` | 38 | 9 | `mop.rs:693` | 4: `cntlzw`, `extsb`, `extsb.`, `extsh` |
+| `10bfad76` | 68 (+69 not reached) | 8 | `mop.rs:715` | 2: `rldicl`, `rldimi` |
+| `10bfa56b` | 43 | 6 | `mop.rs:698` | 2: `ori`, `xori` |
+| `10bfa4ed` | 51 | 6 | `mop.rs:695` | 6: `addi`, `addic`, `addic.`, `addis`, `mulli`, `subfic` |
+| `10bfa2a5` | 55 (+3 not reached) | 5 | `mop.rs:741` | 2: `bctrl`, `blr` |
+| `10bfa34f` | 14 (+12 not reached) | 4 | `mop.rs:758` | 2: `cmp`, `cmpl` |
+| `10bfa2b0` | 4 | 4 | `mop.rs:743` | 2: `bcctr`, `bclr` |
+| `10bfa549` | 36 | 4 | `mop.rs:689` | 1: `mr` |
+| `10bfa326` | 5 | 4 | `mop.rs:746` | 1: `bc` |
+| `10bfa478` | 23 | 4 | `mop.rs:677` | 2: `fmul`, `fmuls` |
+| `10bfa6dc` | 42 | 2 | `mop.rs:703` | 2: `rlwinm`, `rlwinm.` |
+| `10bfa801` | 64 | 2 | `mop.rs:761` | 1: `twi` |
+| `10bfa2c2` | 1 | 2 | `mop.rs:751` | 1: `bdnz` |
+| `10bfa263` | 6 | 2 | `mop.rs:754` | 1: `b` |
+| `10bfa685` | 41 | 2 | `mop.rs:700` | 1: `srawi` |
+| `10bfa719` | 56 | 2 | `mop.rs:703` | 1: `rlwimi` |
+| `10bfa415` | 16 | 1 | `mop.rs:759` | 1: `cmpli` |
+| `10bfa7a3` | 62 | 1 | `mop.rs:736` | 1: `mtspr` |
+| `10bfa3ba` | 15 | 1 | `mop.rs:759` | 1: `cmpi` |
