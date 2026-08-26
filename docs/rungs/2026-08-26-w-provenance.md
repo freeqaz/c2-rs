@@ -246,7 +246,8 @@ is empty at every commit of this lane.
 | `scripts/board_audit.sh` | 0 cited-but-absent · 0 unresolved anchors · 0 duplicates |
 | `cargo build -p c2-core -p c2-reference` | clean |
 
-**The base table** is `work/coordinator/gatebase/base_d5c73a728.txt`, and it is
+**The base table** is `work/coordinator/gatebase/base_d5c73a728.txt`, read in
+place and not copied, and it is
 a valid base for this lane because `crates/`, `scripts/` and `fixtures/` are
 **byte-identical** between `d5c73a728` and this lane's base `6c753ead0` —
 verified with `git diff --stat`, not assumed; the gate's graded-tree hash
@@ -277,10 +278,19 @@ qualifier's job.
 **Identity diff — required-zero, over the enumerated 21 rows:**
 
 ```
-$ scripts/gate_identity_diff.sh work/w-provenance/gate_base.txt work/w-provenance/gate_tip.out
+$ scripts/gate_identity_diff.sh work/coordinator/gatebase/base_d5c73a728.txt \
+                                work/w-provenance/gate_tip.out
 count-bearing rows: 21 base, 21 tip (enumerated, not asserted)
 IDENTITY DIFF: 0 lines over 21 rows — required-zero byte delta HOLDS
 ```
+
+> The tip transcript `work/w-provenance/gate_tip.out` has its repo and
+> worktree prefixes rewritten to `<REPO>`/`<WORKTREE>` — no absolute machine
+> path is committed by this lane (`#3615`'s unambiguous half). The rewrite
+> touches no count-bearing row, and the diff above was re-run against the
+> sanitized file to prove it. The base is read in place from the
+> coordinator's own `gatebase/` rather than copied, so there is one copy of
+> it in the tree and not two.
 
 Every row identical: eighteen mode lanes at `391/391`, `expr-sweep`
 `19556/19556` (19,460 graded), `mode-cross` `90812/90812` (90,424 graded),
