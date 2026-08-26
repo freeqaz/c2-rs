@@ -1,0 +1,42 @@
+successor filter: 95 handled opcodes, derived from dump_ilarms.py
+workload entries: 13053 cache entries over 870 distinct `src/…` sources
+distinct `.ex` streams scanned: 3036   (0 unreadable)
+total `.ex` bytes:              2978205912
+
+raw `43 42` occurrences (UPPER BOUND — see the module doc): 762191
+  ... byte at +4 opens a handled token (narrow-consistent):  757248
+  ... byte at +3 has bit 7 set (would be a WIDE varU):       238
+      ... and the byte at +6 opens a handled token:          185
+      ... and +4 does NOT — readable ONLY as a wide site:    2
+
+=> WITNESSED at the upper bound: there are sites the narrow reading
+   cannot explain.  A token walk is needed to confirm the position.
+
+sources with >= 1 raw site: 834 of 870
+the ten largest, by site count (a SIZE ranking and labelled as one —
+it ranks nothing to work on, it says where a walk would look):
+    5336  src/link_glue.cpp   (wide 0)
+    4706  src/lazer/game/BustAMovePanel.cpp   (wide 0)
+    4692  src/lazer/game/Game.cpp   (wide 0)
+    4686  src/lazer/meta_ham/HamUI.cpp   (wide 0)
+    4482  src/lazer/meta_ham/PracticeChoosePanel.cpp   (wide 0)
+    4428  src/lazer/game/PresenceMgr.cpp   (wide 0)
+    4410  src/lazer/meta_ham/MetaPanel.cpp   (wide 12)
+    4340  src/system/hamobj/HamDirector.cpp   (wide 0)
+    4302  src/lazer/meta_ham/CampaignPerformer.cpp   (wide 0)
+    4272  src/lazer/game/GamePanel.cpp   (wide 0)
+
+== the cachefmt second-implementation control ==
+this reader:
+  .ex  1494120
+  .gl  763946
+  .sy  374969
+  .in  76787
+  .db  2033437
+c2rs cache show:
+  .ex      1494120 bytes
+  .gl      763946 bytes
+  .sy      374969 bytes
+  .in      76787 bytes
+  .db      2033437 bytes
+(the two blocks must agree line for line)
