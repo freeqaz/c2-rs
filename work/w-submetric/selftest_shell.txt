@@ -1,0 +1,6 @@
+  control: the real index verifies                     -> exit 0, 83 keys
+  RED as required: a function moved out of the inliner band
+  RED as required: P_EH.md's coverage line edited
+  RED as required: a subsystem dropped from SUBSYS.md §1
+SELF-TEST PASS: the real index verifies; all three corruptions go RED
+  through the check that owns them, and each mutation was proved applied.

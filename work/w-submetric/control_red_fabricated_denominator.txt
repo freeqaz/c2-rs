@@ -1,0 +1,45 @@
+
+running 10 tests
+subsys::tests::control_a_fabricated_denominator_is_caught --- FAILED
+.. 3/10
+subsys::tests::every_denominator_reproduces_on_this_tree --- FAILED
+.... 8/10
+subsys::tests::keys_are_namespaced_and_name_sorted --- FAILED
+subsys::tests::no_strength_prints_a_bare_zero --- FAILED
+
+failures:
+
+---- subsys::tests::control_a_fabricated_denominator_is_caught stdout ----
+
+thread 'subsys::tests::control_a_fabricated_denominator_is_caught' (787253) panicked at crates/c2-harness/src/subsys.rs:1759:9:
+assertion `left == right` failed
+  left: 94
+ right: 93
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- subsys::tests::every_denominator_reproduces_on_this_tree stdout ----
+
+thread 'subsys::tests::every_denominator_reproduces_on_this_tree' (787256) panicked at crates/c2-harness/src/subsys.rs:1741:9:
+per-subsystem metric table no longer reproduces:
+  inline: band denominator DOES NOT REPRODUCE — table says 94, FUNCS.tsv gives 93 over 1 band(s)
+
+---- subsys::tests::keys_are_namespaced_and_name_sorted stdout ----
+
+thread 'subsys::tests::keys_are_namespaced_and_name_sorted' (787257) panicked at crates/c2-harness/src/subsys.rs:1920:9:
+assertion failed: k.iter().any(|l| l == "verify-failures 0")
+
+---- subsys::tests::no_strength_prints_a_bare_zero stdout ----
+
+thread 'subsys::tests::no_strength_prints_a_bare_zero' (787258) panicked at crates/c2-harness/src/subsys.rs:1892:9:
+["inline: band denominator DOES NOT REPRODUCE — table says 94, FUNCS.tsv gives 93 over 1 band(s)"]
+
+
+failures:
+    subsys::tests::control_a_fabricated_denominator_is_caught
+    subsys::tests::every_denominator_reproduces_on_this_tree
+    subsys::tests::keys_are_namespaced_and_name_sorted
+    subsys::tests::no_strength_prints_a_bare_zero
+
+test result: FAILED. 6 passed; 4 failed; 0 ignored; 0 measured; 279 filtered out; finished in 0.28s
+
+error: test failed, to rerun pass `-p c2-harness --lib`
