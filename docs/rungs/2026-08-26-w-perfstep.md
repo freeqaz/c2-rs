@@ -232,8 +232,8 @@ lane editing it would move a stamp:
 
 | lane | result |
 |---|---|
-| `scripts/gate.sh --jobs 16 --require-graded` | see §8 — verdict line quoted, never the exit code |
-| `scripts/gate_identity_diff.sh` vs `base_c13cebbca.txt` | see §8, with its row denominator |
+| `scripts/gate.sh --jobs 16 --require-graded` | **`GATE: PASS (HATCH-RED REFUSED)`** — the verdict line, never the exit code (§8.1) |
+| `scripts/gate_identity_diff.sh` vs `base_c13cebbca.txt` | **`IDENTITY DIFF: 0 lines over 21 rows`**, `21 base, 21 tip` (§8.2) |
 | `scripts/expr_sweep.sh` | `checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0`, exit 0; and watched RED at `C2RS_SWEEP_MAX_UNGRADED=0` |
 | `scripts/perf_arms.py --self-test` | `PASS`, every control watched failing first |
 | `scripts/cost_arms.py --self-test` | unchanged by this lane; `perf_arms` imports it |
@@ -243,4 +243,60 @@ lane editing it would move a stamp:
 
 ## 8. Gate verdicts
 
-Filled in at §8.1/§8.2 below by the run that produced them.
+### 8.1 `scripts/gate.sh --jobs 16 --require-graded` — the VERDICT LINE
+
+    GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them graded a corpus,
+      the sweep graded 19460 of 19556 generated cases and the cross graded
+      90424 of 90812 case-lane cells, with 0 mismatches anywhere
+      (96 sweep cases carried ungraded — the reference rejects the source),
+      and 18/18 lanes ran again through a DEBUG-profile c2rs for
+      7038 more fixture-verdicts at 0 panics
+
+    graded tree: 880b6cf41a5f  (791 files: crates fixtures scripts, content-hashed)
+
+**Quoted as the verdict line and not as an exit code, deliberately.** In wave 11
+`gate.sh` printed `GATE: REFUSED (DIRTY crates/)` at exit **0** and `GATE: PASS`
+at exit **1**. The line is the verdict; the status is not.
+
+**`HATCH-RED REFUSED` is PRE-EXISTING and not this lane's.** The base run at
+`c13cebbca` (`work/coordinator/gate_tip_c13cebbca.txt:100,108`) carries the
+**identical** qualifier and the identical reason — `HATCH-STALE`, `hatch.py
+apply` cannot hatch this tree, board **#1389**. The working tree was clean
+(`git status --short` empty) when the gate ran, and nothing was edited while it
+ran.
+
+**One line of that verdict is now known to overclaim, by this lane's own §6:**
+*"96 sweep cases carried ungraded — the reference rejects the source"*. The
+instrument cannot establish that. Every one of the 96 prints `produced no obj`
+with no diagnostic code, and 3 of the 40 shown are **replay** failures rather
+than compile rejections. The count is right; the *reason* beside it is a
+2026-08-04 hand investigation the run cannot re-derive (**#3614**).
+
+### 8.2 `scripts/gate_identity_diff.sh` — with its row denominator
+
+    count-bearing rows: 21 base, 21 tip (enumerated, not asserted)
+    IDENTITY DIFF: 0 lines over 21 rows — required-zero byte delta HOLDS
+
+Base `work/coordinator/gatebase/base_c13cebbca.txt`, tip
+`work/w-perfstep/gate_tip.txt`. **The denominator is 21 at both ends** — a
+diff over 0 rows and a diff over 21 rows both print "0 lines", which is
+`w-s1c2` §3.2's lesson and why the count is quoted beside the verdict.
+
+Zero is the expected and required result: **this lane changed no byte of
+`crates/`.** Its whole diff is `scripts/perf_arms.py` (new), `docs/`, and
+evidence under `work/w-perfstep/`.
+
+### 8.3 The controls, each watched failing before its green was quoted
+
+| control | watched RED | then GREEN |
+|---|---|---|
+| `perf_arms.py` geomean | `geomean([])` returns `None` and refuses | `geomean(1,100) = 10` |
+| `perf_arms.py` row parse | `NotImplemented` / `Mismatch` / garbage rows all dropped | only `ok.cpp` kept; units reproduce the row's own `939x` |
+| `preflight_arm` (inherited) | `cost_arms.py --self-test`'s three shapes — SKIP-at-exit-0, zero-Match, nonzero-exit — all REFUSED | `grades-one` passes with denominator 1 |
+| the sweep's ungraded baseline | `C2RS_SWEEP_MAX_UNGRADED=0` → `UNGRADED 96 exceeds the carried baseline 0`, exit 1 | `ungraded=96`, exit 0 |
+| per-arm denominator | — | all three arms preflight at **157 Match each**, printed before anything is timed |
+| null-arm precondition | — | `predup` / `wdup` verified byte-identical by `cmp`, not assumed |
+
+The two rows with no RED cell are marked so rather than left blank: a per-arm
+denominator and a `cmp` are assertions about this run, not detectors with a
+failing mode this lane exercised.
