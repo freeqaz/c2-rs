@@ -1,13 +1,26 @@
-# 2026-08-26 — `w-disclose`: the constants nearest the judge now have a ledger
+# w-disclose — the constants nearest the judge now have a ledger: four rows, 89 constants, and the emit path's first entry in the provenance register
 
-**Outcome: instrument**
-**Lane kind:** characterization
-**Base:** `e548f01fd` · **Branch:** `wt-w-disclose`
-**Charter:** `docs/DECISIONS_2026-08-22.md` § Decision 16, the `w-disclose` row
-**Board:** **#3642**–**#3646** (`#3647` unspent, returned to the pool)
-**Prereg:** `work/w-disclose/PREREG.md`, committed at `e0150d1c1` before the
-first ledger row was written
-**Fixtures:** none · **Census:** +0 · **Reach:** 0, as predicted
+    Tag:       w-disclose
+    Slug:      w-disclose
+    Date:      2026-08-26
+    Kind:      characterization (decision 16's second lane)
+    Outcome:   instrument
+    Fixtures:  none — characterization lane: it files provenance rows for
+               constants already in the port and changes not one non-comment
+               byte in `crates/`
+    Census:    +0
+    Record:    `docs/whitebox/DISCLOSURE.md` (the four rows and the two
+               amend-beside boxes); `docs/whitebox/ref/README.md` §7.1 (what
+               adoption does to that directory's own status); board
+               `#3642`–`#3646`, with `#3647` unspent
+    Fail axis: this lane can fail with every byte identical, and the failure
+               would be a row nobody can re-derive or a row registering a
+               provenance the value does not have — so the values were graded
+               against the pinned image BEFORE the rows were written, not after
+
+**Base:** `e548f01fd` · **Branch:** `wt-w-disclose` · **Reach:** 0, as
+predicted. **Prereg:** `work/w-disclose/PREREG.md`, committed at `e0150d1c1`
+before the first ledger row was written.
 
 ---
 
