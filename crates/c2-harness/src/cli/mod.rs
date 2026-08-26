@@ -22,4 +22,5 @@ pub(crate) mod reference;
 pub(crate) mod retrieve;
 pub(crate) mod search;
 pub(crate) mod stage;
+pub(crate) mod subsys;
 pub(crate) mod util;

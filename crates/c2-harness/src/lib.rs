@@ -30,6 +30,11 @@ pub mod prefilter;
 pub mod provenance;
 pub mod retrieval;
 pub mod search;
+/// **PER-SUBSYSTEM METRICS** (lane `w-submetric`, boards #3617–#3622) — the
+/// per-subsystem 4-tuple decision 15 restructured the working goal onto. A
+/// PROGRESS instrument under [`docs/FUNCTION_BYTE_MATCH.md` §0]; never in
+/// `gate.sh`'s verdict, licenses no emit.
+pub mod subsys;
 pub mod testsupport;
 pub mod toolchain_gate;
 

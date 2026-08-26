@@ -39,6 +39,7 @@ use cli::reference::{
 };
 use cli::retrieve::{cmd_retrieve_eval, cmd_retrieve_index};
 use cli::stage::cmd_stage;
+use cli::subsys::cmd_subsys;
 use cli::search::{
     cmd_search_eval, cmd_search_from_lifter, cmd_search_from_retrieval, cmd_search_solve,
 };
@@ -69,6 +70,7 @@ fn main() -> ExitCode {
         "retrieve" => cmd_retrieve(rest),
         "search" => cmd_search(rest),
         "stage" => cmd_stage(rest),
+        "subsys" => cmd_subsys(rest),
         "help" | "-h" | "--help" => {
             print_usage();
             ExitCode::SUCCESS
@@ -122,6 +124,11 @@ fn print_usage() {
          \x20 c2rs search solve <cpp>   T-A: solve one d=1 instance from a fixture, byte-exact\n\
          \x20 c2rs search eval [opts]   T-A: IL-space solve-rate over fixtures\n\
          \x20 c2rs search from-retrieval <corpus-dir>  T-A: from-unrelated-seed (P1.3-seeded) solve-rate\n\
+         \x20 c2rs subsys [opts]        decision 15: the per-subsystem 4-tuple for SUBSYS.md §1's\n\
+         \x20                           ten subsystems (read/agreement/exercised/byte-owned), every\n\
+         \x20                           denominator beside its numerator. Offline, no toolchain.\n\
+         \x20                           A PROGRESS instrument (FUNCTION_BYTE_MATCH.md §0): never in\n\
+         \x20                           gate.sh's verdict, licenses no emit\n\
          \n\
          perf options: --port-iters N --ref-iters N --fixtures a.cpp,b.cpp\n\
          census: c2rs census <cpp> — per-function in-class/blocked verdict (P2b)\n\

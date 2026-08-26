@@ -1,0 +1,1929 @@
+//! **PER-SUBSYSTEM METRICS** — the scoreboard decision 15 restructured the goal
+//! onto, one 4-tuple per `docs/whitebox/ref/SUBSYS.md` §1 subsystem.
+//!
+//! Lane `w-submetric`, board **#3617**–**#3622**. Funded by
+//! `docs/DECISIONS_2026-08-22.md` decision 15 (the owner: *"lets restructure our
+//! goal so that we can get each submodule in shape and have measurements for
+//! that. the overall TU goal is too broad because it is binary."*).
+//!
+//! # It is a GRADIENT and it obeys `FUNCTION_BYTE_MATCH.md` §0 verbatim
+//!
+//! All five properties, non-negotiable — §0 is the standing template for every
+//! gradient added after FBM, and `decode-reach-*` and `symbind-*` adopted it
+//! before this one did:
+//!
+//! * **Never in `scripts/gate.sh`'s verdict**, and it must never be added there.
+//!   Nothing here reaches an accept/refuse path.
+//! * **Its own block**, under its own disclaimer, apart from the class table
+//!   that carries `match`/`mismatch`. It does not print inside a `c2rs gap`
+//!   scan at all — it is a separate subcommand, so it cannot move the gate's
+//!   21-row count table even by accident.
+//! * **Namespaced keys** — `subsys-metric <key> <value>`. No existing key,
+//!   predicate or denominator is narrowed, widened or redefined here.
+//! * **It licenses no emit.** A subsystem row going green is not a reason to
+//!   accept a shape, to widen the admitted set, or to admit anything. The only
+//!   thing that accepts a shape is the differential — real `c2.dll` under wibo,
+//!   `CLAUDE.md`'s one correctness rule.
+//! * **Unrepresentable over an empty scan** — a strength with no data prints a
+//!   **named residue**, never `0`, never silence, never a ratio over zero.
+//!
+//! # `#1406` placement, and why it is not in tension with the line above
+//!
+//! `#1406` binds any instrument whose output is quoted as evidence to run under
+//! `cargo test` or `scripts/gate.sh`. §0 forbids the second. `decode-reach`
+//! resolved this by putting the instrument's **logic and its controls** in
+//! `crates/`, where `cargo test --workspace` runs them; this module does the
+//! same. The verdict this contributes to is `cargo test`'s — that every
+//! denominator in [`SUBSYSTEMS`] still reproduces from the tree — never the
+//! differential's.
+//!
+//! # THE SIGNAL IS THE CHANGE IN EACH STRENGTH, NEVER ITS DISTANCE FROM 0
+//!
+//! Decision 15's own words. A row reading `read 16/93` is not "17 % done"; it
+//! is a statement about the population the instrument can reach, on the tree
+//! the denominator was taken on. Three traps ride with every number here and
+//! they are printed with every render:
+//!
+//! 1. **The signal is the CHANGE, never the distance from 0 or 100.**
+//! 2. **A green row is a statement about the population the instrument can
+//!    reach** — every denominator says which tree and which enumeration it came
+//!    from, because *the same subsystem has more than one defensible
+//!    denominator and they differ by up to 3.8×* (§ [`Denominator`]).
+//! 3. **These keys license no emit.**
+//!
+//! # The four strengths, and what each one actually is here
+//!
+//! | strength | this module's answer |
+//! |---|---|
+//! | **read** | a **containment**, never a ratio: `sites ⊇ read ⊇ ported`. `sites` is the subsystem's enumerable population (recomputed from `FUNCS.tsv` where it is a band), `read` is what the `P_*.md` page says it read, `ported` is a **named residue** on every row — see [`Cell::Residue`] |
+//! | **agreement** | the page's own **evidence-mark census** — `[O]` (obj-confirmed) against `[R]`+`[O]`+`[I]` — plus, where a page carries a real differential, that differential quoted with its own denominator. **A mark is a page annotation, not a site**; the caveat prints beside the number |
+//! | **exercised** | a labelled **workload-output proxy** where one exists, from real-`c2` section census of the 878-TU workload; a named residue otherwise. **Per-SITE exercise is unmeasurable on this tree for all ten** — nothing traces `c2.dll`'s own addresses over the workload |
+//! | **byte-owned** | **CITED, never re-measured.** Board **#3534** measured it 2026-08-25 at port tree `a8593651b`. Re-funding that read is what this repo calls *"check the board before dispatching"* |
+
+use std::collections::BTreeMap;
+use std::fmt::Write as _;
+use std::path::{Path, PathBuf};
+
+/// Where the whitebox reference index lives, relative to the repo root.
+pub const REF_DIR: &str = "docs/whitebox/ref";
+
+/// The real-`c2` section census of the workload, relative to the repo root.
+/// Committed (lane `w-bss`); regenerating it needs the `dc3` tree and ~102 MB
+/// of objs, which is why it is in the tree rather than rebuilt.
+pub const SECTIONS_JSONL: &str = "work/w-bss/census/sections.jsonl";
+
+/// **BYTE-OWNED IS CITED AND NOT RE-MEASURED** — board `#3534`, lane
+/// `w-permeasure`, 2026-08-25, port tree `a8593651b`, the 878-TU workload.
+/// Decision 15 says so in its own words: *"Not re-measured this wave"*.
+pub const BYTE_OWNED_CITATION: &str = concat!(
+    "#3534 (w-permeasure, 2026-08-25, port tree a8593651b, 878-TU workload): ",
+    "the port's wrong bodies are 1,968 bodies / 7,912 substituted words, ",
+    "opcode 7,902 = 99.87 %, 0 pure reorderings, 92.78 % wrong at word 0. ",
+    "docs/DIFF_STRUCTURE.md, docs/PERMUTER_POPULATION.md §3"
+);
+
+/// **THE BYTE-OWNED STRENGTH HAS NO PER-SUBSYSTEM SPLIT AND SAYING SO IS THE
+/// POINT.** `#3534` measured the *shape* of the port's wrong bytes over the
+/// whole workload; it did not attribute a single byte to `coff.c` rather than
+/// `color.c`, and no instrument in this tree does. A per-subsystem
+/// byte-ownership column would therefore be invented, so this module publishes
+/// the one measurement that exists, once, with its citation — and a residue
+/// naming what an attributed column would need.
+pub const BYTE_OWNED_RESIDUE: &str = concat!(
+    "no per-subsystem attribution of graded bytes exists: #3534 measured the ",
+    "SHAPE of the port's wrong bytes workload-wide (99.87 % opcode ",
+    "substitutions), not which subsystem authored them. Attributing a byte ",
+    "would need the port's emit path to carry a subsystem tag through ",
+    "codegen::select_function to the COFF writer; nothing does today"
+);
+
+// ---------------------------------------------------------------------------
+// Model
+// ---------------------------------------------------------------------------
+
+/// Which endpoint convention reproduces a page's stated band denominator.
+///
+/// **The ten pages do not share one**, and this is measured rather than
+/// assumed: `P_COFF`'s 120 and `P_SECTION`'s 137 reproduce only when the high
+/// address is **inclusive**, `P_REGALLOC`'s 70 only when it is **exclusive**
+/// (71 inclusive). Recording the convention per row is what makes the recount
+/// reproducible instead of a coincidence.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum End {
+    /// `lo <= addr <= hi`
+    Inclusive,
+    /// `lo <= addr < hi`
+    HalfOpen,
+}
+
+/// One address band of a subsystem, in absolute VAs of
+/// `compilers/X360/16.00.11886.00/c2.dll`.
+#[derive(Clone, Copy, Debug)]
+pub struct Band {
+    pub lo: u32,
+    pub hi: u32,
+    pub end: End,
+}
+
+impl Band {
+    fn holds(&self, a: u32) -> bool {
+        match self.end {
+            End::Inclusive => a >= self.lo && a <= self.hi,
+            End::HalfOpen => a >= self.lo && a < self.hi,
+        }
+    }
+}
+
+/// How a subsystem's site denominator was obtained — and therefore whether this
+/// module can **recount** it or can only **verify it is still on the page**.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Basis {
+    /// Ghidra function entries inside [`Subsystem::bands`]. Recounted from
+    /// `FUNCS.tsv` on every run and on every `cargo test`.
+    Band,
+    /// A call/callee set, not an address range — `P_SYMBOL`'s *"`FUN_10b28a9b`
+    /// and its four callees"*, `P_GLOBREGS`'s *"the target plus its 18
+    /// callees"*. **Not recountable from a band**; verified by requiring the
+    /// page still carries the sentence it came from.
+    CallSet,
+    /// A closed site population read directly out of the image — `P_LABEL`'s
+    /// 163 charging sites (31 direct + 132 constructor). Not a band; verified
+    /// against the page's own words.
+    SitePopulation,
+}
+
+/// A measurable strength: a number with its denominator and where it came from,
+/// a **named** residue, or a peer lane's pending work. There is no fourth
+/// variant and in particular **there is no silent zero**.
+#[derive(Clone, Debug)]
+pub enum Cell {
+    /// `num` of `den` `unit`, from `source`.
+    Measured {
+        num: u64,
+        den: u64,
+        unit: &'static str,
+        source: &'static str,
+        /// Printed beside the number, always. A proxy that is not the thing
+        /// says so here.
+        caveat: &'static str,
+    },
+    /// **A named residue.** Never empty — [`verify`] fails a blank one.
+    Residue(&'static str),
+    /// A peer lane is building this. Cited, never waited on.
+    Pending(&'static str),
+}
+
+impl Cell {
+    fn render(&self) -> String {
+        match self {
+            Cell::Measured {
+                num, den, unit, ..
+            } => {
+                if *den == 0 {
+                    "NO-RESULT (denominator 0)".to_string()
+                } else {
+                    format!(
+                        "{} / {} {} ({:.2} %)",
+                        commas(*num),
+                        commas(*den),
+                        unit,
+                        100.0 * (*num as f64) / (*den as f64)
+                    )
+                }
+            }
+            Cell::Residue(r) => format!("RESIDUE — {r}"),
+            Cell::Pending(p) => format!("PENDING — {p}"),
+        }
+    }
+
+    fn note(&self) -> &'static str {
+        match self {
+            Cell::Measured { caveat, .. } => caveat,
+            Cell::Residue(r) => r,
+            Cell::Pending(p) => p,
+        }
+    }
+
+    fn source(&self) -> &'static str {
+        match self {
+            Cell::Measured { source, .. } => source,
+            _ => "—",
+        }
+    }
+}
+
+/// One `SUBSYS.md` §1 row, with every denominator carried as data beside the
+/// document reference that states it — so staleness is visible rather than
+/// inferred.
+#[derive(Clone, Debug)]
+pub struct Subsystem {
+    /// Stable key for the `subsys-metric` lines.
+    pub key: &'static str,
+    pub title: &'static str,
+    /// c2's own translation unit(s), from its C1001 path (Tier 1 — `strings`).
+    pub tus: &'static str,
+    /// The reference page, in [`REF_DIR`].
+    pub page: &'static str,
+
+    /// The address band(s), empty when [`Subsystem::basis`] is not [`Basis::Band`].
+    pub bands: &'static [Band],
+    /// How the site denominator was obtained.
+    pub basis: Basis,
+    /// **The site denominator.** Recounted from `FUNCS.tsv` when
+    /// `basis == Band`; otherwise verified against [`Subsystem::den_probe`].
+    pub sites: u64,
+    pub sites_unit: &'static str,
+    /// The doc reference that states the denominator — printed beside it.
+    pub sites_doc: &'static str,
+    /// A substring that **must still appear verbatim** in [`Subsystem::page`].
+    /// This is what makes a stale number fail rather than rot quietly.
+    pub den_probe: &'static str,
+
+    /// What the page says it read, in the page's own unit.
+    pub read: u64,
+    pub read_unit: &'static str,
+    pub read_doc: &'static str,
+
+    /// The **other** defensible denominator: `FUNCS.tsv`'s `subsys` column, a
+    /// TU-level attribution rather than a band. `None` where that column has no
+    /// value for this subsystem (`globregs`, `encode`, `label` — `build_ref.py`
+    /// has no `TU_PAGE`/`PAGE_SUBSYS` entry for their pages).
+    pub tu_population: Option<u64>,
+
+    /// Strength 1's third level. A residue on every row this wave — see
+    /// [`Cell::Residue`] and the module docs.
+    pub ported: Cell,
+    /// Strength 2, beyond the mark census that every row gets.
+    pub agreement_extra: Option<Cell>,
+    /// Strength 3.
+    pub exercised: Cell,
+
+    /// Where `SUBSYS.md` §1's own `entries / band` cell disagrees with the
+    /// page — in value or in **unit**. Empty when they agree.
+    pub subsys_cell_note: &'static str,
+}
+
+// ---------------------------------------------------------------------------
+// THE TABLE — ten rows, one per `SUBSYS.md` §1 row
+// ---------------------------------------------------------------------------
+
+/// Every number here was **re-measured on this tree** (lane `w-submetric`,
+/// 2026-08-26, base `6c753ead0`) and is re-verified by [`verify`] on every
+/// `cargo test`. The `*_doc` fields are the reference beside each number so a
+/// reader can tell a carried figure from a computed one.
+pub const SUBSYSTEMS: &[Subsystem] = &[
+    Subsystem {
+        key: "coff",
+        title: "obj writer",
+        tus: "coff.c (model), coffemit.c (every fwrite)",
+        page: "P_COFF.md",
+        bands: &[Band { lo: 0x10b281af, hi: 0x10b2b0dd, end: End::Inclusive }],
+        basis: Basis::Band,
+        sites: 120,
+        sites_unit: "Ghidra function entries in the band",
+        sites_doc: "P_COFF.md:16 \"21 of the 120 functions in the coff.c/coffemit.c band\"",
+        den_probe: "21 of the 120 functions in the `coff.c`/`coffemit.c` band",
+        read: 21,
+        read_unit: "entries",
+        read_doc: "P_COFF.md:16",
+        tu_population: Some(129),
+        ported: Cell::Residue(
+            "no port<->image site map for the obj writer. crates/c2-obj writes COFF \
+             by a route derived from the format, not from these 21 addresses; \
+             counting which of them the port implements needs the derived-vs-fitted \
+             provenance census, which lane w-provenance owns this wave",
+        ),
+        agreement_extra: None,
+        exercised: Cell::Measured {
+            num: 871,
+            den: 871,
+            unit: "workload TUs whose obj real c2 wrote",
+            source: "work/w-bss/census/sections.jsonl (871 records)",
+            caveat: "OUTPUT PROXY, NOT A SITE COUNT. Every obj in the workload went \
+                     through this writer, so the proxy is 100 % by construction and \
+                     carries no information about WHICH of the 120 functions ran. \
+                     393,236 section headers over the 871",
+        },
+        subsys_cell_note: "",
+    },
+    Subsystem {
+        key: "section",
+        title: "section & symbol model",
+        tus: "p2symtab.c, emit.cpp",
+        page: "P_SECTION.md",
+        bands: &[
+            Band { lo: 0x10b97dfb, hi: 0x10b9b8e9, end: End::Inclusive },
+            Band { lo: 0x10be71c9, hi: 0x10be7e81, end: End::Inclusive },
+        ],
+        basis: Basis::Band,
+        sites: 137,
+        sites_unit: "Ghidra function entries in the two bands (102 + 35)",
+        sites_doc: "P_SECTION.md:11 \"24 entries against a denominator of 137\"",
+        den_probe: "24 entries against a denominator of 137",
+        read: 24,
+        read_unit: "entries",
+        read_doc: "P_SECTION.md:11",
+        tu_population: Some(327),
+        ported: Cell::Residue(
+            "no port<->image site map for the section model; see the coff row. The \
+             27-arm .gl record dispatcher is the natural unit and the page says 24 \
+             of its arms are uncovered",
+        ),
+        agreement_extra: None,
+        exercised: Cell::Measured {
+            num: 14,
+            den: 14,
+            unit: "distinct section names real c2 emits over the workload",
+            source: "work/w-bss/census/sections.jsonl (393,236 sections, 871 TUs)",
+            caveat: "OUTPUT PROXY, NOT A SITE COUNT — and its denominator is the \
+                     observed set, so it is 14/14 by construction. The names: \
+                     .drectve .debug$S .XBLD$W:C1 .XBLD$W:C2 .text .text$yc .text$yd \
+                     .pdata .xdata$x .rdata .rdata$r .data .bss .CRT$XCU",
+        },
+        subsys_cell_note: "",
+    },
+    Subsystem {
+        key: "regalloc",
+        title: "register allocator",
+        tus: "color.c (+ globregs.c, regasg.c)",
+        page: "P_REGALLOC.md",
+        bands: &[Band { lo: 0x10b2c21d, hi: 0x10b3219f, end: End::HalfOpen }],
+        basis: Basis::Band,
+        sites: 70,
+        sites_unit: "Ghidra function entries in color.c's span",
+        sites_doc: "P_REGALLOC.md:25 \"18 code entries + 15 data entries against a denominator of 70\"",
+        den_probe: "18 code entries + 15 data entries against a denominator of 70",
+        read: 33,
+        read_unit: "entries (18 code + 15 data)",
+        read_doc: "P_REGALLOC.md:25",
+        tu_population: Some(230),
+        ported: Cell::Residue(
+            "the port has no register allocator of this shape at all — the byte-exact \
+             classes are one-function bodies whose registers are assigned by \
+             codegen::select_function's own rules, not by a colouring pass. A \
+             site-level numerator is not merely unmeasured, it is not yet defined",
+        ),
+        agreement_extra: None,
+        exercised: Cell::Residue(
+            "per-site exercise is unmeasurable: nothing traces c2.dll's own addresses \
+             over the workload. The nearest measured thing is P_REGALLOC's own [O] \
+             evidence on 6 frozen grid cells (G1-G4, L3, P1), which is a 6-cell probe \
+             grid and not the 878-TU workload",
+        ),
+        subsys_cell_note: "SUBSYS.md §1 prints `33 / 70`; the page's 33 is 18 code + 15 \
+                           data entries, and the 15 data entries are TABLES, not \
+                           functions, so the numerator and the denominator are in \
+                           different units. Read as entries-against-functions, not as \
+                           a fraction. Also: the band reproduces 70 only HALF-OPEN \
+                           (71 inclusive) — 0x10b3219f is dag.c's anchor",
+    },
+    Subsystem {
+        key: "globregs",
+        title: "globregs: the candidate SET, its ORDER, and the tie key",
+        tus: "globregs.c (+ the symbol-table arena in p2symtab.c)",
+        page: "P_GLOBREGS.md",
+        bands: &[],
+        basis: Basis::CallSet,
+        sites: 19,
+        sites_unit: "the R4 target plus its 18 callees",
+        sites_doc: "P_GLOBREGS.md:20-21 \"The denominator R4 registered was *the target plus its 18 callees = 19*\"",
+        den_probe: "the target plus its 18 callees = 19",
+        read: 26,
+        read_unit: "entries (16 code + 10 data)",
+        read_doc: "P_GLOBREGS.md:20",
+        tu_population: None,
+        ported: Cell::Residue(
+            "the port does no global register promotion; there is no site to count. \
+             P_GLOBREGS §2's order and tie key are read but unadopted",
+        ),
+        agreement_extra: None,
+        exercised: Cell::Residue(
+            "per-site exercise unmeasurable (no address trace). P_GLOBREGS's own [O] \
+             is 262 formal->register assignments over 62 GRID objs — a probe grid, \
+             not the 878-TU workload",
+        ),
+        subsys_cell_note: "THE READ IS LARGER THAN ITS OWN DENOMINATOR (26 against 19) \
+                           and the page says why in its own words: the read went \
+                           OUTSIDE the registered denominator on purpose, because the \
+                           three functions that decide the order are not callees of \
+                           the target at all. The page's honest statement is `6 of 18 \
+                           callees read to policy level, plus 7 functions outside the \
+                           target's subtree`. SUBSYS.md §1's cell `16 code + 10 data` \
+                           prints no denominator at all",
+    },
+    Subsystem {
+        key: "dag",
+        title: "DAG build + scheduler",
+        tus: "dag.c, and an unnamed TU with no ICE site",
+        page: "P_DAG.md",
+        bands: &[
+            Band { lo: 0x10b3219f, hi: 0x10b3433f, end: End::HalfOpen },
+            Band { lo: 0x10be5cce, hi: 0x10be663f, end: End::HalfOpen },
+        ],
+        basis: Basis::Band,
+        sites: 61,
+        sites_unit: "Ghidra function entries in the two bands (48 + 13)",
+        sites_doc: "P_DAG.md:9-10 \"24 code entries + 8 data/table entries against a denominator of 61\"",
+        den_probe: "24 code entries + 8 data/table entries against a denominator of",
+        read: 32,
+        read_unit: "entries (24 code + 8 data/table)",
+        read_doc: "P_DAG.md:9",
+        tu_population: Some(83),
+        ported: Cell::Residue(
+            "the port schedules nothing — emission order is tuple-list order \
+             (P_BLOCKORDER §5.2, #3437-#3441) and the port's bodies are built \
+             straight-line. No site-level numerator is defined",
+        ),
+        agreement_extra: None,
+        exercised: Cell::Residue(
+            "per-site exercise unmeasurable (no address trace). The scheduler band \
+             0x10be5cce-0x10be663f is a TU with NO ICE SITE, so even its attribution \
+             is a hypothesis rather than a fact (SUBSYS.md's own blind-spot box)",
+        ),
+        subsys_cell_note: "",
+    },
+    Subsystem {
+        key: "inline",
+        title: "inliner",
+        tus: "inline.c",
+        page: "P_INLINE.md",
+        bands: &[Band { lo: 0x10b5b86d, hi: 0x10b62b00, end: End::Inclusive }],
+        basis: Basis::Band,
+        sites: 93,
+        sites_unit: "Ghidra function entries in the inliner band",
+        sites_doc: "P_INLINE.md:9 \"16 entries against a denominator of 93\"",
+        den_probe: "16 entries against a denominator of 93",
+        read: 16,
+        read_unit: "entries",
+        read_doc: "P_INLINE.md:9",
+        tu_population: Some(350),
+        ported: Cell::Residue(
+            "the port carries a FITTED inline predicate (INLINE_PREDICATE.md's 0.9716 \
+             model), not an implementation of these 93 sites. The clause-by-clause \
+             port-state column is lane w-inlmetric's deliverable this wave and is not \
+             built here",
+        ),
+        agreement_extra: Some(Cell::Pending(
+            "the inliner's clause-by-clause differential is being built by lane \
+             w-inlmetric (decision 15, boards #3623-#3628), in flight at this \
+             render. Cited, not waited on, and its worktree is not read",
+        )),
+        exercised: Cell::Residue(
+            "per-site exercise unmeasurable (no address trace). P_INLINE's own worked \
+             case is one anchor (keygen_xbox.cpp) where the read predicts six inlines \
+             and gets one [O] — a single TU, not a workload count",
+        ),
+        subsys_cell_note: "",
+    },
+    Subsystem {
+        key: "encode",
+        title: "instruction encoder (tuple -> one PPC word, plus .text relocation requests)",
+        tus: "code.c",
+        page: "P_ENCODE.md",
+        bands: &[Band { lo: 0x10bf96d0, hi: 0x10bfae2a, end: End::Inclusive }],
+        basis: Basis::Band,
+        sites: 14,
+        sites_unit: "Ghidra function entries in the encoder band",
+        sites_doc: "SUBSYS.md §1 cell `14 / 14`; recounted from FUNCS.tsv on this tree",
+        den_probe: "79 of the 79 distinct arms read",
+        read: 79,
+        read_unit: "distinct encode arms (covering 660 of 660 machine opcodes)",
+        read_doc: "P_ENCODE.md:27",
+        tu_population: None,
+        ported: Cell::Residue(
+            "the port's 89 encode_* mnemonics were derived black-box from captured \
+             objs, never from these arms (P_ENCODE §8.1's own words), so `sites the \
+             port implements` is not defined against the 79-arm population. The \
+             cheapest next read on this project is the arm -> port-function map; it \
+             does not exist",
+        ),
+        agreement_extra: Some(Cell::Measured {
+            num: 630_548,
+            den: 634_457,
+            unit: "executable .text words explained by the page's own arm masks",
+            source: "P_ENCODE.md §8.2 [O], 500 dc3-decomp reference objs",
+            caveat: "THE STRICT-MASK PASS IS THE ONE WITH TEETH — the page says so \
+                     itself: a second pass with every read form masked reads 99.8060 % \
+                     and MUST NOT be quoted as stronger, because sixteen VMX128 forms \
+                     are masked at 0x03FFFFFF and a generous mask cannot fail. \
+                     Denominator is 500 objs, NOT the 878-TU workload. The 3,909 \
+                     residuals are unmasked forms, not disagreements; 0 unexplained \
+                     at any of 124,700 relocation sites",
+        }),
+        exercised: Cell::Measured {
+            num: 863,
+            den: 871,
+            unit: "workload TUs with any .text section",
+            source: "work/w-bss/census/sections.jsonl",
+            caveat: "OUTPUT PROXY, NOT A SITE COUNT — 178,104 .text COMDATs over the \
+                     863. Says nothing about which of the 79 arms the workload takes",
+        },
+        subsys_cell_note: "SUBSYS.md §1 prints `14 / 14`, which is the BAND (14 Ghidra \
+                           entries, recounted here and correct). The page's own \
+                           coverage line is `79 of the 79 distinct arms`, covering \
+                           `660 of 660` opcodes. THE TWO CELLS ARE IN DIFFERENT UNITS \
+                           and neither is wrong; a reader taking `14 / 14` for the \
+                           coverage statement is off by a factor of 5.6 in the \
+                           numerator and 47 in the opcode denominator",
+    },
+    Subsystem {
+        key: "eh",
+        title: "EH state synthesis",
+        tus: "ehexcept.c, except.c (+ the .pdata drivers)",
+        page: "P_EH.md",
+        bands: &[Band { lo: 0x10be04e7, hi: 0x10be3800, end: End::Inclusive }],
+        basis: Basis::Band,
+        sites: 47,
+        sites_unit: "Ghidra function entries in the EH band",
+        sites_doc: "P_EH.md:9 \"19 entries against a denominator of 47\"",
+        den_probe: "19 entries against a denominator of 47",
+        read: 19,
+        read_unit: "entries",
+        read_doc: "P_EH.md:9",
+        tu_population: Some(127),
+        ported: Cell::Residue(
+            "P_EH marks two entries `[O] port` — the port reproduces the deferred \
+             unwind-word pass's OUTPUT — but the page's marks are per-claim, not \
+             per-site, so they do not compose into a `sites implemented` numerator. \
+             Building one is the same missing port<->image map as every other row",
+        ),
+        agreement_extra: None,
+        exercised: Cell::Measured {
+            num: 849,
+            den: 871,
+            unit: "workload TUs carrying .pdata",
+            source: "work/w-bss/census/sections.jsonl",
+            caveat: "OUTPUT PROXY, NOT A SITE COUNT — 103,128 .pdata records over the \
+                     849. Its value is the INDEPENDENT CORROBORATION beside it: this \
+                     census counts .xdata$x in exactly 67 of 871 TUs, reproducing \
+                     P_EH's own `67 workload objs, all STLport` from a different \
+                     instrument",
+        },
+        subsys_cell_note: "",
+    },
+    Subsystem {
+        key: "label",
+        title: "compiler-label numbering (the $M/$T/$L* counter and its charges)",
+        tus: "p2symtab.c (allocator + ctor), vlines.c (the $M minter), plus 21 more files",
+        page: "P_LABEL.md",
+        bands: &[],
+        basis: Basis::SitePopulation,
+        sites: 163,
+        sites_unit: "charging sites (31 direct calls of the allocator + 132 of the generic ctor)",
+        sites_doc: "P_LABEL.md:0 \"its 31 direct call sites are the entire population of charges, plus the 132 sites\"",
+        den_probe: "direct call sites are the entire population of charges",
+        read: 163,
+        read_unit: "sites (the population is CLOSED by construction — the allocator's address is never taken)",
+        read_doc: "P_LABEL.md §0",
+        tu_population: None,
+        ported: Cell::Residue(
+            "the port mints labels from its own counter; no mapping exists from its \
+             mint points to these 163 charging sites. LABEL_COUNTER.md's own finding \
+             is that stride == minted fails both ways, so a naive site count would be \
+             wrong even if it were built",
+        ),
+        agreement_extra: None,
+        exercised: Cell::Residue(
+            "per-site exercise unmeasurable, and WORSE HERE THAN ELSEWHERE: 42 of the \
+             163 sites sit on LOOP BACK EDGES, so a TU's charge is a data-dependent \
+             sum over whatever population the loop walks, not a per-construct \
+             constant. A site-hit count would not be a charge count even if we had \
+             one (P_LABEL §0; LABEL_SEED_GAP is not a constant either)",
+        ),
+        subsys_cell_note: "SUBSYS.md §1's cell reads `163 sites / 86+25 callers`. The 86 \
+                           reproduces on the page (`All 132 are direct E8 calls from 86 \
+                           distinct functions`, P_LABEL:445/471). THE `25` DOES NOT \
+                           REPRODUCE ANYWHERE ON THE PAGE — the nearest figure is 85, \
+                           the PLACEMENT population that calls FUN_10bd415e (P_LABEL:505), \
+                           and the nearest literal 25 on the page is `fitted from 25 TUs` \
+                           in an unrelated sentence at :222. Reported, not corrected: \
+                           P_LABEL/SUBSYS.md are not this lane's to edit",
+    },
+    Subsystem {
+        key: "symbol",
+        title: "symbol records: storage class, section number, WEAK EXTERNALS",
+        tus: "coff.c (FUN_10b28a9b) + coffemit.c's three appenders",
+        page: "P_SYMBOL.md",
+        bands: &[],
+        basis: Basis::CallSet,
+        sites: 5,
+        sites_unit: "functions (FUN_10b28a9b and its four callees)",
+        sites_doc: "P_SYMBOL.md:25 \"27 addresses in FUN_10b28a9b and its four callees\"",
+        den_probe: "27 addresses in `FUN_10b28a9b` and its four callees",
+        read: 27,
+        read_unit: "addresses",
+        read_doc: "P_SYMBOL.md:25",
+        tu_population: Some(5),
+        ported: Cell::Residue(
+            "P_SYMBOL §2 marks several addresses `[O]` via the port's own \
+             ObjImage::weak_externals with KNOWN-ANSWER 0 alarms, so parts of this \
+             subsystem ARE implemented and graded — but per-ADDRESS, and the page's \
+             27 addresses do not map onto port functions one-for-one. The numerator \
+             is undefined rather than zero",
+        ),
+        agreement_extra: None,
+        exercised: Cell::Measured {
+            num: 675,
+            den: 871,
+            unit: "workload TUs needing a weak external",
+            source: "CITED from the existing gap key `alias-weak-needed-tus` \
+                     (SUBSYS.md §4 row 5); NOT recomputed here",
+            caveat: "OUTPUT PROXY, NOT A SITE COUNT, and it is CITED from another \
+                     instrument's key rather than measured by this one — one fact, \
+                     one locator (docs/GAPS.md §6). It counts TUs that NEED a weak \
+                     external, not sites of the record writer that ran",
+        },
+        subsys_cell_note: "SUBSYS.md §1 prints `27 / 5`, a ratio greater than 1: the \
+                           numerator is ADDRESSES and the denominator is FUNCTIONS. \
+                           Recounted here, the page's own address band \
+                           0x10b28a9b-0x10b28d6f holds exactly ONE Ghidra function \
+                           entry, so there is no band reading under which `5` is a \
+                           function count of that span — the 5 is FUN_10b28a9b plus \
+                           four callees that live elsewhere in coff.c's gap",
+    },
+];
+
+// ---------------------------------------------------------------------------
+// Reading the tree
+// ---------------------------------------------------------------------------
+
+/// The evidence-mark census of one reference page: `[R]` read, `[O]`
+/// obj-confirmed, `[I]` inferred, as defined by `docs/whitebox/ref/README.md`
+/// §2.
+///
+/// **A MARK IS A PAGE ANNOTATION, NOT A SITE.** A page may mark one sentence
+/// `[O]` and cover twenty addresses with it, or mark the same fact twice. This
+/// is a census of the page's own claims about its own evidence tier, and it is
+/// published as the `agreement` strength because it is the only quantity that
+/// is (a) uniform across all ten pages and (b) mechanically recomputable. It is
+/// not a differential and it must never be quoted as one.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Marks {
+    pub read: u64,
+    pub obj: u64,
+    pub inferred: u64,
+}
+
+impl Marks {
+    pub fn total(&self) -> u64 {
+        self.read + self.obj + self.inferred
+    }
+}
+
+/// Count evidence marks in a page body.
+///
+/// **The rule, stated so it is reproducible**: everything up to and including
+/// the page's first line consisting of exactly `---` is the provenance banner
+/// and mark legend, and is skipped; every occurrence of `[R]`, `[O]`, `[I]`
+/// after it counts. Every one of the ten pages has such a line.
+pub fn count_marks(page: &str) -> Option<Marks> {
+    let mut lines = page.lines();
+    let mut found = false;
+    for l in lines.by_ref() {
+        if l.trim_end() == "---" {
+            found = true;
+            break;
+        }
+    }
+    if !found {
+        return None;
+    }
+    let body: String = lines.collect::<Vec<_>>().join("\n");
+    Some(Marks {
+        read: occurrences(&body, "[R]"),
+        obj: occurrences(&body, "[O]"),
+        inferred: occurrences(&body, "[I]"),
+    })
+}
+
+fn occurrences(hay: &str, needle: &str) -> u64 {
+    hay.matches(needle).count() as u64
+}
+
+/// One function row of `FUNCS.tsv`, reduced to what this module needs.
+fn funcs_addresses(tsv: &str) -> Vec<u32> {
+    let mut out = Vec::new();
+    for (i, line) in tsv.lines().enumerate() {
+        if line.starts_with('#') || line.is_empty() {
+            continue;
+        }
+        let first = line.split('\t').next().unwrap_or("");
+        if i == 0 || first == "addr" {
+            continue;
+        }
+        if let Ok(a) = u32::from_str_radix(first.trim_start_matches("0x"), 16) {
+            out.push(a);
+        }
+    }
+    out
+}
+
+/// Recount a subsystem's band denominator from `FUNCS.tsv`.
+pub fn recount_band(addrs: &[u32], bands: &[Band]) -> u64 {
+    addrs
+        .iter()
+        .filter(|a| bands.iter().any(|b| b.holds(**a)))
+        .count() as u64
+}
+
+/// The workload-side stamp, read out of the section census's `.prov` sidecar.
+#[derive(Clone, Debug, Default)]
+pub struct WorkloadStamp {
+    pub records: Option<u64>,
+    pub generated_utc: Option<String>,
+    pub corpus_head: Option<String>,
+    pub corpus_dirty: Option<bool>,
+    pub data_sha256: Option<String>,
+    pub present: bool,
+}
+
+fn json_str(src: &str, key: &str) -> Option<String> {
+    let pat = format!("\"{key}\"");
+    let i = src.find(&pat)? + pat.len();
+    let rest = &src[i..];
+    let c = rest.find(':')? + 1;
+    let rest = rest[c..].trim_start();
+    if let Some(r) = rest.strip_prefix('"') {
+        let e = r.find('"')?;
+        Some(r[..e].to_string())
+    } else {
+        let e = rest
+            .find(|c: char| c == ',' || c == '\n' || c == '}')
+            .unwrap_or(rest.len());
+        Some(rest[..e].trim().to_string())
+    }
+}
+
+/// Read the workload stamp. Absent file ⇒ `present: false`, never a panic.
+pub fn workload_stamp(root: &Path) -> WorkloadStamp {
+    let p = root.join(format!("{SECTIONS_JSONL}.prov"));
+    let Ok(s) = std::fs::read_to_string(&p) else {
+        return WorkloadStamp::default();
+    };
+    WorkloadStamp {
+        records: json_str(&s, "data_records").and_then(|v| v.parse().ok()),
+        generated_utc: json_str(&s, "generated_utc"),
+        corpus_head: json_str(&s, "head"),
+        corpus_dirty: json_str(&s, "dirty").map(|v| v == "true"),
+        data_sha256: json_str(&s, "data_sha256"),
+        present: true,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Verification — the part `cargo test` runs, and the part a fabrication reddens
+// ---------------------------------------------------------------------------
+
+/// Everything [`verify`] checked, whether or not it held.
+#[derive(Clone, Debug)]
+pub struct Verified {
+    pub marks: BTreeMap<&'static str, Marks>,
+    pub recounted: BTreeMap<&'static str, u64>,
+    pub failures: Vec<String>,
+}
+
+impl Verified {
+    pub fn ok(&self) -> bool {
+        self.failures.is_empty()
+    }
+}
+
+/// Re-verify **every denominator in [`SUBSYSTEMS`] against the tree**, plus the
+/// structural invariants that make the table a scoreboard rather than prose.
+///
+/// Checks, each of which a fabrication must be able to redden — and all three
+/// fabrications are exercised by this module's own `mod tests`:
+///
+/// 1. **Enumeration.** Every `SUBSYS.md` §1 row has exactly one [`SUBSYSTEMS`]
+///    row, matched by page name, and there are no extras. A dropped subsystem
+///    fails here.
+/// 2. **Band recount.** Every `Basis::Band` denominator recomputes from
+///    `FUNCS.tsv` under the row's declared endpoint convention. A wrong
+///    denominator fails here.
+/// 3. **Probe.** Every row's `den_probe` still appears verbatim in its page. A
+///    page whose coverage line moved fails here rather than rotting.
+/// 4. **No silence.** Every residue and pending string is non-empty, and every
+///    strength is one of measured / residue / pending.
+/// 5. **Marks.** Every page yields a mark census (i.e. has the `---` the rule
+///    depends on) and a non-zero total.
+pub fn verify(ref_dir: &Path, table: &[Subsystem]) -> Verified {
+    let mut v = Verified {
+        marks: BTreeMap::new(),
+        recounted: BTreeMap::new(),
+        failures: Vec::new(),
+    };
+
+    // ---- 1. enumeration against SUBSYS.md §1 -------------------------------
+    match std::fs::read_to_string(ref_dir.join("SUBSYS.md")) {
+        Err(e) => v.failures.push(format!("SUBSYS.md unreadable: {e}")),
+        Ok(s) => {
+            let section = subsys_section_1(&s);
+            let mut listed: Vec<&str> = Vec::new();
+            for line in section.lines() {
+                for sub in table.iter() {
+                    if line.contains(sub.page) && !listed.contains(&sub.page) {
+                        listed.push(sub.page);
+                    }
+                }
+            }
+            for sub in table.iter() {
+                if !section.contains(sub.page) {
+                    v.failures.push(format!(
+                        "{}: SUBSYS.md §1 has no row naming this page",
+                        sub.key
+                    ));
+                }
+            }
+            // The reverse direction — a §1 row with no table row — is the
+            // fabrication `control_a_dropped_subsystem_is_caught` drives.
+            for pg in section_pages(&section) {
+                if !table.iter().any(|s| s.page == pg) {
+                    v.failures.push(format!(
+                        "SUBSYS.md §1 lists {pg} and the metric table has no row for it \
+                         — the scoreboard is missing a subsystem"
+                    ));
+                }
+            }
+        }
+    }
+
+    // ---- 2/3. per-page checks ---------------------------------------------
+    let funcs = std::fs::read_to_string(ref_dir.join("FUNCS.tsv")).unwrap_or_default();
+    if funcs.is_empty() {
+        v.failures.push("FUNCS.tsv unreadable or empty".to_string());
+    }
+    let addrs = funcs_addresses(&funcs);
+
+    for sub in table.iter() {
+        let page = match std::fs::read_to_string(ref_dir.join(sub.page)) {
+            Ok(p) => p,
+            Err(e) => {
+                v.failures.push(format!("{}: {} unreadable: {e}", sub.key, sub.page));
+                continue;
+            }
+        };
+
+        if sub.basis == Basis::Band {
+            if sub.bands.is_empty() {
+                v.failures
+                    .push(format!("{}: Basis::Band with no bands", sub.key));
+            } else {
+                let n = recount_band(&addrs, sub.bands);
+                v.recounted.insert(sub.key, n);
+                if n != sub.sites {
+                    v.failures.push(format!(
+                        "{}: band denominator DOES NOT REPRODUCE — table says {}, \
+                         FUNCS.tsv gives {n} over {} band(s)",
+                        sub.key,
+                        sub.sites,
+                        sub.bands.len()
+                    ));
+                }
+            }
+        } else if !sub.bands.is_empty() {
+            v.failures.push(format!(
+                "{}: non-band basis {:?} must declare no bands",
+                sub.key, sub.basis
+            ));
+        }
+
+        if sub.den_probe.is_empty() {
+            v.failures
+                .push(format!("{}: empty den_probe — the denominator is unverifiable", sub.key));
+        } else if !page.contains(sub.den_probe) {
+            v.failures.push(format!(
+                "{}: den_probe not found verbatim in {} — the page moved and the \
+                 carried denominator is now unsourced: {:?}",
+                sub.key, sub.page, sub.den_probe
+            ));
+        }
+
+        match count_marks(&page) {
+            None => v.failures.push(format!(
+                "{}: {} has no `---` line, so the mark census rule cannot be applied",
+                sub.key, sub.page
+            )),
+            Some(m) if m.total() == 0 => v.failures.push(format!(
+                "{}: {} yielded 0 evidence marks — NO-RESULT, not agreement 0",
+                sub.key, sub.page
+            )),
+            Some(m) => {
+                v.marks.insert(sub.key, m);
+            }
+        }
+
+        // ---- 4. no silence -------------------------------------------------
+        for (name, cell) in [
+            ("ported", &sub.ported),
+            ("exercised", &sub.exercised),
+        ] {
+            check_cell(&mut v, sub.key, name, cell);
+        }
+        if let Some(c) = &sub.agreement_extra {
+            check_cell(&mut v, sub.key, "agreement", c);
+        }
+        if sub.sites_doc.is_empty() || sub.read_doc.is_empty() {
+            v.failures.push(format!(
+                "{}: a denominator with no doc reference beside it",
+                sub.key
+            ));
+        }
+    }
+
+    v
+}
+
+fn check_cell(v: &mut Verified, key: &str, name: &str, cell: &Cell) {
+    match cell {
+        Cell::Residue(r) if r.trim().is_empty() => v
+            .failures
+            .push(format!("{key}: {name} is an EMPTY residue — silence, not a name")),
+        Cell::Pending(p) if p.trim().is_empty() => v
+            .failures
+            .push(format!("{key}: {name} is an EMPTY pending — silence, not a name")),
+        Cell::Measured { den: 0, .. } => v.failures.push(format!(
+            "{key}: {name} is measured over a denominator of 0 — that is NO-RESULT"
+        )),
+        Cell::Measured { num, den, .. } if num > den => v.failures.push(format!(
+            "{key}: {name} numerator {num} exceeds denominator {den}"
+        )),
+        _ => {}
+    }
+}
+
+/// The text of `SUBSYS.md` between the `## 1.` heading and the next `## `.
+fn subsys_section_1(s: &str) -> String {
+    let mut out = String::new();
+    let mut inside = false;
+    for line in s.lines() {
+        if line.starts_with("## 1.") {
+            inside = true;
+            continue;
+        }
+        if inside && line.starts_with("## ") {
+            break;
+        }
+        if inside {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    out
+}
+
+/// Every `P_*.md` page named by a §1 table row (a line beginning with `|` and
+/// containing a `.md` link).
+fn section_pages(section: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for line in section.lines() {
+        if !line.starts_with('|') {
+            continue;
+        }
+        let mut rest = line;
+        while let Some(i) = rest.find("P_") {
+            rest = &rest[i..];
+            let end = rest.find(".md").map(|e| e + 3);
+            match end {
+                Some(e) => {
+                    let name = &rest[..e];
+                    if name
+                        .chars()
+                        .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_' || c == '.' || c == 'm' || c == 'd')
+                        && !out.iter().any(|x| x == name)
+                    {
+                        out.push(name.to_string());
+                    }
+                    rest = &rest[e..];
+                }
+                None => break,
+            }
+        }
+    }
+    out
+}
+
+// ---------------------------------------------------------------------------
+// The workload-output census (strength 3's proxy source)
+// ---------------------------------------------------------------------------
+
+/// Section-name census of the real-`c2` objs of the workload, recomputed from
+/// the committed `sections.jsonl`.
+///
+/// Carries its own known-answer control: each record states `nsec`, and the
+/// parsed `order` array must have exactly that many entries. A parser that
+/// silently drops names fails the control instead of reporting a small number.
+#[derive(Clone, Debug, Default)]
+pub struct SectionCensus {
+    pub tus: u64,
+    pub sections: u64,
+    /// section name -> (TUs carrying it, total sections)
+    pub by_name: BTreeMap<String, (u64, u64)>,
+    /// Records whose `order` length disagreed with their own `nsec`. Non-zero
+    /// is an alarm, not a gap.
+    pub nsec_disagree: u64,
+    pub present: bool,
+}
+
+pub fn section_census(root: &Path) -> SectionCensus {
+    let Ok(s) = std::fs::read_to_string(root.join(SECTIONS_JSONL)) else {
+        return SectionCensus::default();
+    };
+    let mut c = SectionCensus {
+        present: true,
+        ..Default::default()
+    };
+    for line in s.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        c.tus += 1;
+        let nsec: u64 = json_str(line, "nsec").and_then(|v| v.parse().ok()).unwrap_or(0);
+        let names = order_names(line);
+        if names.len() as u64 != nsec {
+            c.nsec_disagree += 1;
+        }
+        c.sections += names.len() as u64;
+        let mut seen: Vec<&String> = Vec::new();
+        for n in &names {
+            let e = c.by_name.entry(n.clone()).or_insert((0, 0));
+            e.1 += 1;
+        }
+        for n in &names {
+            if !seen.iter().any(|x| *x == n) {
+                seen.push(n);
+                c.by_name.entry(n.clone()).or_insert((0, 0)).0 += 1;
+            }
+        }
+    }
+    c
+}
+
+fn order_names(line: &str) -> Vec<String> {
+    let Some(i) = line.find("\"order\"") else {
+        return Vec::new();
+    };
+    let rest = &line[i..];
+    let Some(open) = rest.find('[') else {
+        return Vec::new();
+    };
+    let Some(close) = rest[open..].find(']') else {
+        return Vec::new();
+    };
+    let inner = &rest[open + 1..open + close];
+    let mut out = Vec::new();
+    let mut it = inner.char_indices();
+    while let Some((i, ch)) = it.next() {
+        if ch != '"' {
+            continue;
+        }
+        let start = i + 1;
+        let mut end = start;
+        for (j, c2) in inner[start..].char_indices() {
+            if c2 == '"' {
+                end = start + j;
+                break;
+            }
+        }
+        out.push(inner[start..end].to_string());
+        // advance past the closing quote
+        while let Some((k, _)) = it.next() {
+            if k >= end {
+                break;
+            }
+        }
+    }
+    out
+}
+
+// ---------------------------------------------------------------------------
+// Render
+// ---------------------------------------------------------------------------
+
+fn commas(n: u64) -> String {
+    let s = n.to_string();
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if i > 0 && (s.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// The three standing traps, printed verbatim with every render. Decision 15's
+/// own words plus `FUNCTION_BYTE_MATCH.md` §0's.
+pub const TRAPS: &[&str] = &[
+    "THE SIGNAL IS THE CHANGE IN EACH STRENGTH, NEVER ITS DISTANCE FROM 0 OR 100. \
+     A subsystem can go from 20 % to 90 % understood with `match` unchanged; that \
+     movement is what this table exists to make visible, and a row's absolute \
+     height is not a grade.",
+    "A GREEN ROW IS A STATEMENT ABOUT THE POPULATION THE INSTRUMENT CAN REACH. \
+     Every denominator here says which tree and which enumeration it came from, \
+     because the same subsystem has more than one defensible denominator: the \
+     band and the TU-level attribution differ by up to 3.8x (inliner, 93 vs 350). \
+     A ratio without its denominator's basis is not a reading.",
+    "THESE KEYS LICENSE NO EMIT. They are progress instruments under \
+     docs/FUNCTION_BYTE_MATCH.md §0 — never in scripts/gate.sh's verdict, their \
+     own block under their own disclaimer, namespaced, NO-RESULT rather than a \
+     ratio over zero. The sole judge of the port is real c2.dll under wibo plus a \
+     byte-exact obj compare, and a wrong emit still scores strictly below the \
+     refusal it replaced.",
+];
+
+/// Everything one render needs, gathered from the tree.
+pub struct Rendered {
+    pub text: String,
+    pub markdown: String,
+    pub verified: Verified,
+    pub census: SectionCensus,
+    pub stamp: WorkloadStamp,
+}
+
+/// Build the report. `root` is the repo root; `ref_dir` defaults to
+/// `root/docs/whitebox/ref` and is overridable so the shell self-test can point
+/// at a deliberately corrupted copy.
+pub fn render(root: &Path, ref_dir: Option<PathBuf>, table: &[Subsystem]) -> Rendered {
+    let ref_dir = ref_dir.unwrap_or_else(|| root.join(REF_DIR));
+    let verified = verify(&ref_dir, table);
+    let census = section_census(root);
+    let stamp = workload_stamp(root);
+
+    let mut t = String::new();
+    let mut m = String::new();
+
+    // ---- the disclaimer, first, in both renders ---------------------------
+    let _ = writeln!(
+        t,
+        "\n PER-SUBSYSTEM METRICS (w-submetric, decision 15) — a PROGRESS \
+         instrument under\n   docs/FUNCTION_BYTE_MATCH.md §0. Ten subsystems, four \
+         strengths, every denominator\n   printed beside its numerator."
+    );
+    for trap in TRAPS {
+        let _ = writeln!(t, "   * {}", wrap(trap, 74, "     "));
+    }
+
+    let _ = writeln!(t, "\n   WORKLOAD STAMP");
+    let _ = writeln!(t, "     ref index  : {}", ref_dir.display());
+    if stamp.present {
+        let _ = writeln!(
+            t,
+            "     workload   : {} TUs, real c2 section census generated {} \
+             (corpus {} dirty={})",
+            stamp.records.map(commas).unwrap_or_else(|| "?".into()),
+            stamp.generated_utc.clone().unwrap_or_else(|| "?".into()),
+            stamp
+                .corpus_head
+                .clone()
+                .map(|h| h[..h.len().min(9)].to_string())
+                .unwrap_or_else(|| "?".into()),
+            stamp
+                .corpus_dirty
+                .map(|d| d.to_string())
+                .unwrap_or_else(|| "?".into()),
+        );
+        let _ = writeln!(
+            t,
+            "     recomputed : {} TUs, {} sections, {} distinct names, \
+             nsec-disagree {} (known answer 0)",
+            commas(census.tus),
+            commas(census.sections),
+            census.by_name.len(),
+            census.nsec_disagree
+        );
+    } else {
+        let _ = writeln!(
+            t,
+            "     workload   : ABSENT — {SECTIONS_JSONL} not in this tree. Every \
+             workload-output proxy below reads NO-DATA rather than 0."
+        );
+    }
+    let _ = writeln!(
+        t,
+        "     byte-owned : CITED, NOT RE-MEASURED — {}",
+        wrap(BYTE_OWNED_CITATION, 70, "                  ")
+    );
+
+    // ---- the table --------------------------------------------------------
+    let _ = writeln!(t, "\n   THE TUPLE, PER SUBSYSTEM\n");
+    for sub in table.iter() {
+        let marks = verified.marks.get(sub.key).copied().unwrap_or_default();
+        let _ = writeln!(t, "   [{}] {} — {}", sub.key, sub.title, sub.page);
+        let _ = writeln!(t, "       TU(s): {}", sub.tus);
+        let _ = writeln!(
+            t,
+            "     1 read      : sites {} ({}) ⊇ read {} ({}) ⊇ ported {}",
+            commas(sub.sites),
+            sub.sites_unit,
+            commas(sub.read),
+            sub.read_unit,
+            match &sub.ported {
+                Cell::Residue(_) => "RESIDUE".to_string(),
+                c => c.render(),
+            }
+        );
+        let _ = writeln!(t, "                   denominator doc: {}", sub.sites_doc);
+        if let Some(tp) = sub.tu_population {
+            let _ = writeln!(
+                t,
+                "                   SECOND DENOMINATOR: {} functions under FUNCS.tsv's \
+                 TU-level `subsys` column ({:.1}x the band)",
+                commas(tp),
+                tp as f64 / sub.sites.max(1) as f64
+            );
+        }
+        if let Cell::Residue(r) = &sub.ported {
+            let _ = writeln!(t, "                   ported RESIDUE — {}", wrap(r, 62, "                     "));
+        }
+        let _ = writeln!(
+            t,
+            "     2 agreement : marks [O] {} of {} ({:.1} %) — [R] {} [I] {}",
+            marks.obj,
+            marks.total(),
+            if marks.total() == 0 {
+                0.0
+            } else {
+                100.0 * marks.obj as f64 / marks.total() as f64
+            },
+            marks.read,
+            marks.inferred
+        );
+        let _ = writeln!(
+            t,
+            "                   A MARK IS A PAGE ANNOTATION, NOT A SITE — this is the \
+             page's own"
+        );
+        let _ = writeln!(
+            t,
+            "                   evidence-tier census, not a differential."
+        );
+        match &sub.agreement_extra {
+            None => {
+                let _ = writeln!(
+                    t,
+                    "                   RESIDUE — no differential exists for {} beyond \
+                     the mark census",
+                    sub.key
+                );
+            }
+            Some(c) => {
+                let _ = writeln!(t, "                   {}", c.render());
+                let _ = writeln!(
+                    t,
+                    "                   source: {}",
+                    wrap(c.source(), 62, "                     ")
+                );
+                let _ = writeln!(
+                    t,
+                    "                   {}",
+                    wrap(c.note(), 62, "                     ")
+                );
+            }
+        }
+        let ex = exercised_cell(sub, &census);
+        let _ = writeln!(t, "     3 exercised : {}", ex.render());
+        let _ = writeln!(
+            t,
+            "                   {}",
+            wrap(ex.note(), 62, "                     ")
+        );
+        let _ = writeln!(
+            t,
+            "     4 byte-owned: CITED #3534 — no per-subsystem split exists"
+        );
+        let _ = writeln!(t);
+        if !sub.subsys_cell_note.is_empty() {
+            let _ = writeln!(
+                t,
+                "       ! SUBSYS.md §1 CELL: {}\n",
+                wrap(sub.subsys_cell_note, 66, "         ")
+            );
+        }
+    }
+
+    // ---- machine-readable keys -------------------------------------------
+    let _ = writeln!(
+        t,
+        "   MACHINE-READABLE (namespaced; NOT gap-metric, NOT read by gate.sh)"
+    );
+    for line in keys(table, &verified, &census) {
+        let _ = writeln!(t, "     subsys-metric {line}");
+    }
+
+    // ---- verification verdict --------------------------------------------
+    let _ = writeln!(t, "\n   SELF-VERIFICATION (the same checks `cargo test` runs)");
+    if verified.ok() {
+        let _ = writeln!(
+            t,
+            "     VERIFY: PASS — {} band denominators recounted from FUNCS.tsv, {} \
+             pages' coverage probes found verbatim, {} mark censuses, 0 empty \
+             residues.",
+            verified.recounted.len(),
+            table.len(),
+            verified.marks.len()
+        );
+    } else {
+        let _ = writeln!(
+            t,
+            "     VERIFY: FAIL — {} problem(s):",
+            verified.failures.len()
+        );
+        for f in &verified.failures {
+            let _ = writeln!(t, "       - {f}");
+        }
+    }
+
+    markdown(&mut m, table, &verified, &census, &stamp, &ref_dir);
+
+    Rendered {
+        text: t,
+        markdown: m,
+        verified,
+        census,
+        stamp,
+    }
+}
+
+/// Strength 3's cell, with the workload census actually consulted so an absent
+/// census reads `NO-DATA` rather than a stale carried number.
+fn exercised_cell(sub: &Subsystem, census: &SectionCensus) -> Cell {
+    match &sub.exercised {
+        Cell::Measured { .. } if !census.present && sub.key != "symbol" => Cell::Residue(
+            "NO-DATA — the workload section census is not in this tree, so this \
+             row's output proxy cannot be recomputed. Not 0.",
+        ),
+        other => other.clone(),
+    }
+}
+
+/// The `subsys-metric` lines. Namespaced, sorted by key NAME (never by mass —
+/// this repo's standing rule against dispatching off a size ranking, which has
+/// now bound five times, `#3505`).
+pub fn keys(table: &[Subsystem], v: &Verified, census: &SectionCensus) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for sub in table.iter() {
+        let k = sub.key;
+        out.push(format!("{k}-sites {}", sub.sites));
+        out.push(format!("{k}-read {}", sub.read));
+        if let Some(n) = v.recounted.get(k) {
+            out.push(format!("{k}-sites-recounted {n}"));
+        }
+        if let Some(tp) = sub.tu_population {
+            out.push(format!("{k}-sites-tu-level {tp}"));
+        }
+        let m = v.marks.get(k).copied().unwrap_or_default();
+        out.push(format!("{k}-marks-obj {}", m.obj));
+        out.push(format!("{k}-marks-total {}", m.total()));
+        match &sub.ported {
+            Cell::Measured { num, .. } => out.push(format!("{k}-ported {num}")),
+            _ => out.push(format!("{k}-ported RESIDUE")),
+        }
+        match exercised_cell(sub, census) {
+            Cell::Measured { num, den, .. } => {
+                out.push(format!("{k}-exercised-proxy {num}"));
+                out.push(format!("{k}-exercised-proxy-den {den}"));
+            }
+            _ => out.push(format!("{k}-exercised-proxy RESIDUE")),
+        }
+    }
+    out.push(format!("subsystems {}", table.len()));
+    out.push(format!("verify-failures {}", v.failures.len()));
+    out.push(format!(
+        "workload-census-nsec-disagree {}",
+        census.nsec_disagree
+    ));
+    out.push("byte-owned CITED-3534".to_string());
+    out.sort();
+    out
+}
+
+fn wrap(s: &str, width: usize, indent: &str) -> String {
+    let mut out = String::new();
+    let mut col = 0usize;
+    for w in s.split_whitespace() {
+        if col > 0 && col + 1 + w.len() > width {
+            out.push('\n');
+            out.push_str(indent);
+            col = 0;
+        } else if col > 0 {
+            out.push(' ');
+            col += 1;
+        }
+        out.push_str(w);
+        col += w.len();
+    }
+    out
+}
+
+/// The reference index path as it may appear in a **committed** file: the
+/// repo-relative form when it is the tree's own index, and only the trailing
+/// components otherwise. Never an absolute machine path (`CLAUDE.md` § Commits).
+fn rel_ref_dir(ref_dir: &Path) -> String {
+    let s = ref_dir.to_string_lossy();
+    match s.find(REF_DIR) {
+        Some(i) => s[i..].to_string(),
+        None => ref_dir
+            .file_name()
+            .map(|f| format!("(non-default index)/{}", f.to_string_lossy()))
+            .unwrap_or_else(|| "(non-default index)".to_string()),
+    }
+}
+
+fn md_escape(s: &str) -> String {
+    s.replace('|', "\\|").split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn markdown(
+    m: &mut String,
+    table: &[Subsystem],
+    v: &Verified,
+    census: &SectionCensus,
+    stamp: &WorkloadStamp,
+    ref_dir: &Path,
+) {
+    let _ = writeln!(
+        m,
+        "# SUBSYS METRICS — the per-subsystem scoreboard\n\n\
+         **Status: adopted 2026-08-26 (lane `w-submetric`, boards `#3617`–`#3622`).**\n\
+         Funded by [`DECISIONS_2026-08-22.md`](DECISIONS_2026-08-22.md) § Decision 15,\n\
+         the owner's restructuring of the working goal: *\"the overall TU goal is too\n\
+         broad because it is binary. we need a smarter goal … focus on building tools\n\
+         we can use to measure our progress for each unit.\"*\n\n\
+         One 4-tuple per [`whitebox/ref/SUBSYS.md`](whitebox/ref/SUBSYS.md) §1\n\
+         subsystem — **read**, **agreement**, **exercised**, **byte-owned** — with\n\
+         **every denominator printed beside its numerator**.\n"
+    );
+
+    let _ = writeln!(
+        m,
+        "## 0. The separation rule (read this even if you read nothing else)\n\n\
+         > **These keys are PROGRESS instruments and never correctness criteria.**\n\
+         > The real `c2` under wibo plus the byte-exact whole-obj compare is the SOLE\n\
+         > judge of the port (`CLAUDE.md`). A `subsys-metric` row going green while\n\
+         > `mismatch` reads 1 is a FAILING tree.\n\n\
+         [`FUNCTION_BYTE_MATCH.md`](FUNCTION_BYTE_MATCH.md) §0 is the standing\n\
+         template for every gradient added after FBM, and this one adopts all five\n\
+         properties verbatim, as `decode-reach-*` and `symbind-*` did before it:\n\n\
+         * **Never in `scripts/gate.sh`'s verdict**, and it must never be added\n\
+           there. It does not print inside a `c2rs gap` scan at all — it is a\n\
+           separate offline subcommand, so it cannot move the gate's 21-row count\n\
+           table even by accident.\n\
+         * **Its own block**, under its own disclaimer, apart from the class table\n\
+           that carries `match`/`mismatch`.\n\
+         * **Namespaced keys** — `subsys-metric <key> <value>`. No existing key,\n\
+           predicate or denominator is narrowed, widened or redefined here.\n\
+         * **It licenses no emit.** A subsystem row going green is not a reason to\n\
+           accept a shape or to widen the admitted set.\n\
+         * **Unrepresentable over an empty scan** — a strength with no data prints a\n\
+           **named residue**, never `0`, never silence.\n"
+    );
+
+    let _ = writeln!(
+        m,
+        "## 1. The three standing traps, verbatim\n"
+    );
+    for (i, trap) in TRAPS.iter().enumerate() {
+        let _ = writeln!(m, "{}. **{}**\n", i + 1, md_escape(trap));
+    }
+
+    let _ = writeln!(
+        m,
+        "## 2. What each strength actually is here\n\n\
+         | strength | this instrument's answer |\n|---|---|\n\
+         | **1 read** | a **containment, never a ratio**: `sites ⊇ read ⊇ ported`. \
+         `sites` is the subsystem's enumerable population, **recomputed from \
+         `FUNCS.tsv` on this tree** where it is a band; `read` is what the `P_*.md` \
+         page says it read, in the page's own unit; `ported` is a **named residue on \
+         all ten rows** — see §4 |\n\
+         | **2 agreement** | the page's own **evidence-mark census** — `[O]` \
+         obj-confirmed against `[R]`+`[O]`+`[I]` — plus, where a page carries a real \
+         differential, that differential quoted with its own denominator. **A mark is \
+         a page annotation, not a site.** Two rows carry more: `encode` has a \
+         measured differential, `inline`'s is being built by lane `w-inlmetric` and \
+         prints `PENDING` |\n\
+         | **3 exercised** | a **labelled workload-output proxy** where one exists, \
+         from the committed real-`c2` section census of the workload; a named residue \
+         otherwise. **Per-SITE exercise is unmeasurable on this tree for all ten** — \
+         nothing traces `c2.dll`'s own addresses over the workload, so no row can say \
+         which of its functions the workload entered |\n\
+         | **4 byte-owned** | **CITED, NEVER RE-MEASURED.** Board `#3534` measured it \
+         2026-08-25. Decision 15 says so in its own words; re-funding that read is \
+         what this repo calls *\"check the board before dispatching\"* |\n\n\
+         **The mark census's honest limit, stated before its numbers are read:** it \
+         counts a page's claims about its own evidence tier, not sites and not \
+         agreements. A page may mark one sentence `[O]` and cover twenty addresses \
+         with it. It is published as strength 2 because it is the only quantity that \
+         is both uniform across all ten pages and mechanically recomputable — and \
+         because the alternative was ten rows of silence.\n\n\
+         **The counting rule, so it is reproducible:** everything up to and including \
+         a page's first line consisting of exactly `---` is the provenance banner and \
+         mark legend and is skipped; every occurrence of `[R]`/`[O]`/`[I]` after it \
+         counts.\n"
+    );
+
+    let _ = writeln!(m, "## 3. The tuple table\n");
+    let _ = writeln!(
+        m,
+        "| subsystem | page | 1 read — `sites ⊇ read ⊇ ported` | 2 agreement | 3 exercised | 4 byte-owned |"
+    );
+    let _ = writeln!(m, "|---|---|---|---|---|---|");
+    for sub in table.iter() {
+        let marks = v.marks.get(sub.key).copied().unwrap_or_default();
+        let second = sub
+            .tu_population
+            .map(|tp| format!("<br>**second denominator** {tp} (TU-level, {:.1}×)", tp as f64 / sub.sites.max(1) as f64))
+            .unwrap_or_default();
+        let agree = match &sub.agreement_extra {
+            None => format!(
+                "`[O] {}` of `{}` marks ({:.1} %)<br>**RESIDUE — no differential exists for {}** beyond the page's own mark census",
+                marks.obj,
+                marks.total(),
+                if marks.total() == 0 { 0.0 } else { 100.0 * marks.obj as f64 / marks.total() as f64 },
+                sub.key
+            ),
+            Some(c) => format!(
+                "`[O] {}` of `{}` marks ({:.1} %)<br>{}<br>*{}*",
+                marks.obj,
+                marks.total(),
+                if marks.total() == 0 { 0.0 } else { 100.0 * marks.obj as f64 / marks.total() as f64 },
+                md_escape(&c.render()),
+                md_escape(c.note())
+            ),
+        };
+        let ex = exercised_cell(sub, census);
+        // `Cell::Residue`'s render IS its note; printing both duplicates the
+        // whole sentence in the cell. Only a Measured cell has a caveat that
+        // is distinct from its number, and a measured number without its
+        // caveat is the thing this table exists to prevent.
+        let ex_cell = match &ex {
+            Cell::Measured { .. } => format!("{}<br>*{}*", md_escape(&ex.render()), md_escape(ex.note())),
+            _ => md_escape(&ex.render()),
+        };
+        let _ = writeln!(
+            m,
+            "| **{}**<br>`{}` | [`{}`]({}) | **{} sites** ({})<br>⊇ **read {}** ({})<br>⊇ **ported RESIDUE**{} | {} | {} | CITED `#3534` |",
+            sub.title,
+            sub.key,
+            sub.page,
+            format!("whitebox/ref/{}", sub.page),
+            commas(sub.sites),
+            md_escape(sub.sites_unit),
+            commas(sub.read),
+            md_escape(sub.read_unit),
+            second,
+            agree,
+            ex_cell,
+        );
+    }
+
+    let _ = writeln!(
+        m,
+        "\n## 4. `ported` is a residue on all ten rows, and that is the finding\n\n\
+         Decision 15 asks strength 1 for *\"how many the port implements\"*. **No\n\
+         port↔image site map exists in this tree for any of the ten subsystems**, and\n\
+         building one is not a rounding error on this lane: the port is\n\
+         **I/O-behavioral by construction** (`CLAUDE.md`'s one correctness rule — the\n\
+         port may use AVX and restructured CFGs so long as its *output obj* matches),\n\
+         so \"the port implements site `0x10b2e7f8`\" is not a well-formed question for\n\
+         most of these addresses. Where it *is* well-formed, the quantity that answers\n\
+         it is the **derived-vs-fitted provenance census**, which lane `w-provenance`\n\
+         owns this same wave — and decision 15's own fence says owned surfaces include\n\
+         *predicates, keys and facts, not just files*. Building a second reader for it\n\
+         here would be the collision the fence exists to prevent.\n\n\
+         Per row, with the reason rather than a blank:\n"
+    );
+    for sub in table.iter() {
+        if let Cell::Residue(r) = &sub.ported {
+            let _ = writeln!(m, "* **`{}`** — {}", sub.key, md_escape(r));
+        }
+    }
+
+    let _ = writeln!(m, "\n## 5. Where `SUBSYS.md` §1's own cell needs reading twice\n\n\
+         Found by re-measuring every denominator on this tree rather than carrying it.\n\
+         **None of these is corrected here** — `SUBSYS.md` and the `P_*.md` pages are\n\
+         not this lane's to edit, and a disagreement recorded beside a page beats a\n\
+         silent rewrite of it (`#3538`'s rule).\n");
+    let mut any = false;
+    for sub in table.iter() {
+        if !sub.subsys_cell_note.is_empty() {
+            any = true;
+            let _ = writeln!(m, "* **`{}`** — {}\n", sub.key, md_escape(sub.subsys_cell_note));
+        }
+    }
+    if !any {
+        let _ = writeln!(m, "*(none on this tree)*\n");
+    }
+
+    let _ = writeln!(m, "\n## 6. Workload stamp\n");
+    let _ = writeln!(m, "| what | value |");
+    let _ = writeln!(m, "|---|---|");
+    // RELATIVE, never absolute: this string is committed into
+    // `docs/SUBSYS_METRICS.md` and `CLAUDE.md` forbids machine paths in
+    // tracked files.
+    let _ = writeln!(m, "| whitebox ref index | `{}` |", rel_ref_dir(ref_dir));
+    if stamp.present {
+        let _ = writeln!(
+            m,
+            "| workload section census | `{}` records, generated `{}` |",
+            stamp.records.map(commas).unwrap_or_else(|| "?".into()),
+            stamp.generated_utc.clone().unwrap_or_else(|| "?".into())
+        );
+        let _ = writeln!(
+            m,
+            "| corpus | `{}` dirty=`{}` |",
+            stamp.corpus_head.clone().unwrap_or_else(|| "?".into()),
+            stamp.corpus_dirty.map(|d| d.to_string()).unwrap_or_else(|| "?".into())
+        );
+        let _ = writeln!(
+            m,
+            "| recomputed here | {} TUs, {} sections, {} distinct names, `nsec-disagree {}` (known answer 0) |",
+            commas(census.tus),
+            commas(census.sections),
+            census.by_name.len(),
+            census.nsec_disagree
+        );
+    } else {
+        let _ = writeln!(m, "| workload section census | **ABSENT** — proxies read `NO-DATA`, never 0 |");
+    }
+    let _ = writeln!(m, "| byte-owned | **CITED, NOT RE-MEASURED** — {} |", md_escape(BYTE_OWNED_CITATION));
+
+    let _ = writeln!(m, "\n## 7. Machine-readable keys\n\n\
+         Namespaced, and **sorted by key NAME rather than by mass** — this repo's\n\
+         standing rule against dispatching off a blocked-key size ranking, which has\n\
+         now bound five times (`#3505`, and *\"ranking instruments measure\n\
+         themselves\"*, four for four).\n");
+    let _ = writeln!(m, "```text");
+    for line in keys(table, v, census) {
+        let _ = writeln!(m, "subsys-metric {line}");
+    }
+    let _ = writeln!(m, "```");
+
+    let _ = writeln!(m, "\n## 8. Self-verification\n");
+    if v.ok() {
+        let _ = writeln!(
+            m,
+            "`VERIFY: PASS` — {} band denominators recounted from `FUNCS.tsv`, {} pages' \
+             coverage probes found verbatim, {} mark censuses, 0 empty residues.",
+            v.recounted.len(),
+            table.len(),
+            v.marks.len()
+        );
+    } else {
+        let _ = writeln!(m, "`VERIFY: FAIL` — {} problem(s):\n", v.failures.len());
+        for f in &v.failures {
+            let _ = writeln!(m, "* {f}");
+        }
+    }
+
+    let _ = writeln!(
+        m,
+        "\n### 8.1 The controls, and that they were watched failing\n\n\
+         `#3336`: **a control never seen failing is decoration.** Four fabrications\n\
+         run on every `cargo test -p c2-harness --lib subsys`, each asserting the\n\
+         verifier *refuses*, and each pinned to the check that must own the refusal so\n\
+         a case cannot pass by being caught for the wrong reason:\n\n\
+         | control | fabrication | must be caught by |\n|---|---|---|\n\
+         | `control_a_fabricated_denominator_is_caught` | the inliner's `93` → `94` | the `FUNCS.tsv` recount |\n\
+         | `control_a_dropped_subsystem_is_caught` | the `eh` row deleted from the table | the `SUBSYS.md` §1 enumeration |\n\
+         | `control_an_empty_residue_is_caught` | `dag`'s `ported` residue set to `\"   \"` | the no-silence check |\n\
+         | `control_a_moved_coverage_line_is_caught` | `P_COFF`'s probe pointed at a line that is not on the page | the verbatim probe |\n\n\
+         And `scripts/subsys_metrics.sh --self-test` drives the **binary** against\n\
+         three deliberately corrupted copies of the reference index — a function moved\n\
+         out of the inliner band, `P_EH.md`'s coverage line edited, a subsystem\n\
+         deleted from `SUBSYS.md` §1 — requiring each to exit non-zero *and* proving\n\
+         each mutation applied first, because a `sed` that matched nothing leaves a\n\
+         clean copy and the case then \"passes\" by testing the control twice\n\
+         (`#3516`'s mutation-not-applied failure, named in the same words by\n\
+         `scripts/gate_identity_diff.sh --self-test`).\n"
+    );
+
+    let _ = writeln!(
+        m,
+        "## 9. How to regenerate\n\n\
+         ```sh\n\
+         scripts/subsys_metrics.sh              # console report\n\
+         scripts/subsys_metrics.sh --write      # regenerate THIS FILE\n\
+         scripts/subsys_metrics.sh --keys       # only the subsys-metric lines\n\
+         scripts/subsys_metrics.sh --self-test  # prove the verifier CAN go red\n\
+         \n\
+         cargo test -p c2-harness --lib subsys  # the same checks, plus the 4 controls\n\
+         cargo run -p c2-harness --bin c2rs -- subsys\n\
+         ```\n\n\
+         **No toolchain, no capture, no scan.** The instrument reads\n\
+         `docs/whitebox/ref/` and the committed workload section census and prints, so\n\
+         it degrades cleanly by construction: an absent census makes every output\n\
+         proxy read `NO-DATA`, never `0`.\n\n\
+         ### 9.1 `#1406`, and why this is not in `gate.sh`\n\n\
+         `#1406` binds any instrument whose output is quoted as evidence to run under\n\
+         `cargo test` or `scripts/gate.sh`. §0 forbids the second. The resolution is\n\
+         `decode-reach`'s, and it is the reason this file's numbers are trustworthy\n\
+         without the gate grading them: **the logic and the controls live in\n\
+         `crates/c2-harness/src/subsys.rs` and run under `cargo test --workspace`,\n\
+         which is a `gate.sh` row.** The verdict they contribute to is `cargo test`'s\n\
+         — that every denominator here still reproduces from the tree — never the\n\
+         differential's. `scripts/subsys_metrics.sh` is a thin wrapper over the same\n\
+         code, so there is **one producer** of the table and it cannot drift from the\n\
+         tests that grade it.\n"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Tests — including the POSITIVE CONTROLS, watched failing (#3336)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ref_dir() -> PathBuf {
+        crate::provenance::repo_root().join(REF_DIR)
+    }
+
+    /// THE CHECK. Every denominator in the shipped table still reproduces from
+    /// this tree. This is the `#1406` placement: the instrument's own grading
+    /// runs under `cargo test`, never in `gate.sh`'s verdict.
+    #[test]
+    fn every_denominator_reproduces_on_this_tree() {
+        let v = verify(&ref_dir(), SUBSYSTEMS);
+        assert!(
+            v.ok(),
+            "per-subsystem metric table no longer reproduces:\n  {}",
+            v.failures.join("\n  ")
+        );
+        assert_eq!(SUBSYSTEMS.len(), 10, "SUBSYS.md §1 has ten rows");
+        assert_eq!(
+            v.recounted.len(),
+            SUBSYSTEMS.iter().filter(|s| s.basis == Basis::Band).count()
+        );
+    }
+
+    /// POSITIVE CONTROL 1 — **a fabricated denominator must go RED.**
+    /// A control never seen failing is decoration (`#3336`).
+    #[test]
+    fn control_a_fabricated_denominator_is_caught() {
+        let mut table: Vec<Subsystem> = SUBSYSTEMS.to_vec();
+        let i = table.iter().position(|s| s.key == "inline").unwrap();
+        assert_eq!(table[i].sites, 93);
+        table[i].sites = 94; // off by one, the cheapest lie
+        let v = verify(&ref_dir(), &table);
+        assert!(!v.ok(), "an off-by-one denominator was NOT caught");
+        assert!(
+            v.failures.iter().any(|f| f.contains("DOES NOT REPRODUCE")),
+            "caught, but not by the recount: {:?}",
+            v.failures
+        );
+    }
+
+    /// POSITIVE CONTROL 2 — **a dropped subsystem row must go RED.** This is
+    /// the failure decision 15's scoreboard is most exposed to: a subsystem
+    /// silently stops being tracked and the table still looks complete.
+    #[test]
+    fn control_a_dropped_subsystem_is_caught() {
+        let table: Vec<Subsystem> = SUBSYSTEMS
+            .iter()
+            .filter(|s| s.key != "eh")
+            .cloned()
+            .collect();
+        assert_eq!(table.len(), 9);
+        let v = verify(&ref_dir(), &table);
+        assert!(!v.ok(), "a missing subsystem row was NOT caught");
+        assert!(
+            v.failures
+                .iter()
+                .any(|f| f.contains("P_EH.md") && f.contains("missing a subsystem")),
+            "caught, but not as a missing subsystem: {:?}",
+            v.failures
+        );
+    }
+
+    /// POSITIVE CONTROL 3 — **an empty residue must go RED.** Decision 15's
+    /// rule is that a strength this lane cannot measure prints a *named*
+    /// residue: never silence, never 0.
+    #[test]
+    fn control_an_empty_residue_is_caught() {
+        let mut table: Vec<Subsystem> = SUBSYSTEMS.to_vec();
+        let i = table.iter().position(|s| s.key == "dag").unwrap();
+        table[i].ported = Cell::Residue("   ");
+        let v = verify(&ref_dir(), &table);
+        assert!(!v.ok(), "an empty residue was NOT caught");
+        assert!(
+            v.failures.iter().any(|f| f.contains("EMPTY residue")),
+            "{:?}",
+            v.failures
+        );
+    }
+
+    /// POSITIVE CONTROL 4 — **a coverage line that moved must go RED.** The
+    /// numbers here are carried from the pages; the probe is what makes a
+    /// carried number fail instead of rot.
+    #[test]
+    fn control_a_moved_coverage_line_is_caught() {
+        let mut table: Vec<Subsystem> = SUBSYSTEMS.to_vec();
+        let i = table.iter().position(|s| s.key == "coff").unwrap();
+        table[i].den_probe = "21 of the 121 functions in the `coff.c`/`coffemit.c` band";
+        let v = verify(&ref_dir(), &table);
+        assert!(!v.ok(), "a moved coverage line was NOT caught");
+        assert!(
+            v.failures.iter().any(|f| f.contains("den_probe not found")),
+            "{:?}",
+            v.failures
+        );
+    }
+
+    /// The endpoint convention is not decoration: two rows only reproduce
+    /// under one convention and flipping it must move the count.
+    #[test]
+    fn the_endpoint_convention_is_load_bearing() {
+        let funcs =
+            std::fs::read_to_string(ref_dir().join("FUNCS.tsv")).expect("FUNCS.tsv");
+        let addrs = funcs_addresses(&funcs);
+        let regalloc = Band { lo: 0x10b2c21d, hi: 0x10b3219f, end: End::HalfOpen };
+        let flipped = Band { end: End::Inclusive, ..regalloc };
+        assert_eq!(recount_band(&addrs, &[regalloc]), 70);
+        assert_eq!(
+            recount_band(&addrs, &[flipped]),
+            71,
+            "P_REGALLOC's 70 reproduces ONLY half-open"
+        );
+        let coff = Band { lo: 0x10b281af, hi: 0x10b2b0dd, end: End::Inclusive };
+        let flipped = Band { end: End::HalfOpen, ..coff };
+        assert_eq!(recount_band(&addrs, &[coff]), 120);
+        assert_eq!(
+            recount_band(&addrs, &[flipped]),
+            119,
+            "P_COFF's 120 reproduces ONLY inclusive"
+        );
+    }
+
+    /// The section census's own known-answer control: `nsec` against the
+    /// parsed `order` length, on every record. A parser that drops names must
+    /// not be able to report a plausible small number.
+    #[test]
+    fn the_section_census_control_holds_or_the_file_is_absent() {
+        let root = crate::provenance::repo_root();
+        let c = section_census(&root);
+        if !c.present {
+            eprintln!("SKIP: {SECTIONS_JSONL} absent from this tree");
+            return;
+        }
+        assert_eq!(
+            c.nsec_disagree, 0,
+            "{} record(s) whose parsed section list disagrees with their own nsec",
+            c.nsec_disagree
+        );
+        assert_eq!(c.tus, 871);
+        assert_eq!(c.sections, 393_236);
+        assert_eq!(c.by_name.len(), 14);
+        assert_eq!(c.by_name.get(".pdata").copied(), Some((849, 103_128)));
+        // Independent corroboration of P_EH's own "67 workload objs, all STLport".
+        assert_eq!(c.by_name.get(".xdata$x").map(|v| v.0), Some(67));
+    }
+
+    /// The mark census rule reproduces the numbers the shipped doc quotes.
+    #[test]
+    fn the_mark_census_reproduces() {
+        let v = verify(&ref_dir(), SUBSYSTEMS);
+        assert_eq!(v.marks.len(), 10);
+        let eh = v.marks["eh"];
+        assert_eq!((eh.read, eh.obj, eh.inferred), (27, 14, 0));
+        let gr = v.marks["globregs"];
+        assert_eq!((gr.read, gr.obj, gr.inferred), (45, 2, 1));
+    }
+
+    /// §0's fifth property: no key may be a ratio over zero, and the renderer
+    /// must never print a bare `0` for an unmeasured strength.
+    #[test]
+    fn no_strength_prints_a_bare_zero() {
+        let root = crate::provenance::repo_root();
+        let r = render(&root, None, SUBSYSTEMS);
+        assert!(r.verified.ok(), "{:?}", r.verified.failures);
+        for sub in SUBSYSTEMS {
+            let ex = exercised_cell(sub, &r.census);
+            match ex {
+                Cell::Measured { den, .. } => assert!(den > 0),
+                Cell::Residue(s) | Cell::Pending(s) => assert!(!s.trim().is_empty()),
+            }
+        }
+        assert!(r.text.contains("LICENSE NO EMIT") || r.text.contains("LICENSE NO EMIT"));
+        for trap in TRAPS {
+            let first = trap.split_whitespace().take(4).collect::<Vec<_>>().join(" ");
+            assert!(
+                r.text.contains(&first),
+                "trap missing from the render: {first}"
+            );
+        }
+    }
+
+    /// The keys are namespaced and sorted by NAME, never by mass (`#3505`).
+    #[test]
+    fn keys_are_namespaced_and_name_sorted() {
+        let root = crate::provenance::repo_root();
+        let r = render(&root, None, SUBSYSTEMS);
+        let k = keys(SUBSYSTEMS, &r.verified, &r.census);
+        let mut sorted = k.clone();
+        sorted.sort();
+        assert_eq!(k, sorted, "keys must be sorted by name");
+        assert!(k.iter().any(|l| l.starts_with("byte-owned CITED-3534")));
+        assert!(k.iter().any(|l| l == "verify-failures 0"));
+    }
+}
