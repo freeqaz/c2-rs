@@ -1,8 +1,8 @@
 # SUBSYS METRICS — the per-subsystem scoreboard
 
 > **GENERATED — do not hand-edit.** Regenerate with
-> `scripts/subsys_metrics.sh --write`. Tree `e2bcda46d` (clean), generated
-> `2026-08-26T07:57:42Z`. Every number below is re-verified against this tree by
+> `scripts/subsys_metrics.sh --write`. Tree `8af60961c` (clean), generated
+> `2026-08-26T09:20:23Z`. Every number below is re-verified against this tree by
 > `cargo test -p c2-harness --lib subsys`, which `scripts/gate.sh`'s
 > unit row runs; the four positive controls run beside it.
 
@@ -71,27 +71,41 @@ accept a shape or to widen the admitted set.
 | **register allocator**<br>`regalloc` | [`P_REGALLOC.md`](whitebox/ref/P_REGALLOC.md) | **70 sites** (Ghidra function entries in color.c's span)<br>⊇ **read 33** (entries (18 code + 15 data))<br>⊇ **ported RESIDUE**<br>**second denominator** 230 (TU-level, 3.3×) | `[O] 7` of `49` marks (14.3 %)<br>**RESIDUE — no differential exists for regalloc** beyond the page's own mark census | RESIDUE — per-site exercise is unmeasurable: nothing traces c2.dll's own addresses over the workload. The nearest measured thing is P_REGALLOC's own [O] evidence on 6 frozen grid cells (G1-G4, L3, P1), which is a 6-cell probe grid and not the 878-TU workload | CITED `#3534` |
 | **globregs: the candidate SET, its ORDER, and the tie key**<br>`globregs` | [`P_GLOBREGS.md`](whitebox/ref/P_GLOBREGS.md) | **19 sites** (the R4 target plus its 18 callees)<br>⊇ **read 26** (entries (16 code + 10 data))<br>⊇ **ported RESIDUE** | `[O] 2` of `48` marks (4.2 %)<br>**RESIDUE — no differential exists for globregs** beyond the page's own mark census | RESIDUE — per-site exercise unmeasurable (no address trace). P_GLOBREGS's own [O] is 262 formal->register assignments over 62 GRID objs — a probe grid, not the 878-TU workload | CITED `#3534` |
 | **DAG build + scheduler**<br>`dag` | [`P_DAG.md`](whitebox/ref/P_DAG.md) | **61 sites** (Ghidra function entries in the two bands (48 + 13))<br>⊇ **read 32** (entries (24 code + 8 data/table))<br>⊇ **ported RESIDUE**<br>**second denominator** 83 (TU-level, 1.4×) | `[O] 6` of `47` marks (12.8 %)<br>**RESIDUE — no differential exists for dag** beyond the page's own mark census | RESIDUE — per-site exercise unmeasurable (no address trace). The scheduler band 0x10be5cce-0x10be663f is a TU with NO ICE SITE, so even its attribution is a hypothesis rather than a fact (SUBSYS.md's own blind-spot box) | CITED `#3534` |
-| **inliner**<br>`inline` | [`P_INLINE.md`](whitebox/ref/P_INLINE.md) | **93 sites** (Ghidra function entries in the inliner band)<br>⊇ **read 16** (entries)<br>⊇ **ported RESIDUE**<br>**second denominator** 350 (TU-level, 3.8×) | `[O] 10` of `31` marks (32.3 %)<br>PENDING — the inliner's clause-by-clause differential is being built by lane w-inlmetric (decision 15, boards #3623-#3628), in flight at this render. Cited, not waited on, and its worktree is not read<br>*the inliner's clause-by-clause differential is being built by lane w-inlmetric (decision 15, boards #3623-#3628), in flight at this render. Cited, not waited on, and its worktree is not read* | RESIDUE — per-site exercise unmeasurable (no address trace). P_INLINE's own worked case is one anchor (keygen_xbox.cpp) where the read predicts six inlines and gets one [O] — a single TU, not a workload count | CITED `#3534` |
+| **inliner**<br>`inline` | [`P_INLINE.md`](whitebox/ref/P_INLINE.md) | **93 sites** (Ghidra function entries in the inliner band)<br>⊇ **read 16** (entries)<br>⊇ **ported RESIDUE**<br>**second denominator** 350 (TU-level, 3.8×) | `[O] 11` of `40` marks (27.5 %)<br>PENDING — the inliner's clause-by-clause differential is being built by lane w-inlmetric (decision 15, boards #3623-#3628), in flight at this render. Cited, not waited on, and its worktree is not read<br>*the inliner's clause-by-clause differential is being built by lane w-inlmetric (decision 15, boards #3623-#3628), in flight at this render. Cited, not waited on, and its worktree is not read* | RESIDUE — per-site exercise unmeasurable (no address trace). P_INLINE's own worked case is one anchor (keygen_xbox.cpp) where the read predicts six inlines and gets one [O] — a single TU, not a workload count | CITED `#3534` |
 | **instruction encoder (tuple -> one PPC word, plus .text relocation requests)**<br>`encode` | [`P_ENCODE.md`](whitebox/ref/P_ENCODE.md) | **14 sites** (Ghidra function entries in the encoder band)<br>⊇ **read 79** (distinct encode arms (covering 660 of 660 machine opcodes))<br>⊇ **ported RESIDUE** | `[O] 9` of `28` marks (32.1 %)<br>630,548 / 634,457 executable .text words explained by the page's own arm masks (99.38 %)<br>*THE STRICT-MASK PASS IS THE ONE WITH TEETH — the page says so itself: a second pass with every read form masked reads 99.8060 % and MUST NOT be quoted as stronger, because sixteen VMX128 forms are masked at 0x03FFFFFF and a generous mask cannot fail. Denominator is 500 objs, NOT the 878-TU workload. The 3,909 residuals are unmasked forms, not disagreements; 0 unexplained at any of 124,700 relocation sites* | 863 / 871 workload TUs with any .text section (99.08 %)<br>*OUTPUT PROXY, NOT A SITE COUNT — 178,104 .text COMDATs over the 863. Says nothing about which of the 79 arms the workload takes* | CITED `#3534` |
 | **EH state synthesis**<br>`eh` | [`P_EH.md`](whitebox/ref/P_EH.md) | **47 sites** (Ghidra function entries in the EH band)<br>⊇ **read 19** (entries)<br>⊇ **ported RESIDUE**<br>**second denominator** 127 (TU-level, 2.7×) | `[O] 14` of `41` marks (34.1 %)<br>**RESIDUE — no differential exists for eh** beyond the page's own mark census | 849 / 871 workload TUs carrying .pdata (97.47 %)<br>*OUTPUT PROXY, NOT A SITE COUNT — 103,128 .pdata records over the 849. Its value is the INDEPENDENT CORROBORATION beside it: this census counts .xdata$x in exactly 67 of 871 TUs, reproducing P_EH's own `67 workload objs, all STLport` from a different instrument* | CITED `#3534` |
 | **compiler-label numbering (the $M/$T/$L* counter and its charges)**<br>`label` | [`P_LABEL.md`](whitebox/ref/P_LABEL.md) | **163 sites** (charging sites (31 direct calls of the allocator + 132 of the generic ctor))<br>⊇ **read 163** (sites (the population is CLOSED by construction — the allocator's address is never taken))<br>⊇ **ported RESIDUE** | `[O] 11` of `73` marks (15.1 %)<br>**RESIDUE — no differential exists for label** beyond the page's own mark census | RESIDUE — per-site exercise unmeasurable, and WORSE HERE THAN ELSEWHERE: 42 of the 163 sites sit on LOOP BACK EDGES, so a TU's charge is a data-dependent sum over whatever population the loop walks, not a per-construct constant. A site-hit count would not be a charge count even if we had one (P_LABEL §0; LABEL_SEED_GAP is not a constant either) | CITED `#3534` |
 | **symbol records: storage class, section number, WEAK EXTERNALS**<br>`symbol` | [`P_SYMBOL.md`](whitebox/ref/P_SYMBOL.md) | **5 sites** (functions (FUN_10b28a9b and its four callees))<br>⊇ **read 27** (addresses)<br>⊇ **ported RESIDUE**<br>**second denominator** 5 (TU-level, 1.0×) | `[O] 4` of `52` marks (7.7 %)<br>**RESIDUE — no differential exists for symbol** beyond the page's own mark census | 675 / 871 workload TUs needing a weak external (77.50 %)<br>*OUTPUT PROXY, NOT A SITE COUNT, and it is CITED from another instrument's key rather than measured by this one — one fact, one locator (docs/GAPS.md §6). It counts TUs that NEED a weak external, not sites of the record writer that ran* | CITED `#3534` |
 
-## 4. `ported` is a residue on all ten rows, and that is the finding
+## 4. `ported` — one row measured, nine still residue
 
-Decision 15 asks strength 1 for *"how many the port implements"*. **No
-port↔image site map exists in this tree for any of the ten subsystems**, and
-building one is not a rounding error on this lane: the port is
-**I/O-behavioral by construction** (`CLAUDE.md`'s one correctness rule — the
-port may use AVX and restructured CFGs so long as its *output obj* matches),
-so "the port implements site `0x10b2e7f8`" is not a well-formed question for
-most of these addresses. Where it *is* well-formed, the quantity that answers
-it is the **derived-vs-fitted provenance census**, which lane `w-provenance`
-owns this same wave — and decision 15's own fence says owned surfaces include
-*predicates, keys and facts, not just files*. Building a second reader for it
-here would be the collision the fence exists to prevent.
+Decision 15 asks strength 1 for *"how many the port implements"*. Lane
+`w-submetric` shipped it as a **named residue on all ten rows** (`#3617`),
+because no port↔image site map existed. Lane `w-encmap` (`#3636`–`#3641`,
+decision 16) converted the cheapest one.
 
-Per row, with the reason rather than a blank:
+**`encode` is measured: 27 of 79 arms.** The predicate is
+`subsys::recount_encode_ported` and it is **recomputed on every run and
+every `cargo test`** from `ENCODE_ARMS.txt` × `c2_core::codegen::mop`'s
+public tables — a carried number could rot, and a fabricated one is caught
+by `control_a_fabricated_ported_is_caught`. **The denominator is the 79
+arms and the choice is published rather than silent** — see the caveat in
+§3, which also carries the strict (25) and plan-only (28) readings and the
+shape of the 52 unmapped.
+
+**The other nine stay residue and the reason is structural, not a gap**: the
+port is **I/O-behavioral by construction** (`CLAUDE.md`'s one correctness
+rule — AVX, restructured CFGs, anything, so long as the *output obj*
+matches), so *"the port implements site `0x10b2e7f8`"* has no truth value
+for most of these addresses. The encoder is the exception precisely because
+its sites are **rules** rather than code: an arm IS a field-placement rule,
+the port transcribed those rules into `mop::plan`, and "does the port have
+this arm's rule" is therefore a question with an answer. **A row where the
+question is not well formed keeps its residue rather than getting an
+invented number**, and `verify` refuses a `ported` number that nothing can
+recount.
+
+Per residue row, with the reason rather than a blank:
 
 * **`coff`** — no port<->image site map for the obj writer. crates/c2-obj writes COFF by a route derived from the format, not from these 21 addresses; counting which of them the port implements needs the derived-vs-fitted provenance census, which lane w-provenance owns this wave
 * **`section`** — no port<->image site map for the section model; see the coff row. The 27-arm .gl record dispatcher is the natural unit and the page says 24 of its arms are uncovered
@@ -99,7 +113,6 @@ Per row, with the reason rather than a blank:
 * **`globregs`** — the port does no global register promotion; there is no site to count. P_GLOBREGS §2's order and tie key are read but unadopted
 * **`dag`** — the port schedules nothing — emission order is tuple-list order (P_BLOCKORDER §5.2, #3437-#3441) and the port's bodies are built straight-line. No site-level numerator is defined
 * **`inline`** — the port carries a FITTED inline predicate (INLINE_PREDICATE.md's 0.9716 model), not an implementation of these 93 sites. The clause-by-clause port-state column is lane w-inlmetric's deliverable this wave and is not built here
-* **`encode`** — the port's 89 encode_* mnemonics were derived black-box from captured objs, never from these arms (P_ENCODE §8.1's own words), so `sites the port implements` is not defined against the 79-arm population. The cheapest next read on this project is the arm -> port-function map; it does not exist
 * **`eh`** — P_EH marks two entries `[O] port` — the port reproduces the deferred unwind-word pass's OUTPUT — but the page's marks are per-claim, not per-site, so they do not compose into a `sites implemented` numerator. Building one is the same missing port<->image map as every other row
 * **`label`** — the port mints labels from its own counter; no mapping exists from its mint points to these 163 charging sites. LABEL_COUNTER.md's own finding is that stride == minted fails both ways, so a naive site count would be wrong even if it were built
 * **`symbol`** — P_SYMBOL §2 marks several addresses `[O]` via the port's own ObjImage::weak_externals with KNOWN-ANSWER 0 alarms, so parts of this subsystem ARE implemented and graded — but per-ADDRESS, and the page's 27 addresses do not map onto port functions one-for-one. The numerator is undefined rather than zero
@@ -171,7 +184,8 @@ subsys-metric encode-exercised-proxy 863
 subsys-metric encode-exercised-proxy-den 871
 subsys-metric encode-marks-obj 9
 subsys-metric encode-marks-total 28
-subsys-metric encode-ported RESIDUE
+subsys-metric encode-ported 27
+subsys-metric encode-ported-den 79
 subsys-metric encode-read 79
 subsys-metric encode-sites 14
 subsys-metric encode-sites-recounted 14
@@ -182,8 +196,8 @@ subsys-metric globregs-ported RESIDUE
 subsys-metric globregs-read 26
 subsys-metric globregs-sites 19
 subsys-metric inline-exercised-proxy RESIDUE
-subsys-metric inline-marks-obj 10
-subsys-metric inline-marks-total 31
+subsys-metric inline-marks-obj 11
+subsys-metric inline-marks-total 40
 subsys-metric inline-ported RESIDUE
 subsys-metric inline-read 16
 subsys-metric inline-sites 93
@@ -231,7 +245,7 @@ subsys-metric workload-census-nsec-disagree 0
 
 ### 8.1 The controls, and that they were watched failing
 
-`#3336`: **a control never seen failing is decoration.** Four fabrications
+`#3336`: **a control never seen failing is decoration.** Six fabrications
 run on every `cargo test -p c2-harness --lib subsys`, each asserting the
 verifier *refuses*, and each pinned to the check that must own the refusal so
 a case cannot pass by being caught for the wrong reason:
@@ -242,6 +256,17 @@ a case cannot pass by being caught for the wrong reason:
 | `control_a_dropped_subsystem_is_caught` | the `eh` row deleted from the table | the `SUBSYS.md` §1 enumeration |
 | `control_an_empty_residue_is_caught` | `dag`'s `ported` residue set to `"   "` | the no-silence check |
 | `control_a_moved_coverage_line_is_caught` | `P_COFF`'s probe pointed at a line that is not on the page | the verbatim probe |
+| `control_a_fabricated_ported_is_caught` | `encode`'s `ported` `27` → `28` | the `ENCODE_ARMS.txt` × `mop` recount |
+| `control_a_ported_number_with_no_recount_is_caught` | a number typed into `coff`'s `ported`, which has no recount | the recount-or-residue rule |
+
+**The two `ported` controls were watched failing against the SHIPPED table,
+not only against a copy** (lane `w-encmap`): editing the real cell `27` →
+`28` reddens four tests with
+`encode: ported DOES NOT REPRODUCE — table says 28/79, the tree gives 27/79`,
+and deleting the `OPCODES` half of `port_reaches_form` reddens five,
+including `the_three_ported_readings_are_distinct` (`published` collapses
+onto `planned` at 28). A recount that only ever grades a mutated copy is a
+recount that has never been shown to bind the number the doc prints.
 
 And `scripts/subsys_metrics.sh --self-test` drives the **binary** against
 three deliberately corrupted copies of the reference index — a function moved
