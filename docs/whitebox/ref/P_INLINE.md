@@ -411,3 +411,206 @@ second half is right for a reason the prediction did not have. Scored a miss.
 * The **depth cap of 16** (`0x10b609ae`): no cell nests 16 deep.
 * `ptinl.c`: not opened.
 * 320 cells is not a total statement about c2.
+
+---
+
+## 6. THE INLINER'S SCOREBOARD — clause-by-clause conformance, and the 4-tuple `[R]`/`[O]`
+
+> **Added 2026-08-26 by lane `w-inlmetric`** (decision 15, the owner's named
+> exemplar: *"inliner is extremely valuable to understanding how that logic
+> works in the compiler"*). **Amend-beside**: §1–§5 are unchanged, including
+> §2.1's struck block and its correction.
+>
+> **This is a PROGRESS INSTRUMENT and never a gate** (`FUNCTION_BYTE_MATCH.md`
+> §0). It licenses no emit, moves no admitted set, and adopts nothing into
+> `crates/`. The lane wrote **zero `crates/` bytes**.
+
+### 6.0 The coverage line at the top of this page mixes two units
+
+> **`Coverage: 16 entries against a denominator of 93`** — re-measured on this
+> tree against [`FUNCS.tsv`](FUNCS.tsv) over the band
+> `0x10b5b86d`–`0x10b62b00`, which `SUBSYS.md` §1's inliner row publishes as
+> `16 / 93`:
+
+| quantity | measured | note |
+|---|---:|---|
+| functions in the band | **93** | replicates the published denominator **exactly** |
+| …attributed to `inline.c` / `hash.c` | 61 / 32 | the band spans both, as §1 says |
+| …carrying `page = P_INLINE.md` | 63 | the band is *assigned* to this page |
+| **…with `cover = paged`** | **13** | **the functions this page actually reads** |
+| …with `cover = cited` | 4 | named in passing, not read |
+| **§1 table rows** | **16** | 13 functions **+ 3 addresses interior to another row** |
+
+**The 16 and the 93 are not the same unit.** Three of §1's sixteen rows are
+sub-addresses of a row already present — `0x10b626d8` and `0x10b6276a` inside
+`0x10b62675`, and `0x10b600c8` inside `0x10b5fcd8` — and the page marks each
+*(in `0x…`)* itself. So `16 / 93` reads as 17.2 % and the **function** coverage
+is **13 / 93 = 14.0 %**, or 17/93 = 18.3 % if `cited` counts as covered.
+
+> **Nothing is wrong with the 16**; what is wrong is reading it against 93 as
+> though it were a rate. The three readings are published together above so the
+> next lane picks one deliberately. `work/w-inlmetric/band_count.txt`.
+
+### 6.1 The conformance table — 24 clauses
+
+Machine-checked source: [`work/w-inlmetric/CLAUSES.tsv`](../../../work/w-inlmetric/CLAUSES.tsv).
+Grader: `work/w-inlmetric/check_table.py`, **watched failing on three planted
+verdicts before this table's green was quoted**
+(`work/w-inlmetric/POSITIVE_CONTROL.md`). Every address below is verified inside
+the function named, mechanically, against `FUNCS.tsv`'s entry+size.
+
+**State** — `[R]`-derived: the port's counterpart comes from the same field c2
+tests, with a `DISCLOSURE`-grade trail · `fitted`: a counterpart exists and is a
+black-box fit, not a reading of this clause · `absent`: no counterpart in
+`crates/`, and the named token is **verified absent** rather than assumed ·
+`unexercisable`: no compilation this project runs reaches the clause, so
+`absent` would mis-read it. **Ties break toward `absent`** (`PREREG.md` §5).
+
+| # | clause | addr | state | witness | exercised by the workload |
+|---|---|---|---|---|---|
+| C1 | pass entry per function; skipped wholesale when `DAT_10c40ec4 == 0` | `0x10b62675` | **absent** | — | yes |
+| C2 | caller instruction count seeded, `DAT_10c3f5cc = (ushort)[fn+0x50]` | `0x10b626d8` | **absent** | — | not separable (F7) |
+| C3 | growth budget `B = clamp(2 × caller_instrs, 1000, 35000)` | `0x10b626f4` | **absent** | — | not separable (F7) |
+| C4 | driver entry `FUN_10b61ee1(fn, level=1, budget=B, 0, 1e8, 0)` | `0x10b6276a` | **absent** | — | not separable |
+| C5 | site collector: one linear scan, instruction kind `0x0f` is a call site | `0x10b600e6` | **absent** | — | yes |
+| C6 | site collector: EH-region nesting, conditional/EH flag into bit 1 | `0x10b600e6` | **absent** | — | yes (F8, 6 cells) |
+| C7 | ceiling **value**: `DAT_10c46318 = 0x10 << DAT_10c2ea98`, or `1000` at `k ≥ 7` | `0x10b5e4d7` | **absent** | — | yes |
+| C8 | candidacy **size test**: `cmp WORD [sym+0x50], DAT_10c46318`; `jl` = candidate | `0x10b5fc8a` | **fitted** | `splice.rs:INLINE_UNBOUNDED_BYTES` | yes |
+| C9 | favour-speed bit `0x10c2e310` non-zero ⇒ **the size test is SKIPPED** | `0x10b5fc7e` | **absent** | — | **no** — `/O1` pins the bit |
+| C10 | `__forceinline`: `test [sym+0x4c], 0x2000` bypasses every size and budget test | `0x10b609d3` | **absent** | — | yes (F4, 2 cells) |
+| C11 | legality: refuse on `[sym+0x20] & {0x400, 0x1000, 0x40, 0x100}` | `0x10b5c06b` | **absent** | — | **no** |
+| C12 | legality: refuse on `[sym+0x4c] & {0x80000, 0x200}` | `0x10b5c06b` | **absent** | — | **no** |
+| C13 | legality: **REQUIRE bit 6 of `[sym+0x4c]`** | `0x10b5c06b` | **`[R]`-derived** | `gl.rs:FN_FLAG_INLINABLE` (`0x40`) | yes |
+| C14 | depth cap: `0x10 < level - DAT_10c3f50c` ⇒ decline (16 levels) | `0x10b609ae` | **absent** | — | **no** — no cell nests 16 deep |
+| C15 | `maxlevel != 0xff && maxlevel < level` ⇒ decline | `0x10b609bd` | **absent** | — | **no** — `#pragma inline_depth` in 0/100 TUs |
+| C16 | caller-huge decline: `35000 < DAT_10c3f5cc` | `0x10b609ee` | **absent** | — | **no** |
+| C17 | budget accept/decline: `budget < instrs && instrs > 0x28` | `0x10b60a04` | **absent** | — | not separable (F7) |
+| C18 | the 40-instruction test, **second copy** | `0x10b6249b` | **absent** | — | not separable |
+| C19 | the charge: `*budget -= WORD[callee+0x50]`, and the growth total | `0x10b624a2` | **absent** | — | not separable |
+| C20 | the expansion **recurses back into the driver** for the inlined body | `0x10b620fc` | **fitted** | `splice.rs:S6-chain` | yes (#1020, 150 witnesses) |
+| C21 | POGO profitability model, entered only on a profile record | `0x10b5fcd8` | **unexercisable** | — | unexercisable |
+| C22 | POGO per-site discount `cost -= (K + cost) / n_sites` | `0x10b600c8` | **unexercisable** | — | unexercisable |
+| C23 | parameter-table selection, `DAT_10c45e18` / `DAT_10c45ed0` | `0x10b5b86d` | **unexercisable** | — | unexercisable |
+| C24 | the tested quantity `WORD [sym+0x50]` **is the `.gl` `SIZE` field**, verbatim | `0x10b9bf6c` | **`[R]`-derived** | `gl.rs:GL_SIZE_ESCAPE_PAYLOAD` (`W-GLATTRS-1`) | yes (99 escaped records) |
+
+**Per-state split: `[R]`-derived 2 · fitted 2 · absent 17 · unexercisable 3.**
+**Exercised: yes 9 · no 6 · not separable 6 · unexercisable 3.**
+
+### 6.2 What the table says that a percentage would not
+
+1. **Seventeen of twenty-four clauses have no counterpart in the port, and the
+   absence is VERIFIED rather than assumed.** Each `absent` row names a token
+   the grader confirms is not in `crates/`. That is the whole point of the
+   w-root mitigation pattern: an absent clause is now **visible**, where before
+   it was inferred from the port not mentioning it.
+
+2. **The two `fitted` rows are fitted to a DIFFERENT QUANTITY than c2 tests.**
+   c2's C8 compares a **pre-codegen instruction count** (`WORD [sym+0x50]`,
+   and the diagnostic string is literally `"%d instrs"`); the port's three
+   ceilings — `INLINE_UNBOUNDED_BYTES = 64`, `INLINE_DECLINE_BYTES = 128`,
+   `INLINE_DECLINE_LOOP_BYTES = 80` — are **lowered byte counts**, every one of
+   them fitted to an obj bracket. §5's *"`16 << k` does not compose into the
+   measured numbers"* and §2.1b's *"`SIZE` is an upper bound on the tested
+   quantity and not the quantity"* are two views of that same gap, and the gap
+   is why `INLINE_DECLINE_LOOP_BYTES` has to exist at all: a loop body priced
+   in emitted bytes is over-credited by ≈ 1.55 (§5 / F9).
+
+3. **C24 is the sharpest row on the page.** The port already **decodes the
+   field c2's decision tests** — `GL_SIZE_ESCAPE_PAYLOAD` shipped it, at
+   `mismatch 0`, with a `DISCLOSURE` row — **and then discards the value.**
+   §2.1a's *"the field the port already walks past to reach the attribute byte,
+   and throws away"* is a live statement about `crates/` today. **This is not a
+   recommendation to consult it**: §2.1b measured `SIZE` as an *upper bound* on
+   the tested quantity, with `arith_012` and `mix_008` at an identical `SIZE`
+   of 115 and opposite verdicts. Consuming it would be adopting a bound as
+   though it were the quantity.
+
+4. **C13 is the one clause where two independent derivations MET.**
+   `WB_INLINE_FINDINGS` §1 read c2's legality test at `0x10b5c06b` as
+   *"requires bit 6 of `[sym+0x4c]`"* off the disassembly; `w-mmioclose`
+   located `__declspec(noinline)` in the `.gl` as bit 6 / `0x40` from the
+   container side, 9-of-9 and 11-of-11, and closed a **shipped wrong emit**
+   (`w10`, #2402). `gl.rs`'s own comment records the meeting. It is the only
+   row on this table with that property.
+
+5. **`__forceinline` is the biggest asymmetry, and it is directional.** c2's
+   C10 is an **accept** clause that bypasses every size and budget test — F4
+   inlines a **980-byte** callee. The port has no accept path anywhere: it
+   reads the record's `0x20` flags byte only to **keep** a wholesale refusal.
+   §7's *"the accept side is not offered"* is therefore not a policy the port
+   adopted, it is the port's entire relationship with this subsystem.
+
+### 6.3 The 4-tuple, instantiated (decision 15's metric shape)
+
+Every strength with its denominator, and the tree it was taken on.
+
+| # | strength | value | denominator, re-measured here |
+|---|---|---|---|
+| 1 | **read** | **13 / 93 = 14.0 %** functions read (`16` §1 entries; `17/93` if `cited` counts) | `FUNCS.tsv`, band `0x10b5b86d`–`0x10b62b00`, this tree |
+| 2 | **agreement** | **4 / 24 clauses have any port counterpart** (2 `[R]`-derived + 2 fitted); `INLINE-P` **0.9678** on the re-frozen hold-out | 24 clauses (§6.1); **8,936** graded callees (§6.4) |
+| 3 | **exercised** | **9 / 24 yes · 6 no · 6 not separable · 3 unexercisable** | the 100-TU hold-out's 8,936 callees, dc3 `15a64d92f` |
+| 4 | **byte-owned** | **CITED, NOT RE-MEASURED** — `#3534`, 2026-08-25 | see below |
+
+**On strength 4, and this is a fence rather than a footnote.** Decision 15
+forbids re-taking `#3534`'s read, and nothing in this section reverses its
+finding. `#3534` **flipped OFF the inline-decision permuter**, on a measurement
+in both directions on one tree on one day: the port's wrong bodies are **99.87 %
+opcode substitutions with 0 reorderings**, while the permuter's actual working
+set is **2.14 % opcode, 52.50 % register, 7.90 % pure reorderings**.
+`INLINE_PREDICATE.md`'s model and `splice.rs`'s S7 are **right for the port's
+population and wrong for the permuter's, both by measurement.** A richer inline
+scoreboard is not an argument for building that permuter, and this section is
+not offered as one.
+
+### 6.4 `exercised` — three structural facts, each measured here
+
+Measured on the re-frozen 100-TU hold-out, **8,936** graded callees, dc3
+`15a64d92f` (0 dirty), `/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc`.
+`work/w-inlmetric/exercised.txt`.
+
+**(a) `INLINE-P` degenerates to a single threshold on this workload.**
+
+```
+   N_max == UNBOUNDED : 6,397 = 71.59 %
+   N_max == 0         : 2,539 = 28.41 %
+   N_max FINITE and non-zero (SCHEDULE D's graduated middle FIRING) : 0 of 8,936
+```
+
+**The whole of SCHEDULE D — `min(9, 1 + floor(19/(i−16)))`, the most elaborate
+object in `INLINE_PREDICATE.md` §2 and the subject of round 31's §6.18.9 — fires
+on ZERO of 8,936 workload callees.** It is STATIC-only, and:
+
+**(b) The STATIC arm has a workload population of ONE.**
+
+```
+   EXTERNAL : 8,935        STATIC : 1        varargs : 0
+```
+
+The single STATIC callee is `?ModChan@@YAHH@Z` in `src/system/rndobj/ColorXfm.cpp`
+(`size 28`, `index 28`, `N_max = inf`, `sites 10`, HIT). So F1's `(300,308]`
+STATIC ceiling, `#3066`'s non-overlap, and SCHEDULE D all describe a region the
+workload does not visit. `n_sites > 1` **is** exercised — 2,910 callees, up to
+31 sites — but only in the EXTERNAL class, where `N_max` is UNBOUNDED-or-0 and
+the site count therefore changes no verdict.
+
+> **`#3066` is CITED and deliberately NOT re-derived.** It reads *"the port's
+> largest lowered body is 152 B and c2's static-inline floor is > 308 B, so the
+> windows do not overlap"* — a claim about the tree at that rung, and `#3063`'s
+> standing lesson is that such a control must be re-derived before it is made
+> mandatory. Re-deriving the **port** half needs a full port scan this lane did
+> not run, so the port-side number is quoted as `#3066`'s and not as this
+> lane's. What **is** measured here is the same non-overlap from **c2's** side
+> and it is stronger: the STATIC clause has a population of 1 in 8,936
+> regardless of what the port's ceiling is.
+
+**(c) Four clauses are unexercised for a reason in the flags, not in the code.**
+C9 (favour-speed) cannot move because the workload is pinned to `/O1` — GRID-I
+moved it at `/O2` on 60 cells, so the clause is exercis**able** and merely
+unexercised **here**. C15 is `0xff` throughout: `#pragma inline_depth` and
+`#pragma auto_inline` appear in **0 of the 100** hold-out TUs. C21–C23 are the
+only genuinely **unexercisable** rows — `/GL` and `profile-guided` appear in
+**0** dc3 source files, and the two 46-dword tables sit above the image's raw
+`.data`, zero at load.
+
+**An unexercisable cell is not a covered one, and neither is an unexercised
+one.** Nine of twenty-four is what this workload can grade.

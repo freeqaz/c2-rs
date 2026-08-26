@@ -77,6 +77,59 @@ the file string is at `0x10b024f8`). The chain, top down:
    0x10b5fe1e   test DWORD [sym+0x4c], 0x2000  <- __forceinline: bypass
 ```
 
+> ### ⛔ AMENDED 2026-08-26 (lane `w-inlmetric`) — **ALL FOUR ADDRESSES IN THE BLOCK ABOVE ARE IN THE WRONG FUNCTION.** The reading carries; the addresses do not.
+>
+> This is the **same defect** `w-sizebracket` corrected in
+> [`ref/P_INLINE.md`](ref/P_INLINE.md) §2.1 on 2026-08-18. That correction was
+> written on the reference page and **not here**, so this file — the one §10's
+> pre-drafted `W-INLINE-1` DISCLOSURE row cites in bold — has carried the wrong
+> addresses for eight days. Amended beside, per `DOC_CONVENTIONS.md` §2; the
+> original block is left exactly as it was written.
+>
+> `FUN_10b5fb5f` has size **377**, so it ends at `0x10b5fcd8`. Every address
+> above is past that end and lands in `FUN_10b5fcd8` — §1's own
+> *"profitability model — POGO ONLY"*. Checked **mechanically** this time, by
+> `work/w-inlmetric/addrcheck.py` against `ref/FUNCS.tsv`'s entry+size columns,
+> over all **29** addresses §1–§2.4 cites:
+>
+> ```
+> 0x10b5fdfd  in FUN_10b5fcd8 (size 1038, ends 0x10b600e6)  <-- WRONG: page claims 0x10b5fb5f
+> 0x10b5fe0c  in FUN_10b5fcd8                               <-- WRONG
+> 0x10b5fe14  in FUN_10b5fcd8                               <-- WRONG
+> 0x10b5fe1e  in FUN_10b5fcd8                               <-- WRONG
+> RED: 4 address claim(s) failed
+> ```
+>
+> **The other 25 addresses on this page all check out** — §2.2's budget, §2.3's
+> depth arms, the charge, and `0x10b5e4cc`'s ceiling are each inside the
+> function this page names. So the amendment is narrow and the rest of the
+> page's addressing is now positively verified rather than merely unchallenged.
+>
+> **The real candidacy test** is at `0x10b5fc7e`–`0x10b5fcc1`, inside
+> `FUN_10b5fb5f`, and reads the same two operands: the favour-speed bit does
+> gate the size test, the tested operand is `WORD [sym+0x50]`, and the ceiling
+> is `DAT_10c46318`. **The `0x2000` mask does not carry as written** — the mask
+> at `0x10b5fcc1` is `0x2080`. §2.3's `0x10b609d3` is a separate, genuine
+> `0x2000` test and is unaffected.
+>
+> **Two consequences for this file specifically, and neither is cosmetic:**
+>
+> 1. **§10's `W-INLINE-1` row quotes `0x10b5fe0c` and `0x10b5fe14` in bold** as
+>    the addresses a future code lane would carry into a `DISCLOSURE.md` row.
+>    Both are wrong. That row is *pre-drafted and not adopted*, so nothing in
+>    `crates/` is affected — but adopting it as written would have put a wrong
+>    address into the provenance ledger, which is the one artifact whose whole
+>    value is that a later reader can re-derive the fact.
+> 2. **§5's account of F9 is unaffected.** It rests on `0x10b5fe0c` naming
+>    `WORD [sym+0x50]` and on the `"%d instrs"` string, and the operand reading
+>    survives at the corrected address.
+>
+> `README.md` §6.2's lesson, in a third place: *"address A is inside function
+> F"* is a claim to check against `F`'s entry **and size**. It is now a program
+> (`work/w-inlmetric/check_table.py`, the ADDRESS check) that runs over every
+> row of the conformance table in `ref/P_INLINE.md` §6, rather than a thing
+> anyone has to remember to do.
+
 and the ceiling itself, at `0x10b5e4cc`:
 
 ```
