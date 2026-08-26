@@ -260,17 +260,26 @@ Re-run after rebasing onto master `691bbbef4` (`w-atend`, `w-price4a`,
       and 18/18 lanes ran again through a DEBUG-profile c2rs for
       7038 more fixture-verdicts at 0 panics
 
-    graded tree: 650eabd027ba  (792 files: crates fixtures scripts, content-hashed)
+    graded tree: 46ef2c48d166  (792 files: crates fixtures scripts, content-hashed)
 
 **Quoted as the verdict line and not as an exit code, deliberately.** In wave 11
 `gate.sh` printed `GATE: REFUSED (DIRTY crates/)` at exit **0** and `GATE: PASS`
 at exit **1**. The line is the verdict; the status is not.
 
-**Digit-for-digit identical to the pre-rebase run** (19460/19556, 90424/90812,
-0 mismatch, 7038 debug verdicts) across four merges and a rebase. The one
-number that moved is the graded-tree file count, **791 → 792** — that is
+**Digit-for-digit identical across four merges, a rebase, and three gate runs**
+(19460/19556, 90424/90812, 0 mismatch, 7038 debug verdicts, every time). The one
+count that moved is the graded-tree file count, **791 → 792** — that is
 `scripts/perf_arms.py`, this lane's only tracked non-`docs/` file, and it is the
 expected +1.
+
+**Three runs, because the graded-tree hash is a hash and it caught me.** Run 2
+recorded `650eabd027ba`; §12's correction then edited a *doc comment* in
+`scripts/perf_arms.py`, and `scripts` is one of the three directories the gate
+content-hashes — so run 2's identity was stale for the tip being merged even
+though no gate row invokes that file (`grep -rl perf_arms crates/` is empty).
+Re-run rather than argued away: run 3 reads `46ef2c48d166` with every
+count-bearing number unchanged. **A stale identity line beside a live verdict is
+the kind of thing that reads as evidence and is not.**
 
 **`HATCH-RED REFUSED` is PRE-EXISTING and not this lane's.** The base run at
 `c13cebbca` (`work/coordinator/gate_tip_c13cebbca.txt:100,108`) carries the
