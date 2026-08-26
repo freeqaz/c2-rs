@@ -1,0 +1,75 @@
+control_red_since.txt — the `--since` mode's control, WATCHED FAILING
+lane w-provext, board #3648.
+
+#3336: a control never seen red is decoration, and this repo shipped a
+`--check` that could not fail. Exit codes below are read DIRECTLY from $?
+with no pipe in between — the wave-13 lane's first evidence capture read
+EXIT=0 on a broken run because `$?` after a `tee` pipe is `tee`'s.
+
+THE BREAK, applied to a throw-away copy of the script and never to the tree:
+in `diff_rows()`, a constant that APPEARED already tagged is booked as if it
+had been retagged in place. That is the exact conflation the mode exists to
+prevent, it is what a plausible-looking differ does silently, and it makes
+the tagged-count delta read as provenance work when it is new surface.
+
+==========================================================================
+1. CLEAN — scripts/provenance_census.py --self-test
+==========================================================================
+SELF-TEST: PASS
+EXIT=0     checks: 44 PASS, 0 FAIL
+
+==========================================================================
+2. BROKEN — the same suite, conflating differ
+==========================================================================
+  FAIL  untagged→tagged: got 3, want 1
+  FAIL  appeared: got 0, want 2
+  FAIL  appeared already tagged: got 0, want 1
+  FAIL  decomposition identity holds: got [('-', 0, -2)], want []
+  FAIL  existing constants that gained a marker: got 5, want 3
+  FAIL  new surface is still reported separately: got 0, want 2
+  FAIL  decomposition still holds: got [('-', -4, -6)], want []
+SELF-TEST: FAIL
+EXIT=1     checks: 37 PASS, 7 FAIL
+
+Seven checks red, in three places, and every one of them names the
+conflation rather than a knock-on: the tagging count triples, `appeared`
+goes to zero, and the decomposition identity refuses the untagged residue.
+
+==========================================================================
+3. THE RUNTIME CHECK, on the REAL tree — base 6c753ead0, scope crates/c2-harness
+==========================================================================
+   (a real population change: master added 7 constants to that crate since
+   the base, all of them untagged. The clean run:)
+
+untag       214    221     +7           7         0         0          0   OK
+DECOMPOSITION: HOLDS for all 6 classes (Δ[X] = appeared − vanished + retag-in − retag-out)
+EXIT=0
+
+   the broken differ on the same two trees:
+
+untag       214    221     +7           0         0         7          7   BROKEN
+DECOMPOSITION: BROKEN on 1 of 6 classes (5 hold) — Δ[X] ≠ appeared − vanished + retag-in − retag-out
+DECOMPOSITION BROKEN — the differ disagrees with the census it
+EXIT=1
+
+==========================================================================
+4. THE LIMIT OF THE RUNTIME CHECK, stated rather than hidden
+==========================================================================
+The same broken script, same base, scope crates/c2-core/src/coff:
+
+DECOMPOSITION: HOLDS for all 6 classes (Δ[X] = appeared − vanished + retag-in − retag-out)
+EXIT=0
+
+It passes. NOT a second control — a fact about the check: it can only fire
+on a scope where constants actually appeared or vanished, and between those
+two trees `coff`'s population is unchanged (56 -> 56), so the break has
+nothing to mis-book. The runtime identity is therefore a DETECTOR, not a
+proof, and the planted fixture in section 2 is what carries the guarantee.
+Recorded here because a control that is green for the wrong reason is how
+`--check` flags that cannot fail get shipped.
+
+==========================================================================
+5. RESTORED
+==========================================================================
+SELF-TEST: PASS
+EXIT=0     checks: 44 PASS, 0 FAIL
