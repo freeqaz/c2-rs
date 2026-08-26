@@ -1,8 +1,0 @@
-perf: IL-bundle -> obj latency, native port vs standalone c2 (reference)
-  1 fixture(s), port_iters=50, ref_iters=5   (both produce the SAME obj)
-
-  fixture                          obj     ref median    port median      speedup  port
-  il_accum4.cpp                  1285B       9.685 ms       21.74 µs         445x  Match
-
-summary: 1 port Match, 0 mismatch, 0 not-implemented (of 1)
-  geomean speedup over the 1 matched fixture(s): 445x faster than standalone c2

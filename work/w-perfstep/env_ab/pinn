@@ -1,6 +1,0 @@
-#!/bin/sh
-# ARM `pinn` — the SAME binary with C2RS_REPO_ROOT SET, which short-circuits
-# `repo_root()` at its first line and skips the walk entirely. One variable.
-C2RS_REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-export C2RS_REPO_ROOT
-exec "$(dirname "$0")/../arm2/target/release/c2rs" "$@"

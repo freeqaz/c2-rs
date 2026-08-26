@@ -95,8 +95,9 @@ with an empty `diff`**. (**#3612**)
    through `argv::Args::toolchain{,_quiet}`, a fence
    `tests/cli_flags.rs::locate_is_reachable_only_through_the_arg_seam` enforces.
    At most **twice per process**.
-2. **Trace.** The whole runtime walk is **19 `statx` calls, contiguous, ONCE**,
-   at `p5_trace.txt:12–31`, and never again in the run. It completes inside
+2. **Trace.** The whole runtime walk is **19 `statx` calls, contiguous, ONCE**
+   (trace lines 12–31 of 212; §11 gives the `strace` line and the `grep` that
+   counts them), and never again in the run. It completes inside
    `locate()` — **before `bench_fixture` is called** — so it lands outside every
    `Instant::now()` bracket in `perf.rs`, which brackets `tc.replay` and
    `port.compile_to` and nothing else. Its contribution to `ref_median` and
@@ -280,14 +281,14 @@ than compile rejections. The count is right; the *reason* beside it is a
     count-bearing rows: 21 base, 21 tip (enumerated, not asserted)
     IDENTITY DIFF: 0 lines over 21 rows — required-zero byte delta HOLDS
 
-Base `work/coordinator/gatebase/base_c13cebbca.txt`, tip
-`work/w-perfstep/gate_tip.txt`. **The denominator is 21 at both ends** — a
+Base `work/coordinator/gatebase/base_c13cebbca.txt`, tip the run's own gate
+output. **The denominator is 21 at both ends** — a
 diff over 0 rows and a diff over 21 rows both print "0 lines", which is
 `w-s1c2` §3.2's lesson and why the count is quoted beside the verdict.
 
 Zero is the expected and required result: **this lane changed no byte of
-`crates/`.** Its whole diff is `scripts/perf_arms.py` (new), `docs/`, and
-evidence under `work/w-perfstep/`.
+`crates/`.** Its whole tracked diff is `scripts/perf_arms.py` (new) and `docs/`
+— nothing else, by §10.
 
 ### 8.3 The controls, each watched failing before its green was quoted
 
@@ -314,7 +315,10 @@ losses in three waves, and the funnel's reap step still does not check for them.
 | `work/w-perfstep/arm1/target/release/c2rs` | `b814d1db2`, md5 `46dc08b4c4c3de7f1eb92061739e1616`, 6,126,256 B |
 | `work/w-perfstep/arm2/target/release/c2rs` | `c13cebbca`, md5 `c393f999c0ee9209dc885a28d3112019`, 6,215,456 B |
 | `work/w-perfstep/dup1/c2rs` | the NULL — a **copy** of arm1, never a rebuild |
-| `work/w-perfstep/env_ab/{walk,pinn,wdup}` | the `C2RS_REPO_ROOT` wrappers (committed — three shell scripts) |
+
+The `C2RS_REPO_ROOT` A/B wrappers are **not** here and are not artifacts:
+`scripts/perf_arms.py --repo-root-ab <binary>` generates `walk`/`pinn`/`wdup`
+into a temp dir at run time and removes them at exit. See §10.
 
 **The commits are TAGGED, so the arms are rebuildable even after a reap:**
 `pin/perfstep-pre` → `b814d1db2`, `pin/perfstep-post` → `c13cebbca`. Both were
@@ -333,3 +337,100 @@ The binaries themselves are **not** committed and must not be. Everything
 quoted in this rung is in the committed text logs — `run_main.txt`,
 `run_envab.txt`, `p5_trace.txt`, `sweep_base.txt`, `sweep_ungraded_red.txt`,
 `gate_tip.txt`.
+
+## 10. The lane force-added 11 files past `.gitignore`, and the guard it quoted as green could not see them
+
+**Caught by the coordinator at review, on this branch, before merge.** Recorded
+here in full because it is a **regression of a row `w-hygiene` closed last
+wave** — board **#3156** — committed in the same wave whose sibling lane built
+the reap guard.
+
+**What was wrong.** Eleven files under `work/w-perfstep/` were `git add -f`'d
+past `.gitignore:24` (`/work`). Seven carried absolute machine paths, which
+`CLAUDE.md` § Commits names in its "Never commit" list:
+
+| file | `/home/` lines |
+|---|---:|
+| `p5_trace.txt` | **201** |
+| `sweep_ungraded_red.txt` | **43** |
+| `gate_tip.txt` | **11** |
+| `run_main.txt` · `run_envab.txt` · `suite.txt` | **5** each |
+| `sweep_base.txt` | **3** |
+| `p5_run.txt` · `env_ab/{walk,pinn,wdup}` | 0 |
+
+`scripts/perf_arms.py` was and is clean. All eleven are `git rm --cached`'d;
+they remain on disk, because `work/` is ignored.
+
+**AND THE PART WORTH KEEPING: THIS LANE RAN THE GUARD AND QUOTED IT GREEN.**
+§ Gate evidence cited `scripts/tracked_artifact_audit.sh` reading *"forbidden
+artifact names 0, absolute machine paths in code surfaces 0"* — **while these
+eleven files were staged.** The guard is not broken. Its class-2 scope is
+literally `git ls-files -- crates scripts fixtures c2host c1host`
+(`:132`), so `work/` is **outside the population it examines**, and its own
+comment says so: *"at `a8593651b`, 489 files under `work/` and 16 under `docs/`
+carry such a path as recorded EVIDENCE (a rung quoting the directory a
+measurement ran in is doing its job)."*
+
+That is **trap 0 exactly** — *a green control is a statement about the
+population it ran over* — and this lane walked into it while quoting the trap's
+own instrument. It is also a **live disagreement the tree should settle and
+this lane must not settle for it**: `tracked_artifact_audit.sh` documents a
+convention under which `work/` evidence carrying absolute paths is deliberate
+and acceptable (489 files, and 8,049 tracked files match `.gitignore` entire —
+the script prints that as an advisory precisely so the wide version is
+re-proposed with its price visible). The coordinator reads `CLAUDE.md` as
+binding everywhere. **Both readings cannot be right, and 8,049 tracked files
+currently follow the looser one.** Flagged to the coordinator rather than
+numbered here: `#3609`–`#3614` are all spent and this lane will not take a
+number outside its block.
+
+**What the numbers rest on now.** Every figure in this rung is quoted in the
+text with the command that reproduces it (§11). No number is supported only by
+a raw log.
+
+## 11. Reproducing every number in this rung
+
+Toolchain pinned explicitly in all four, because the `pre` arm predates
+`w-hygiene`'s fix and will otherwise print `SKIP: toolchain absent` and exit 0
+(**#3470**, biting backwards):
+
+    export C2RS_COMPILERS=<repo>/compilers
+    export C2RS_WIBO=<wibo>/build/release/wibo
+
+**§1, §2, §3-(c), §3-trees — the main experiment** (36 runs, ~30 min):
+
+    git archive b814d1db2 | tar -x -C <dir>/arm1     # equal-length dir names,
+    git archive c13cebbca | tar -x -C <dir>/arm2     # see §9
+    (cd <dir>/arm1 && cargo build --release -p c2-harness --bin c2rs)
+    (cd <dir>/arm2 && cargo build --release -p c2-harness --bin c2rs)
+    cp <dir>/arm1/target/release/c2rs <dir>/dup1/c2rs        # a COPY, not a rebuild
+    scripts/perf_arms.py --arm pre=<dir>/arm1/target/release/c2rs \
+                         --arm post=<dir>/arm2/target/release/c2rs \
+                         --arm predup=<dir>/dup1/c2rs \
+                         --null-arm predup --rounds 12
+
+Prints, in order: the per-arm preflight denominators (**157 Match** each), the
+arm identity block, the rotation certificate, the 36 per-round geomeans, the
+**PER-ARM spread** table (§1 and §2's numbers), the **MIN-OVER-ROUNDS** table
+and the **PAIRED** table (§3's).
+
+**§3-(b) — the `repo_root()` A/B** (18 runs, ~15 min):
+
+    scripts/perf_arms.py --repo-root-ab <dir>/arm2/target/release/c2rs --rounds 6
+
+**§3-(b) — the 19-`statx` trace, and §3-(a)'s zero:**
+
+    strace -y -e trace=openat,stat,newfstatat,access,statx,execve -o t.txt \
+        <c2rs> perf --fixtures il_accum4.cpp --port-iters 50
+    grep -c 'statx.*\(/Cargo.toml\|/crates"\|compilers/X360/16.00.11886.00"\)' t.txt   # 19
+    grep -c dc3 t.txt                                                                  # 0
+    wc -l < t.txt                                                                      # 212
+
+**Do not use `-f`.** `c2rs` spawns `strace` itself on the capture path; tracing
+its children breaks the capture and the run grades 0 of 0 — measured, and it is
+why the first attempt at this read produced `summary: 0 port Match … (of 0)`.
+
+**§6 — the sweep, green and red:**
+
+    scripts/expr_sweep.sh                              # ungraded=96, exit 0
+    C2RS_SWEEP_MAX_UNGRADED=0 scripts/expr_sweep.sh    # the list, exit 1

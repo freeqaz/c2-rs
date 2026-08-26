@@ -1,5 +1,0 @@
-#!/bin/sh
-# ARM `walk` — arm2's binary with C2RS_REPO_ROOT UNSET, so `repo_root()` performs
-# its runtime ancestor walk (the 19 statx calls #3611 traced). One variable.
-unset C2RS_REPO_ROOT
-exec "$(dirname "$0")/../arm2/target/release/c2rs" "$@"
