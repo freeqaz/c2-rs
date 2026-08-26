@@ -245,3 +245,178 @@ with that call the fix is to add a row, not to remove the comment.
 5. Prefer the alternative first: if the same fact can be established by a
    black-box experiment against the real toolchain, run it and adopt *that*
    instead. The oracle is cheap; the clean-room claim is not.
+
+---
+
+# The in-code provenance markers — this ledger's countable projection
+
+*Added 2026-08-26 by lane `w-provenance` (owner decision 15,
+[`../DECISIONS_2026-08-22.md`](../DECISIONS_2026-08-22.md)), amend-beside: nothing
+above this line changes. Board **#3629**–**#3634**.*
+
+## Why a second thing exists when this file already exists
+
+**This ledger is the register of adoptions. It is not a measure of the port.**
+It answers *"which disassembly-derived facts entered `crates/`, and from what
+address"* — seventeen rows, exhaustively. It cannot answer the question the
+project's **primary** goal is written in: *how much of each module of the port
+is understood, versus copied off observations of its output.* A row exists only
+where something was **read**; the fitted majority leaves no trace here at all,
+by construction.
+
+Measured at tree `6c753ead0`, before this section existed: `crates/` carried
+**five** provenance marks, all of them prose sentences in three
+`c2-core/src/codegen/` module doc comments, **none attached to a constant**,
+against this file's 247 lines. (The brief that funded the lane said six; the
+sixth was `params[src]` in `c2-il/src/func/mod.rs:2013`, an array index. That
+false positive is why the marker token below is **prefixed**.)
+
+So the markers are the ledger's **countable projection into the source**:
+this file stays the register of *adoptions*, the markers make the *ratio*
+greppable, and `scripts/provenance_census.py` turns it into a number with a
+denominator.
+
+> **Do not confuse this with board `#202`/`#207`, "census provenance".** That is
+> lane `w-prov`'s `.prov` sidecar, which records **which dc3 corpus a
+> measurement was graded against**. This is **derivation** provenance: where a
+> constant in the source came from. Colliding word, disjoint subject.
+
+## The marker
+
+    PROV[X] <citation> — <what and why>
+
+`X` is one letter. `PROV-BLOCK[X] <citation>` is the same thing declared once
+for every population member lexically inside the block it sits in; an item's own
+marker always wins over the block it sits in. Both are counted **per constant**,
+so the block form saves lines and never saves a number.
+
+The vocabulary **extends** [`ref/README.md`](ref/README.md) §2's legend — the
+same `[R]` and `[O]` the whitebox pages already carry, so a reader does not
+learn two systems — and adds three letters the pages did not need because they
+never described code:
+
+| mark | means | the test |
+|---|---|---|
+| **`[R]`** | **read** from `c2.dll`'s disassembly | an address in the image established this value. `[R]` still says *"the instructions were read correctly"*, not *"this is what c2 does"* — the `.bss` bump rule was read correctly and was wrong about c2 |
+| **`[O]`** | **obj-confirmed** — established from real c2 output: an obj, a `/FAsc` listing, a `.gl`/`.ex` capture | the cells or grid that pinned it are named, and no *other* value is consistent with them |
+| **`[F]`** | **fitted** — a parameter of a rule, chosen to agree with a set of observations | **the discriminator against `[O]`: does the constant have an off-sample failure mode the observations that produced it could not see?** If yes it is `[F]`, however many cells agreed |
+| **`[S]`** | **specified** by a published external standard — PE/COFF, the PowerPC ISA, the MSVC EH record format | the value would be the same if `c2.dll` had never existed. Keeps spec values out of `[R]`, where they would inflate the number that tracks the goal |
+| **`[N]`** | **not load-bearing**, with a reason | scratch counters, fixture names, measurement profiles, sentinels, values derived from another marked constant. Tagging these is what makes the untagged residue elsewhere a *statement* rather than an artifact of a proxy that counts everything |
+
+**Every marker carries a citation** — a row id from the table above, a
+`doc.md §n`, a rung, or a board number. `provenance_census.py` reports an
+uncited marker as a defect and exits 3.
+
+### The `[O]`/`[F]` line, worked, because it is the only hard call
+
+Two constants one file apart in `c2-core/src/coff/`:
+
+* `mangle.rs`'s `LITERAL_TEXT_BYTE_LIMIT = 32` is **`[O]`**. Its probe cells sit
+  at 31 and 32 source bytes — one on each side of the boundary — so no other
+  value is consistent with the measurement. A *pinned boundary is not a fit.*
+* `data.rs`'s `MAX_OBJECTS_PER_SECTION = 2` is **`[F]`**. Its own doc says two is
+  right on **47 of 48** real sections. The residue is measured, named, and
+  unexplained; a different corpus can move it.
+
+And the exemplar the census exists for: `coff/label.rs`'s **`SeedGapModel::READ`
+is `[F]` despite its name.** Row `W-SEEDGAP-1` records the three coefficients as
+black box — a fit to `scripts/gt_label_seedgap.py`'s 22-cell obj grid — and the
+constant's own doc already said *"a fit to a read grid, one level short of the
+mechanism."* Its predecessor, the literal `LABEL_SEED_GAP = 9`, was a fitted
+constant that **died** (board `#3388`): green only because the `/Od` control
+contained zero function definitions. That is the class this census makes
+greppable.
+
+## The operational definition of "load-bearing constant"
+
+> **A load-bearing constant is a named `const` or `static` item in non-test code
+> in `crates/`, whose value — if changed — could change a byte the judge grades,
+> a refusal the port issues, or a verdict an instrument publishes as evidence.**
+
+The third clause is not decoration: it is what keeps
+`c2-reference/tests/middle_interfaces.rs` in scope, and that file holds four of
+the ledger's own adopted table addresses.
+
+**The mechanical proxy the census counts** is *every* `const`/`static` item
+outside a `#[cfg(test)]`/`#[test]` region — deliberately wider than the
+definition. A proxy member that is genuinely not load-bearing is expected to
+say so with `PROV[N]` and a reason, **so exclusions are visible instead of
+silent**. That is the whole reason the residue is a number you can act on.
+
+**Rules** — a lowering, a match arm, a record grammar — take the same markers
+on the item that implements them, and the census counts them separately as
+*rule marks* **with no denominator**, because the set of load-bearing rules is
+not mechanically enumerable and a fake ratio there would be worse than the
+silence it replaced.
+
+## What these numbers do NOT license
+
+1. **A high `[R]` count licenses no emit.**
+   [`../FUNCTION_BYTE_MATCH.md`](../FUNCTION_BYTE_MATCH.md) §0's separation
+   rule binds: the census is published beside FBM, **never in `gate.sh`**, and
+   a read is a hypothesis until the byte judge grades it.
+2. **This is not a ranking instrument, and it must never be used to choose a
+   lane.** Board `#3505`'s family: four of four lanes dispatched off a
+   size ranking found the ranking was measuring itself. The census prints its
+   modules in **path order**, never sorted by count.
+3. **The tracked signal is the CHANGE in a module's row between two trees —
+   never its distance from 100 % `[R]`.** A module that is 100 % `[S]` is
+   finished; a module that is 100 % `[O]` may be perfectly correct. "More `[R]`"
+   is not a goal, it is a description.
+4. **A marker is a claim about provenance, not about correctness.** `W-SEEDGAP-1`
+   and the `.bss` bump rule are both on record as read-or-graded and wrong.
+
+## Adoptions this ledger does not carry — found by the census, 2026-08-26
+
+The first thing counting the markers produced was a **hole in the register
+above**, and it is stated here rather than repaired, because filing a row is an
+adoption decision and this lane annotates provenance rather than changing it.
+
+* **`crates/c2-core/src/codegen/mop.rs` — 88 `[R]` constants, no row.** Its
+  `mod op` holds c2's own opcode indices into the mnemonic table `0x10b1b260`,
+  and `OPCODES` holds base words from `0x10c3a578` with forms from
+  `0x10c39b18`, all transcribed from
+  [`ref/ENCODE_OPCODES.txt`](ref/ENCODE_OPCODES.txt) (dumped from the pinned
+  image by `scripts/dump_opcode_tables.py`, lane `w-read-r2`), and the field
+  placements in `EncodeParams::C2` from [`ref/P_ENCODE.md`](ref/P_ENCODE.md) §5,
+  read arm by arm 79/79. **These are on the emit path** — `base_word` is the
+  port's only source of a primary opcode. `W-MID-1` and `W-MID-2` name
+  `crates/c2-reference/tests/middle_interfaces.rs` and nothing else; **no row
+  in this ledger has an `Adopted into` under `crates/c2-core/src/codegen/`.**
+  The module doc says *"`docs/whitebox/DISCLOSURE.md` carries the provenance
+  rows"*; at tree `6c753ead0` it does not. Board **#3632**.
+* **`EX_CLASS_TABLE = 0x10b25e48`**, the `.ex` operand-class table read by
+  `c2-reference/tests/middle_interfaces.rs`, cited to
+  [`WB_READER_FINDINGS.md`](WB_READER_FINDINGS.md) §3.1 — **no row names this
+  address.** The decoder reads the class byte out of the image rather than
+  transcribing it and refuses every opcode outside its traced subset, which is
+  why the debt is small; it is still unregistered.
+* **Correctly unmarked, recorded so the absence does not read as an oversight:**
+  `W-MEMCPY-1`'s site in `c2-il/src/func/body/expr.rs` is *one comment that
+  states no constant*, and `W-STAGETAP-6`'s `FuncWalk::{sym, sym_kind}` are
+  struct fields. Nothing was adopted at either, so no marker is owed at either.
+
+## Running it
+
+    scripts/provenance_census.py                      per-module counts + denominators + tree sha
+    scripts/provenance_census.py --by-file            per-file rows
+    scripts/provenance_census.py --list-untagged M    name the residue of module M
+    scripts/provenance_census.py --self-test          planted fixture, exact counts, and three
+                                                      demonstrated reds
+
+**On `#1406` (evidence must run under `cargo test` or `scripts/gate.sh`), and
+why this one does not.** The census is a **python** script, so it cannot live in
+the std-only workspace; the accepted shape for that is a committed instrument
+carrying its own self-test, and the precedent is
+`scripts/gate_identity_diff.sh --self-test`, which grades every `crates/` merge
+in this repo and is likewise not under `cargo test`. The lane that built this
+was fenced to **comment-only** edits in `crates/`, so wiring a Rust test would
+have violated its own required-zero constraint. **Named and not taken:** a
+`crates/*/tests/provenance.rs` that shells out to the script and asserts the
+per-module rows, which needs a lane that owns a `crates/` test file.
+
+**The control was watched failing before it was trusted** (`#3336`; this repo
+has shipped a `--check` flag that could not fail). With `MARK_RE` broken so it
+cannot see a `PROV[X]` token, `--self-test` goes red on nine checks and exits
+**1**; clean and restored both exit **0**. Evidence:
+`work/w-provenance/control_red.txt`.
