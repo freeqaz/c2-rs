@@ -2597,6 +2597,123 @@ impl GapReport {
                 (reached + stopped).to_string(),
             ));
         }
+        // ---- SYMBOL BINDING (lane `w-symbind`, decision 14) -------------------
+        //
+        // The third layer, measured as the STRICT census's verdict crossed with
+        // the RELAXED one. Emitted UNCONDITIONALLY, every key on every scan
+        // **including as a zero**, for the reason the two blocks above give: an
+        // absent row reading as "nothing to see" is this project's
+        // most-repeated defect (`#3470`, `#1002`).
+        //
+        // **The denominator prints FIRST and no ratio is published here at
+        // all.** Nothing in this block reaches a numerator that grades the
+        // port, enters an accept/refuse path, or appears in `scripts/gate.sh`
+        // (`docs/FUNCTION_BYTE_MATCH.md` §0). Decision 14: *"`w-symbind` in
+        // particular measures a refusal population and may not convert it."*
+        {
+            let sb = |k: &str| self.symbind_total(k);
+            let (observable, in_class, fused, residue, mono) = (
+                sb("symbind-observable"),
+                sb("symbind-in-class"),
+                sb(super::symbind::FUSED_KEY),
+                sb("symbind-residue"),
+                sb("symbind-monotonicity-broken"),
+            );
+            for (k, v) in [
+                // The denominator FIRST, always.
+                ("symbind-observable", observable),
+                ("symbind-in-class", in_class),
+                // **THE DISCRIMINATING CELL.** If this is 0 the instrument is
+                // not measuring symbol binding and the lane that ships it has
+                // FAILED — the threshold its prereg froze.
+                (super::symbind::FUSED_KEY, fused),
+                // What the seam does NOT reach: the part of "symbol binding"
+                // that is not symbol RESOLUTION. Published beside `fused`
+                // rather than left to a subtraction, because a residue nobody
+                // prints is a residue nobody sizes.
+                ("symbind-residue", residue),
+                // The grammar-reached halves — the two that must add to
+                // `decode-reach-grammar-not-admitted`.
+                ("symbind-fused-grammar", sb("symbind-fused-grammar")),
+                ("symbind-residue-grammar", sb("symbind-residue-grammar")),
+                // The fused population's crosses, as flat keys so a later lane
+                // can watch each one MOVE (the whole point of the instrument —
+                // #3582: the signal is the CHANGE, never the distance from 0).
+                ("symbind-fused-named", sb("symbind-fused-named")),
+                ("symbind-fused-unnamed", sb("symbind-fused-unnamed")),
+                ("symbind-fused-model", sb("symbind-fused-model")),
+                ("symbind-fused-notgrammar", sb("symbind-fused-notgrammar")),
+                (
+                    "symbind-fused-relaxed-gate-refused",
+                    sb("symbind-fused-relaxed-gate-refused"),
+                ),
+                ("symbind-blind-callee-sites", sb("symbind-blind-callee-sites")),
+                ("symbind-blind-data-sites", sb("symbind-blind-data-sites")),
+                ("symbind-tus-any", sb("symbind-tus-any")),
+                ("symbind-tus-scanned", sb("symbind-tus-scanned")),
+                // The four `symbind-missing|` arms, flat and by NAME, because
+                // `neither` is the anomaly arm and an anomaly that only exists
+                // inside a printed block is an anomaly no diff can catch.
+                ("symbind-missing-callee", sb("symbind-missing|callee")),
+                ("symbind-missing-data", sb("symbind-missing|data")),
+                ("symbind-missing-both", sb("symbind-missing|both")),
+                ("symbind-missing-neither", sb("symbind-missing|neither")),
+            ] {
+                m.push((k, v.to_string()));
+            }
+            // The controls, each a DEFECT count with a known answer of 0, and
+            // each recomputed HERE from the published totals as well as being
+            // filed per TU — so a control that stopped being written at the
+            // walk is visible as a disagreement rather than as agreement.
+            m.push((
+                "symbind-partition-broken",
+                ((in_class + fused + residue + mono != observable) as usize
+                    + sb("symbind-partition-broken"))
+                .to_string(),
+            ));
+            m.push(("symbind-monotonicity-broken", mono.to_string()));
+            m.push((
+                "symbind-population-broken",
+                sb("symbind-population-broken").to_string(),
+            ));
+            m.push((
+                "symbind-census-desync",
+                sb("symbind-census-desync").to_string(),
+            ));
+            m.push((
+                super::symbind::PLACEHOLDER_NONE_KEY,
+                sb(super::symbind::PLACEHOLDER_NONE_KEY).to_string(),
+            ));
+            // **THE SECOND DERIVATION** (#3288's discipline). The
+            // grammar-reached halves of this walk's two refusal cells must add
+            // to the number `gap::decode` filed off `Decoded` — a different
+            // map, a different module, and code this one did not write.
+            let gna = self.decode_total("decode-reach-grammar-not-admitted");
+            m.push(("symbind-grammar-not-admitted", gna.to_string()));
+            m.push((
+                "symbind-grammar-disagree",
+                (sb("symbind-fused-grammar") + sb("symbind-residue-grammar"))
+                    .abs_diff(gna)
+                    .to_string(),
+            ));
+            // Which relaxation level produced every number above. Both levels
+            // are published, including as a zero, so a merged report cannot mix
+            // two depths without the mix being visible — and so the identity
+            // arm (`level 0`, where `fused` must be 0) is legible from the
+            // key line alone.
+            for lvl in 0..c2_il::Relax::LEVELS {
+                let name = c2_il::Relax::level(lvl).name();
+                m.push((
+                    Box::leak(format!("symbind-relax-level-{name}").into_boxed_str()),
+                    sb(&format!("{}|{name}", super::symbind::RELAX_LEVEL_KEY))
+                        .to_string(),
+                ));
+            }
+            // **THE POSITIVE CHECK.** How many cells this instrument actually
+            // graded. A zero is a loud failure for any lane quoting these
+            // numbers — never an enumeration of the ways it could be empty.
+            m.push(("symbind-graded", observable.to_string()));
+        }
         // **THE BYTE-FRACTION RANKER** (board #500) and its control (#501).
         //
         // The head is emitted as three keys — name, numerator, denominator —

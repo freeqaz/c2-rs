@@ -269,6 +269,217 @@ fn render_decode_reach(report: &GapReport) {
     }
 }
 
+/// **SYMBOL BINDING — its own block, under its own disclaimer** (lane
+/// `w-symbind`, decision 14).
+///
+/// `docs/FUNCTION_BYTE_MATCH.md` §0 is the standing template for every gradient
+/// added after FBM and this is the fifth: never in `scripts/gate.sh`,
+/// namespaced keys, **licenses no emit**, and `NO-RESULT` — never a zero — over
+/// an empty scan.
+fn render_symbind(report: &GapReport) {
+    let s = |k: &str| report.symbind_total(k);
+    let observable = s("symbind-observable");
+    // **THE POSITIVE CHECK, FIRST.** "The run must have GRADED something" —
+    // never an enumeration of the ways it can be empty. A zero here prints
+    // NO-RESULT loudly and publishes no number at all.
+    if observable == 0 {
+        println!(
+            "\n\x20 SYMBOL BINDING: NO-RESULT — no census row was paired against a relaxed one \
+             ({} TUs walked, {} desyncs). Nothing was graded. This is not `symbind-fused 0`; a \
+             lane quoting a symbol-binding number off this scan has no number.",
+            s("symbind-tus-scanned"),
+            s("symbind-census-desync"),
+        );
+        return;
+    }
+    let pct = |n: usize, den: usize| {
+        if den == 0 {
+            "n/a".to_string()
+        } else {
+            format!("{:.2}%", 100.0 * n as f64 / den as f64)
+        }
+    };
+    let levels: Vec<(String, usize)> = report.symbind_rows_by_name("symbind-relax-level|");
+    let level = levels
+        .iter()
+        .map(|(k, n)| format!("{k} ({n} TUs)"))
+        .collect::<Vec<_>>()
+        .join(" + ");
+    let (in_class, fused, residue, mono) = (
+        s("symbind-in-class"),
+        s(super::symbind::FUSED_KEY),
+        s("symbind-residue"),
+        s("symbind-monotonicity-broken"),
+    );
+    println!(
+        "\n\x20 SYMBOL BINDING (w-symbind) — the THIRD layer, measured (decision 14). A \
+         CHARACTERIZATION instrument, NEVER a gate, and it LICENSES NO EMIT: decision 14 says \
+         in its own words that this lane *\"measures a refusal population and may not convert \
+         it\"*. A wrong emit scores strictly below the refusal it replaced \
+         (`docs/PROGRESS_METRIC.md`).\n\
+         \x20   THE PAIRING: the STRICT census's verdict x the RELAXED one \
+         (`c2_il::Relax`), row by row over one segmentation. The relaxation's ENTIRE content is \
+         *supply a placeholder NAME where `.gl` had none*; no grammar widens, no operand \
+         vocabulary widens, no byte of the body is re-read. So `fused` means **a name is the \
+         only thing between this body and the incumbent admission predicate**.\n\
+         \x20   RELAXATION LEVEL = {level} — every number below is a property of THIS level. At \
+         level 0 the relaxed census IS the strict one, so `fused` must read 0; that arm is the \
+         instrument's own identity control."
+    );
+    println!(
+        "\x20   ALL ROWS       observable {observable}   in-class {in_class} ({})   \
+         **FUSED {fused}** ({})   residue {residue} ({})\n\
+         \x20     FUSED = strict REFUSED, relaxed ADMITTED — the symbol-binding layer.\n\
+         \x20     residue = refused on BOTH sides: what this seam does NOT reach, i.e. the part \
+         of \"symbol binding\" that is not symbol RESOLUTION.{}",
+        pct(in_class, observable),
+        pct(fused, observable),
+        pct(residue, observable),
+        if fused == 0 {
+            "\n\x20     ** FUSED IS ZERO — THIS INSTRUMENT IS NOT MEASURING SYMBOL BINDING **"
+        } else {
+            ""
+        }
+    );
+    // **THE CROSS-WALK IDENTITY** (#3288's second-derivation pattern): the
+    // grammar-reached half of this walk's two refusal cells must add up to the
+    // number `gap::decode` filed off `Decoded` in a different module.
+    let (fg, rg) = (s("symbind-fused-grammar"), s("symbind-residue-grammar"));
+    let gna = report.decode_total("decode-reach-grammar-not-admitted");
+    println!(
+        "\x20   SECOND DERIVATION — `symbind-fused-grammar` {fg} + `symbind-residue-grammar` \
+         {rg} = {} against `decode-reach-grammar-not-admitted` {gna} (filed by \
+         `gap::decode` off `Decoded`, code this module did not write); disagreement {}. Known \
+         answer 0. **{gna} IS THE BASELINE, NOT ZERO** (#3582) — the I1 signal, and this \
+         lane's, is the CHANGE in these populations and never their distance from 0.",
+        fg + rg,
+        (fg + rg).abs_diff(gna),
+    );
+    for (label, prefix, cap) in [
+        (
+            "WHICH REFUSAL a fused body carried (strict census key)",
+            "symbind-fused|",
+            12usize,
+        ),
+        (
+            "WHICH GRAMMAR was underneath it (the relaxed census's accepted shape)",
+            "symbind-fused-shape|",
+            16,
+        ),
+        (
+            "THE CROSS — refusal x grammar. **This is the \"one phenomenon or several\" answer**; \
+             a key whose row spans many shapes is not naming one construct",
+            "symbind-fused-cross|",
+            24,
+        ),
+        (
+            "WHICH SIDE of the binding was blind (`$blind$callee` / `$blind$data` in the relaxed \
+             body). `neither` is an ANOMALY arm and is printed",
+            "symbind-missing|",
+            8,
+        ),
+        (
+            "HOW MANY placeholder SITES per fused body — \"one symbol\" and \"many\" as two numbers",
+            "symbind-missing-sites|",
+            8,
+        ),
+        (
+            "the fused population crossed with FRAME reach (the three strengths are NOT a chain, \
+             #3582)",
+            "symbind-fused-frame|",
+            4,
+        ),
+        (
+            "MANGLING CLASS of the refused function",
+            "symbind-fused-mangling|",
+            10,
+        ),
+        (
+            "PER-TU CONCENTRATION (one bucket per TU — a bucket and not a max, because these \
+             maps are SUMMED)",
+            "symbind-tu-bucket|",
+            8,
+        ),
+        (
+            "THE RESIDUE, named on BOTH sides (strict key | relaxed key), grammar-reached rows \
+             only. A count of disagreements that cannot be looked at is not a repair set",
+            "symbind-residue|",
+            12,
+        ),
+        (
+            "…and WHAT THOSE RESIDUE BODIES ARE — the strict key x the body-dispatch arm that \
+             claimed them (`FnCensus::dispatch`, decode-only). A key naming a CALLEE whose rows \
+             sit under an arm that reads no callee is a MISNAMED key, not a missing symbol",
+            "symbind-residue-dispatch|",
+            16,
+        ),
+        (
+            "…and their FRAME CLASS. **`calls-0` under a `callee-unresolved-*` key is a body \
+             that issues NO CALL AT ALL** — the sharpest available statement that the key is \
+             misnamed for that row",
+            "symbind-residue-frame|",
+            12,
+        ),
+        (
+            "the FUSED population's dispatch arm, printed beside the residue's so the two \
+             halves are comparable",
+            "symbind-fused-dispatch|",
+            12,
+        ),
+        (
+            "…and the fused population's frame class",
+            "symbind-fused-frameclass|",
+            4,
+        ),
+    ] {
+        let rows = report.symbind_rows_by_name(prefix);
+        println!(
+            "\x20   {label} — {} distinct, sorted by NAME (never by mass, #3505):",
+            rows.len()
+        );
+        if rows.is_empty() {
+            println!("\x20     (none)");
+        }
+        for (k, n) in rows.iter().take(cap) {
+            println!("\x20     {n:>8}  {k}");
+        }
+        if rows.len() > cap {
+            println!("\x20     … and {} more", rows.len() - cap);
+        }
+    }
+    println!(
+        "\x20   EMITTED CROSS  named {}  unnamed {}  model-reached {}  relaxed-gate-refused {} \
+         — for a body c2 never emits, \"in class\" is a parser-only claim no byte compare has \
+         ever graded or ever can (`FnCensus::emit_name`).\n\
+         \x20   BLIND SITES    callee {}  data {} (site totals over the fused population, \
+         {} TUs of {} carry at least one fused row)",
+        s("symbind-fused-named"),
+        s("symbind-fused-unnamed"),
+        s("symbind-fused-model"),
+        s("symbind-fused-relaxed-gate-refused"),
+        s("symbind-blind-callee-sites"),
+        s("symbind-blind-data-sites"),
+        s("symbind-tus-any"),
+        s("symbind-tus-scanned"),
+    );
+    println!(
+        "\x20   controls (all known answer 0): monotonicity-broken {mono}  partition-broken {}  \
+         population-broken {}  census-desync {}  placeholder-none {}\n\
+         \x20     `monotonicity-broken` = a row the STRICT census admits and the RELAXED one \
+         refuses. It is NOT true by construction — it is the claim that supplying a name only \
+         ever widens — and its failure is EXECUTED in a unit test.\n\
+         \x20     `placeholder-none` = a FUSED row with no `$blind$*` anywhere the public \
+         accessors reach. Nonzero is a FINDING (this module's account of the seam is \
+         incomplete by exactly that many bodies), not an alarm. **THE IDENTITY OF THE MISSING \
+         SYMBOL IS NOT VISIBLE HERE AT ALL**: `FnCensus` publishes no such field and `c2-il` is \
+         read, never written, by this lane. Owed, not smuggled.",
+        s("symbind-partition-broken"),
+        s("symbind-population-broken"),
+        s("symbind-census-desync"),
+        s(super::symbind::PLACEHOLDER_NONE_KEY),
+    );
+}
+
 fn render_plan(report: &GapReport) {
     let ctl = report.plan_control();
     println!(
@@ -1779,6 +1990,7 @@ pub(super) fn print_factorization(report: &GapReport) {
         }
     }
     render_decode_reach(report);
+    render_symbind(report);
     // ---- W-FENCECOUNT: the per-fence hold-out counter -----------------------
     //
     // The instrument the two-sided fence-pricing rule (CLAUDE.md) needs on the
@@ -1875,6 +2087,7 @@ mod tests {
             fn_cflow_off: Default::default(),
         fn_cfg_admit: Default::default(),
         fn_decode: Default::default(),
+        fn_symbind: Default::default(),
             fn_eh: Default::default(),
             fn_dispatch: Default::default(),
             fn_complete: Default::default(),

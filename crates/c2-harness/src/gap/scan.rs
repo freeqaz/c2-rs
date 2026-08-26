@@ -52,6 +52,7 @@ fn scan_one(
         fn_cflow_off: BTreeMap::new(),
         fn_cfg_admit: BTreeMap::new(),
         fn_decode: BTreeMap::new(),
+        fn_symbind: BTreeMap::new(),
         fn_eh: BTreeMap::new(),
         fn_dispatch: BTreeMap::new(),
         fn_complete: BTreeMap::new(),
@@ -953,8 +954,17 @@ fn scan_one(
         //          is paid only here, on the scan, never on `PortC2::build`'s
         //          path — and it is switchable by the same named parameter that
         //          switches the rest of this instrument.
+        //
+        //          **The `Decoded` slice is built ONCE here and shared with
+        //          `super::symbind` below.** `decode_bodies()` is a second
+        //          parse over the whole TU; two instruments asking for it twice
+        //          would double a cost that is already the scan's largest
+        //          per-body item, and `docs/GAPS.md` §6's rule (one fact, one
+        //          locator) applies to the *producer* as much as to the reader.
+        let decoded = super::decode::enabled_from_env()
+            .then(|| captured.bundle.decode_bodies())
+            .flatten();
         if super::decode::enabled_from_env() {
-            let decoded = captured.bundle.decode_bodies();
             super::decode::measure(&mut res, &census, &fbm_verdicts, decoded.as_deref());
         }
         // 1e'''''. **BLIND REACH (lane w-s0, `super::blind`) — S0 of
@@ -988,6 +998,35 @@ fn scan_one(
                 &captured.ref_obj,
                 blind_level,
             );
+            // 1e''''''. **SYMBOL BINDING (lane `w-symbind`, `super::symbind`) —
+            //           decision 14.** The same two censuses S0 already built,
+            //           paired row by row: which bodies does the strict census
+            //           REFUSE that the relaxation ADMITS? That cell is the
+            //           size of the symbol-binding layer, which `w-decodereach`
+            //           could only bound from outside (`grammar-not-admitted`
+            //           4,001, board #3582).
+            //
+            //           **Nothing is recomputed.** The strict census, the
+            //           relaxed census and the `Decoded` slice are all passed
+            //           in from the walks that produced them — `#1464`'s rule
+            //           and `fnbytes.rs:98`'s at the same time.
+            //
+            //           Additive only, `symbind-` keys only, its own `TuResult`
+            //           map, and it obeys FBM §0's separation rule verbatim:
+            //           never in `gate.sh`, its own block, namespaced,
+            //           **licenses no emit**, `NO-RESULT` over an empty scan.
+            //           Decision 14 in its own words: *"`w-symbind` in
+            //           particular measures a refusal population and may not
+            //           convert it."*
+            if super::symbind::enabled_from_env() {
+                super::symbind::measure(
+                    &mut res,
+                    &census,
+                    &relaxed,
+                    decoded.as_deref(),
+                    blind_level,
+                );
+            }
         }
         // 1e'. SCRATCH INSTRUMENT (W-ADJUST, boards #127/#128) — see [`row_dump`].
         //      Off unless `C2RS_ROW_DUMP` is set; changes no count either way.

@@ -84,6 +84,36 @@ Structurally, exactly as the progress mass is separated:
 >   **23,140 of the 35,912 (64.4 %) are bodies the decode does NOT model.**
 >
 > [`rungs/2026-08-25-w-decodereach.md`](rungs/2026-08-25-w-decodereach.md).
+>
+> ### ✔ 2026-08-26 — **THE FIFTH GRADIENT IS SHIPPED: `symbind-*`, AND ITS FIRST READING SPLITS A POPULATION THE TREE WAS TREATING AS ONE.**
+> *Lane `w-symbind`, boards **#3597**–**#3602**, funded by
+> `DECISIONS_2026-08-22.md` decision 14.
+> `crates/c2-harness/src/gap/symbind.rs`. **Nothing on this page is edited,
+> re-scored or withdrawn**; §0's five properties are adopted verbatim, as S0
+> and `decode-reach-*` adopted them.*
+>
+> It measures the layer **below** the one `decode-reach-*` bounded. Its pairing
+> is the STRICT census's verdict against **`c2_il::Relax` level 1**'s, row by
+> row over one segmentation — and the relaxation's whole content is *supply a
+> placeholder NAME where `.gl` had none*, so `symbind-fused` means **a name is
+> the only thing between this body and the incumbent admission predicate**.
+>
+> **Two things to carry off it:**
+>
+> * **`decode-reach-grammar-not-admitted` 4,001 is TWO populations, 1,697 +
+>   2,304.** The first is name binding, which the seam reaches. The second is
+>   **object** binding (`resolve_data_def` / `resolve_bss_def` — a whole DEFINED
+>   object, for which no placeholder can stand in) plus structural refusals, and
+>   **2,280 of it sits under a key naming an unresolved CALLEE on bodies that
+>   issue no call at all** (`calls-0`, `disp-global-store-leaf`) — 99.9 % of that
+>   key's own population, because it is a `match label` **default arm**.
+> * **The judge has already priced converting it: `fnbyte-blind-exact` 15
+>   against `fnbyte-blind-differs` 373 on exactly these keys — 96.1 % wrong.**
+>   That is read off S0's keys, not recomputed, and it is BYTES ONLY. It is why
+>   decision 14 forbids this lane converting the population it measures, and the
+>   arithmetic of `PROGRESS_METRIC.md` §5.2 rather than caution.
+>
+> [`rungs/2026-08-26-w-symbind.md`](rungs/2026-08-26-w-symbind.md).
 
 > **The third gradient already exists and this page never linked it.**
 > [`DIFF_STRUCTURE.md`](DIFF_STRUCTURE.md) / `crates/c2-harness/src/gap/fndiff.rs`

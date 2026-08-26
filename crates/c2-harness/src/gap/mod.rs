@@ -52,6 +52,13 @@ mod render;
 mod report;
 mod scan;
 pub mod sets;
+/// **SYMBOL BINDING — the third layer, measured.** Lane `w-symbind`, decision
+/// 14. Pairs the STRICT census's verdict against the RELAXED one row by row, so
+/// *"a name is the only thing between this body and admission"* is a number. A
+/// GRADIENT under `FUNCTION_BYTE_MATCH.md` §0's separation rule: never in
+/// `gate.sh`, licenses no emit, and **it may not convert one body of the
+/// population it measures**.
+pub mod symbind;
 mod witness;
 
 #[cfg(test)]
@@ -242,6 +249,20 @@ pub struct TuResult {
     /// have been swept — `decode-reach-admitted-*` — so putting them anywhere
     /// else would have repeated it a third time.
     pub fn_decode: BTreeMap<String, usize>,
+    /// **SYMBOL BINDING** (lane `w-symbind`, boards #3597–#3602) — the STRICT
+    /// census's verdict crossed with the RELAXED one, row by row, so the size
+    /// of the symbol-binding layer is a number rather than an inference. Every
+    /// row is `symbind-*`.
+    ///
+    /// **Its own map, for the reason [`Self::fn_decode`] has one and the two
+    /// fields above it record twice**: `GapReport::cflow_residue_control` sweeps
+    /// `fn_cflow` rows by suffix, so a row added there with a `|IN-CLASS` tail
+    /// is folded into a published number with nothing in the diff to explain it
+    /// (517,425 → 1,222,684, caught only by a base-vs-tip key identity diff).
+    /// **Two maps cannot collide.** This module's rows are *exactly* the shape
+    /// that would have been swept — `symbind-in-class` — so putting them
+    /// anywhere else would have repeated it a fourth time.
+    pub fn_symbind: BTreeMap<String, usize>,
     /// **The exception-handling axis** (`docs/EH_RECORDS.md` §9.4, §10): which
     /// side of the `maxState` boundary each body falls on. Four row shapes, and
     /// the shape is in the key so no two populations can share a row:
