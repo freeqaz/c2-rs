@@ -1,8 +1,8 @@
 # SUBSYS METRICS — the per-subsystem scoreboard
 
 > **GENERATED — do not hand-edit.** Regenerate with
-> `scripts/subsys_metrics.sh --write`. Tree `005fce256` (DIRTY), generated
-> `2026-08-26T07:38:36Z`. Every number below is re-verified against this tree by
+> `scripts/subsys_metrics.sh --write`. Tree `e2bcda46d` (clean), generated
+> `2026-08-26T07:57:42Z`. Every number below is re-verified against this tree by
 > `cargo test -p c2-harness --lib subsys`, which `scripts/gate.sh`'s
 > unit row runs; the four positive controls run beside it.
 
