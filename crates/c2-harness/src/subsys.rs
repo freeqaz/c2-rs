@@ -67,6 +67,14 @@ use std::path::{Path, PathBuf};
 /// Where the whitebox reference index lives, relative to the repo root.
 pub const REF_DIR: &str = "docs/whitebox/ref";
 
+/// The encoder's arm enumeration, inside [`REF_DIR`] — 79 rows, one per distinct
+/// arm target of the jump table at `0x10bfae2d`, each naming the encode-forms
+/// that arm serves. Dumped from the pinned image by
+/// `docs/whitebox/scripts/dump_opcode_tables.py --arms` (lane `w-read-r2`,
+/// board `#3376`); **re-measured on this tree by lane `w-encmap`**, see
+/// [`recount_encode_ported`].
+pub const ENCODE_ARMS_TXT: &str = "ENCODE_ARMS.txt";
+
 /// The real-`c2` section census of the workload, relative to the repo root.
 /// Committed (lane `w-bss`); regenerating it needs the `dc3` tree and ~102 MB
 /// of objs, which is why it is in the tree rather than rebuilt.
@@ -150,6 +158,24 @@ pub enum Basis {
     /// 163 charging sites (31 direct + 132 constructor). Not a band; verified
     /// against the page's own words.
     SitePopulation,
+}
+
+/// How a row's `ported` number is **recomputed from the tree on every run**,
+/// so that a carried number cannot rot and a fabricated one cannot pass.
+///
+/// This is `ported`'s analogue of [`Basis::Band`]: the band denominators
+/// recount from `FUNCS.tsv`, and a `ported` cell with a recount recomputes from
+/// the **port's own public tables**. A row with `None` here has no recount and
+/// must therefore carry a [`Cell::Residue`] — [`verify`] enforces exactly that,
+/// which is what stops the next lane from typing a number into a `ported` cell
+/// and shipping it green.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PortedRecount {
+    /// **The encoder.** For each arm in `ENCODE_ARMS.txt`, ask `c2-core`'s own
+    /// [`c2_core::codegen::mop`] whether the port can produce a word through
+    /// that arm — see [`recount_encode_ported`] for the predicate, which is
+    /// stated there rather than here because it is the load-bearing definition.
+    EncodeArms,
 }
 
 /// A measurable strength: a number with its denominator and where it came from,
@@ -250,9 +276,17 @@ pub struct Subsystem {
     /// has no `TU_PAGE`/`PAGE_SUBSYS` entry for their pages).
     pub tu_population: Option<u64>,
 
-    /// Strength 1's third level. A residue on every row this wave — see
-    /// [`Cell::Residue`] and the module docs.
+    /// Strength 1's third level.
+    ///
+    /// **Nine of ten rows are still a named residue** — see [`Cell::Residue`]
+    /// and the module docs. The `encode` row is measured, and is measured by
+    /// [`PortedRecount`] rather than carried.
     pub ported: Cell,
+    /// When `Some`, [`verify`] **recomputes** `ported` from the tree and fails
+    /// if the carried cell disagrees. When `None`, `ported` **must** be a
+    /// residue or a pending — a bare number with nothing able to recount it is
+    /// exactly the fabrication this scoreboard exists to make impossible.
+    pub ported_recount: Option<PortedRecount>,
     /// Strength 2, beyond the mark census that every row gets.
     pub agreement_extra: Option<Cell>,
     /// Strength 3.
@@ -293,6 +327,7 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
              counting which of them the port implements needs the derived-vs-fitted \
              provenance census, which lane w-provenance owns this wave",
         ),
+        ported_recount: None,
         agreement_extra: None,
         exercised: Cell::Measured {
             num: 871,
@@ -329,6 +364,7 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
              27-arm .gl record dispatcher is the natural unit and the page says 24 \
              of its arms are uncovered",
         ),
+        ported_recount: None,
         agreement_extra: None,
         exercised: Cell::Measured {
             num: 14,
@@ -363,6 +399,7 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
              codegen::select_function's own rules, not by a colouring pass. A \
              site-level numerator is not merely unmeasured, it is not yet defined",
         ),
+        ported_recount: None,
         agreement_extra: None,
         exercised: Cell::Residue(
             "per-site exercise is unmeasurable: nothing traces c2.dll's own addresses \
@@ -396,6 +433,7 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
             "the port does no global register promotion; there is no site to count. \
              P_GLOBREGS §2's order and tie key are read but unadopted",
         ),
+        ported_recount: None,
         agreement_extra: None,
         exercised: Cell::Residue(
             "per-site exercise unmeasurable (no address trace). P_GLOBREGS's own [O] \
@@ -434,6 +472,7 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
              (P_BLOCKORDER §5.2, #3437-#3441) and the port's bodies are built \
              straight-line. No site-level numerator is defined",
         ),
+        ported_recount: None,
         agreement_extra: None,
         exercised: Cell::Residue(
             "per-site exercise unmeasurable (no address trace). The scheduler band \
@@ -463,6 +502,7 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
              port-state column is lane w-inlmetric's deliverable this wave and is not \
              built here",
         ),
+        ported_recount: None,
         agreement_extra: Some(Cell::Pending(
             "the inliner's clause-by-clause differential is being built by lane \
              w-inlmetric (decision 15, boards #3623-#3628), in flight at this \
@@ -490,13 +530,38 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
         read_unit: "distinct encode arms (covering 660 of 660 machine opcodes)",
         read_doc: "P_ENCODE.md:27",
         tu_population: None,
-        ported: Cell::Residue(
-            "the port's 89 encode_* mnemonics were derived black-box from captured \
-             objs, never from these arms (P_ENCODE §8.1's own words), so `sites the \
-             port implements` is not defined against the 79-arm population. The \
-             cheapest next read on this project is the arm -> port-function map; it \
-             does not exist",
-        ),
+        // RECOUNTED, never carried — `verify` recomputes this from
+        // ENCODE_ARMS.txt plus c2-core's own public tables on every run and
+        // every `cargo test`. See `recount_encode_ported` for the predicate.
+        ported: Cell::Measured {
+            num: 27,
+            den: 79,
+            unit: "encode arms the port can produce a word through",
+            source: "lane w-encmap, board #3636-#3641: ENCODE_ARMS.txt (79 rows, \
+                     re-measured on this tree) x c2_core::codegen::mop::{plan, OPCODES}",
+            caveat: "THE DENOMINATOR IS THE 79 ARMS, NOT THE BAND'S 14 AND NOT THE 111 \
+                     JUMP-TABLE ENTRIES, and the choice is published rather than \
+                     silent: `read` on this row is already 79 arms, so `read \
+                     superset-of ported` is well formed only in the arm unit. The 111 \
+                     entries are 111 FORMS, each belonging to exactly one arm \
+                     (re-measured: 111 -> 79, no form served by two arms), so the \
+                     entry unit would count the same arm up to 12 times. The band's \
+                     14 is Ghidra function entries -- a different population \
+                     entirely. AN ARM COUNTS ON ONE OF ITS FORMS, so this OVER-states \
+                     partial arms: the strict reading (every form of the arm \
+                     reachable) is 25, and the loose reading (a FieldPlan exists, \
+                     whether or not an opcode reaches it) is 28 -- the extra arm is \
+                     10bfa26c, form 2, a plan no opcode reaches. The 52 unmapped arms \
+                     are NOT uniform: 25 are VMX/VMX128-dominated (243 of c2's 639 \
+                     form-carrying opcodes, including the 104-opcode default arm \
+                     10bf9f91), leaving 27 non-VMX arms over 100 opcodes -- the \
+                     CR-logical family (10bfa81d, 19), FP multiply-add (10bfa49a, \
+                     18), the nop family (10bfa1ad, 13), the cache ops (10bfa8ae, 9), \
+                     and three the port DOES emit by another route and is therefore \
+                     not refusing: bl (10bfa285, form 7), mfspr (10bfa76a, form 54) \
+                     and li/lis (10bfa5a0, form 33). See P_ENCODE.md section 10",
+        },
+        ported_recount: Some(PortedRecount::EncodeArms),
         agreement_extra: Some(Cell::Measured {
             num: 630_548,
             den: 634_457,
@@ -547,6 +612,7 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
              per-site, so they do not compose into a `sites implemented` numerator. \
              Building one is the same missing port<->image map as every other row",
         ),
+        ported_recount: None,
         agreement_extra: None,
         exercised: Cell::Measured {
             num: 849,
@@ -582,6 +648,7 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
              is that stride == minted fails both ways, so a naive site count would be \
              wrong even if it were built",
         ),
+        ported_recount: None,
         agreement_extra: None,
         exercised: Cell::Residue(
             "per-site exercise unmeasurable, and WORSE HERE THAN ELSEWHERE: 42 of the \
@@ -621,6 +688,7 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
              27 addresses do not map onto port functions one-for-one. The numerator \
              is undefined rather than zero",
         ),
+        ported_recount: None,
         agreement_extra: None,
         exercised: Cell::Measured {
             num: 675,
@@ -779,6 +847,9 @@ pub fn workload_stamp(root: &Path) -> WorkloadStamp {
 pub struct Verified {
     pub marks: BTreeMap<&'static str, Marks>,
     pub recounted: BTreeMap<&'static str, u64>,
+    /// `key -> (ported, denominator)` for every row [`PortedRecount`] could
+    /// recompute. A row absent here has no recount and carries a residue.
+    pub ported_recounted: BTreeMap<&'static str, (u64, u64)>,
     pub failures: Vec<String>,
 }
 
@@ -786,6 +857,117 @@ impl Verified {
     pub fn ok(&self) -> bool {
         self.failures.is_empty()
     }
+}
+
+// ---------------------------------------------------------------------------
+// `ported`, for the one row where the question is well formed
+// ---------------------------------------------------------------------------
+
+/// One row of `ENCODE_ARMS.txt`: an arm address and the encode-forms it serves.
+#[derive(Clone, Debug)]
+pub struct EncodeArm {
+    pub arm: String,
+    /// c2's own opcode count for the arm, as the dump computed it. Carried for
+    /// the caveat text, never used in the ratio.
+    pub opcodes: u64,
+    pub forms: Vec<u16>,
+}
+
+/// Parse `ENCODE_ARMS.txt`. `#` comments and blank lines are skipped; a row is
+/// `<arm> <nforms> <nopcodes> <comma-separated forms>`.
+pub fn parse_encode_arms(txt: &str) -> Vec<EncodeArm> {
+    let mut out = Vec::new();
+    for line in txt.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let mut it = line.split_whitespace();
+        let (arm, nforms, nops, forms) = match (it.next(), it.next(), it.next(), it.next()) {
+            (Some(a), Some(nf), Some(no), Some(f)) => (a, nf, no, f),
+            _ => continue,
+        };
+        let forms: Vec<u16> = forms.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+        // A row whose declared form count disagrees with its own list is a
+        // corrupt dump, not a zero — drop it and let the arm-count check below
+        // notice the shortfall.
+        if forms.len() != nforms.parse::<usize>().unwrap_or(usize::MAX) {
+            continue;
+        }
+        out.push(EncodeArm {
+            arm: arm.to_string(),
+            opcodes: nops.parse().unwrap_or(0),
+            forms,
+        });
+    }
+    out
+}
+
+/// **`ported` for the `encode` row: `(arms the port can produce a word through,
+/// arms enumerated)`.**
+///
+/// # The predicate, stated once, because the number means nothing without it
+///
+/// An arm counts as **ported** iff there is some encode-form `f` that arm serves
+/// for which **both** hold:
+///
+/// 1. `c2_core::codegen::mop::plan(f)` is `Some` — the port has transcribed
+///    that arm's **field placement**; and
+/// 2. some row of `c2_core::codegen::mop::OPCODES` carries form `f` — the port
+///    actually has **an instruction that goes through it**.
+///
+/// **Both halves are required, and requiring the second is the conservative
+/// choice.** A `FieldPlan` no opcode reaches composes nothing; counting it would
+/// inflate `ported` by rules the port cannot execute. On this tree that is worth
+/// exactly one arm (`10bfa26c`, form 2, which `plan` answers and no `OPCODES`
+/// row names), and the looser reading is published beside the number rather than
+/// instead of it.
+///
+/// # It is a LOWER bound on understanding and an UPPER bound on nothing
+///
+/// The rule grants an arm on **one** of its forms, so an arm the port serves
+/// partially still counts. The strict variant — every form of the arm planned —
+/// is [`recount_encode_ported_strict`] and is printed in the caveat.
+///
+/// # Why this is live rather than transcribed
+///
+/// Both inputs are `c2-core`'s **public** tables, read through the crate rather
+/// than copied into this one. Nothing here transcribes a whitebox value into
+/// `crates/`: the denominator is a file read (exactly as the band denominators
+/// read `FUNCS.tsv`) and the numerator is a query against the port. A lane that
+/// adds an opcode or a form plan moves this number without touching this file,
+/// and a lane that types a wrong number into the table reddens `cargo test`.
+pub fn recount_encode_ported(arms: &[EncodeArm]) -> (u64, u64) {
+    let n = arms
+        .iter()
+        .filter(|a| a.forms.iter().any(|&f| port_reaches_form(f)))
+        .count() as u64;
+    (n, arms.len() as u64)
+}
+
+/// The strict variant: **every** form the arm serves is reachable by the port.
+pub fn recount_encode_ported_strict(arms: &[EncodeArm]) -> u64 {
+    arms.iter()
+        .filter(|a| !a.forms.is_empty() && a.forms.iter().all(|&f| port_reaches_form(f)))
+        .count() as u64
+}
+
+/// The looser variant: the port has a `FieldPlan` for the form, whether or not
+/// any opcode reaches it. Published beside the number, never as it.
+pub fn recount_encode_ported_planned(arms: &[EncodeArm]) -> u64 {
+    arms.iter()
+        .filter(|a| {
+            a.forms
+                .iter()
+                .any(|&f| c2_core::codegen::mop::plan(c2_core::codegen::mop::Form(f)).is_some())
+        })
+        .count() as u64
+}
+
+/// Can the port produce a word whose placement is this form's arm?
+fn port_reaches_form(f: u16) -> bool {
+    use c2_core::codegen::mop::{plan, Form, OPCODES};
+    plan(Form(f)).is_some() && OPCODES.iter().any(|r| r.form.0 == f)
 }
 
 /// Re-verify **every denominator in [`SUBSYSTEMS`] against the tree**, plus the
@@ -810,6 +992,7 @@ pub fn verify(ref_dir: &Path, table: &[Subsystem]) -> Verified {
     let mut v = Verified {
         marks: BTreeMap::new(),
         recounted: BTreeMap::new(),
+        ported_recounted: BTreeMap::new(),
         failures: Vec::new(),
     };
 
@@ -918,6 +1101,46 @@ pub fn verify(ref_dir: &Path, table: &[Subsystem]) -> Verified {
             ("exercised", &sub.exercised),
         ] {
             check_cell(&mut v, sub.key, name, cell);
+        }
+
+        // ---- 6. `ported` recount -------------------------------------------
+        // A measured `ported` must be recomputable, and a row with no recount
+        // must not carry a number. Both directions, because either one alone
+        // lets a fabrication through.
+        match (&sub.ported, sub.ported_recount) {
+            (Cell::Measured { num, den, .. }, Some(PortedRecount::EncodeArms)) => {
+                let txt = std::fs::read_to_string(ref_dir.join(ENCODE_ARMS_TXT))
+                    .unwrap_or_default();
+                let arms = parse_encode_arms(&txt);
+                if arms.is_empty() {
+                    v.failures.push(format!(
+                        "{}: {ENCODE_ARMS_TXT} unreadable or empty — ported is \
+                         NO-RESULT, not 0",
+                        sub.key
+                    ));
+                } else {
+                    let (rn, rd) = recount_encode_ported(&arms);
+                    v.ported_recounted.insert(sub.key, (rn, rd));
+                    if (rn, rd) != (*num, *den) {
+                        v.failures.push(format!(
+                            "{}: ported DOES NOT REPRODUCE — table says {num}/{den}, \
+                             the tree gives {rn}/{rd} (ENCODE_ARMS.txt x \
+                             c2_core::codegen::mop)",
+                            sub.key
+                        ));
+                    }
+                }
+            }
+            (Cell::Measured { .. }, None) => v.failures.push(format!(
+                "{}: ported carries a NUMBER with no recount — a ported cell nothing \
+                 can recompute is a fabrication waiting to happen",
+                sub.key
+            )),
+            (_, Some(_)) => v.failures.push(format!(
+                "{}: ported declares a recount but is not measured",
+                sub.key
+            )),
+            (_, None) => {}
         }
         if let Some(c) = &sub.agreement_extra {
             check_cell(&mut v, sub.key, "agreement", c);
@@ -1232,8 +1455,38 @@ pub fn render(root: &Path, ref_dir: Option<PathBuf>, table: &[Subsystem]) -> Ren
                 tp as f64 / sub.sites.max(1) as f64
             );
         }
-        if let Cell::Residue(r) = &sub.ported {
-            let _ = writeln!(t, "                   ported RESIDUE — {}", wrap(r, 62, "                     "));
+        match &sub.ported {
+            Cell::Residue(r) => {
+                let _ = writeln!(
+                    t,
+                    "                   ported RESIDUE — {}",
+                    wrap(r, 62, "                     ")
+                );
+            }
+            // A MEASURED `ported` MUST PRINT ITS CAVEAT. The number alone is the
+            // trap this row already documents: `SUBSYS.md` prints `14 / 14` for
+            // the same subsystem whose coverage line is `79 / 79`, 5.6x apart,
+            // and neither cell is wrong. Which denominator was used, and why, is
+            // not an optional footnote on a `ported` cell.
+            Cell::Measured { source, caveat, .. } => {
+                let _ = writeln!(
+                    t,
+                    "                   ported RECOUNTED on this tree — {}",
+                    wrap(source, 62, "                     ")
+                );
+                let _ = writeln!(
+                    t,
+                    "                   {}",
+                    wrap(caveat, 62, "                     ")
+                );
+            }
+            Cell::Pending(p) => {
+                let _ = writeln!(
+                    t,
+                    "                   ported PENDING — {}",
+                    wrap(p, 62, "                     ")
+                );
+            }
         }
         let _ = writeln!(
             t,
@@ -1375,7 +1628,13 @@ pub fn keys(table: &[Subsystem], v: &Verified, census: &SectionCensus) -> Vec<St
         out.push(format!("{k}-marks-obj {}", m.obj));
         out.push(format!("{k}-marks-total {}", m.total()));
         match &sub.ported {
-            Cell::Measured { num, .. } => out.push(format!("{k}-ported {num}")),
+            Cell::Measured { num, den, .. } => {
+                out.push(format!("{k}-ported {num}"));
+                // The denominator prints beside the numerator, always — this
+                // row's own `subsys_cell_note` exists because two defensible
+                // denominators on one page differ by 5.6x.
+                out.push(format!("{k}-ported-den {den}"));
+            }
             _ => out.push(format!("{k}-ported RESIDUE")),
         }
         match exercised_cell(sub, census) {
@@ -1578,19 +1837,31 @@ fn markdown(
 
     let _ = writeln!(
         m,
-        "\n## 4. `ported` is a residue on all ten rows, and that is the finding\n\n\
-         Decision 15 asks strength 1 for *\"how many the port implements\"*. **No\n\
-         port↔image site map exists in this tree for any of the ten subsystems**, and\n\
-         building one is not a rounding error on this lane: the port is\n\
-         **I/O-behavioral by construction** (`CLAUDE.md`'s one correctness rule — the\n\
-         port may use AVX and restructured CFGs so long as its *output obj* matches),\n\
-         so \"the port implements site `0x10b2e7f8`\" is not a well-formed question for\n\
-         most of these addresses. Where it *is* well-formed, the quantity that answers\n\
-         it is the **derived-vs-fitted provenance census**, which lane `w-provenance`\n\
-         owns this same wave — and decision 15's own fence says owned surfaces include\n\
-         *predicates, keys and facts, not just files*. Building a second reader for it\n\
-         here would be the collision the fence exists to prevent.\n\n\
-         Per row, with the reason rather than a blank:\n"
+        "\n## 4. `ported` — one row measured, nine still residue\n\n\
+         Decision 15 asks strength 1 for *\"how many the port implements\"*. Lane\n\
+         `w-submetric` shipped it as a **named residue on all ten rows** (`#3617`),\n\
+         because no port↔image site map existed. Lane `w-encmap` (`#3636`–`#3641`,\n\
+         decision 16) converted the cheapest one.\n\n\
+         **`encode` is measured: 27 of 79 arms.** The predicate is\n\
+         `subsys::recount_encode_ported` and it is **recomputed on every run and\n\
+         every `cargo test`** from `ENCODE_ARMS.txt` × `c2_core::codegen::mop`'s\n\
+         public tables — a carried number could rot, and a fabricated one is caught\n\
+         by `control_a_fabricated_ported_is_caught`. **The denominator is the 79\n\
+         arms and the choice is published rather than silent** — see the caveat in\n\
+         §3, which also carries the strict (25) and plan-only (28) readings and the\n\
+         shape of the 52 unmapped.\n\n\
+         **The other nine stay residue and the reason is structural, not a gap**: the\n\
+         port is **I/O-behavioral by construction** (`CLAUDE.md`'s one correctness\n\
+         rule — AVX, restructured CFGs, anything, so long as the *output obj*\n\
+         matches), so *\"the port implements site `0x10b2e7f8`\"* has no truth value\n\
+         for most of these addresses. The encoder is the exception precisely because\n\
+         its sites are **rules** rather than code: an arm IS a field-placement rule,\n\
+         the port transcribed those rules into `mop::plan`, and \"does the port have\n\
+         this arm's rule\" is therefore a question with an answer. **A row where the\n\
+         question is not well formed keeps its residue rather than getting an\n\
+         invented number**, and `verify` refuses a `ported` number that nothing can\n\
+         recount.\n\n\
+         Per residue row, with the reason rather than a blank:\n"
     );
     for sub in table.iter() {
         if let Cell::Residue(r) = &sub.ported {
@@ -1678,7 +1949,7 @@ fn markdown(
     let _ = writeln!(
         m,
         "\n### 8.1 The controls, and that they were watched failing\n\n\
-         `#3336`: **a control never seen failing is decoration.** Four fabrications\n\
+         `#3336`: **a control never seen failing is decoration.** Six fabrications\n\
          run on every `cargo test -p c2-harness --lib subsys`, each asserting the\n\
          verifier *refuses*, and each pinned to the check that must own the refusal so\n\
          a case cannot pass by being caught for the wrong reason:\n\n\
@@ -1686,7 +1957,17 @@ fn markdown(
          | `control_a_fabricated_denominator_is_caught` | the inliner's `93` → `94` | the `FUNCS.tsv` recount |\n\
          | `control_a_dropped_subsystem_is_caught` | the `eh` row deleted from the table | the `SUBSYS.md` §1 enumeration |\n\
          | `control_an_empty_residue_is_caught` | `dag`'s `ported` residue set to `\"   \"` | the no-silence check |\n\
-         | `control_a_moved_coverage_line_is_caught` | `P_COFF`'s probe pointed at a line that is not on the page | the verbatim probe |\n\n\
+         | `control_a_moved_coverage_line_is_caught` | `P_COFF`'s probe pointed at a line that is not on the page | the verbatim probe |\n\
+         | `control_a_fabricated_ported_is_caught` | `encode`'s `ported` `27` → `28` | the `ENCODE_ARMS.txt` × `mop` recount |\n\
+         | `control_a_ported_number_with_no_recount_is_caught` | a number typed into `coff`'s `ported`, which has no recount | the recount-or-residue rule |\n\n\
+         **The two `ported` controls were watched failing against the SHIPPED table,\n\
+         not only against a copy** (lane `w-encmap`): editing the real cell `27` →\n\
+         `28` reddens four tests with\n\
+         `encode: ported DOES NOT REPRODUCE — table says 28/79, the tree gives 27/79`,\n\
+         and deleting the `OPCODES` half of `port_reaches_form` reddens five,\n\
+         including `the_three_ported_readings_are_distinct` (`published` collapses\n\
+         onto `planned` at 28). A recount that only ever grades a mutated copy is a\n\
+         recount that has never been shown to bind the number the doc prints.\n\n\
          And `scripts/subsys_metrics.sh --self-test` drives the **binary** against\n\
          three deliberately corrupted copies of the reference index — a function moved\n\
          out of the inliner band, `P_EH.md`'s coverage line edited, a subsystem\n\
@@ -1827,6 +2108,83 @@ mod tests {
             v.failures.iter().any(|f| f.contains("den_probe not found")),
             "{:?}",
             v.failures
+        );
+    }
+
+    /// POSITIVE CONTROL 5 — **a fabricated `ported` must go RED.** The strength
+    /// decision 15 named *first* was a residue on all ten rows until this lane
+    /// (`#3617`); the moment one row carries a number, the number needs the same
+    /// thing every other denominator here has — something that recomputes it.
+    /// `#3336`: a control never seen failing is decoration, and `w-submetric`'s
+    /// own self-test caught its author's bad `sed` on run one.
+    #[test]
+    fn control_a_fabricated_ported_is_caught() {
+        let mut table: Vec<Subsystem> = SUBSYSTEMS.to_vec();
+        let i = table.iter().position(|s| s.key == "encode").unwrap();
+        let (num, den, unit, source, caveat) = match &table[i].ported {
+            Cell::Measured { num, den, unit, source, caveat } => {
+                (*num, *den, *unit, *source, *caveat)
+            }
+            other => panic!("the encode row's ported is no longer measured: {other:?}"),
+        };
+        assert_eq!((num, den), (27, 79), "the shipped ported cell moved");
+        // The cheapest lie: one more arm than the port implements.
+        table[i].ported = Cell::Measured { num: num + 1, den, unit, source, caveat };
+        let v = verify(&ref_dir(), &table);
+        assert!(!v.ok(), "an inflated `ported` was NOT caught");
+        assert!(
+            v.failures
+                .iter()
+                .any(|f| f.contains("ported DOES NOT REPRODUCE")),
+            "caught, but not by the recount: {:?}",
+            v.failures
+        );
+    }
+
+    /// POSITIVE CONTROL 6 — **a `ported` NUMBER with nothing able to recount it
+    /// must go RED.** Control 5 only bites a row that declares a recount; this
+    /// is the other door, and it is the one the next lane will walk through when
+    /// it wants to put a number on the `coff` row.
+    #[test]
+    fn control_a_ported_number_with_no_recount_is_caught() {
+        let mut table: Vec<Subsystem> = SUBSYSTEMS.to_vec();
+        let i = table.iter().position(|s| s.key == "coff").unwrap();
+        assert!(table[i].ported_recount.is_none());
+        table[i].ported = Cell::Measured {
+            num: 21,
+            den: 120,
+            unit: "functions",
+            source: "invented",
+            caveat: "invented",
+        };
+        let v = verify(&ref_dir(), &table);
+        assert!(!v.ok(), "an unrecountable `ported` number was NOT caught");
+        assert!(
+            v.failures.iter().any(|f| f.contains("with no recount")),
+            "caught, but not as unrecountable: {:?}",
+            v.failures
+        );
+    }
+
+    /// The `ported` predicate is **not** vacuous: the three readings it
+    /// publishes must actually differ, or the caveat is decoration. Strict < the
+    /// published number < planned-only, on this tree.
+    #[test]
+    fn the_three_ported_readings_are_distinct() {
+        let txt = std::fs::read_to_string(ref_dir().join(ENCODE_ARMS_TXT))
+            .expect("ENCODE_ARMS.txt");
+        let arms = parse_encode_arms(&txt);
+        assert_eq!(arms.len(), 79, "the arm enumeration moved");
+        let total_forms: usize = arms.iter().map(|a| a.forms.len()).sum();
+        assert_eq!(total_forms, 111, "the 111 jump-table entries moved");
+        let (n, d) = recount_encode_ported(&arms);
+        assert_eq!(d, 79);
+        let strict = recount_encode_ported_strict(&arms);
+        let planned = recount_encode_ported_planned(&arms);
+        assert!(
+            strict < n && n < planned,
+            "the three readings collapsed: strict {strict}, published {n}, planned {planned} \
+             — if they are equal the caveat is telling the reader nothing"
         );
     }
 
