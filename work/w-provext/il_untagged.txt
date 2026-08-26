@@ -1,0 +1,493 @@
+### crates/c2-il/src/cachefmt.rs  (7 untagged)
+  82: const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+  102: pub const MAGIC: &[u8; 8] = b"C2RSCAP\x02";
+  105: pub const VERSION: u32 = 2;
+  108: pub const HEADER_LEN: usize = 56;
+  111: pub const SECT_LEN: usize = 24;
+  115: pub const MAX_SECTIONS: usize = 16;
+  119: pub const TAGS: [&str; 7] = ["key", "meta", "ex", "gl", "sy", "in", "db"];
+
+### crates/c2-il/src/codec.rs  (10 untagged)
+  43: const INT_TYPE: [u8; 3] = [0x86, 0x41, 0x74];
+  53: const FLOAT_TYPE: [u8; 3] = [0x86, 0x45, 0x40];
+  59: const PTR_TYPE_PREFIX: [u8; 2] = [0x86, 0x43];
+  64: const CLASS_PTR_PREFIX: u8 = 0xA6;
+  78: const CALL_CALLEE_ANCHOR: [u8; 6] = [0x00, 0x80, 0x01, 0x10, 0x00, 0x00];
+  81: const FN_START: [u8; 2] = [0x4F, 0x1F];
+  94: const LO: u8 = 0x4C;
+  97: const LO_RECORD: [u8; 2] = [0x4F, 0x11];
+  103: const BLOCK_START: [u8; 4] = [0x4F, 0x02, 0x20, 0x00];
+  1422: const GL_OFFSET_MAX: u32 = 0x0100_0000;
+
+### crates/c2-il/src/func/bind.rs  (2 untagged)
+  76: const EMIT_MAX_NAME_TO_OFFSET: usize = 32;
+  516: pub(crate) const STRLIT_NARROW_PREFIX: &str = "??_C@_0";
+
+### crates/c2-il/src/func/body/chain.rs  (4 untagged)
+  5: pub(crate) const MAX_SUBST_OPS: usize = 32;
+  9: const ARG_REG_COUNT: usize = 8;
+  292: const MAX_SWEPT_TERMS: usize = 4;
+  403: const MAX_VERIFIED_LEAVES_WITH_SUB: usize = 4;
+
+### crates/c2-il/src/func/body/decode.rs  (2 untagged)
+  180: pub const DEFAULT: AdmissionPolicy = AdmissionPolicy::RecognizedShape;
+  190: pub const ALL: &'static [AdmissionPolicy] =
+
+### crates/c2-il/src/func/body/expr.rs  (24 untagged)
+  118: pub(crate) const BODY_SCOPE_DEPTH: usize = 2;
+  120: const MAX_SCOPE_DEPTH: usize = 64;
+  437: static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+  469: static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+  543: static ON: std::sync::OnceLock<BranchSink> = std::sync::OnceLock::new();
+  1211: static ON: std::sync::OnceLock<ChainSink> = std::sync::OnceLock::new();
+  1411: static ON: std::sync::OnceLock<ChainSink> = std::sync::OnceLock::new();
+  1429: const FN_TAIL: [u8; 2] = [0x4F, 0x12];
+  1539: pub(crate) const STMT_SITE_BODY: StmtSinkSite = StmtSinkSite {
+  1549: pub(crate) const STMT_SITE_RSC: StmtSinkSite = StmtSinkSite {
+  1696: pub(crate) const EXPR_TYPED_OP: &str = "expr-typed-op";
+  1701: pub(crate) const DIV_MOD_OPS: [u8; 2] = [0x05, 0x06];
+  3186: const INT: [u8; 3] = [0x86, 0x41, 0x74];
+  3239: const INT: [u8; 3] = [0x86, 0x41, 0x74];
+  3515: const WHILE_STMTS: &[u8] = &[
+  3648: const LIT: &[u8] = &[
+  3836: const INTR_FABS: &[u8] = &[
+  3844: const INTR_NULLARY: &[u8] = &[
+  3851: const INTR_UPCAST: &[u8] = &[
+  3862: const INTR_THIS_ADJUST: &[u8] = &[
+  3967: const CONV_ONE: &[u8] = &[
+  3979: const CONV_INTERIOR: &[u8] = &[
+  3994: const CONV_TRAILING: &[u8] = &[
+  4008: const CONV_PTR_ARG: &[u8] = &[
+
+### crates/c2-il/src/func/body/mcall.rs  (30 untagged)
+  82: pub(crate) const CALL_IN_EXPR: &str = "expr-call-in-expr";
+  153: const FORM_BITS: u32 = 6;
+  154: const FORM_MASK: u64 = (1 << FORM_BITS) - 1;
+  155: const PAYLOAD_BITS: u32 = 17;
+  156: const PAYLOAD_MASK: u64 = (1 << PAYLOAD_BITS) - 1;
+  157: const WHOLE_BIT: u64 = 1 << (FORM_BITS + PAYLOAD_BITS);
+  160: const BLK_SHIFT: u32 = 24;
+  161: const BLK_BITS: u32 = 6;
+  162: const BLK_MASK: u64 = (1 << BLK_BITS) - 1;
+  164: const BLK_PAYLOAD_SHIFT: u32 = BLK_SHIFT + BLK_BITS;
+  165: const BLK_PAYLOAD_BITS: u32 = FORM_BITS + PAYLOAD_BITS;
+  166: const BLK_PAYLOAD_MASK: u64 = (1 << BLK_PAYLOAD_BITS) - 1;
+  169: const NEED_SHIFT: u32 = BLK_PAYLOAD_SHIFT + BLK_PAYLOAD_BITS;
+  170: const NEED_MASK: u64 = 0x7;
+  175: const NEED_UNMEASURED: u64 = 0;
+  178: const NEED_MORE: u64 = 7;
+  190: const KIND_SHIFT: u32 = NEED_SHIFT + 3;
+  191: const KIND_BITS: u32 = 5;
+  192: const KIND_MASK: u64 = (1 << KIND_BITS) - 1;
+  207: const SYMS_SHIFT: u32 = KIND_SHIFT + KIND_BITS;
+  208: const SYMS_MASK: u64 = 0x3;
+  211: const SYMS_UNSET: u64 = 0;
+  1115: const MAX_TOKENS: usize = 4096;
+  1687: const MAX_ADMIT: usize = 4;
+  1952: const BARE_BINARY_OPS: &[u8] =
+  2062: const MAX_STMTS: usize = 64;
+  2070: const TRAILER_FLAGS: [(u8, u8); 2] = [(0x11, 0x31), (0x01, 0x21)];
+  2156: static ON: std::sync::OnceLock<TrailerSink> = std::sync::OnceLock::new();
+  3213: const BASES: [CallForm; 5] = [
+  3252: const MAX_CHAIN: usize = 8;
+
+### crates/c2-il/src/func/body/mod.rs  (29 untagged)
+  102: pub(crate) const DISP_NOT_RUN: &str = "disp-not-run";
+  105: pub(crate) const PROD_NOT_ENTERED: &str = "prod-not-entered";
+  109: pub(crate) const PROD_ENTERED_UNTAGGED: &str = "prod-entered-untagged";
+  112: pub(crate) const PROD_ACCEPTED: &str = "prod-accepted";
+  115: pub(crate) const PROD_COMMITTED_REFUSAL: &str = "prod-committed-refusal";
+  118: static DISPATCH: std::cell::Cell<&'static str> = const { std::cell::Cell::new(DISP_NOT_RUN) };
+  119: static PROD: std::cell::Cell<&'static str> = const { std::cell::Cell::new(PROD_NOT_ENTERED) };
+  219: const FN_TYPE_ID_MIN: i32 = 0x1000;
+  1145: pub(crate) const OPT_MODE: &str = "opt-mode";
+  1161: pub(crate) const PTR_WALK_LOOP_NOT_O1: &str = "ptr-walk-loop-not-o1";
+  1176: pub(crate) const PTR_WALK_CHAIN_LOOP_NOT_O1: &str = "ptr-walk-chain-loop-not-o1";
+  1180: pub(crate) const CALLEE_UNRESOLVED_TAIL: &str = "callee-unresolved-tail-call";
+  1199: pub(crate) const CALLEE_DEFINED_IN_TU: &str = "callee-defined-in-tu";
+  1217: pub(crate) const STORE_RUN_CALL_NO_CARRIER: &str = "store-run-call-no-emitter-carrier";
+  1240: pub(crate) const STATIC_SCAN_LOOP_OBJECT: &str = "static-scan-loop-object-out-of-class";
+  1268: pub(crate) const STORE_RUN_BIND_NO_CARRIER: &str = "store-run-bind-no-emitter-carrier";
+  1320: pub(crate) const STORE_RUN_BIND_MIXED_KIND: &str = "store-run-bind-mixed-kind-alloc";
+  1334: pub(crate) const STORE_RUN_BIND_ADDR_PRODUCER: &str = "store-run-bind-address-producer";
+  1344: pub(crate) const STORE_RUN_BIND_MULTI_PRODUCER: &str = "store-run-bind-multi-producer";
+  1357: pub(crate) const STORE_RUN_BIND_SYMBOL_CROSSINGS: &str = "store-run-bind-symbol-crossings";
+  1408: pub(crate) const STORE_RUN_BIND_CALL_TAIL_RETIRED: &str = "store-run-bind-call-tail-mr-slot";
+  1416: pub(crate) const STORE_RUN_BIND_GROUP_SHAPE: &str = "store-run-bind-group-shape";
+  1444: pub(crate) const CALLEE_UNRESOLVED_DTOR: &str = "callee-unresolved-dtor-delegation";
+  1445: pub(crate) const CALLEE_UNRESOLVED_FRAMED: &str = "callee-unresolved-framed-call";
+  1446: pub(crate) const CALLEE_UNRESOLVED_SEQ: &str = "callee-unresolved-call-sequence";
+  1459: pub(crate) const DATA_SYM_UNRESOLVED: &str = "data-sym-unresolved";
+  1469: pub(crate) const DATA_SYM_LINKAGE: &str = "data-sym-not-extern";
+  1486: pub(crate) const DATA_SYM_STRLIT_FENCED: &str = "data-sym-strlit-fenced";
+  1536: pub(crate) const ADMISSION_DECLINED: &str = "admission-declined";
+
+### crates/c2-il/src/func/body/shapes/alloc_init_or_fail.rs  (1 untagged)
+  601: const FN_TAIL: [u8; 7] = [0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00];
+
+### crates/c2-il/src/func/body/shapes/assign.rs  (1 untagged)
+  322: static ON: std::sync::OnceLock<StoreTypeSink> = std::sync::OnceLock::new();
+
+### crates/c2-il/src/func/body/shapes/calls.rs  (8 untagged)
+  145: pub(crate) const MAX_VERIFIED_PERM_CYCLE: usize = 3;
+  151: pub(crate) const LI_IMM_MIN: i32 = -0x8000;
+  152: pub(crate) const LI_IMM_MAX: i32 = 0x7FFF;
+  1113: static MODE: std::sync::OnceLock<Mode> = std::sync::OnceLock::new();
+  1347: pub(crate) const MAX_REGISTER_FORMALS: usize = 8;
+  2455: const MAX_INLINE_SAVED_GPRS: usize = 2;
+  2652: const MAX_SEQ_CALLS: usize = 64;
+  2801: const CELL: &[u8] = &[
+
+### crates/c2-il/src/func/body/shapes/close_call_chain.rs  (1 untagged)
+  104: const MAX_ARGS: usize = 8;
+
+### crates/c2-il/src/func/body/shapes/control_flow.rs  (4 untagged)
+  63: const PRE_BODY_DEPTH: u32 = 2;
+  66: const MAX_DEPTH: u32 = 96;
+  68: const FN_TAIL: [u8; 7] = [0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00];
+  657: static ON: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+
+### crates/c2-il/src/func/body/shapes/counted_accum_loop.rs  (1 untagged)
+  179: const BODY_SCOPE_DEPTH: usize = 2;
+
+### crates/c2-il/src/func/body/shapes/ctor_dtor.rs  (6 untagged)
+  318: const VOID_TYPE: [u8; 3] = [0x82, 0x07, 0x03];
+  322: const TRAILER_FLAGS: [(u8, u8); 2] = [(0x11, 0x31), (0x01, 0x21)];
+  448: const SELECTOR_2113: [u8; 5] = [0x80, 0x41, 0x08, 0x00, 0x00];
+  658: const VOID_TYPE: [u8; 3] = [0x82, 0x07, 0x03];
+  662: const TRAILER_FLAGS: [(u8, u8); 2] = [(0x11, 0x31), (0x01, 0x21)];
+  665: const CLASS_KIND: u8 = 0x46;
+
+### crates/c2-il/src/func/body/shapes/designator.rs  (5 untagged)
+  37: pub(crate) const SIZED_PTEE: &[(u8, u8, u8, bool)] = &[
+  59: pub(crate) const SIZED_PTR: &[(u8, u8, u8)] = &[
+  113: const SELECTOR_2117: [u8; 5] = [0x80, 0x45, 0x08, 0x00, 0x00];
+  117: const MAX_HEADER_REFS: u8 = 3;
+  227: const PTR_TAGS: [u8; 16] = [
+
+### crates/c2-il/src/func/body/shapes/div_mod_leaf.rs  (2 untagged)
+  86: const IL_DIV: u8 = 0x05;
+  89: const IL_MOD: u8 = 0x06;
+
+### crates/c2-il/src/func/body/shapes/float_walk_loop.rs  (3 untagged)
+  124: const ENTRY_DEPTH: usize = BODY_SCOPE_DEPTH + 1;
+  129: const FLOAT_SCALE: i32 = 4;
+  136: const RIGHT_HAND_INDICES_MUST_INCREASE: bool = true;
+
+### crates/c2-il/src/func/body/shapes/fp_store_diamond.rs  (1 untagged)
+  136: const ARM_DEPTH: u8 = 5;
+
+### crates/c2-il/src/func/body/shapes/global_store_leaf.rs  (1 untagged)
+  105: const STORE_WIDTHS: &[(u8, u8, u8)] = &[
+
+### crates/c2-il/src/func/body/shapes/guard_chain_shared_tail.rs  (3 untagged)
+  146: const FORMALS_MIN: usize = 3;
+  147: const FORMALS_MAX: usize = 7;
+  944: const FN_TAIL: [u8; 7] = [0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00];
+
+### crates/c2-il/src/func/body/shapes/guard_ret_chain.rs  (3 untagged)
+  116: pub(crate) const MEMCPY_SELECTOR: i32 = 172;
+  121: pub(crate) const MEMCPY_CALL_STEP: i32 = 6;
+  125: pub(crate) const GUARD_ENTRY_DEPTH: u8 = 3;
+
+### crates/c2-il/src/func/body/shapes/if_call_join.rs  (1 untagged)
+  577: const FN_TAIL: [u8; 7] = [0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00];
+
+### crates/c2-il/src/func/body/shapes/json_utf8_copy.rs  (9 untagged)
+  109: const NTOK: usize = 25;
+  111: const NTY: usize = 12;
+  113: const NFLD: usize = 4;
+  125: const TY_TAG_KIND: [(u8, u8); NTY] = [
+  141: const SLOT_THIS: usize = 8;
+  142: const SLOT_BUFFER: usize = 3;
+  143: const SLOT_SIZE: usize = 1;
+  160: const REGIONS: [(usize, &str); 9] = [
+  366: const PAT: &[P] = &[
+
+### crates/c2-il/src/func/body/shapes/leaf_fp_tail.rs  (2 untagged)
+  115: const MAX_FP_FORMALS: usize = 13;
+  120: const MAX_ARGS: usize = 8;
+
+### crates/c2-il/src/func/body/shapes/leaf_store.rs  (5 untagged)
+  405: pub const FP_SCRATCH: u8 = 0;
+  1486: const MAX_MODELLED_PRODUCERS: usize = 3;
+  1492: const POOL_TOP: usize = 11;
+  2234: const POOL_TOP: usize = 11;
+  2236: const MAX_SYMBOL_CROSSINGS: usize = 2;
+
+### crates/c2-il/src/func/body/shapes/mcall_chain.rs  (1 untagged)
+  130: const MAX_CHAIN_LINKS: usize = 8;
+
+### crates/c2-il/src/func/body/shapes/mcall_tail.rs  (3 untagged)
+  253: static RECV_TAIL: RecvVocab = recv_vocab!("tail-recv-not-a-plain-b9-load");
+  254: static RECV_CHAIN: RecvVocab = recv_vocab!("chain-recv-not-a-plain-b9-load");
+  255: static RECV_CMP: RecvVocab = recv_vocab!("cmp-second-recv-not-a-plain-b9-load");
+
+### crates/c2-il/src/func/body/shapes/no_effect.rs  (4 untagged)
+  126: const INTRINSIC_MEMSET: i32 = 173;
+  244: const OP_ADD_ASSIGN: u8 = 0x0F;
+  255: const LOOP_CMP_OPS: [u8; 2] = [0x20, 0x22];
+  382: const VOID_TYPE: [u8; 2] = [0x82, 0x07];
+
+### crates/c2-il/src/func/body/shapes/nonce_add_run.rs  (2 untagged)
+  86: pub(crate) const ELEM: i32 = 8;
+  91: pub(crate) const RUN_LEN: usize = 2;
+
+### crates/c2-il/src/func/body/shapes/osf_handle_guard.rs  (2 untagged)
+  114: pub(crate) const OSF_TABLE_SCALE: i32 = 4;
+  516: const FN_TAIL: [u8; 7] = [0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00];
+
+### crates/c2-il/src/func/body/shapes/pool_ctor_chain.rs  (1 untagged)
+  113: const ALIGN: i32 = 4;
+
+### crates/c2-il/src/func/body/shapes/ptr_walk_chain_loop.rs  (2 untagged)
+  96: const BODY_SCOPE_DEPTH: usize = 2;
+  107: const MAX_CHAIN: usize = 10;
+
+### crates/c2-il/src/func/body/shapes/ptr_walk_loop.rs  (1 untagged)
+  116: const BODY_SCOPE_DEPTH: usize = 2;
+
+### crates/c2-il/src/func/body/shapes/static_scan_loop.rs  (2 untagged)
+  81: const BODY_SCOPE_DEPTH: usize = 2;
+  87: const INT_SCALE: i32 = 4;
+
+### crates/c2-il/src/func/body/shapes/xlrc_create_guard.rs  (2 untagged)
+  112: const XLRC_FORMALS: usize = 4;
+  590: const FN_TAIL: [u8; 7] = [0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00];
+
+### crates/c2-il/src/func/body/shapes/xtea_encrypt_loop.rs  (1 untagged)
+  72: pub(crate) const ELEM: i64 = 8;
+
+### crates/c2-il/src/func/body/shapes/xtea_round_loop.rs  (6 untagged)
+  84: const SHL_K: i64 = 4;
+  86: const SHR_K: i64 = 5;
+  90: const SUM_SHR_K: i64 = 11;
+  92: const KEY_MASK: i64 = 3;
+  94: const KEY_SCALE: i64 = 4;
+  100: pub(crate) const DELTA: i64 = 0x9E37_79B9u32 as i32 as i64;
+
+### crates/c2-il/src/func/bundle.rs  (13 untagged)
+  17: const INITIALIZER_SUFFIX: &str = "$initializer$";
+  295: pub(crate) const FN_START: [u8; 2] = [0x4F, 0x1F];
+  319: pub(crate) const LO: u8 = 0x4C;
+  324: pub(crate) const LO_RECORD: [u8; 2] = [0x4F, 0x11];
+  332: pub(crate) const LO_MARKER: [u8; 3] = [LO, LO_RECORD[0], LO_RECORD[1]];
+  335: const FORMALS: u8 = 0x46;
+  336: const FORMAL: u8 = 0x2D;
+  664: pub const OPT_WORD_OX: u32 = 0x00a0_0005;
+  677: pub const OPT_WORD_O1: u32 = 0x0020_0005;
+  708: pub const OPT_WORD_O1_NO_FP_CONTRACT: u32 = 0x0020_0001;
+  721: pub const OPT_WORD_OX_NO_FP_CONTRACT: u32 = 0x00a0_0001;
+  786: pub const OPT_WORD_SPECIAL_MEMBER: u32 = 0x0000_0100;
+  3294: const INTRO: [u8; 6] = [0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01];
+
+### crates/c2-il/src/func/census.rs  (6 untagged)
+  74: pub const BLIND_PLACEHOLDER_CALLEE: &str = "$blind$callee";
+  77: pub const BLIND_PLACEHOLDER_DATA: &str = "$blind$data";
+  104: pub const STRICT: Relax = Relax { sym_names: false };
+  125: pub const LEVELS: u32 = 2;
+  510: pub const CENSUS_HEX_BACK: usize = 16;
+  511: pub const CENSUS_HEX_FWD: usize = 24;
+
+### crates/c2-il/src/func/diag.rs  (21 untagged)
+  56: pub const NO_GL: &str = "no-gl";
+  58: pub const NO_EX: &str = "no-ex";
+  61: pub const DRECTVE: &str = "drectve-not-boilerplate";
+  64: pub const SPLIT_EMPTY_WITH_LO: &str = "split-empty-with-lo";
+  68: pub const GL_NAME_TOO_FAR: &str = "gl-stop-name-too-far";
+  70: pub const GL_NAME_NOT_MANGLED: &str = "gl-stop-name-not-mangled";
+  72: pub const GL_RUN_ENDS_26: &str = "gl-stop-run-ends-26";
+  74: pub const GL_DLLEXPORT: &str = "gl-stop-dllexport";
+  76: pub const GL_26_INTRODUCED: &str = "gl-stop-26-introduced";
+  80: pub const GL_VARARGS_RECORD: &str = "gl-stop-varargs-record";
+  91: pub const BIND_COUNT: &str = "bind-record-count-ne-segments";
+  93: pub const BIND_OFFSET: &str = "bind-offset-ne-segment-start";
+  98: pub const SELECTIVE_UNACCOUNTED: &str = "selective-unaccounted-emitted-body";
+  108: pub const SELECTIVE_EMIT_SET_UNKNOWN: &str = "selective-emit-set-unknown";
+  111: pub const VARARGS: &str = "varargs";
+  113: pub const BODY_DECODE: &str = "body-out-of-class";
+  116: pub const SHAPE_RESOLVE: &str = "shape-token-unresolved";
+  119: pub const LABEL_STRIDE: &str = "label-stride-mismatch";
+  121: pub const LABEL_COUNTER: &str = "label-counter-unreadable";
+  123: pub const UNCLAIMED: &str = "unclaimed-gl-symbol";
+  125: pub const LOCAL_CALLEE: &str = "locally-defined-callee";
+
+### crates/c2-il/src/func/ehscope.rs  (5 untagged)
+  71: const MAX_RUN: usize = 8;
+  270: const STATEMENT_BYTES: [u8; 7] = [0x26, 0x2C, 0x4B, 0x4C, 0x54, 0x5C, 0x5E];
+  370: const LF_CLASS: u16 = 0x1504;
+  371: const LF_STRUCTURE: u16 = 0x1505;
+  376: const CV_FWDREF: u16 = 0x0080;
+
+### crates/c2-il/src/func/gl.rs  (30 untagged)
+  197: pub(crate) const INLINE_NAME_MAX: usize = 8;
+  475: const RETSIZE_ESCAPE: u8 = 0x80;
+  515: const FN_FLAG_VARARGS: u8 = 0x40;
+  535: const LINKAGE_DEFINED_EXTERNAL: u8 = 0x05;
+  537: const FLAGS_PLAIN: u8 = 0x00;
+  962: pub(crate) const GATE_BIND_FRAME: fn(&[u8], usize) -> bool =
+  1003: const LINKAGE_EXPORT: u8 = 0x08;
+  1034: const ANCHOR: &[u8] = b"/include:__C1_11886\0";
+  1046: const MAX_NAME_TO_OFFSET: usize = 32;
+  1097: const NAME_SEPARATORS: [u8; 3] = [0x00, 0x26, 0x25];
+  1121: const SYMBOL_RECORD_KINDS: [u8; 4] = [0x00, 0x04, 0x0E, 0x10];
+  1356: const GL_HEADER_PREFIX: [u8; 7] = [0x11, 0x02, 0x06, b'1', b'j', b'2', 0x01];
+  1403: pub const FN_FLAG_INLINABLE: u8 = 0x40;
+  1671: const TAG_WIDE: u8 = 0x40;
+  1673: const WIDE_MARK: u8 = 0x80;
+  1783: pub(crate) const DATA_FLAG_THREAD_LOCAL: u8 = 0x10;
+  1809: pub(crate) const DATA_FLAG_REFERENCED: u8 = 0x01;
+  1845: const NAME_SEPARATOR_UNDECORATED: u8 = 0x24;
+  1853: pub(crate) const LINKAGE_DEFINED_EXTERN: u8 = 0x01;
+  1860: const TAG_WIDE: u8 = 0x40;
+  1861: const LINKAGE_STATIC: u8 = 0x04;
+  1880: const DATA_ATTR_UNINITIALIZED: u8 = 0x00;
+  1881: const DATA_ATTR_INITIALIZED: u8 = 0x80;
+  1915: const DATA_ATTR_COMDAT: u8 = 0x20;
+  2046: const NAME_SEPARATOR_STRING_LITERAL: u8 = 0x25;
+  2137: const WIDE_MARK: u8 = 0x80;
+  2262: const WIDE_MARK_MEASURED: u8 = 0x81;
+  2296: const LINKAGE_UNDEF_EXTERN: u8 = 0x02;
+  2386: pub(crate) const LINKAGE_UNDEFINED_EXTERN: u8 = 0x02;
+  2395: const WIDE_MARK: u8 = 0x80;
+
+### crates/c2-il/src/func/glalias.rs  (3 untagged)
+  113: const KIND4_TAGS: [u8; 3] = [0x04, 0x0E, 0x10];
+  117: const KIND1_TAGS: [u8; 2] = [0x01, 0x02];
+  121: const NAME_SEPARATORS: [u8; 2] = [0x00, 0x26];
+
+### crates/c2-il/src/func/ininit.rs  (15 untagged)
+  107: const RECORD_TAG: u8 = 0x00;
+  110: const ELEMENT_SCALAR: u8 = 0x01;
+  114: const ELEMENT_SYMBOL_ADDRESS: u8 = 0x02;
+  119: const ADDRESS_WIDTH: u8 = 0x04;
+  122: const RECORD_END: u8 = 0x07;
+  127: const TYPE_INT_SIGNED: u8 = 0x01;
+  128: const TYPE_INT_UNSIGNED: u8 = 0x02;
+  147: const TYPE_PTR_DATA: u8 = 0x03;
+  165: const TYPE_PTR_FUNC: u8 = 0x04;
+  175: const POINTER_WIDTH: u8 = 4;
+  178: const WIDTHS: [u8; 3] = [1, 2, 4];
+  190: const ELEMENT_INLINE_BYTES: u8 = 0x03;
+  221: const ELEMENT_ZERO_FILL: u8 = 0x08;
+  282: pub const ALL: [InInitResidue; 9] = [
+  573: const MAX_OBJECT_BYTES: usize = 1 << 16;
+
+### crates/c2-il/src/func/inlit.rs  (2 untagged)
+  31: const LITERAL_TAG: [u8; 2] = [0x00, 0x03];
+  34: const RECORD_END: u8 = 0x07;
+
+### crates/c2-il/src/func/mod.rs  (52 untagged)
+  547: pub const COND_PARK_REG: u8 = 11;
+  770: const NREG: usize = COND_PARK_REG as usize + 1;
+  898: pub const LINK_FIRST_SLOT: usize = 1;
+  4901: pub(crate) const NO_LOCALS: SyView<'static> =
+  4937: pub(crate) const DTOR_DELEGATE: &[u8] = &[
+  4971: pub(crate) const DTOR_DELEGATE_NOEH: &[u8] = &[
+  5019: pub(crate) const CTOR_BASE_EH: &[u8] = &[
+  5042: pub(crate) const CTOR_BASE_NOEH: &[u8] = &[
+  5058: pub(crate) const DTOR_MEMBER_OFF0: &[u8] = &[
+  5084: pub(crate) const DTOR_MEMBER_OFF4: &[u8] = &[
+  5122: pub(crate) const BOOL_LIT: &[u8] = &[
+  5133: pub(crate) const BOOL_ID: &[u8] = &[
+  5147: pub(crate) const BOOL_WIDEN_NEG: &[u8] = &[
+  5168: pub(crate) const STORE_MEMBER: &[u8] = &[
+  5183: pub(crate) const STORE_NARROW: &[u8] = &[
+  5198: pub(crate) const STORE_LIT: &[u8] = &[
+  5214: pub(crate) const STORE_BASE_MEMBER: &[u8] = &[
+  5235: pub(crate) const STORE_FLOAT_NEG: &[u8] = &[
+  5247: pub(crate) const IND_DEREF: &[u8] = &[
+  5259: pub(crate) const IND_MEMBER0: &[u8] = &[
+  5274: pub(crate) const IND_SUBSCRIPT_NEG: &[u8] = &[
+  5291: pub(crate) const IND_THIS_GETTER: &[u8] = &[
+  5315: pub(crate) const NARROW_CHAR_DEREF: &[u8] = &[
+  5326: pub(crate) const NARROW_CHAR_TO_INT: &[u8] = &[
+  5338: pub(crate) const NARROW_USHORT_TO_INT: &[u8] = &[
+  5349: pub(crate) const NARROW_LL_MEMBER: &[u8] = &[
+  5361: pub(crate) const NARROW_CONST_CHAR_THIS: &[u8] = &[
+  5376: pub(crate) const NARROW_SHORT_TO_INT_REFUSED: &[u8] = &[
+  5391: pub(crate) const NARROW_LL_PACKED_REFUSED: &[u8] = &[
+  5402: pub(crate) const MVP_CALL: &[u8] = &[
+  5409: pub(crate) const MVP_FRAMED: &[u8] = &[
+  5418: pub(crate) const GA_SUBMOD: &[u8] = &[
+  5427: pub(crate) const GA_MULMOD: &[u8] = &[
+  5436: pub(crate) const GA_WIDEMOD: &[u8] = &[
+  5452: pub(crate) const INT_TAILRET: &[u8] = &[
+  5464: pub(crate) const INT_PLUS0: &[u8] = &[
+  5478: pub(crate) const INT_ARGTAIL: &[u8] = &[
+  5491: pub(crate) const TWO_CALLS: &[u8] = &[
+  5501: pub(crate) const CALL_THEN_STMT: &[u8] = &[
+  5511: pub(crate) const ARGFRAMED_PLUSK: &[u8] = &[
+  5522: pub(crate) const TWO_FRAMED_CALLS: &[u8] = &[
+  5533: pub(crate) const PLUS1PLUS2: &[u8] = &[
+  5550: pub(crate) const ARG2_OUTER_FORMAL: &[u8] = &[
+  5581: pub(crate) const SEQ_TWO_VOID: &[u8] = &[
+  5597: pub(crate) const SEQ_ONE_THEN_LIT: &[u8] = &[
+  5611: pub(crate) const SEQ_CALL_VALUE: &[u8] = &[
+  5624: pub(crate) const SEQ_CALL_VALUE_PLUSK: &[u8] = &[
+  5641: pub(crate) const SEQ_LIVE_ACROSS: &[u8] = &[
+  5656: pub(crate) const SEQ_LONE_STMT_CALL: &[u8] = &[
+  5674: pub(crate) const BOUND_ARG_NONCANON: &[u8] = &[
+  5694: pub(crate) const BOUND_ARG_CANON: &[u8] = &[
+  5716: pub(crate) const BOUND_ARG2_OUTER_FORMAL: &[u8] = &[
+
+### crates/c2-il/src/func/readers.rs  (16 untagged)
+  2: pub(crate) const INT_TYPE: [u8; 3] = [0x86, 0x41, 0x74];
+  86: const LO: u64 = 0x0101_0101_0101_0101;
+  87: const HI: u64 = 0x8080_8080_8080_8080;
+  222: const AGGREGATE_CLASS: u8 = 0x6;
+  258: const TYPE_TAG_WIDE_BIT: u8 = 0x40;
+  285: const TYPE_WIDE_MARK_BIT: u8 = 0x80;
+  455: pub(crate) const UINT_TYPE: [u8; 3] = [0x86, 0x42, 0x75];
+  460: pub(crate) const LONG_TYPE: [u8; 3] = [0x86, 0x41, 0x12];
+  461: pub(crate) const ULONG_TYPE: [u8; 3] = [0x86, 0x42, 0x22];
+  473: const INT_LIKE_TYPES: [[u8; 3]; 4] = [INT_TYPE, UINT_TYPE, LONG_TYPE, ULONG_TYPE];
+  514: pub(crate) const FLOAT_TYPE: [u8; 3] = [0x86, 0x45, 0x40];
+  515: pub(crate) const DOUBLE_TYPE: [u8; 3] = [0x88, 0x85, 0x41];
+  519: pub(crate) const FLOAT_LIT_TYPE: [u8; 3] = [0x86, 0x4A, 0x40];
+  520: pub(crate) const DOUBLE_LIT_TYPE: [u8; 3] = [0x88, 0x8A, 0x41];
+  631: const TAG_VOLATILE: u8 = 0x10;
+  677: pub(crate) const TYPE_KIND_REAL_CLASS: u8 = 0x5;
+
+### crates/c2-il/src/func/sy.rs  (36 untagged)
+  754: const BODY_SCOPE_CLOSE: [u8; 2] = [0x54, 0x02];
+  756: const EX_RETURN: u8 = 0x29;
+  759: const EX_ASSIGN: u8 = 0x3A;
+  761: const BLOCK_OPEN: [u8; 2] = [0x03, 0x01];
+  768: const REC_INTER_BLOCK: u8 = 0x03;
+  801: const REC_WIDE_INTER_BLOCK: u8 = 0x1A;
+  809: const HEADER_TAIL_LEN: usize = 4;
+  812: const INTER_BLOCK_TAIL_LEN: usize = 2;
+  813: const BLOCK_CLOSE: u8 = 0x06;
+  816: const SECTION: u8 = 0x0D;
+  817: const DEPTH_FORMALS: u8 = 0x01;
+  819: const REC_PLAIN: u8 = 0x01;
+  822: const REC_ARRAY: u8 = 0x02;
+  825: const REC_STATIC: u8 = 0x07;
+  828: const REC_TYPEDEF: u8 = 0x0B;
+  832: const TYPE_TAG: u8 = 0x86;
+  835: const TYPE_TAG_WIDE_BIT: u8 = 0x40;
+  838: const TYPE_WIDE_MARK: u8 = 0x81;
+  842: const FLAGS_HAS_EXTRA: u16 = 0x0080;
+  844: const TYPE_EXTRA_FIELD: [u8; 2] = [0x80, 0x00];
+  845: const TYPE_KIND_INT: u8 = 0x01;
+  849: const TYPE_KIND_UNSIGNED: u8 = 0x02;
+  873: const TYPE_KIND_REAL: u8 = 0x05;
+  877: const TYPE_KIND_DATA_PTR: u8 = 0x03;
+  880: const CLS_AUTOMATIC: u8 = 0x01;
+  881: const CLS_FORMAL: u8 = 0x03;
+  883: const SIZE_LEAD: u8 = 0x04;
+  884: const SIZEOF_INT: u32 = 4;
+  886: const TID_INT: u32 = 0x74;
+  894: const TID_UINT: u32 = 0x75;
+  900: const FLAGS_REFERENCED: u16 = 0x0001;
+  901: const FLAGS_NONE: u16 = 0x0000;
+  904: const FLAGS_ADDRESS_TAKEN: u16 = 0x0021;
+  907: const MAX_NAME: usize = 4096;
+  909: const MAX_BLOCKS: usize = 65536;
+  911: const MAX_DEPTH: u8 = 64;
+
+### crates/c2-il/src/lib.rs  (2 untagged)
+  112: pub const IL_SUFFIXES: [&str; 5] = ["ex", "gl", "sy", "in", "db"];
+  116: pub const EX_MAGIC: [u8; 4] = [0x5B, 0x80, 0x54, 0x0A];
+

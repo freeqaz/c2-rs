@@ -71,9 +71,11 @@ impl FnVerdict {
 
 /// The placeholder a relaxed callee resolution supplies. Deliberately not a
 /// valid MSVC mangled name: it must never bind to anything, in any obj, ever.
+/// PROV[N] not load-bearing — a sentinel chosen to be an INVALID MSVC mangled name so it can never bind to anything in any obj. Its value reaches no emitted byte by construction; that is its entire specification.
 pub const BLIND_PLACEHOLDER_CALLEE: &str = "$blind$callee";
 
 /// The placeholder a relaxed DATA resolution supplies. Same contract.
+/// PROV[N] not load-bearing — the DATA sentinel with the same contract as [`BLIND_PLACEHOLDER_CALLEE`].
 pub const BLIND_PLACEHOLDER_DATA: &str = "$blind$data";
 
 /// **A named, enumerable relaxation level for [`IlBundle::census_functions_relaxed`].**
@@ -101,6 +103,7 @@ pub struct Relax {
 impl Relax {
     /// The incumbent. `census_functions()` is `census_functions_relaxed(STRICT)`
     /// and the two are pinned equal by a unit test.
+    /// PROV[N] not load-bearing — the port's own relaxation profile (all clauses off). A measurement profile, which DISCLOSURE names under [N].
     pub const STRICT: Relax = Relax { sym_names: false };
 
     /// The ladder the blind-reach instrument ships, by depth.
@@ -122,6 +125,7 @@ impl Relax {
     /// The number of ladder levels, so a report can print every one of them
     /// whether or not it fired. An absent row reading as "nothing to see" is
     /// this project's most-repeated defect.
+    /// PROV[N] not load-bearing — the count of the port's own relaxation levels; a property of this crate's instrument, not of c2.
     pub const LEVELS: u32 = 2;
 
     /// This level's name, for the printed report and the metric key.
@@ -507,7 +511,9 @@ pub fn cflow_residue_admit_set() -> String {
 }
 
 /// Bytes of context kept before / after a blocking site.
+/// PROV[N] not load-bearing — how many bytes of context a census diagnostic prints. A display width; no byte the judge grades depends on it.
 pub const CENSUS_HEX_BACK: usize = 16;
+// PROV[N] not load-bearing — the forward half of the same diagnostic window.
 pub const CENSUS_HEX_FWD: usize = 24;
 
 /// **W-INLFENCE — the same-TU callees the port has a MODEL of**, so the inline

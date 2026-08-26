@@ -110,14 +110,17 @@ const ALIAS_TAG: u8 = 0x10;
 
 /// The tags the shared kind-4 handler at `0x10b9bdcf` serves. A run's tag is
 /// located by looking for one of these immediately before the operand token.
+/// PROV[O] the three tags the shared kind-4 handler serves, named at `0x10b9bdcf` in the disassembly beside DISCLOSURE `W-ALIAS-1`'s own read at `0x10b9c01e`. [O] rather than [R] because the ADDRESS is what the doc cites for the handler, while the tag VALUES are located in the `.gl` byte stream; a lane that reads the handler's own comparisons can promote this to [R].
 const KIND4_TAGS: [u8; 3] = [0x04, 0x0E, 0x10];
 
 /// The two-byte-prefixed record kinds, which put their tag one byte further
 /// back. Same locator as the `.gl` owner scan.
+/// PROV[O] the two-byte-prefixed record kinds, located by the same `.gl` owner scan. Same promotion note as [`KIND4_TAGS`].
 const KIND1_TAGS: [u8; 2] = [0x01, 0x02];
 
 /// The bytes that delimit a `.gl` name run. Same enumerated pair
 /// [`super::gl`] uses, and for the same measured reason.
+/// PROV[F] the same enumerated delimiter SET as `gl::NAME_SEPARATORS` minus `25`, and [F] for the same reason: a separator byte outside the measured pair is the off-sample case.
 const NAME_SEPARATORS: [u8; 2] = [0x00, 0x26];
 
 // ---------------------------------------------------------------- primitives

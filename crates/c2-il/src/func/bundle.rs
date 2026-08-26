@@ -14,6 +14,7 @@ use crate::IlBundle;
 /// identifier, never from its decorated name — `?gL@@3UL@@A` still yields
 /// `gL$initializer$` — which is why it is *read* out of `.gl` rather than
 /// synthesized from [`DynInitTu::object_symbol`].
+/// PROV[O] `docs/OBJ_DYNINIT_SHAPE.md` §3.1 — the suffix a `.CRT$XCU` slot symbol carries, read out of real `.gl` rather than synthesized, because it is built from the source identifier and not from the decorated name.
 const INITIALIZER_SUFFIX: &str = "$initializer$";
 
 /// Whether a `.gl` name is a **dynamic-initializer** thunk, `??__E<ident>@@YAXXZ`.
@@ -292,6 +293,7 @@ pub struct ProvideDataObject {
 /// The `.ex` per-function start marker (`4F 1F`). The module stream is a
 /// sequence of function bodies, each introduced by this marker; the header /
 /// index region before the first one is opaque zero-fill for this class.
+/// PROV[O] `4F 1F`, the `.ex` per-function start marker, read off captures. Same value as `codec::FN_START`.
 pub(crate) const FN_START: [u8; 2] = [0x4F, 0x1F];
 
 /// The one-byte `.ex` body-start token `4C` (`LO`).
@@ -316,11 +318,13 @@ pub(crate) const FN_START: [u8; 2] = [0x4F, 0x1F];
 /// one byte and is overloaded — it is the last byte of `IntCallEnd`
 /// (`55 86 41 74 4C`) and the first of `VoidCallEnd` (`4C 4B`) — so scanning for
 /// it bare invents bodies out of payload.
+/// PROV[O] `4C`, the `.ex` body-start token, read off captures. Overloaded as a bare byte — its own doc records the two other records it is the last/first byte of — so the RULE that locates a body is `body_start`, not this atom.
 pub(crate) const LO: u8 = 0x4C;
 
 /// The OPTIONAL two-byte record `4F 11` between the [`LO`] body-start token and
 /// the body's first `53`. One more `4F xx` record tag, like `4F 1F` (function
 /// start), `4F 01` (statement), `4F 02`, `4F 12`, `4F 20`, `4F 33`.
+/// PROV[O] `4F 11`, one more `4F xx` record tag in the family `4F 1F`/`4F 01`/`4F 02`/`4F 12`/`4F 20`/`4F 33`, read off captures.
 pub(crate) const LO_RECORD: [u8; 2] = [0x4F, 0x11];
 
 /// The composed `4C 4F 11` form — [`LO`] **with** its optional [`LO_RECORD`].
@@ -329,10 +333,13 @@ pub(crate) const LO_RECORD: [u8; 2] = [0x4F, 0x11];
 /// and what most readers here still anchor on, but it is a *composition*, not an
 /// atom: its absence from a segment means "no `4F 11` record", **not** "no body".
 /// Reading its absence as "no function" is the defect ROADMAP §10.11 catalogued.
+/// PROV[N] derived from two marked constants ([`LO`] and [`LO_RECORD`]) and nothing else; DISCLOSURE lists "values derived from another marked constant" under [N]. Its own doc warns it is a composition, not an atom, and reading its absence as "no function" is a catalogued defect.
 pub(crate) const LO_MARKER: [u8; 3] = [LO, LO_RECORD[0], LO_RECORD[1]];
 
 /// The `46` formals-list marker, and the `2D` per-formal entry tag.
+/// PROV[O] `46`, the `.ex` formals-list marker, read off captures.
 const FORMALS: u8 = 0x46;
+// PROV[O] `2D`, the `.ex` per-formal entry tag, read off captures.
 const FORMAL: u8 = 0x2D;
 
 /// Byte offset of the **body-start `4C`** in one `.ex` function segment, in both
@@ -661,6 +668,7 @@ pub fn ex_segments_body(ex: &[u8]) -> (Vec<usize>, Vec<&[u8]>) {
 /// `/O1` is `00200005`, `/Od` `00800005`, and `#pragma optimize("", off)` under
 /// `/Ox` is `00800004`. See `docs/OPT_MODE.md` for the full matrix and for why the
 /// bits are treated as opaque and compared whole.
+/// PROV[O] `docs/OPT_MODE.md`'s matrix — the per-function optimization word read off real `.ex` captures at each flag setting. The bits are treated as opaque and the word is compared whole, which is what keeps this an observation rather than a model.
 pub const OPT_WORD_OX: u32 = 0x00a0_0005;
 
 /// The optimization word for `/O1` — optimize, favour **size**. The mode the dc3
@@ -674,6 +682,7 @@ pub const OPT_WORD_OX: u32 = 0x00a0_0005;
 /// a fresh descending register. Verified over all 108 three- and four-operator
 /// integer chains and all 27 depth-2 trees — never a different opcode, only a
 /// different register field. See `docs/OPT_MODE.md`.
+/// PROV[O] `docs/OPT_MODE.md` — the `/O1` word, read off captures. The behavioural difference it names (r11 reuse for a dead-predecessor intermediate) was verified over all 108 three- and four-operator integer chains and all 27 depth-2 trees.
 pub const OPT_WORD_O1: u32 = 0x0020_0005;
 
 /// `/O1` with **`#pragma fp_contract(off)`** — bit `0x4` clear, everything else
@@ -705,6 +714,7 @@ pub const OPT_WORD_O1: u32 = 0x0020_0005;
 /// valid, wrong, and otherwise-invisible `fmadds`. The word is accepted here
 /// because the guard refuses that body today; the day it does not, this constant
 /// has to become a *mode*, not an alias.
+/// PROV[O] `docs/OPT_MODE.md` — `/O1` with `0x4` clear, read off a capture carrying the pragma. Its doc carries the live hazard: with the bit clear a contracting emitter would produce a valid, wrong and invisible `fmadds`, so the word is accepted only while the guard refuses that body.
 pub const OPT_WORD_O1_NO_FP_CONTRACT: u32 = 0x0020_0001;
 
 /// [`OPT_WORD_OX`] with `#pragma fp_contract(off)` — the same bit, at the other
@@ -718,6 +728,7 @@ pub const OPT_WORD_O1_NO_FP_CONTRACT: u32 = 0x0020_0001;
 /// the `/O1` one — `c2rs bench` and `c2rs diff` use the `/Ox` profile, and a
 /// positive fixture that reports `NotImplemented` in the default lane is the
 /// decoration `docs/GAPS.md` §6 records `w13_fabi.cpp` as having been for months.
+/// PROV[O] `docs/OPT_MODE.md` — the `/Ox` counterpart, read off a capture. Worth 0 functions on the workload; it exists so the pragma fixture grades in every lane.
 pub const OPT_WORD_OX_NO_FP_CONTRACT: u32 = 0x00a0_0001;
 
 /// **`/Od` — no optimization.** Named here because [`OPT_WORD_OX`]'s own doc has
@@ -783,6 +794,7 @@ pub const OPT_WORD_PRAGMA_OFF: u32 = 0x0080_0004;
 /// It is masked, not ignored: every other bit is still required to match a word
 /// this port was verified against, so a third mode or an unknown flag still fails
 /// closed.
+/// PROV[O] the bit a compiler-generated special member carries, read off captures. Masked rather than ignored — every other bit still has to match a word this port was verified against.
 pub const OPT_WORD_SPECIAL_MEMBER: u32 = 0x0000_0100;
 
 /// The parser's argument-slot enum, in the emitter's spelling. **One** converter
@@ -3291,6 +3303,7 @@ impl IlBundle {
             // class B — the empty-main-file shape, both fences.
             let mut intros = 0usize;
             let mut p = 0usize;
+            // PROV[O] `4F 02 20 00 4F 01`, the module block-start introduction, read off captures. Same bytes as `codec::BLOCK_START` plus the `4F 01` that follows it.
             const INTRO: [u8; 6] = [0x4F, 0x02, 0x20, 0x00, 0x4F, 0x01];
             while p + INTRO.len() + 3 <= ex.len() {
                 if ex[p..p + INTRO.len()] == INTRO {

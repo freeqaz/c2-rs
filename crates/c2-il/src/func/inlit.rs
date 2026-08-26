@@ -28,9 +28,11 @@ use super::readers::read_token_var;
 /// `<len>` counts the trailing NUL, so the payload is the literal's bytes
 /// verbatim — exactly what `c2_core::coff::StringLiteral::bytes` wants and what
 /// `string_comdat_name` hashes.
+/// PROV[O] `00 03`, the `.in` literal record tag, read off captures.
 const LITERAL_TAG: [u8; 2] = [0x00, 0x03];
 
 /// The byte that closes a string-literal record.
+/// PROV[O] `07`, the record terminator, read off captures and shared with `ininit`.
 const RECORD_END: u8 = 0x07;
 
 /// Read the `.in` **length** field: a single byte below `0x80`, else `0x80`

@@ -194,6 +194,7 @@ fn symbol_runs(gl: &[u8], sep26: bool) -> Vec<(usize, usize, String)> {
 /// The largest name COFF stores **inline** in a symbol record's 8-byte name
 /// field. A longer one goes to the string table, which is the encoding path
 /// every mangled name — and `_vswprintf_s_l` — takes.
+/// PROV[S] PE/COFF §5.4.1 — a symbol record's name field is 8 bytes, and a longer name goes to the string table. The value would be 8 if `c2.dll` had never existed.
 pub(crate) const INLINE_NAME_MAX: usize = 8;
 
 pub(crate) fn looks_mangled(name: &str) -> bool {
@@ -472,6 +473,7 @@ pub(crate) fn plain_external_names_among<'a>(
 /// The return type's size, in its one-byte form. A wider return type shifts the
 /// flags byte, so a record whose size escapes is one whose flags byte is not
 /// where this module reads it.
+/// PROV[O] the one-byte return-size field's escape value, read off `.gl` captures. Related but NOT identical to `GL_SIZE_ESCAPE_PAYLOAD` above, whose width is DISCLOSURE `W-ALIAS`-adjacent row `W-GLATTRS-1` at `0x10c1f9a6`; this constant is the escape test, not the payload width.
 const RETSIZE_ESCAPE: u8 = 0x80;
 
 /// **W-DECOUPLE, GRID-V — the VARIADIC bit of a defined record's flags byte.**
@@ -512,6 +514,7 @@ const RETSIZE_ESCAPE: u8 = 0x80;
 /// register-home `std`s, a `.pdata` section the twin does not have, and three
 /// label symbols — on a body whose `.ex` is **byte-identical**, `cmp`-checked,
 /// 2,751 bytes both. So the parser genuinely cannot see it and the record can.
+/// PROV[O] the varargs bit in a `.gl` function record, read off captures — and its doc carries the obj-side confirmation: `cva.obj` against `cnv.obj` is 36 bytes of `.text` against 8 on a body whose `.ex` is byte-identical, so the flag is the only channel that can see it.
 const FN_FLAG_VARARGS: u8 = 0x40;
 
 /// Does the record whose name ends at `name_nul` declare a variadic function?
@@ -532,8 +535,10 @@ fn record_is_varargs(gl: &[u8], name_nul: usize) -> Option<bool> {
 fn record_is_plain_external(gl: &[u8], name_nul: usize) -> bool {
     /// A DEFINED function with external linkage. `03` is `static`, `09` is
     /// `__declspec(dllexport)`; GRID-K takes no other value on a defined record.
+    /// PROV[O] GRID-K — a defined function record takes `05` external, `03` static, `09` dllexport and no other value across the grid. A pinned enumeration on a small field, not a fit.
     const LINKAGE_DEFINED_EXTERNAL: u8 = 0x05;
     /// `inline`, `__forceinline`, or a member defined in-class.
+    /// PROV[O] the flags byte of an ordinary defined function, read off the same grid; `inline`, `__forceinline` and in-class definitions are what move it.
     const FLAGS_PLAIN: u8 = 0x00;
     gl.get(name_nul + 3) == Some(&LINKAGE_DEFINED_EXTERNAL)
         && gl.get(name_nul + 4).is_some_and(|b| *b < RETSIZE_ESCAPE)
@@ -959,6 +964,7 @@ pub(crate) fn gl_bound_names(gl: &[u8]) -> (Vec<(u32, String)>, Vec<String>) {
 ///
 /// The alias exists so those three are a table rather than three literals that
 /// can drift apart. `codec::gl_offset_framed_relaxed` carries the measurement.
+/// PROV[N] not load-bearing — a function-pointer ALIAS whose only purpose, per its own doc, is to make three call sites a table rather than three literals that can drift apart. The rule it points at carries the provenance; this item carries none.
 pub(crate) const GATE_BIND_FRAME: fn(&[u8], usize) -> bool =
     crate::codec::gl_offset_framed_relaxed;
 
@@ -1000,6 +1006,7 @@ pub(crate) const GATE_BIND_FRAME: fn(&[u8], usize) -> bool =
 /// error is over-refusal.
 fn linkage_needs_a_directive(gl: &[u8], name_nul: usize) -> bool {
     /// `05` external becomes `09` under `__declspec(dllexport)`.
+    /// PROV[O] `09` under `__declspec(dllexport)`, from the same GRID-K cells as [`LINKAGE_DEFINED_EXTERNAL`].
     const LINKAGE_EXPORT: u8 = 0x08;
     gl.get(name_nul + 3).is_some_and(|b| b & LINKAGE_EXPORT != 0)
 }
@@ -1031,6 +1038,7 @@ fn linkage_needs_a_directive(gl: &[u8], name_nul: usize) -> bool {
 /// the first are not decoded — the `04` kind byte is the only one seen and one
 /// witness is not a production.
 pub(crate) fn drectve_is_boilerplate(gl: &[u8]) -> bool {
+    // PROV[O] the literal `/include:__C1_11886` directive string present in every captured `.gl` from XDK build 16.00.11886.00. It embeds the toolchain build id, which is intentional project context (CLAUDE.md § Project context) and is a fact about the captures, not a spec.
     const ANCHOR: &[u8] = b"/include:__C1_11886\0";
     let Some(at) = find_subslice(gl, ANCHOR) else {
         return false;
@@ -1043,6 +1051,7 @@ pub(crate) fn drectve_is_boilerplate(gl: &[u8]) -> bool {
 /// distances are 15 (an `int(int)` record) and 19 (a `void()` record), the
 /// difference being the TYPE field's width; 32 leaves room for wider types
 /// without letting "nearest preceding run" reach into a different record.
+/// PROV[F] fitted, and its own doc shows the fit: observed distances are 15 and 19, and this is 32 to "leave room for wider types". The slack is chosen, not measured, and a record with a still wider type is the off-sample case.
 const MAX_NAME_TO_OFFSET: usize = 32;
 
 /// The byte that separates a `.gl` record's operand token from the record's
@@ -1094,6 +1103,7 @@ const MAX_NAME_TO_OFFSET: usize = 32;
 ///
 /// (`NAME_SEPARATORS[1]` is indexed directly by the `26`-specific clauses above
 /// and in [`symbol_runs`]; `25` is appended so those keep their meaning.)
+/// PROV[F] an enumerated SET of delimiter bytes assembled from measured records — `00`, `26`, and `25` appended later by `w-fence163` after it paid the global re-bind risk. Its own doc says `24` has NOT met that bar. A separator byte outside the three is the off-sample failure.
 const NAME_SEPARATORS: [u8; 3] = [0x00, 0x26, 0x25];
 
 /// The record-kind byte, immediately before the operand token. **MEASURED as
@@ -1118,6 +1128,7 @@ const NAME_SEPARATORS: [u8; 3] = [0x00, 0x26, 0x25];
 /// run is never a callee.
 ///
 /// Fails **closed**: a fifth kind is not indexed, so its callees refuse.
+/// PROV[F] an enumerated SET measured on the 878-TU workload, and its own doc states the residue it leaves: 1,750 junk tokens of which 44 collide with a real symbol's token. It "fails closed: a fifth kind is not indexed" — which is the correct handling of an off-sample failure, not the absence of one.
 const SYMBOL_RECORD_KINDS: [u8; 4] = [0x00, 0x04, 0x0E, 0x10];
 
 /// The character set an MSVC symbol name is spelled in: identifiers, plus the
@@ -1353,6 +1364,7 @@ pub fn source_path(gl: &[u8]) -> Option<String> {
 /// `11 02 06 '1' 'j' '2' 01`. Required literally — the counter is read at a
 /// fixed offset, so a `.gl` that does not start exactly like this is
 /// **undetermined**, never guessed at.
+/// PROV[O] the fixed seven-byte `.gl` header prefix `11 02 06 '1' 'j' '2' 01`, read off captures and required literally. A `.gl` that does not start exactly like this is reported undetermined rather than guessed at.
 const GL_HEADER_PREFIX: [u8; 7] = [0x11, 0x02, 0x06, b'1', b'j', b'2', 0x01];
 
 /// The **compiler label counter** — the u32 at `.gl` offset 7, immediately
@@ -1400,6 +1412,7 @@ pub fn label_counter(gl: &[u8]) -> Option<u32> {
 /// §1 read c2's own legality test at `0x10b5c06b` off the disassembly as
 /// *"requires bit 6 of `[sym+0x4c]`"*, from the other side of the seam and
 /// before this byte was located. The two derivations agree.
+/// PROV[O] the inlinable bit in a `.gl` function record, located from the IL side. **Corroborated by a read that is NOT this constant's source**: `WB_INLINE_FINDINGS` §1 read c2's own legality test at `0x10b5c06b` as "requires bit 6 of `[sym+0x4c]`", from the other side of the seam and before this byte was located, and the two derivations agree. Marked [O] and not [R] because the image did not establish it — it confirmed it.
 pub const FN_FLAG_INLINABLE: u8 = 0x40;
 
 /// **The `.gl` function record's `SIZE` field escapes on `0x80` with a TWO-byte
@@ -1668,8 +1681,10 @@ pub fn gl_noinline_names(gl: &[u8]) -> Option<std::collections::BTreeSet<String>
 /// third byte as a linkage.
 fn data_linkage(gl: &[u8], name_nul: usize) -> Option<u8> {
     /// Tag bit that inserts one extra byte before the kind.
+    /// PROV[O] the `.gl` type-tag bit that inserts one extra byte before the kind, read off captures. `docs/IL_TYPE_WIDE_TAG.md` derived it for `.ex`/`.sy` on 2026-07-31 and lane `w-align` measured the field under it unchanged in a `.gl` DATA record.
     const TAG_WIDE: u8 = 0x40;
     /// …and that byte must carry this.
+    /// PROV[O] the mark byte a wide tag's extra byte must carry, read off captures beside [`TAG_WIDE`].
     const WIDE_MARK: u8 = 0x80;
     let tag = *gl.get(name_nul + 1)?;
     if tag & 0x80 == 0 {
@@ -1780,6 +1795,7 @@ pub(crate) struct GlDataObject {
 /// record this lane captured. `docs/OBJ_DATA_BSS_SHAPE.md` §5.8's Rule T1 is
 /// fitted on ten probe cells and has **never been seen on a real TU**, so a
 /// writer must **refuse** on this bit rather than emit a `.tls$`.
+/// PROV[O] MEASURED on four cells (initialized/uninitialized x external/static), set in all four and clear in every non-thread-local record captured. Its doc names the neighbouring rule that is NOT this: `OBJ_DATA_BSS_SHAPE.md` §5.8's Rule T1 is fitted on ten probe cells and has never been seen on a real TU, so a writer must refuse on this bit.
 pub(crate) const DATA_FLAG_THREAD_LOCAL: u8 = 0x10;
 
 /// The [`GlDataObject::flags`] bit that says **something references this
@@ -1806,6 +1822,7 @@ pub(crate) const DATA_FLAG_THREAD_LOCAL: u8 = 0x10;
 /// statics **and one function each**"*, so every object in them is referenced.
 /// §4.4 records the same shape for `const` (*"dropped when every use was
 /// folded"*); this is that rule for plain storage.
+/// PROV[O] the referenced bit, read off captures. Its doc records the blind spot in the older cells that could not see it — every §5.2 static cell has one function each, so every object in them is referenced.
 pub(crate) const DATA_FLAG_REFERENCED: u8 = 0x01;
 
 /// The name separator that introduces an **internal-linkage** data symbol, whose
@@ -1842,6 +1859,7 @@ pub(crate) const DATA_FLAG_REFERENCED: u8 = 0x01;
 /// the global re-bind risk first: `w-section` measured the admission over the
 /// whole 878-TU workload and every previously bound population held, `mismatch`
 /// 0. That is the bar for `24`, not an argument that it is safe.)
+/// PROV[O] `24`, the undecorated-name separator byte, read off `.gl` captures. It is deliberately NOT in [`NAME_SEPARATORS`]: admitting it has not paid the global re-bind risk `25` paid, and the doc says so in those words.
 const NAME_SEPARATOR_UNDECORATED: u8 = 0x24;
 
 /// Linkage bytes a `.gl` data record can carry, at the fixed offset
@@ -1850,6 +1868,7 @@ const NAME_SEPARATOR_UNDECORATED: u8 = 0x24;
 /// `02` (undefined external) is [`gl_extern_data_names`]'s whole population and
 /// is **not** here: an object this TU does not define has no `.bss` to emit.
 /// Anything unseen fails closed with it.
+/// PROV[O] `01`, the defined-here linkage byte at the fixed offset `data_linkage` reads, from the `.gl` DATA grid. `02` (undefined external) is deliberately excluded and anything unseen fails closed with it.
 pub(crate) const LINKAGE_DEFINED_EXTERN: u8 = 0x01;
 
 /// Tag bit that inserts one extra byte (the *mark*) before the kind.
@@ -1857,7 +1876,9 @@ pub(crate) const LINKAGE_DEFINED_EXTERN: u8 = 0x01;
 /// `docs/IL_TYPE_WIDE_TAG.md` derived this for `.ex`/`.sy` on 2026-07-31; lane
 /// `w-align` measured what the field UNDER it means in a `.gl` DATA record and
 /// found it unchanged — see [`align_of_type_tag`].
+/// PROV[O] the same `.gl` wide-tag bit as the earlier [`TAG_WIDE`], re-declared in the DATA reader's scope. `docs/IL_TYPE_WIDE_TAG.md`; `w-align` measured the field under it unchanged for DATA records.
 const TAG_WIDE: u8 = 0x40;
+// PROV[O] `04`, the `static` linkage byte in a `.gl` DATA record, from the same grid.
 const LINKAGE_STATIC: u8 = 0x04;
 
 /// The attribute byte immediately after the size varint: `00` uninitialized
@@ -1877,7 +1898,9 @@ const LINKAGE_STATIC: u8 = 0x04;
 ///
 /// A value that is neither fails closed: guessing which section an object lands
 /// in is guessing the section *count*, which mismatches at file offset 2.
+/// PROV[O] `00` in the DATA attribute byte, from the grid its doc tabulates cell by cell. A value that is neither this nor [`DATA_ATTR_INITIALIZED`] fails closed, because guessing the section is guessing the section COUNT, which mismatches at file offset 2.
 const DATA_ATTR_UNINITIALIZED: u8 = 0x00;
+// PROV[O] `80` in the same attribute byte, from the same tabulated grid.
 const DATA_ATTR_INITIALIZED: u8 = 0x80;
 
 /// **The COMDAT bit of the same attribute byte** — the object is its own
@@ -1912,6 +1935,7 @@ const DATA_ATTR_INITIALIZED: u8 = 0x80;
 /// no cell of this grid is a `selectany`. Admitting the bit this lane graded and
 /// failing closed on the one it did not is the whole difference between a
 /// measurement and a guess.
+/// PROV[O] `20`, graded on this lane's cells. `0x40` — the `__declspec(selectany)` forms `60`/`E0` — is deliberately NOT admitted because no cell of the grid is a `selectany`; that refusal is what keeps this a measurement.
 const DATA_ATTR_COMDAT: u8 = 0x20;
 
 /// Every data object this TU defines, keyed by the operand token an `.ex` body
@@ -2043,6 +2067,7 @@ pub(crate) fn gl_data_objects_ordered(gl: &[u8]) -> Vec<(u32, GlDataObject)> {
 /// to emit against it: `bind::Bindings::resolve_data` gates the consumer to the
 /// narrow `??_C@_0` form, and `docs/rungs/2026-08-17-fence163.md` §1 has the
 /// two fences behind that.
+/// PROV[O] `25`, the string-literal name separator, read off `.gl` captures. Named separately rather than indexed out of [`NAME_SEPARATORS`] positionally, and its consumer is gated to the narrow `??_C@_0` form.
 const NAME_SEPARATOR_STRING_LITERAL: u8 = 0x25;
 
 /// Every `??_C@…` string-literal COMDAT name `.gl` carries, as a set.
@@ -2134,6 +2159,7 @@ fn is_object_name(b: &[u8]) -> bool {
 /// `.in` instead.
 fn data_object_at(gl: &[u8], name_nul: usize, name: &[u8]) -> Option<GlDataObject> {
     /// …and that byte must carry this.
+    /// PROV[O] the same wide-tag mark byte as the earlier [`WIDE_MARK`], re-declared in the DATA reader's scope. Read off captures.
     const WIDE_MARK: u8 = 0x80;
     let tag = *gl.get(name_nul + 1)?;
     if tag & 0x80 == 0 {
@@ -2259,6 +2285,7 @@ fn data_object_at(gl: &[u8], name_nul: usize, name: &[u8]) -> Option<GlDataObjec
 /// the mark is matched and not merely stepped over.
 fn align_of_type_tag(tag: u8, wide_mark: Option<u8>) -> Option<u32> {
     /// The only mark value any `.gl` DATA record in the frozen grid carries.
+    /// PROV[O] `81` — its own doc is the citation: "the only mark value any `.gl` DATA record in the frozen grid carries". A pinned single-valued field on a frozen grid.
     const WIDE_MARK_MEASURED: u8 = 0x81;
     match wide_mark {
         None | Some(WIDE_MARK_MEASURED) => {}
@@ -2293,6 +2320,7 @@ fn align_of_type_tag(tag: u8, wide_mark: Option<u8>) -> Option<u32> {
 pub(crate) fn gl_extern_data_names(gl: &[u8]) -> std::collections::BTreeSet<String> {
     /// Undefined external. `01` (defined here) and `04` (static) are exactly the
     /// two this must refuse, and everything unseen refuses with them.
+    /// PROV[O] `02` undefined external, from the `.gl` DATA grid; `01` and `04` are exactly the two it must refuse and everything unseen refuses with them.
     const LINKAGE_UNDEF_EXTERN: u8 = 0x02;
     let mut out = std::collections::BTreeSet::new();
     let mut bad = std::collections::BTreeSet::new();
@@ -2383,6 +2411,7 @@ pub(crate) struct GlProvideObject {
 }
 
 /// Undefined external linkage — a declaration this TU does not define.
+/// PROV[O] `02`, the same undefined-external linkage byte for the extern-data reader. Read off `.gl` captures.
 pub(crate) const LINKAGE_UNDEFINED_EXTERN: u8 = 0x02;
 
 /// Parse the data record at `name_nul` under the widened frame, or `None`
@@ -2392,6 +2421,7 @@ pub(crate) const LINKAGE_UNDEFINED_EXTERN: u8 = 0x02;
 /// (`Err`-like `Some` with `linkage` preserved) so the caller can refuse the
 /// whole TU rather than silently not seeing an object.
 fn provide_object_at(gl: &[u8], name_nul: usize, name: &[u8]) -> Option<GlProvideObject> {
+    // PROV[O] the same wide-tag mark byte again, in the extern-data reader's scope. Read off captures.
     const WIDE_MARK: u8 = 0x80;
     let tag = *gl.get(name_nul + 1)?;
     if tag & 0x80 == 0 {

@@ -198,8 +198,20 @@ def scan_file(path):
                 in_test[i] = test_depth is not None or is_test_file
                 depth_after[i] = depth
                 continue
-        if "/*" in line and "*/" not in line.split("/*", 1)[1]:
-            line = line.split("/*", 1)[0]
+        # A block comment can only OPEN in code — never inside a `//` line
+        # comment and never inside a string literal. `strip_for_braces` removes
+        # both, so this must run on its output.
+        #
+        # **Board #3649, and it is not a nicety.** Before this line ran on
+        # `clean`, a glob like `coff/*.rs` written inside a `///` doc comment
+        # opened a block comment that never closed, and from that line to the end
+        # of the file the brace depth stopped tracking. The visible consequence
+        # is that every `#[cfg(test)]` region BELOW such a glob failed to be
+        # excluded, so test-only constants were counted as production population.
+        # Eighteen files in `crates/` contain one.
+        clean = strip_for_braces(line)
+        if "/*" in clean and "*/" not in clean.split("/*", 1)[1]:
+            clean = clean.split("/*", 1)[0]
             in_block_comment = True
 
         stripped = line.strip()
@@ -208,7 +220,6 @@ def scan_file(path):
 
         in_test[i] = test_depth is not None or is_test_file
 
-        clean = strip_for_braces(line)
         opens = clean.count("{")
         closes = clean.count("}")
         if pending_test_attr and opens > 0:
@@ -965,6 +976,31 @@ pub fn g() -> u32 {
 '''
 
 
+# The #3649 fixture: a glob inside a doc comment, then a `#[cfg(test)]` region.
+# Before the fix, `coff/*.rs` opened a block comment that never closed, brace
+# depth froze for the rest of the file, and the two test-only constants below
+# were counted as production population. The trailing production constant is the
+# other half of the control: the fix must not make the scanner blind past the
+# test module either.
+GLOB_FIXTURE = '''\
+//! planted fixture for the #3649 line-comment/glob defect.
+
+/// This doc comment mentions `coff/*.rs` and `fixtures/cpp/*.cpp`. Neither is a
+/// block comment, and a scanner that thinks otherwise stops tracking braces
+/// here and never starts again.
+pub const BEFORE_THE_GLOB: u32 = 1;
+
+#[cfg(test)]
+mod tests {
+    const IN_TEST_ONE: u32 = 2;
+    const IN_TEST_TWO: u32 = 3;
+}
+
+/// Production again, BELOW the test module.
+pub const AFTER_THE_TEST_MOD: u32 = 4;
+'''
+
+
 def _git(repo, *args, **kw):
     return subprocess.run(
         ["git", "-c", "user.email=selftest@example.invalid",
@@ -1168,6 +1204,29 @@ def self_test():
         print(f"  after:  [R]={r4['R']} untagged={r4['untagged']}")
         check("[R] fell by two", r["R"] - r4["R"], 2)
         check("untagged rose by two", r4["untagged"] - r["untagged"], 2)
+
+    print()
+    print("[10] #3649 — a glob in a doc comment must not open a block comment,")
+    print("     and must not disable `#[cfg(test)]` exclusion below it")
+    with tempfile.TemporaryDirectory() as td:
+        src = os.path.join(td, "globbed.rs")
+        with open(src, "w", encoding="utf-8") as fh:
+            fh.write(GLOB_FIXTURE)
+        rowsg, _, _ = census([src])
+        rg = list(rowsg.values())[0]
+        check("population is the TWO production consts, not four", rg["pop"], 2)
+        check("untagged residue", rg["untagged"], 2)
+        # The red: with the fix reverted, the glob swallows the file and the two
+        # test constants are counted. Demonstrated by feeding the scanner the
+        # same file with the glob removed — the count must NOT move, which is
+        # what "the glob is irrelevant" means and what was false before.
+        with open(src, "w", encoding="utf-8") as fh:
+            fh.write(GLOB_FIXTURE.replace("`coff/*.rs` and `fixtures/cpp/*.cpp`",
+                                          "two paths"))
+        rowsg2, _, _ = census([src])
+        rg2 = list(rowsg2.values())[0]
+        check("removing the glob moves NOTHING (it never should have)",
+              (rg2["pop"], rg2["untagged"]), (rg["pop"], rg["untagged"]))
 
     if not since_self_test(check):
         ok = False

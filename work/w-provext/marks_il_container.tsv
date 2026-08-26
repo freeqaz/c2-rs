@@ -1,0 +1,25 @@
+# crates/c2-il/src — the container layer (cachefmt, codec, lib).
+# Classification rule pre-committed in work/w-provext/PREREG.md §2.
+# The recurring call here: a single record TAG or type triple transcribed from a
+# real capture is [O] (nothing else is consistent with the bytes); a byte
+# SEQUENCE a matcher requires, or a plausibility bound, is [F] (it has an
+# off-sample failure mode the captures could not see).
+crates/c2-il/src/cachefmt.rs	FNV_OFFSET	S] FNV-1a's published 64-bit offset basis (Fowler/Noll/Vo; `0xcbf29ce484222325`). Would be this value if `c2.dll` had never existed, and it hashes a cache key that reaches no emitted byte.
+crates/c2-il/src/cachefmt.rs	MAGIC	N] not load-bearing: this is the PORT's own capture-cache container, not c2's. Nothing c2 reads or writes contains it, and a wrong value refuses a cache load rather than changing a graded byte.
+crates/c2-il/src/cachefmt.rs	VERSION	N] not load-bearing — the port's own cache format generation. See [`MAGIC`].
+crates/c2-il/src/cachefmt.rs	HEADER_LEN	N] not load-bearing — a field of the port's own cache header. See [`MAGIC`].
+crates/c2-il/src/cachefmt.rs	SECT_LEN	N] not load-bearing — a row width in the port's own cache section table. See [`MAGIC`].
+crates/c2-il/src/cachefmt.rs	MAX_SECTIONS	N] not load-bearing — an anti-garbage ceiling on the port's own cache reader; its own doc says it is "far above the seven tags that exist".
+crates/c2-il/src/cachefmt.rs	TAGS	N] not load-bearing — the port's own cache tag order. The five IL suffixes inside it are c2-derived and carry their provenance at [`crate::IL_SUFFIXES`]; `key` and `meta` are this crate's invention.
+crates/c2-il/src/lib.rs	IL_SUFFIXES	O] the five per-TU IL files the real front end writes beside the obj, observed in every capture this project has taken (`fixtures/README.md`, `c2rs corpus gen`). Not a spec: nothing outside MSVC names these.
+crates/c2-il/src/lib.rs	EX_MAGIC	O] the first four bytes of every captured `.ex`. Read off real captures; no other value is consistent with any of them.
+crates/c2-il/src/codec.rs	INT_TYPE	O] the inline int type annotation `86 41 74`, transcribed from real `.ex` captures and cross-checked against `msvc-src/tools/il_parser.py`'s `KNOWN_TYPES`. Mirrors `func::readers::INT_TYPE`.
+crates/c2-il/src/codec.rs	FLOAT_TYPE	O] `86 45 40`, from `il_parser.py`'s `KNOWN_TYPES` and verified against a live 16.00.11886.00 capture of a float leaf (`VOLF_SEGMENT`).
+crates/c2-il/src/codec.rs	PTR_TYPE_PREFIX	O] `86 43`, per the reference decoder's `try_parse_type` and the pointer LOAD/MEMBER_PTR forms it appears in.
+crates/c2-il/src/codec.rs	CLASS_PTR_PREFIX	O] `A6`, per `try_parse_type` and the `30 A6 XX XX XX` DEREF form.
+crates/c2-il/src/codec.rs	CALL_CALLEE_ANCHOR	F] fitted, and its own doc says why: the variable-width read is unported, so this six-byte tail is an ANCHOR chosen to match the CALL tokens observed. Its off-sample failure mode — a CALL whose tail differs — is real, and the codec is designed to fall through to an opaque span rather than mis-decode.
+crates/c2-il/src/codec.rs	FN_START	O] `4F 1F`, the `.ex` per-function start marker, read off captures. Mirrors `func::bundle::FN_START`.
+crates/c2-il/src/codec.rs	LO	O] `4C`, the `.ex` body lead byte (ROADMAP §10.12's `4C 4F 11 53`). Read off captures.
+crates/c2-il/src/codec.rs	LO_RECORD	O] `4F 11`, the optional record between [`LO`] and the body's first `53`, read off captures.
+crates/c2-il/src/codec.rs	BLOCK_START	O] `4F 02 20 00`, the per-function block-start marker prefix, read off captures.
+crates/c2-il/src/codec.rs	GL_OFFSET_MAX	F] its own doc is the citation: "not a *proof* that no real offset can exceed it — nothing in the container promises a width". A plausibility bound fitted to observed offsets, failing in the refusing direction. Textbook [F] under DISCLOSURE's off-sample discriminator.

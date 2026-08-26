@@ -73,3 +73,33 @@ Recorded here because a control that is green for the wrong reason is how
 ==========================================================================
 SELF-TEST: PASS
 EXIT=0     checks: 44 PASS, 0 FAIL
+
+==========================================================================
+6. THE #3649 FIX, WATCHED FAILING (the same discipline, a different break)
+==========================================================================
+The defect: a glob written inside a `///` doc comment — `coff/*.rs`,
+`fixtures/cpp/*.cpp` — was read as an unterminated block comment, so the
+file's brace depth froze from that line to EOF and every `#[cfg(test)]`
+region below it stopped being excluded. Eighteen files in `crates/` contain
+one. Section [10] of the suite plants the shape.
+
+With the fix reverted:
+
+  FAIL  population is the TWO production consts, not four: got 4, want 2
+  FAIL  untagged residue: got 4, want 2
+  FAIL  removing the glob moves NOTHING (it never should have): got (2, 2), want (4, 4)
+EXIT=1
+
+The third check is the defect stated as a property: REMOVING the glob moved
+the population from 4 to 2. A doc comment's contents cannot be allowed to
+change a count, and before the fix they did.
+
+Impact on the published census, measured with the fixed scanner over two
+historical trees (both numerators UNCHANGED — no tagged constant was ever in
+a test region, so only the denominator was wrong):
+
+  tree 4d48a4e77 (the w-provenance tip that published 189 / 1,051 = 18.0 %)
+      -> pop 989, tagged 189, coverage 19.1 %      denominator overstated by 62
+  tree e548f01fd (this lane's base)
+      -> pop 996, tagged 189, coverage 19.0 %      denominator overstated by 62
+
