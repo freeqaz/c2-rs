@@ -349,7 +349,7 @@ the reap guard.
 past `.gitignore:24` (`/work`). Seven carried absolute machine paths, which
 `CLAUDE.md` § Commits names in its "Never commit" list:
 
-| file | `/home/` lines |
+| file | absolute-path lines |
 |---|---:|
 | `p5_trace.txt` | **201** |
 | `sweep_ungraded_red.txt` | **43** |
