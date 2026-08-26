@@ -55,7 +55,7 @@
 //!
 //! | strength | this module's answer |
 //! |---|---|
-//! | **read** | a **containment**, never a ratio: `sites ⊇ read ⊇ ported`. `sites` is the subsystem's enumerable population (recomputed from `FUNCS.tsv` where it is a band), `read` is what the `P_*.md` page says it read, `ported` is a **named residue** on every row — see [`Cell::Residue`] |
+//! | **read** | a **containment**, never a ratio: `sites ⊇ read ⊇ ported`. `sites` is the subsystem's enumerable population (recomputed from `FUNCS.tsv` where it is a band), `read` is what the `P_*.md` page says it read, `ported` is **measured on `encode` and `section`** and a **named residue** on the other eight — see [`PortedRecount`] |
 //! | **agreement** | the page's own **evidence-mark census** — `[O]` (obj-confirmed) against `[R]`+`[O]`+`[I]` — plus, where a page carries a real differential, that differential quoted with its own denominator. **A mark is a page annotation, not a site**; the caveat prints beside the number |
 //! | **exercised** | a labelled **workload-output proxy** where one exists, from real-`c2` section census of the 878-TU workload; a named residue otherwise. **Per-SITE exercise is unmeasurable on this tree for all ten** — nothing traces `c2.dll`'s own addresses over the workload |
 //! | **byte-owned** | **CITED, never re-measured.** Board **#3534** measured it 2026-08-25 at port tree `a8593651b`. Re-funding that read is what this repo calls *"check the board before dispatching"* |
@@ -311,9 +311,9 @@ pub struct Subsystem {
 
     /// Strength 1's third level.
     ///
-    /// **Nine of ten rows are still a named residue** — see [`Cell::Residue`]
-    /// and the module docs. The `encode` row is measured, and is measured by
-    /// [`PortedRecount`] rather than carried.
+    /// **Eight of ten rows are still a named residue** — see [`Cell::Residue`]
+    /// and the module docs. The `encode` and `section` rows are measured, and both
+    /// are measured by [`PortedRecount`] rather than carried.
     pub ported: Cell,
     /// When `Some`, [`verify`] **recomputes** `ported` from the tree and fails
     /// if the carried cell disagrees. When `None`, `ported` **must** be a
@@ -446,7 +446,24 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
                      .drectve .debug$S .XBLD$W:C1 .XBLD$W:C2 .text .text$yc .text$yd \
                      .pdata .xdata$x .rdata .rdata$r .data .bss .CRT$XCU",
         },
-        subsys_cell_note: "",
+        subsys_cell_note: "THE PAGE'S OWN COVERAGE LINE DOES NOT REPRODUCE, AND NEVER \
+                           DID. `read 24` is carried verbatim from P_SECTION.md:11 \
+                           (`24 entries against a denominator of 137`) and recounting \
+                           the page's §1 table on this tree gives 25 ROWS, of which 22 \
+                           are Ghidra function entries (three -- 0x10b9bdcf, 0x10b9c212, \
+                           0x10b9c5ca -- are addresses INSIDE 0x10b9b8e9 and the page \
+                           says so), of which 20 are inside the two bands that give the \
+                           137 (0x10b805b3 is misc.c, 0x10c27b56 is smdmisc.c). 24 \
+                           reproduces under NONE of the three, and `git log -S` puts \
+                           the line at 25 rows in the file's FIRST commit -- wrong when \
+                           written, not rotted since, the same family as #3643. NOT \
+                           CORRECTED HERE: the line is this row's den_probe and the \
+                           standing convention is that an amendment stands beside the \
+                           original reading (P_SECTION §5's own retraction is the \
+                           model); it is flagged on the page at §7.5 instead. `ported` \
+                           is in a THIRD unit again -- 15 live dispatcher arms -- and \
+                           the containment holds as a nesting of SITE SETS, not as \
+                           comparable ratios",
     },
     Subsystem {
         key: "regalloc",
@@ -2035,8 +2052,11 @@ fn markdown(
          | **1 read** | a **containment, never a ratio**: `sites ⊇ read ⊇ ported`. \
          `sites` is the subsystem's enumerable population, **recomputed from \
          `FUNCS.tsv` on this tree** where it is a band; `read` is what the `P_*.md` \
-         page says it read, in the page's own unit; `ported` is a **named residue on \
-         all ten rows** — see §4 |\n\
+         page says it read, in the page's own unit; `ported` is **measured on two rows \
+         and a named residue on the other eight** — see §4, and note that each \
+         measured row's `ported` is in its OWN unit (encode arms, `.gl` arms), so \
+         the containment nests SITE SETS and the three counts' RATIOS must not be \
+         compared |\n\
          | **2 agreement** | the page's own **evidence-mark census** — `[O]` \
          obj-confirmed against `[R]`+`[O]`+`[I]` — plus, where a page carries a real \
          differential, that differential quoted with its own denominator. **A mark is \
@@ -2101,9 +2121,28 @@ fn markdown(
             Cell::Measured { .. } => format!("{}<br>*{}*", md_escape(&ex.render()), md_escape(ex.note())),
             _ => md_escape(&ex.render()),
         };
+        // **THIS CELL USED TO BE THE LITERAL STRING `ported RESIDUE`, ON ALL TEN
+        // ROWS, WHATEVER THE ROW SAID.** `w-submetric` hard-coded it when every
+        // row really was a residue; `w-encmap` then measured `encode` at 27/79
+        // and the tuple table went on printing RESIDUE beside a §4 that said
+        // *"encode is measured: 27 of 79 arms"* — the two sections of one
+        // generated file disagreeing, with the machine-readable keys siding
+        // with §4. No control could see it: every control here fabricates a
+        // NUMBER, and this fabricated a WORD. Repaired by lane `w-secported`
+        // (`#3665`) in the commit that added the second measured row, because
+        // shipping a second one under the same bug would have hidden it twice.
+        // A Residue keeps its one-word cell and its reason stays in §4's list —
+        // pasting the whole sentence into a table column is what §4 exists to
+        // avoid. A Measured cell prints its number AND its denominator, which
+        // is this file's first rule.
+        let ported_cell = match &sub.ported {
+            Cell::Measured { .. } => format!("**ported {}**", md_escape(&sub.ported.render())),
+            Cell::Residue(_) => "**ported RESIDUE**".to_string(),
+            Cell::Pending(_) => "**ported PENDING**".to_string(),
+        };
         let _ = writeln!(
             m,
-            "| **{}**<br>`{}` | [`{}`]({}) | **{} sites** ({})<br>⊇ **read {}** ({})<br>⊇ **ported RESIDUE**{} | {} | {} | CITED `#3534` |",
+            "| **{}**<br>`{}` | [`{}`]({}) | **{} sites** ({})<br>⊇ **read {}** ({})<br>⊇ {}{} | {} | {} | CITED `#3534` |",
             sub.title,
             sub.key,
             sub.page,
@@ -2112,6 +2151,7 @@ fn markdown(
             md_escape(sub.sites_unit),
             commas(sub.read),
             md_escape(sub.read_unit),
+            ported_cell,
             second,
             agree,
             ex_cell,
@@ -2120,11 +2160,12 @@ fn markdown(
 
     let _ = writeln!(
         m,
-        "\n## 4. `ported` — one row measured, nine still residue\n\n\
+        "\n## 4. `ported` — two rows measured, eight still residue\n\n\
          Decision 15 asks strength 1 for *\"how many the port implements\"*. Lane\n\
          `w-submetric` shipped it as a **named residue on all ten rows** (`#3617`),\n\
          because no port↔image site map existed. Lane `w-encmap` (`#3636`–`#3641`,\n\
-         decision 16) converted the cheapest one.\n\n\
+         decision 16) converted the cheapest one; lane `w-secported`\n\
+         (`#3661`–`#3666`, decision 17) converted the second.\n\n\
          **`encode` is measured: 27 of 79 arms.** The predicate is\n\
          `subsys::recount_encode_ported` and it is **recomputed on every run and\n\
          every `cargo test`** from `ENCODE_ARMS.txt` × `c2_core::codegen::mop`'s\n\
@@ -2133,17 +2174,34 @@ fn markdown(
          arms and the choice is published rather than silent** — see the caveat in\n\
          §3, which also carries the strict (25) and plan-only (28) readings and the\n\
          shape of the 52 unmapped.\n\n\
-         **The other nine stay residue and the reason is structural, not a gap**: the\n\
+         **`section` is measured: 1 of 15 live `.gl` record-dispatcher arms.** The\n\
+         predicate is `subsys::recount_section_ported`, recomputed from\n\
+         `work/w-secported/GLREC_ARMS.tsv` (decoded from the pinned image) × a scan\n\
+         of `crates/` outside this crate, and a fabrication is caught by\n\
+         `control_a_fabricated_section_ported_is_caught`. **Its denominator is\n\
+         published with four rivals**, and the first thing it corrects is a phrase\n\
+         this file itself used to print: **there are not 27 arms.** 27 is a count of\n\
+         TAG VALUES; they index 16 jump slots, one of which is the fatal `C1001`\n\
+         path serving eight tags. The population is **15 live handlers over 19 live\n\
+         tags plus one refusal over 8** — `P_SECTION.md` §7.\n\n\
+         **THE PROPERTY THAT MAKES A ROW CONVERTIBLE IS NOT \"ITS SITES ARE\n\
+         RULES\".** `#3636` named that property and `#3661` tested it on the only\n\
+         other row it predicted for. What both convertible rows actually share is a\n\
+         **key the port carries on its own side**: an encode-form number, adopted\n\
+         from c2's table under `DISCLOSURE.md` W-MOP-2, and a `.gl` arm address,\n\
+         adopted under W-ALIAS-1. Where no adoption exists there is nothing to join\n\
+         on, and `P_SECTION.md` §7.4 makes that concrete — the port implements the\n\
+         alignment-nibble ladder and the `.bss` reversal rule, **derived black-box\n\
+         and citing nothing**, so on a site unit an address grep scores them 0 where\n\
+         the honest answer is 1. **The two rules agree with c2 and are joinable to\n\
+         it by nothing.**\n\n\
+         **The other eight stay residue and the reason is structural, not a gap**: the\n\
          port is **I/O-behavioral by construction** (`CLAUDE.md`'s one correctness\n\
          rule — AVX, restructured CFGs, anything, so long as the *output obj*\n\
          matches), so *\"the port implements site `0x10b2e7f8`\"* has no truth value\n\
-         for most of these addresses. The encoder is the exception precisely because\n\
-         its sites are **rules** rather than code: an arm IS a field-placement rule,\n\
-         the port transcribed those rules into `mop::plan`, and \"does the port have\n\
-         this arm's rule\" is therefore a question with an answer. **A row where the\n\
-         question is not well formed keeps its residue rather than getting an\n\
-         invented number**, and `verify` refuses a `ported` number that nothing can\n\
-         recount.\n\n\
+         for most of these addresses. **A row where the question is not well formed\n\
+         keeps its residue rather than getting an invented number**, and `verify`\n\
+         refuses a `ported` number that nothing can recount.\n\n\
          Per residue row, with the reason rather than a blank:\n"
     );
     for sub in table.iter() {
@@ -2154,9 +2212,12 @@ fn markdown(
 
     let _ = writeln!(m, "\n## 5. Where `SUBSYS.md` §1's own cell needs reading twice\n\n\
          Found by re-measuring every denominator on this tree rather than carrying it.\n\
-         **None of these is corrected here** — `SUBSYS.md` and the `P_*.md` pages are\n\
-         not this lane's to edit, and a disagreement recorded beside a page beats a\n\
-         silent rewrite of it (`#3538`'s rule).\n");
+         **None of these is corrected here, and that is a rule rather than a fence** —\n\
+         a disagreement recorded beside a page beats a silent rewrite of it\n\
+         (`#3538`). It held even where a lane DID own the page: `w-secported` owns\n\
+         `P_SECTION.md`, found its coverage line unreproducible under all three\n\
+         readings of its own table and wrong from the file's first commit, and left\n\
+         the line as written with the amendment beside it at §7.5.\n");
     let mut any = false;
     for sub in table.iter() {
         if !sub.subsys_cell_note.is_empty() {
@@ -2232,7 +2293,7 @@ fn markdown(
     let _ = writeln!(
         m,
         "\n### 8.1 The controls, and that they were watched failing\n\n\
-         `#3336`: **a control never seen failing is decoration.** Six fabrications\n\
+         `#3336`: **a control never seen failing is decoration.** Seven fabrications\n\
          run on every `cargo test -p c2-harness --lib subsys`, each asserting the\n\
          verifier *refuses*, and each pinned to the check that must own the refusal so\n\
          a case cannot pass by being caught for the wrong reason:\n\n\
@@ -2242,15 +2303,30 @@ fn markdown(
          | `control_an_empty_residue_is_caught` | `dag`'s `ported` residue set to `\"   \"` | the no-silence check |\n\
          | `control_a_moved_coverage_line_is_caught` | `P_COFF`'s probe pointed at a line that is not on the page | the verbatim probe |\n\
          | `control_a_fabricated_ported_is_caught` | `encode`'s `ported` `27` → `28` | the `ENCODE_ARMS.txt` × `mop` recount |\n\
-         | `control_a_ported_number_with_no_recount_is_caught` | a number typed into `coff`'s `ported`, which has no recount | the recount-or-residue rule |\n\n\
-         **The two `ported` controls were watched failing against the SHIPPED table,\n\
-         not only against a copy** (lane `w-encmap`): editing the real cell `27` →\n\
-         `28` reddens four tests with\n\
+         | `control_a_ported_number_with_no_recount_is_caught` | a number typed into `coff`'s `ported`, which has no recount | the recount-or-residue rule |\n\
+         | `control_a_fabricated_section_ported_is_caught` | `section`'s `ported` `1` → `2` | the `GLREC_ARMS.tsv` × `crates/` scan |\n\n\
+         **Every `ported` control was watched failing against the SHIPPED table,\n\
+         not only against a copy** (lanes `w-encmap`, `w-secported`): editing the real\n\
+         `encode` cell `27` → `28` reddens four tests with\n\
          `encode: ported DOES NOT REPRODUCE — table says 28/79, the tree gives 27/79`,\n\
          and deleting the `OPCODES` half of `port_reaches_form` reddens five,\n\
          including `the_three_ported_readings_are_distinct` (`published` collapses\n\
-         onto `planned` at 28). A recount that only ever grades a mutated copy is a\n\
+         onto `planned` at 28). Editing the real `section` cell `1` → `2` likewise\n\
+         reddens four with `section: ported DOES NOT REPRODUCE — table says 2/15, the\n\
+         tree gives 1/15`. A recount that only ever grades a mutated copy is a\n\
          recount that has never been shown to bind the number the doc prints.\n\n\
+         **Two further checks are not fabrications and are worth naming separately.**\n\
+         `the_section_ported_arm_is_the_one_the_port_actually_decodes` pins *which*\n\
+         arm the numerator found — a count that is right for the wrong reason is\n\
+         `#3336`'s other failure — and pins the dispatcher's shape (27 tags, 16\n\
+         slots, 15 live arms, 19 live tags, 8 fatal) so a re-dump that disagrees\n\
+         reddens instead of shipping a moved denominator quietly.\n\
+         `the_observer_crate_cannot_move_its_own_ported` is **`#3641`'s family, caught\n\
+         by construction rather than by review**: the `section` numerator is a scan of\n\
+         source text for arm addresses, and `subsys.rs` must name those addresses to\n\
+         explain itself — so the scan excludes its own crate. **The hazard was\n\
+         measured, not assumed**: disabling that one exclusion moves the shipped\n\
+         number from `1/15` to `2/15`.\n\n\
          And `scripts/subsys_metrics.sh --self-test` drives the **binary** against\n\
          three deliberately corrupted copies of the reference index — a function moved\n\
          out of the inliner band, `P_EH.md`'s coverage line edited, a subsystem\n\
@@ -2258,7 +2334,18 @@ fn markdown(
          each mutation applied first, because a `sed` that matched nothing leaves a\n\
          clean copy and the case then \"passes\" by testing the control twice\n\
          (`#3516`'s mutation-not-applied failure, named in the same words by\n\
-         `scripts/gate_identity_diff.sh --self-test`).\n"
+         `scripts/gate_identity_diff.sh --self-test`).\n\n\
+         **And one control is not a fabrication at all**, because the defect it\n\
+         guards is not a number.\n\
+         `control_a_measured_ported_must_reach_the_rendered_table` asserts that §3's\n\
+         own row carries each measured `ported`. That check did **not** exist while\n\
+         §3's cell was the hard-coded string `ported RESIDUE` on all ten rows — so\n\
+         for two waves this file printed `RESIDUE` in the table and *\"encode is\n\
+         measured: 27 of 79 arms\"* four paragraphs below it, with the\n\
+         machine-readable keys siding with the prose. **Every other control here\n\
+         fabricates a NUMBER; that defect fabricated a WORD**, which is the blind\n\
+         spot `#3641` and `#3643` also sit in. `#3665`, repaired and watched failing\n\
+         by restoring the literal.\n"
     );
 
     let _ = writeln!(
@@ -2534,6 +2621,51 @@ mod tests {
             Vec::<u32>::new(),
             "the metric crate's own mention of an arm was counted as a port decoder"
         );
+    }
+
+    /// **CONTROL 8 — THE RENDERED TABLE MUST CARRY EVERY MEASURED NUMBER.**
+    ///
+    /// `#3665`: §3's `ported` column was the hard-coded string `ported RESIDUE`
+    /// on all ten rows for two waves, so when `w-encmap` measured `encode` at
+    /// 27/79 the table went on printing RESIDUE beside a §4 that said the
+    /// opposite. **Every other control in this module fabricates a NUMBER; that
+    /// one fabricated a WORD**, and nothing here could see it — which is the
+    /// same blind spot `#3643` and `#3641` sit in.
+    ///
+    /// So this asserts the property rather than the string: for each measured
+    /// row, the rendered markdown carries its numerator, its denominator and
+    /// its key. Watched failing by reverting the cell to the literal.
+    #[test]
+    fn control_a_measured_ported_must_reach_the_rendered_table() {
+        let r = render(&root(), None, SUBSYSTEMS);
+        let measured: Vec<&Subsystem> = SUBSYSTEMS
+            .iter()
+            .filter(|s| matches!(s.ported, Cell::Measured { .. }))
+            .collect();
+        assert_eq!(measured.len(), 2, "encode and section are measured");
+        // §3's tuple table is everything between its heading and §4's.
+        let table = r
+            .markdown
+            .split("## 3. The tuple table")
+            .nth(1)
+            .and_then(|s| s.split("## 4. ").next())
+            .expect("§3 exists");
+        for sub in measured {
+            let (num, den) = match sub.ported {
+                Cell::Measured { num, den, .. } => (num, den),
+                _ => unreachable!(),
+            };
+            let row = table
+                .lines()
+                .find(|l| l.contains(&format!("`{}` |", sub.key)))
+                .unwrap_or_else(|| panic!("no §3 row for {}", sub.key));
+            assert!(
+                row.contains(&format!("ported {num} / {den}")),
+                "{}: §3 does not carry the measured ported {num}/{den} -- \
+                 the tuple table and §4 disagree, which is #3665: {row}",
+                sub.key
+            );
+        }
     }
 
     /// The `ported` predicate is **not** vacuous: the three readings it

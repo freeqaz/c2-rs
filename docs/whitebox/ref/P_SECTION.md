@@ -235,3 +235,188 @@ with the right diagnosis — it was fitting a **c2** hash to a **c1xx** artefact
   `low`; start at `0x10b9be72`.
 * **c1xx's zero-initializer folding** — asserted, **not verified**, and it is a
   c1xx fact.
+
+---
+
+## 7. The `.gl` record dispatcher's ARMS, and the port map over them
+
+**Lane `w-secported`, 2026-08-26, boards `#3661`–`#3666`.** Funded by
+[`../../DECISIONS_2026-08-22.md`](../../DECISIONS_2026-08-22.md) § Decision 17.
+
+> **THIS SECTION USES NO EVIDENCE-MARK TOKENS AND THAT IS DELIBERATE.**
+> Board `#3641`: `subsys.rs`'s `count_marks` counts every literal bracketed
+> `R`/`O`/`I` after a page's first `---`, and it cannot tell an annotation
+> from a sentence *about* one — so `w-encmap` moved the encoder's own
+> agreement census from 9/28 to 13/34 by writing four sentences that
+> mentioned the legend. Everything below says **read-tier** or
+> **obj-checked** in words instead, so this section carries **zero** counted
+> tokens by construction and the section row's census is unmoved by it.
+> Measured across this edit: `section-marks-obj` **17 → 17**,
+> `section-marks-total` **53 → 53**.
+
+### 7.1 The population — and there are not 27 arms
+
+§1's row for `0x10b9b8e9` records a *"byte-index table `0x10b9c615` (27
+entries), jump table `0x10b9c5d5` (16)"*, and `labels/W-GLREC.tsv` records the
+same. **Neither committed the table contents**, so the arm population had
+never been enumerated in this tree, and everything downstream — including
+this row's own former residue and Decision 17's brief — described it as *"the
+27-arm dispatcher"*.
+
+Re-derived from the pinned image (`work/w-secported/dump_glrec.py`, sha256
+`c80981c0…a66258`, decoding every table address and bound from the operand
+bytes at the dispatch head `0x10b9b922` so nothing carried can survive):
+
+| claim in this tree | verdict |
+|---|---|
+| byte-index table `0x10b9c615`, 27 entries | reproduces |
+| jump table `0x10b9c5d5`, 16 entries | reproduces |
+| fatal arm `0x10b9c5ca` (§1) | reproduces |
+| `W-GLREC.tsv`: `byteidx[0x04] == byteidx[0x0E] == byteidx[0x10]` | reproduces (all slot 2) |
+| **"27 arms"** | **DOES NOT REPRODUCE** |
+
+**27 is a count of TAG VALUES, not of arms.** `dec eax; cmp eax,0x1a; ja`
+bounds the tag at `0x01 … 0x1B` — 27 values — which index a 27-entry byte
+table into **16** jump slots. **One of those sixteen slots is the fatal path**
+`0x10b9c5ca` (`mov edx,0x7ba; jmp`, the `C1001 … p2symtab.c, line 1978` §1
+already records), and it serves **eight** tags. So:
+
+> **15 live record handlers over 19 live tags, plus one refusal over 8.**
+> Calling it 27 arms overstates the handler population by **1.8×**.
+
+Committed enumeration: [`../../../work/w-secported/GLREC_ARMS.tsv`](../../../work/w-secported/GLREC_ARMS.tsv).
+
+| arm | extent (B) | tags | tags served | port |
+|---|---:|---:|---|---|
+| `0x10b9b945` | 1016 | 3 | `0x01` `0x02` `0x1A` | — |
+| `0x10b9bd3d` | 146 | 1 | `0x03` | — |
+| **`0x10b9bdcf`** | 667 | 3 | `0x04` `0x0E` `0x10` | **`c2_il::func::glalias`**, `DISCLOSURE` **W-ALIAS-1** |
+| `0x10b9c06a` | 104 | 1 | `0x05` | — |
+| `0x10b9c0d2` | 177 | 1 | `0x07` | — |
+| `0x10b9c183` | 143 | 1 | `0x08` | — |
+| **`0x10b9c212`** | 143 | 1 | **`0x09` — the SECTION DEFINITION record** | **—** |
+| `0x10b9c2a1` | 122 | 1 | `0x0B` (undecorated name — `glalias.rs`'s own note) | — |
+| `0x10b9c31b` | 27 | 1 | `0x0D` | — |
+| `0x10b9c336` | 124 | 1 | `0x12` | — |
+| `0x10b9c3b2` | 146 | 1 | `0x0A` | — |
+| `0x10b9c444` | 26 | 1 | `0x06` | — |
+| `0x10b9c45e` | 261 | 1 | `0x19` | — |
+| `0x10b9c563` | 30 | 1 | `0x18` | — |
+| `0x10b9c581` | 73 | 1 | `0x1B` | — |
+| `0x10b9c5ca` | 11 | **8** | `0x0C` `0x0F` `0x11` `0x13` `0x14` `0x15` `0x16` `0x17` — **fatal** | n/a |
+
+**Only the arm's tag routing and extent are read here.** Thirteen of the
+fifteen live arms have **no semantics in this tree at all** — the tag values
+they serve are known and their bodies are not. That is the honest state, and
+it is the largest single unread block the section subsystem owns.
+
+### 7.2 `ported` = **1 of 15**, and the load-bearing half is the 14
+
+The metric is `subsys-metric section-ported 1` / `section-ported-den 15`,
+recomputed on every `cargo test` by `subsys::recount_section_ported`.
+
+**The one**: `0x10b9bdcf`, the shared tag-`0x04`/`0x0E`/`0x10` handler,
+decoded by `crates/c2-il/src/func/glalias.rs` under `DISCLOSURE.md`
+**W-ALIAS-1** and **W-ALIAS-2**, with `W-OBJPLAN-1` (the emit-seed bit `0x20`
+at `sym+0x4c`) and `W-STAGETAP-6` (the name route through `0x10b99dfe`)
+landing on the same handler and on §1's name formatter. **All three adopted
+rows in this subsystem sit on two of the twenty-five §1 entries.**
+
+**The fourteen, named** — this is the residue, and it is worth more than the
+ratio:
+
+1. **`0x10b9c212`, tag `0x09`, the section-definition record.** §3 reads all
+   six of its fields and obj-checks **every one** by mutating real `.gl`
+   bytes. **The port does not read it.** It carries seventeen fully-resolved
+   `(name, Characteristics)` constants — `CH_TEXT`, `CH_BSS_BASE`,
+   `CH_CRT_XCU`, `CH_DRECTVE`, `CH_DEBUGS`, `CH_XBLD_C1/C2`, … — where c2 has
+   an IL-borne name, an IL-borne kind, an IL-borne override, a kind switch
+   (`0x10b982d6`), a remapper (`0x10be7727`), a base resolver (`0x10be76d4`)
+   and an alignment chooser (`0x10be77a3`). **The port's section model is the
+   OUTPUT of c2's section model, tabulated.** That is the single most
+   consequential sentence on this page for anyone pricing goal (2): every
+   section name the port can emit is one somebody measured, and a TU whose IL
+   names a section outside that set has no path through the port at all.
+2. **`0x10b9b945` (tags `0x01`/`0x02`/`0x1A`).** `glalias.rs` names `0x01`
+   and `0x02` as `KIND1_TAGS`, but as **pattern locators to step past**, not
+   as a decode — and it names `0x1A` nowhere. Uncited, unported.
+3. **The twelve remaining live arms** — `0x10b9bd3d` `0x10b9c06a`
+   `0x10b9c0d2` `0x10b9c183` `0x10b9c2a1` `0x10b9c31b` `0x10b9c336`
+   `0x10b9c3b2` `0x10b9c444` `0x10b9c45e` `0x10b9c563` `0x10b9c581` — of
+   which this tree knows **only the tag each serves**.
+
+**The port has no `.gl` record-stream decoder.** `c2_il::func::gl` — 227 KB,
+the largest reader in the workspace — scans name runs and TYPE tags and
+**never consumes a record tag**. `glalias` is the only module that decodes a
+record *grammar*. That is why the citation predicate and the behavioural
+reading agree on 15 of 15 cells here, and the agreement was checked rather
+than assumed.
+
+### 7.3 The denominator, chosen out loud
+
+`w-encmap` found the encoder had three defensible denominators up to 5.6×
+apart. This row has five. All were measured on this tree; the choice is the
+first and the reason is beside it.
+
+| # | denominator | measured | why not chosen |
+|---|---|---:|---|
+| **A** | **live dispatcher arms** | **15** | **CHOSEN** |
+| B | arms including the refusal | 16 | a port that also refuses agrees with c2 by doing nothing; counting a refusal as an implemented site drifts the number upward for free, and `../../PROGRESS_METRIC.md` runs the other way |
+| C | tag values | 27 (19 live) | the port names 5 (`0x01` `0x02` `0x04` `0x0E` `0x10`), **three of them as locators rather than decoders**, so the numerator would be 5 or 2 depending on a distinction the unit cannot express |
+| D | this page's read entries | 25 rows / 22 entries / 20 in-band | **an address grep gives 2 and is WRONG** — see §7.4 |
+| E | the band / the TU attribution | 137 / 327 | the port maps onto neither; this is the row's `sites`, a different population |
+
+**The containment survives the unit change.** All fifteen arms live *inside*
+`0x10b9b8e9`, which is one of this page's read entries, which is one of the
+137 band sites. So `sites ⊇ read ⊇ ported` holds as a containment of **site
+sets**; the three *counts* are in three granularities and their **ratios must
+not be compared**. That is a strictly better-formed containment than the
+`encode` row's, where `read` (79 arms) exceeds `sites` (14 functions).
+
+### 7.4 Why the ENTRY unit was rejected — two rules the port implements and cites nothing for
+
+A citation predicate normally measures documentation discipline rather than
+implementation. On the arm unit that objection was tested and came back zero.
+**On the entry unit it is real, and here are the two cases:**
+
+| rule | where the port has it | cites |
+|---|---|---|
+| §2 step 3 — the alignment nibble, `log2(a) + 1` over a `1 … 0x2000` ladder (`0x10b28261`) | `c2_core::coff::container::align_nibble` | **nothing** — fitted from `../../OBJ_DYNINIT_SHAPE.md` §4.2 |
+| §5 — `.bss` ascending address is the reverse of `.gl` record order for dyninit objects (`0x10b99093`) | `c2_core::coff::data`, Rule Y1 / A3 | **nothing** — §5 itself records it as *"independently confirmed black-box by lane `w-bss` from the IL alone"* |
+
+Both were derived **black-box and only afterwards found to agree with the
+read**. An address grep over the twenty-five entries scores **2** where the
+honest answer on those two cells is **1** each. **The entry unit is therefore
+not a denominator this page will defend**, and it is published as a rival
+reading rather than suppressed.
+
+This is also the sharper form of a claim `#3617` made and `#3636` refuted.
+`#3617` said `ported` was ill-formed because the port is I/O-behavioral;
+`#3636` answered that *how* a port function was obtained has no bearing on
+whether it lands on an arm. **Both are right, on different units.** On the
+arm unit `#3636` holds. On the rule unit `#3617` holds, and §7.4 is the
+measurement that shows it: two rules obtained black-box, agreeing with the
+read, joinable to it by nothing.
+
+### 7.5 This page's own coverage line does not reproduce, and never did
+
+The banner reads **`24 entries against a denominator of 137`**. Recounted on
+this tree:
+
+| reading | count |
+|---|---:|
+| rows in §1's table | **25** |
+| of those, addresses that are Ghidra function entries | **22** (three — `0x10b9bdcf`, `0x10b9c212`, `0x10b9c5ca` — are addresses *inside* `0x10b9b8e9`, and §1 says so) |
+| of those, entries inside the two bands that give the 137 | **20** (`0x10b805b3` is `misc.c`, `0x10c27b56` is `smdmisc.c`) |
+
+**24 reproduces under none of them**, and `git log -S` puts the line at
+**25 rows in the file's first commit** — so it was wrong when it was written,
+not rotted since. Same family as `#3643` (`mop.rs`'s *"71 of c2's 660 rows"*
+against a true 85, also wrong from the file's first commit), which is the
+defect class lane `w-provaudit` is building an instrument for this wave.
+
+**The line is left as written.** `subsys.rs` verifies it verbatim as the
+`section` row's `den_probe`, and the standing convention here (§5's own
+retraction is the model) is that an amendment stands *beside* the original
+reading rather than replacing it. `subsys-metric section-read 24` is
+therefore a **carried page figure that this page now flags**, not a recount.
