@@ -614,3 +614,83 @@ only genuinely **unexercisable** rows — `/GL` and `profile-guided` appear in
 
 **An unexercisable cell is not a covered one, and neither is an unexercised
 one.** Nine of twenty-four is what this workload can grade.
+
+### 6.5 The ONE read this lane took `[R]` — `FUN_10b5fb5f` end to end, and it discharges an open half of §2.1's correction
+
+**Read-before-probe** (`WHITEBOX_LEVERAGE_2026-08-21.md`), priced before it was
+taken (`work/w-inlmetric/read_price.txt`). The band's unread remainder is **80
+functions / 22,840 B — 3.4× the bytes already read** — and this lane did **not**
+enter it. What it read instead is the **whole of `FUN_10b5fb5f`**, 377 B, a
+function already inside the read 13, of which §2.1 had quoted seven lines.
+Image `sha256 c80981c0…a66258`, verified. Listing:
+`work/w-inlmetric/FUN_10b5fb5f.asm`.
+
+> #### The finding: **§2.1's `0x2000` `__forceinline` mask DOES carry. It is `edi`.**
+>
+> §2.1's CORRECTION block closes with *"the `0x2000` `__forceinline` mask does
+> not carry as written — the mask at `0x10b5fcc1` is `0x2080`, and the test at
+> `0x10b5fc92` is against a mask held in `edi` rather than an immediate."*
+> **`edi` is named now:**
+>
+> ```
+> 10b5fc31:  bf 00 20 00 00     mov    edi,0x2000        <- THE MASK, materialised
+> 10b5fc36:  85 df              test   edi,ebx           <- ebx = [sym+0x4c]
+> ...
+> 10b5fc92:  8b 46 4c           mov    eax,DWORD PTR [esi+0x4c]
+> 10b5fc95:  85 c7              test   edi,eax           <- __forceinline, edi still 0x2000
+> ```
+>
+> `edi` is callee-saved and nothing between the two writes it. So the
+> **original** §2.1 block's reading — *"`test DWORD [sym+0x4c], 0x2000` —
+> `__forceinline`: bypass"* — was **right in substance** and wrong only in its
+> address and its encoding. `w-sizebracket` retracted the address correctly and
+> could not settle the mask; this settles it. **Two of the three things the
+> correction put in doubt now carry, and the third (`0x2080` at `0x10b5fcc1`) is
+> a genuinely different test on a different path.**
+
+**Four more things the full read establishes, each `[R]` and none adopted:**
+
+1. **The legality function is CALLED FROM CANDIDACY, and the edge is now read.**
+   `0x10b5fc13: call 0x10b5c06b`, immediately followed by `test eax,eax` / `je`
+   to the `return 0` arm. §1 lists `0x10b5c06b` as its own row without stating
+   which caller reaches it; C11–C13 are therefore **inside** C8's function, not
+   beside it.
+
+2. **`ebx` holds `[sym+0x4c]` across the whole middle of the function**
+   (`0x10b5fbf9: mov ebx,[esi+0x4c]`), and **at least five distinct bits of it
+   are tested**: `0x10` (`0x10b5fbfc`), `0x100` (`0x10b5fc25`), `0x2000`
+   (`0x10b5fc36`), `0x200` (`0x10b5fc3a`), then `0x2` and `0x10` of the low byte
+   again at `0x10b5fca9`/`0x10b5fcb5`, and `0x2080` at `0x10b5fcc1`. **§1's
+   legality row names `0x200` as a refusal bit at `0x10b5c06b`; it is tested a
+   second time here, on a different path, to a different end.**
+
+3. **`ds:0x10c3de20` is a THREE-VALUED selector and it is tested three times** —
+   against `1` at `0x10b5fbde` and against `2` at `0x10b5fc4c` and `0x10b5fc69`
+   — and the `== 2` arms call `0x10b9e796` with the string pointer `0x10b02588`
+   and `0x10b9cae6`. A diagnostic/verbosity or `/Ob`-level selector is the
+   obvious hypothesis and **this page does not claim it**; no cell has moved it.
+
+4. **THERE IS NO LINKAGE ARM IN THE CANDIDACY FUNCTION — a negative result, and
+   it narrows §5.** §5 says of the `16 << k` gap: *"something between the two,
+   most plausibly **the linkage arm** and the `[sym+0x50]`-vs-emitted-size gap,
+   is unread."* All 377 bytes are now read and **no storage-class or linkage
+   field is tested anywhere in them.** Whatever produces `INLINE_PREDICATE.md`
+   §6.17.3's measured STATIC/EXTERNAL split, it is not a branch in the function
+   that owns the size test. **One of §5's two named candidates is eliminated;
+   the other — the `[sym+0x50]`-vs-emitted-size gap — is untouched and is
+   independently corroborated by §2.1b.**
+
+**Fields this page had never named appear here and are NOT pursued:**
+`[sym+0x94] & 0x400` (`0x10b5fbe7`), `[sym+0x90]` (`0x10b5fbf3`, `0x10b5fba7`),
+`[sym+0x80]` (`0x10b5fca1` — §1 names it as the POGO profile record), and the
+option globals `0x10c2e308`, `0x10c2eab0`, `0x10c2eaac`. Naming them is the
+whole of what this lane does with them.
+
+> **THE TABLE IN §6.1 IS NOT GROWN BY THIS READ, DELIBERATELY.** `PREREG.md` §5
+> fixes the clause list before any measurement, and at least three clauses above
+> (`[sym+0x4c] & 0x10` gating `[ebp+0xc] & 0xf00`, the second `0x200` test, the
+> `0x10c3de20` selector) would be new rows. Adding rows discovered *after* the
+> split was predicted is fitting the instrument to its own result. They are
+> filed as a **named follow-up** in
+> [`../../rungs/2026-08-26-w-inlmetric.md`](../../rungs/2026-08-26-w-inlmetric.md)
+> §8 instead, for a lane that pre-registers them.
