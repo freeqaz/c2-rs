@@ -922,3 +922,94 @@ any repair of the emit-set ceiling predicate (`#3577`); the
 Next free `#3635`.
 
 **Nothing further is waiting on the owner.**
+
+## Decision 16 — wave 14: the four follow-ups wave 13 named are funded as three lanes (2026-08-26)
+
+**Asked and answered in one turn.** Wave 13 built decision 15's instruments
+and each lane named what it deliberately did not take. The owner's
+instruction was to do these now. **All four items are funded, as three
+lanes** — items 3 and 4 are one lane because they share a fact (the census
+and its tagged population), and two lanes building readers over one quantity
+is this repo's most-recorded silent merge failure.
+
+**Nothing here relaxes the correctness rule**, and nothing here widens
+emission. Every lane touching `crates/` carries a **required-zero byte
+delta** graded by `scripts/gate_identity_diff.sh` over the 21 count-bearing
+rows. Decision 15's frame is unchanged: these are per-subsystem progress
+instruments, published beside FBM under `FUNCTION_BYTE_MATCH.md` §0, never
+in `gate.sh`, licensing no emit.
+
+### The three lanes
+
+| lane | kind | the question it must answer | why now |
+|---|---|---|---|
+| `w-encmap` | characterization + construct | **Convert `ported` from residue to a number on the encoder row** — the cheapest single conversion `w-submetric` named (`#3617`). The enumeration: for each of the **79 arms** / **111 jump-table entries**, which port function composes that form, and which arms nothing implements. **First, adjudicate a possible duplicate reader**: `encode.rs`'s module doc still declares itself *"a black-box re-derivation … nothing here changes"* while `mop.rs` now carries `OPCODES` (base words `0x10c3a578`, forms `0x10c39b18`) tagged `PROV[R]`. Are these two encoders for one fact? **`#3634`'s claim that the black-box re-derivation was "retired" is a CENSUS-of-CONSTANTS reading and may be an over-read of the functions** — the lane adjudicates and corrects whichever side is wrong | `ported` is the strength decision 15 named first and no instrument could reach; the encoder is the best-read subsystem, so it is where the map is cheapest — and the duplicate-reader question is a live correctness hazard, not bookkeeping |
+| `w-disclose` | characterization | **File the missing ledger rows** `#3632` found and deliberately did not repair: `codegen/mop.rs`'s **88** read constants on the emit path (c2's opcode indices `0x10b1b260`, base words `0x10c3a578`, forms `0x10c39b18`, field placements) and `EX_CLASS_TABLE = 0x10b25e48`. **`mop.rs`'s module doc asserts DISCLOSURE carries these rows; it does not** — that is a false provenance claim in the file that holds the port's only source of a primary opcode | filing a row is an **adoption decision** and moves `ref/README.md`, which is why the census lane correctly stopped. It is the highest-value hole in the provenance record: the constants nearest the judge are the ones with no ledger |
+| `w-provext` | instrument | **Two halves of one fact.** (a) `--since <sha>` two-tree diff mode for `provenance_census.py`, so the **tracked signal is the CHANGE per module**, which is what decision 15 says is the signal and what the tool cannot currently print. (b) Extend tagging to the residue the wave left: `c2-il/src/func/**` (**290**), `c2-obj/src` (**43**), `c2-harness/**` (**214**, fenced to a peer last wave) | the census reads a LEVEL and the goal tracks a DELTA; and `c2-il`'s decode vocabulary is where `[F]` should actually live — the census found `[R]` beating `[F]` 100 to 4 and read that as the instrument measuring its own 18 % coverage |
+
+### Concurrency fences — writing is fenced, reading is not
+
+`w-encmap` owns **`docs/whitebox/ref/P_ENCODE.md`**,
+**`crates/c2-harness/src/subsys.rs`** + **`src/cli/subsys.rs`**,
+**`docs/SUBSYS_METRICS.md`**, `scripts/subsys_metrics.sh`, and
+`work/w-encmap/**`. `w-disclose` owns **`docs/whitebox/DISCLOSURE.md`**,
+**`docs/whitebox/ref/README.md`**, comment-only edits in
+**`crates/c2-core/src/codegen/**`**, and `work/w-disclose/**`.
+`w-provext` owns **`scripts/provenance_census.py`**, comment-only edits in
+**`crates/c2-il/**`**, **`crates/c2-obj/**`** and **`crates/c2-harness/**`
+EXCEPT `subsys.rs` and `cli/subsys.rs`**, the committed census snapshot, and
+`work/w-provext/**`.
+
+**Three shared facts are named, because file-ownership deconfliction is
+necessary and NOT sufficient here — it has failed three times:**
+
+1. **The `PROV[X]` marker convention** is `w-provext`'s to apply and
+   `w-disclose`'s to cite. Neither may change its grammar. A change to
+   `MARK_RE` is a STOP-and-report.
+2. **The DISCLOSURE row namespace** is `w-disclose`'s alone. `w-provext`
+   tags may cite existing rows and may **not** mint new ones.
+3. **The census counts.** `w-provext` will move every per-module number.
+   Its `--since` tests must therefore pin **planted-fixture** counts or
+   invariants, **never live per-module tree counts** — a peer's tagging must
+   not be able to redden them. `w-encmap` must not add a second provenance
+   or census reader of any kind.
+
+A lane that needs a peer's surface **STOPS and reports** rather than
+resolving it.
+
+### What every lane is told, and what none of them may do
+
+- **Prereg first, committed before the first measurement**, graded honestly
+  at the end; a MISS is said in that word.
+- **Read-before-probe** stands. **And check the read index's ALREADY-READ
+  half, not just the todo half** — a wave-12 lane was funded to take a read
+  that had already been taken four times.
+- **Grep every board row number this brief cites** before writing prereg;
+  corrections live in rows that *cite* the row they correct.
+- **No lane widens emission.** Required-zero byte delta on the 21 rows for
+  anything touching `crates/`, including comment-only edits.
+- **Re-measure every denominator on your own tree** with the stamp beside
+  it; the coordinator has NOT verified the figures in these briefs. The
+  79 / 111 / 88 / 290 / 43 / 214 numbers are all quoted from other lanes'
+  reports and are the lane's to confirm or correct.
+- **Read the gate's verdict line, never the exit code**; run it detached
+  (it exceeds the 600 s cap) and never commit while one runs.
+- **A lane that produced none of its deliverable says `FAILED`** in those
+  words; a priced `declined` is legitimate.
+
+### Deliberately not dispatched
+
+`FUNCTION_BYTE_MATCH.md` §0's sixth-gradient cross-link box — named by
+`w-submetric` as outside every fence, and it stays outside this wave's too;
+it needs an owner, not a squeeze. Also not funded: `P_LABEL`'s unreproducible
+`25`; `build_ref.py`'s missing `PAGE_SUBSYS` entries; the `c2rs subsys` EPIPE
+cosmetic; `codegen/**`'s 205 untagged per-fixture register numbers (expect
+`[O]`, expect tedium — it is volume, not a question); the emit-set ceiling
+predicate repair (`#3577`); the `expr_sweep` pin-by-name lane (`#3614`).
+**Phase 1 stays HELD.**
+
+**Board:** `#3635` this decision · `#3636`–`#3641` `w-encmap` ·
+`#3642`–`#3647` `w-disclose` · `#3648`–`#3653` `w-provext`.
+Next free `#3654`.
+
+**Nothing is waiting on the owner.**
