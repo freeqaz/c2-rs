@@ -3,6 +3,7 @@
 
 
 /// `.pdata` section characteristics: CNT_INIT_DATA | ALIGN_8 | MEM_READ.
+/// PROV[O] the bit names are PE/COFF; the composed word is c2's, transcribed from real objs.
 pub(crate) const CH_PDATA: u32 = 0x4040_0040;
 
 
@@ -28,10 +29,12 @@ pub struct Frame {
 
 /// `IMAGE_COMDAT_SELECT_ASSOCIATIVE` — the selection a per-function `.pdata`
 /// COMDAT carries under `/Gy`, tying it to its `.text` COMDAT.
+/// PROV[S] PE/COFF spec — `IMAGE_COMDAT_SELECT_ASSOCIATIVE` is 5. Not from c2.
 pub(crate) const COMDAT_SELECT_ASSOCIATIVE: u8 = 5;
 
 /// `.pdata` COMDAT characteristics under `/Gy`: [`CH_PDATA`] plus
 /// `IMAGE_SCN_LNK_COMDAT` (0x1000).
+/// PROV[O] transcribed from real `/Gy` objs.
 pub(crate) const CH_PDATA_COMDAT: u32 = 0x4040_1040;
 
 /// Build the 8-byte X360 `RUNTIME_FUNCTION` for one framed function:
@@ -81,6 +84,7 @@ pub fn pdata_record(begin_addend: u32, frame: &Frame) -> [u8; 8] {
 /// Bit 30 of the unwind word — set in every record c2 emitted across every
 /// probe. Named rather than folded into a magic constant because bit 31 beside
 /// it is the EH flag, and the port refuses that case.
+/// PROV[O] set in every record c2 emitted across every probe (the doc above).
 pub(crate) const UNWIND_THIRTY_TWO_BIT: u32 = 0x4000_0000;
 
 /// The `.pdata` raw section for a run of framed functions, records concatenated

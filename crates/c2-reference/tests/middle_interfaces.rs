@@ -56,6 +56,7 @@ use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::stage::STAGE_SITES;
 use c2_reference::Toolchain;
 
+// PROV[N] a scratch-directory counter.
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// The workload's own profile is `/O1 /Oi /EHsc /GS- /c`; this lane uses the
@@ -63,6 +64,7 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 /// the profile under which `c2rs diff` reports `Port=Match` on both fixtures.
 /// Grading the tuple stream at one profile and the byte-exactness at another
 /// would be two measurements presented as one.
+/// PROV[N] a measurement configuration; its doc records WHY this profile and not the workload's.
 const FLAGS: [&str; 3] = ["/Ox", "/GS-", "/c"];
 
 // ---------------------------------------------------------------------------
@@ -77,15 +79,20 @@ const FLAGS: [&str; 3] = ["/Ox", "/GS-", "/c"];
 
 /// Mnemonic table: stride 12, `[+0] char* name`, `[+4] operand format`.
 /// `P_DAG.md` §2.1 named it; this lane pins its base and its `_last` sentinel.
+/// PROV[R] DISCLOSURE `W-MID-1` — table address `0x10b1b260`, read from `c2.dll`. No ENTRY is copied: the test reads the strings out of the pinned image at run time and refuses if four spot cells disagree.
 const MNEMONIC_TABLE: u32 = 0x10b1_b260;
+// PROV[R] DISCLOSURE `W-MID-1` — stride 12, fixed by the inline-asm name lookup's `imul eax,eax,0xc` at `0x10c00900`.
 const MNEMONIC_STRIDE: u32 = 12;
 /// Index of the `_last` sentinel — the last machine opcode is `0x294`.
+/// PROV[R] DISCLOSURE `W-MID-1` — the `_last` sentinel index, which is what fixes the machine opcode space at `0x001..0x294`. Corroborated three ways (`P_DAG.md` §2.1's independent 0-based agreement, the alphabetical PPC run 1..11, and W-MID-2's base words landing correctly at the same indices).
 const MNEMONIC_LAST: u32 = 0x295;
 /// Base-encoding table: stride 4, one 32-bit PPC word per machine opcode.
 /// Sole reader is the encoder `FUN_10bf9f15` @ `0x10bf9f3c`.
+/// PROV[R] DISCLOSURE `W-MID-2` — table address `0x10c3a578`, read at `0x10bf9f3c`, the sole reader in the image. Obj-confirmed on 9 words, 32 bits of 32; no entry is copied.
 const BASE_WORD_TABLE: u32 = 0x10c3_a578;
 /// Encode-form table: stride 4, the arm index the encoder dispatches on
 /// (`0x10bf9f43`, then `jmp [ (form-1)*4 + 0x10bfae2d ]`).
+/// PROV[R] DISCLOSURE `W-MID-2` — table address `0x10c39b18`, read at `0x10bf9f43`; `value - 1` indexes the 111-arm jump table at `0x10bfae2d`.
 const FORM_TABLE: u32 = 0x10c3_9b18;
 
 /// A loaded PE with a VA → file-offset map built from its own section table.
@@ -258,6 +265,7 @@ struct Operands {
     d: Vec<u32>,
 }
 
+// PROV[N] a sentinel for "no register in this list", chosen by the port. Not derived from anything.
 const ABSENT: u32 = 0xffff_ffff;
 
 impl Operands {
@@ -613,6 +621,7 @@ fn the_opcode_space_is_c2s_own_mnemonic_table() {
 ///
 /// Read from the image, never transcribed — the class byte for each opcode is
 /// `image[0x10b25e48 + opcode]`.
+/// PROV[R] `WB_READER_FINDINGS.md` §3.1 — `DAT_10b25e48`, the `.ex` operand-class table. NO DISCLOSURE ROW EXISTS FOR THIS ADDRESS, and this marker is the first thing in the tree to say so; the decoder reads the class byte out of the image rather than transcribing it, and refuses every opcode outside the traced subset.
 const EX_CLASS_TABLE: u32 = 0x10b2_5e48;
 
 /// Width of one `.ex` token, for the closed subset, using c2's own class byte.
@@ -888,7 +897,9 @@ fn the_il_subset_decoder_reproduces_the_tuple_rows() {
 /// The encode-form values of the two arms the traced subset reaches. Read from
 /// `0x10c39b18[opcode]` at run time and asserted against these here, so a wrong
 /// form table would fail loudly instead of silently selecting the other arm.
+/// PROV[R] DISCLOSURE `W-MID-2` — form value `0x31`, one of the two arms of the 111 that are read (`W-MID-3`: the other 109 are not). Asserted against the live table so a wrong form fails loudly instead of selecting the other arm.
 const FORM_XO_RT_RA_RB: u32 = 0x31;
+// PROV[R] DISCLOSURE `W-MID-2` — form value `0x37`, the `ret`/`blr` arm, which reads NO operand and ORs `0x02800000` onto the base word (`W-MID-3`, `0x10bfa2a5`).
 const FORM_RET: u32 = 0x37;
 
 /// Encode one real-instruction tuple, for the closed form subset.

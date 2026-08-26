@@ -194,11 +194,13 @@ fn env_or(root: &Path, var: &str, default_rel: &str) -> PathBuf {
 /// diverged` into `36/30` while the census and the mismatch count stay
 /// byte-identical — a **fake correctness alarm on the oracle seam**. That is
 /// why [`Toolchain::wibo_stale`] exists and why the scan prints its resolution.
+/// PROV[N] a loader version string. Environment, not a fact about c2 — but see its doc: an older loader produces a fake correctness alarm on the oracle seam, which is why it is pinned at all.
 pub const WIBO_KNOWN_GOOD: &str = "1.0.1-23";
 
 /// Toolchain version dir inside a compilers root — the layout of the decomp.dev
 /// compilers archive (`https://files.decomp.dev/compilers_<tag>.zip`), which
 /// unzips to `X360/16.00.11886.00/{cl.exe, c1xx.dll, c2.dll, ...}`.
+/// PROV[N] the decomp.dev compilers-archive layout. Environment, not a fact about c2.
 const X360_TOOLCHAIN_REL: &str = "X360/16.00.11886.00";
 
 /// The compile profile [`Toolchain::capture_il`] uses when the caller names
@@ -213,6 +215,7 @@ const X360_TOOLCHAIN_REL: &str = "X360/16.00.11886.00";
 /// default and then read against a workload obj is comparing two different
 /// compilations. Use [`Toolchain::capture_il_flags`] with the workload's
 /// `flags.txt` for that.
+/// PROV[N] a measurement configuration, not a derived value — and its doc is the warning that it is NOT the workload's profile.
 pub const CAPTURE_IL_DEFAULT_FLAGS: [&str; 3] = ["/Ox", "/GS-", "/c"];
 
 
@@ -1819,6 +1822,7 @@ fn build_host_stub(mingw: &Path, srcs: &[&Path], exe: &Path, what: &str) -> io::
     Ok(())
 }
 
+// PROV[N] a scratch-directory counter. Reaches no graded byte.
 static SCRATCH_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// A unique scratch directory under the system temp dir.

@@ -4,6 +4,7 @@
 use super::*;
 
 /// One COFF symbol-table record (also the aux-record stride).
+/// PROV[S] PE/COFF spec — `IMAGE_SYMBOL` is 18 bytes. Not from c2.
 pub(crate) const SYMBOL_LEN: usize = 18;
 
 

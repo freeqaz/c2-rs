@@ -37,14 +37,17 @@ use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::stage::{OPT_GATED_SITES, STAGE_SITES};
 use c2_reference::Toolchain;
 
+// PROV[N] a scratch-directory counter.
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// The fixture every capture-based test in this file runs on. See the module
 /// doc: it is chosen for calls and relocated branches, not for convenience.
+/// PROV[N] a fixture choice, made for calls and relocated branches.
 const STAGE_FIXTURE: &str = "il_call_perm.cpp";
 
 /// The fixture that MUST NOT be used as the positive control here, named so a
 /// future edit trips over the reason rather than rediscovering it.
+/// PROV[N] a fixture NAME that must not be used, recorded so a future edit trips over the reason. Not a derived value.
 const BANNED_CONTROL: &str = "add3.cpp";
 
 fn repo_root() -> PathBuf {

@@ -97,6 +97,23 @@ pub struct OpRow {
 /// decides where a register lands, and form 39's placement is (per
 /// `P_ENCODE.md` §5.1) *"the single most safety-critical fact on this page."*
 pub mod op {
+    //! PROV-BLOCK[R] DISCLOSURE `W-MID-1` (the mnemonic table `0x10b1b260`,
+    //! stride 12, index origin, `_last` at `0x295`) — every opcode NUMBER below
+    //! is c2's own index into that table, transcribed from
+    //! `docs/whitebox/ref/ENCODE_OPCODES.txt`, which
+    //! `docs/whitebox/scripts/dump_opcode_tables.py` dumps from the pinned image
+    //! (sha256 `c80981c0…a66258`). Lane `w-read-r2`, read **R2**.
+    //!
+    //! **A DISCLOSURE ROW IS OWED FOR THIS FILE AND DOES NOT EXIST.** `W-MID-1`
+    //! and `W-MID-2` name `crates/c2-reference/tests/middle_interfaces.rs` and
+    //! nothing else; the ledger has no row whose `Adopted into` is any
+    //! `crates/c2-core/src/codegen/` file, while these numbers are on the EMIT
+    //! path — `base_word` is the port's only source of a primary opcode. The
+    //! module doc above says *"DISCLOSURE.md carries the provenance rows"*; at
+    //! tree `6c753ead0` it does not. Found by `scripts/provenance_census.py`,
+    //! board **#3632**; see `docs/whitebox/DISCLOSURE.md` § "Adoptions this
+    //! ledger does not carry". Filing the row is an adoption decision and is
+    //! deliberately not taken by the census lane.
     use super::C2Op;
 
     // form 49 — XO with RT/RA/RB
@@ -235,6 +252,11 @@ pub mod op {
 /// the port never uses would put 589 unexercised claims behind the same green
 /// test as the 71 exercised ones (`STATUS.md` trap 0: a green control is a
 /// statement about the population it ran over).
+/// PROV[R] DISCLOSURE `W-MID-2` — the base-encoding table `0x10c3a578` and the
+/// encode-form table `0x10c39b18`, transcribed row by row from
+/// `docs/whitebox/ref/ENCODE_OPCODES.txt`. **A subset by design**: 71 of c2's
+/// 660 rows, because a row here is a claim the port makes about a word it
+/// emits. Same missing-row debt as `mod op` above.
 pub static OPCODES: &[OpRow] = &[
     row(op::ADD, "add", 0x7c00_0214, 49),
     row(op::ADDE, "adde", 0x7c00_0114, 49),
@@ -329,11 +351,15 @@ const fn row(op: C2Op, mnemonic: &'static str, base: u32, form: u16) -> OpRow {
 
 /// The largest c2 opcode number, `0x294` (`vmr128`) — the extent of the
 /// base-word table read at `0x10c3a578`.
+/// PROV[R] DISCLOSURE `W-MID-1` — `0x294` is `_last`(`0x295`) minus one, and the
+/// `_last` sentinel index is exactly what that row adopts.
 const MAX_C2_OPCODE: usize = 0x294;
 
 /// **`opcode -> 1 + index into [`OPCODES`]`, or 0 for an opcode this port does
 /// not emit.** Built at COMPILE TIME from `OPCODES`, so it cannot drift from
 /// it: there is no second list to keep in sync, only a derivation.
+/// PROV[N] carries no independent fact — derived from [`OPCODES`] at compile
+/// time by [`build_opcode_index`], so its provenance IS `OPCODES`'.
 static OPCODE_INDEX: [u8; MAX_C2_OPCODE + 1] = build_opcode_index();
 
 const fn build_opcode_index() -> [u8; MAX_C2_OPCODE + 1] {
@@ -503,10 +529,15 @@ pub struct FieldPlan {
 }
 
 /// The widest form this port emits is `rlwinm`/`rlwimi` at five placed fields.
+/// PROV[N] a capacity bound on the port's own [`FieldPlan`] representation, not
+/// a fact about c2. It is wide enough for every form `P_ENCODE.md` §5 read; a
+/// wider form would be a compile error here, which is the intended failure.
 pub const MAX_FIELDS: usize = 5;
 
 /// A padding entry for the unused tail of a [`FieldPlan`]'s array. Never read:
 /// [`FieldPlan::fields`] slices to `n` first.
+/// PROV[N] a padding sentinel for the unused tail of a [`FieldPlan`] array.
+/// Never read — [`FieldPlan::fields`] slices to `n` first.
 const NONE_FIELD: Field = Field { slot: Slot::S, shift: 0, width: 0 };
 
 impl FieldPlan {
@@ -557,6 +588,11 @@ pub struct EncodeParams {
 
 impl EncodeParams {
     /// The default: c2's own tables and c2's own field placements.
+    /// PROV[R] `docs/whitebox/ref/P_ENCODE.md` §5, read arm by arm 79/79 by lane
+    /// `w-read-r2` — the field placements, of which §5.1 calls form 39's *"the
+    /// single most safety-critical fact on this page."* This is the DEFAULT that
+    /// every emit uses, per `docs/rungs/README.md`'s decision-surface clause; the
+    /// override fields beside it are instrument states and license no emit.
     pub const C2: EncodeParams =
         EncodeParams { rows: OPCODES, width_override: None, drop_override: None };
 

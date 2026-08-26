@@ -63,6 +63,7 @@ use crate::{CapturedReference, Toolchain};
 /// region block is run 4's INPUT, because the region tap fires at region-finder
 /// entry and run 4 has no successor run
 /// (`docs/ARCH_REVIEW_2026-08-21.md` finding 1).
+/// PROV[R] DISCLOSURE `W-STAGETAP-1` and `W-STAGETAP-3` — eight call-site addresses read out of `c2.dll` (`0x10b7dc9f`, `0x10b7dcb7`, `0x10b7dcde`, `0x10b7dcf6`, `0x10b7dd1d`, `0x10b7e00c`, `0x10be643e`, `0x10b7e701`). This array carries the NAMES only; the addresses live in `c2host/stagetap.c`'s `g_sites[]`, which the rows also name. Fail-closed at run time: `tap_arm` refuses a site whose byte is not still `0xE8` at the recorded target plus the measured slide.
 pub const STAGE_SITES: &[&str] = &[
     "sched1", "globregs", "sched2", "color", "sched3", "sched0", "region", "after0",
 ];
@@ -97,6 +98,7 @@ pub const STAGE_SITES: &[&str] = &[
 /// procs` at `/O1` is an EMPIRICAL property of the fixtures measured here, not
 /// a property of the code, because a function with `[esi+0x1c] & 1 == 0` would
 /// be skipped by three of the four sites.
+/// PROV[O] DISCLOSURE `W-STAGETAP-1`'s fix round supplied the `[R]` half (the optimizer flag `0x10c2e2fc`, the three `cmp` sites, and the SECOND per-function gate at `0x10b7dc8b`/`0x10b7dcca`/`0x10b7dd09`); WHICH four sites are gated is graded against the live tap. The doc above states the bound explicitly — `hits_at(site) == procs` at `/O1` is empirical over these fixtures, not a property of the code.
 pub const OPT_GATED_SITES: &[&str] = &["sched1", "sched2", "sched3", "sched0"];
 
 /// What one armed run reported.
@@ -184,6 +186,7 @@ pub struct FuncWalk {
 /// The tap's refusal spellings for [`FuncWalk::sym`]. None of them is a legal
 /// identifier or mangled name, so a refusal can never be mistaken for one —
 /// which is the whole reason they are words and not an empty string.
+/// PROV[N] refusal spellings, not a derived value — chosen so a refusal cannot be mistaken for an identifier. Reaches no graded byte.
 const SYM_REFUSALS: [&str; 4] = ["<unread>", "<empty>", "<nonascii>", "<toolong>"];
 
 impl FuncWalk {

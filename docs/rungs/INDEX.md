@@ -320,4 +320,5 @@ the header block this table is read from.
 | 2026-08-26 | w-opclass | [w-opclass](2026-08-26-w-opclass.md) | 10 | +0 (no `crates/` byte changed) |
 | 2026-08-26 | w-perfstep | [w-perfstep](2026-08-26-w-perfstep.md) | 16 | 707728/2417794 → 707728/2417794 (29.27% → 29.27%), +0 |
 | 2026-08-26 | w-price4a | [w-price4a](2026-08-26-w-price4a.md) | 10 | +0 — no `crates/`, `scripts/` or `fixtures/` file is written; |
+| 2026-08-26 | w-provenance | [w-provenance](2026-08-26-w-provenance.md) | 9 | +0 |
 | 2026-08-26 | w-symbind | [w-symbind](2026-08-26-w-symbind.md) | 7 | +0 — no acceptance predicate moved; `crates/c2-il` is READ, never written |

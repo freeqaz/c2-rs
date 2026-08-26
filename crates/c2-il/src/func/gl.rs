@@ -1444,6 +1444,7 @@ pub const FN_FLAG_INLINABLE: u8 = 0x40;
 /// value to be an upper bound on a post-fold count the container does not
 /// carry, and board **#3275** refused a rule keyed on it. This constant is a
 /// *field width* and the reader steps over it.
+/// PROV[R] DISCLOSURE `W-GLATTRS-1` — `0x10c1f9a6`'s `il-read-varint16`, the two payload byte reads at `0x10c1f9d8`/`0x10c1f9e0`. A FIELD WIDTH only; no threshold, value or semantics of `SIZE` is adopted (board #3275 refused a rule keyed on the value). The row's own note is that the width is over-determined and the disassembly is the LEAST of its three sources — an 18-cell twin grid scores 18/18 and a vocabulary argument over 99 escaped records scores 99/99 against 3/0/1 for widths 1/2/5.
 const GL_SIZE_ESCAPE_PAYLOAD: usize = 2;
 
 /// The `.gl` **function** record's attribute byte, per defined function, or
@@ -1524,6 +1525,13 @@ const GL_SIZE_ESCAPE_PAYLOAD: usize = 2;
 ///
 /// The two shapes above are the only ones admitted. A third would refuse rather
 /// than be guessed at, which is `label_counter`'s rule one field over.
+/// PROV[R] DISCLOSURE `W-GLATTRS-1` — the `SIZE` arm's escape handling, read at
+/// `0x10c1f9a6`. A RULE marker. **This reader's own coverage is the open
+/// question, not its correctness**: `W-OBJPLAN-1`'s second amendment measured
+/// it naming 2.4 % of the emitted set against `mangled_names`' 43.2 % over the
+/// same `.gl` bytes, because the walk steps `p += 1` past any unframed offset
+/// with no refusal and no counter (board #3237). Instrumenting that skip path
+/// is a registered deciding probe and is not built.
 pub fn gl_function_attrs(gl: &[u8]) -> Option<std::collections::BTreeMap<String, u8>> {
     let runs = symbol_runs(gl, true);
     let mut out = std::collections::BTreeMap::new();

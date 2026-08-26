@@ -1,0 +1,80 @@
+=== POSITIVE CONTROL, WATCHED FAILING (board #3336) ===
+
+Procedure: break the scanner's marker regex so it can no longer see a
+PROV[X] token, then run the self-test. A control that has never been seen
+red is decoration; this repo has shipped a --check flag that could not fail.
+
+--- 1. clean scanner ---
+[1] planted fixture, exact counts
+  PASS  pop: got 8, want 8
+  PASS  R: got 1, want 1
+  PASS  O: got 1, want 1
+  PASS  F: got 1, want 1
+  PASS  S: got 1, want 1
+  PASS  N: got 1, want 1
+  PASS  untagged: got 3, want 3
+  PASS  rules: got 1, want 1
+  PASS  citation defects: got 0, want 0
+
+[2] THE RED — remove one marker; the count MUST move
+  before: [R]=1 untagged=3
+  after:  [R]=0 untagged=4
+  PASS  [R] fell by one: got 1, want 1
+  PASS  untagged rose by one: got 1, want 1
+  PASS  population unchanged: got 8, want 8
+
+[3] THE OTHER RED — an uncited marker is a reported defect
+  PASS  one citation defect found: got 1, want 1
+
+SELF-TEST: PASS
+exit=0
+
+--- 2. MARK_RE broken to PROV_NEVER[...] ---
+[1] planted fixture, exact counts
+  PASS  pop: got 8, want 8
+  FAIL  R: got 0, want 1
+  FAIL  O: got 0, want 1
+  FAIL  F: got 0, want 1
+  FAIL  S: got 0, want 1
+  FAIL  N: got 0, want 1
+  FAIL  untagged: got 8, want 3
+  FAIL  rules: got 0, want 1
+  PASS  citation defects: got 0, want 0
+
+[2] THE RED — remove one marker; the count MUST move
+  before: [R]=0 untagged=8
+  after:  [R]=0 untagged=8
+  FAIL  [R] fell by one: got 0, want 1
+  FAIL  untagged rose by one: got 0, want 1
+  PASS  population unchanged: got 8, want 8
+
+[3] THE OTHER RED — an uncited marker is a reported defect
+  FAIL  one citation defect found: got 0, want 1
+
+SELF-TEST: FAIL
+exit=1
+
+--- 3. restored ---
+[1] planted fixture, exact counts
+  PASS  pop: got 8, want 8
+  PASS  R: got 1, want 1
+  PASS  O: got 1, want 1
+  PASS  F: got 1, want 1
+  PASS  S: got 1, want 1
+  PASS  N: got 1, want 1
+  PASS  untagged: got 3, want 3
+  PASS  rules: got 1, want 1
+  PASS  citation defects: got 0, want 0
+
+[2] THE RED — remove one marker; the count MUST move
+  before: [R]=1 untagged=3
+  after:  [R]=0 untagged=4
+  PASS  [R] fell by one: got 1, want 1
+  PASS  untagged rose by one: got 1, want 1
+  PASS  population unchanged: got 8, want 8
+
+[3] THE OTHER RED — an uncited marker is a reported defect
+  PASS  one citation defect found: got 1, want 1
+
+SELF-TEST: PASS
+exit=0

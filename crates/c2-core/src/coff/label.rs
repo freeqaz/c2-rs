@@ -82,6 +82,7 @@ use super::*;
 /// [`SeedGapInputs::pooled_data_phase_string`] itself and must not guess it. A
 /// wrong `$M` is six wrong bytes in an obj that still links, which is the whole
 /// reason `docs/LABEL_COUNTER.md` exists.
+/// PROV[F] DISCLOSURE `W-SEEDGAP-1` — derived from `SeedGapModel::READ`, which that row records as BLACK BOX: a fit to `scripts/gt_label_seedgap.py`'s 22-cell obj grid, not a read. The literal `9` this replaced was refuted (board #3388).
 pub const LABEL_SEED_GAP: u32 = SeedGapModel::READ.gap(&SeedGapInputs::PORT_ADMITTED);
 
 /// **The compilation facts the seed gap is a function of** — the settable half of
@@ -154,6 +155,7 @@ impl SeedGapInputs {
     /// **Neither bullet is a promise about the future.** They are the reasons the
     /// value is right *today*, written down so the rung that widens the emit set
     /// past one of them finds the dependency instead of inheriting it.
+    /// PROV[F] DISCLOSURE `W-SEEDGAP-1` — the two indicators R3's 22-cell grid resolved the gap into, plus the port's own admission facts. Fitted with the model; the doc above names the two refusals each value depends on.
     pub const PORT_ADMITTED: SeedGapInputs = SeedGapInputs {
         global_optimizer: true,
         pooled_data_phase_string: false,
@@ -192,6 +194,7 @@ impl SeedGapModel {
     /// attributing each unit needs a live tap on `0x10b97de5`, which no lane has
     /// built. A `SeedGapModel` is therefore a *fit to a read grid*, one level
     /// better than the literal `9` and one level short of the mechanism.
+    /// PROV[F] DISCLOSURE `W-SEEDGAP-1`, AND ITS NAME IS THE TRAP THIS CENSUS EXISTS TO CATCH. The row says the three coefficients are BLACK BOX — `gt_label_seedgap.py`'s 22-cell obj grid — and the doc above says it in its own words: *"a fit to a read grid, one level short of the mechanism"*. `[R]` is what the whitebox record supplies here and it is NEGATIVE: `P_LABEL.md` §4 bounds the candidate sites to five and shows the gap is mode-dependent. The read that would make this `[R]` is a live tap on `0x10b97de5`, which no lane has built.
     pub const READ: SeedGapModel = SeedGapModel {
         base: 7,
         global_optimizer: 2,

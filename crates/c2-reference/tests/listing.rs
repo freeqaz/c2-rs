@@ -21,6 +21,7 @@ use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::cod::CodListing;
 use c2_reference::Toolchain;
 
+// PROV[N] a scratch-directory counter.
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn fixture(name: &str) -> PathBuf {
@@ -55,15 +56,18 @@ fn work(tag: &str) -> PathBuf {
 /// `mullw`/`add`/`blr`, a control structurally incapable of showing the only
 /// difference between a `.cod` and an obj that exists. Recorded as the twelfth
 /// instance of absence-read-as-success in this project (roadmap §9.1).
+/// PROV[N] a fixture choice. Its doc is the finding — `add3.cpp` was the wrong control and is recorded as the twelfth instance of absence-read-as-success.
 const LISTING_FIXTURE: &str = "il_call_return.cpp";
 
 /// Exactly 3 `b` + 7 `bl` relocated branches. Pinned as a *quantity* so the
 /// assertions that depend on them cannot become unreachable.
+/// PROV[O] a pinned QUANTITY off the graded fixture — exactly 3 `b` + 7 `bl` — so the assertions that depend on it cannot become unreachable.
 const RELOCATED_BRANCHES: usize = 10;
 
 /// The workload's own optimization profile — what `Toolchain::capture_listing`
 /// uses, spelled here so the non-perturbation test can put the *same* flags on
 /// both sides of its comparison.
+/// PROV[N] a measurement configuration — the workload's own flags, spelled here so both sides of the non-perturbation comparison carry the same ones.
 const LISTING_PROFILE: [&str; 5] = ["/O1", "/Oi", "/EHsc", "/GS-", "/c"];
 
 fn guards() -> Option<Toolchain> {

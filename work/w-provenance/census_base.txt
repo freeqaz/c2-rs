@@ -1,0 +1,29 @@
+provenance census — tree 29e413de77f35ac486d4d289b2086440609958fc (clean)
+scope: crates
+rows are in PATH ORDER, never sorted by count (#3505: an instrument sorted by size measures itself)
+
+module                                         pop   [R]   [O]   [F]   [S]   [N]  untag  rule
+---------------------------------------------------------------------------------------------
+crates/c2-core/src                               4     0     0     0     0     0      4     0
+crates/c2-core/src/codegen                     307     0     0     0     0     0    307     0
+crates/c2-core/src/codegen/leaf                  3     0     0     0     0     0      3     0
+crates/c2-core/src/coff                         56     0     0     0     0     0     56     0
+crates/c2-core/src/plan                          1     0     0     0     0     0      1     0
+crates/c2-harness/src                           21     0     0     0     0     0     21     0
+crates/c2-harness/src/cli                       31     0     0     0     0     0     31     0
+crates/c2-harness/src/gap                       33     0     0     0     0     0     33     0
+crates/c2-harness/src/search                     2     0     0     0     0     0      2     0
+crates/c2-harness/tests                        123     0     0     0     0     0    123     0
+crates/c2-harness/tests/cellgrade                4     0     0     0     0     0      4     0
+crates/c2-il/src                                19     0     0     0     0     0     19     0
+crates/c2-il/src/func                          205     0     0     0     0     0    205     0
+crates/c2-il/src/func/body                      89     0     0     0     0     0     89     0
+crates/c2-il/src/func/body/shapes               84     0     0     0     0     0     84     0
+crates/c2-obj/src                               43     0     0     0     0     0     43     0
+crates/c2-reference/src                          7     0     0     0     0     0      7     0
+crates/c2-reference/tests                       19     0     0     0     0     0     19     0
+---------------------------------------------------------------------------------------------
+TOTAL                                         1051     0     0     0     0     0   1051     0
+
+denominator: 1051 const/static items in non-test code. tagged 0, untagged 1051.
+rule markers: 0 — NO DENOMINATOR. The set of load-bearing rules is not mechanically enumerable; this number is a numerator and is never printed as a ratio.

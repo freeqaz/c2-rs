@@ -1,0 +1,15 @@
+# crates/c2-core/src/codegen/encode.rs — the brief's "black-box re-derivation"
+# pole. The re-derivation was RETIRED on 2026-08-22 by lane w-s1 (this file's
+# own module doc says so): the 85 hand-copied primary/extended opcodes moved to
+# mop.rs and are now [R]. What is LEFT here is not fitted at all.
+crates/c2-core/src/codegen/encode.rs	SPR_CTR	S] PowerPC ISA — `SPR` 9 is `CTR`. Not from c2. The split-field spelling beside it (`(spr & 0x1F) << 5 | spr >> 5`) is the ISA's, too.
+crates/c2-core/src/codegen/encode.rs	BO_DNZ	S] PowerPC ISA — `BO` 16 is decrement-CTR-and-branch-if-nonzero. Its DOC is `[O]` and worth reading: `BI` is 0 in every captured `bdnz`, and because `BO = 16` ignores `BI`, a wrong `BI` would still assemble and still branch correctly while differing from c2's word.
+crates/c2-core/src/codegen/encode.rs	CR_COMPARE	O] board #188 — WHICH CR field c2 uses is c2's choice, not the ISA's: `cr6` for an explicit compare, but `addic.` writes `cr0` and c2 branches on `cr0` there with no intervening compare. A lowering that hard-codes `4*6 + bit` emits `409a…` where the obj has `4082…`.
+crates/c2-core/src/codegen/encode.rs	BO_TRUE	S] PowerPC ISA — `BO` 12 is branch-if-CR-bit-set.
+crates/c2-core/src/codegen/encode.rs	BO_FALSE	S] PowerPC ISA — `BO` 4 is branch-if-CR-bit-clear.
+crates/c2-core/src/codegen/encode.rs	BO_ALWAYS	S] PowerPC ISA — `BO` 20 is branch-always, which is what makes `bclr` a plain `blr`.
+crates/c2-core/src/codegen/encode.rs	CR_BIT_LT	S] PowerPC ISA — the CR field bit order is LT=0, GT=1, EQ=2, SO=3.
+crates/c2-core/src/codegen/encode.rs	CR_BIT_GT	S] PowerPC ISA — CR field bit order.
+crates/c2-core/src/codegen/encode.rs	CR_BIT_EQ	S] PowerPC ISA — CR field bit order.
+crates/c2-core/src/codegen/encode.rs	BC_MAX_DISP	O] `docs/CFG_SHAPE.md` §3.3.1 — the ISA gives the 14-bit scaled field; what is MEASURED is that c2 uses the full field with no slack, direct `bne` at +32628 and the two-instruction expansion at +34148. The number is architectural, the CHOICE to switch exactly here is c2's and is graded.
+crates/c2-core/src/codegen/encode.rs	B_MAX_DISP	S] PowerPC ISA — `LI` is a signed 24-bit field scaled by 4. No c2-side measurement pins the switch point here the way `CFG_SHAPE.md` §3.3.1 does for `BC_MAX_DISP`; the reach is the architecture's.

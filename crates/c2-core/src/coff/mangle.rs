@@ -132,6 +132,7 @@ pub(crate) fn escape_literal_byte(byte: u8, out: &mut String) -> bool {
 /// 32-character one (33 bytes) drops it, and a 30-character all-`/` literal
 /// produces 54 escaped characters with nothing cut. Reading the limit as an
 /// output-character budget truncates the second of those in the middle.
+/// PROV[O] the doc above is the grade, and it is a PINNED boundary rather than a fitted one: probe cells sit at 31 and 32 source bytes, one on each side, so no off-sample value is consistent with the measurement. Contrast `MAX_OBJECTS_PER_SECTION`, which is `[F]`.
 pub(crate) const LITERAL_TEXT_BYTE_LIMIT: usize = 32;
 
 /// `??_C@_0<len><hash>@<escaped text>@` — the COMDAT symbol name c2 gives a

@@ -1,0 +1,27 @@
+# crates/c2-reference — the crate where the whitebox reads actually land
+crates/c2-reference/src/stage.rs	STAGE_SITES	R] DISCLOSURE `W-STAGETAP-1` and `W-STAGETAP-3` — eight call-site addresses read out of `c2.dll` (`0x10b7dc9f`, `0x10b7dcb7`, `0x10b7dcde`, `0x10b7dcf6`, `0x10b7dd1d`, `0x10b7e00c`, `0x10be643e`, `0x10b7e701`). This array carries the NAMES only; the addresses live in `c2host/stagetap.c`'s `g_sites[]`, which the rows also name. Fail-closed at run time: `tap_arm` refuses a site whose byte is not still `0xE8` at the recorded target plus the measured slide.
+crates/c2-reference/src/stage.rs	OPT_GATED_SITES	O] DISCLOSURE `W-STAGETAP-1`'s fix round supplied the `[R]` half (the optimizer flag `0x10c2e2fc`, the three `cmp` sites, and the SECOND per-function gate at `0x10b7dc8b`/`0x10b7dcca`/`0x10b7dd09`); WHICH four sites are gated is graded against the live tap. The doc above states the bound explicitly — `hits_at(site) == procs` at `/O1` is empirical over these fixtures, not a property of the code.
+crates/c2-reference/src/stage.rs	SYM_REFUSALS	N] refusal spellings, not a derived value — chosen so a refusal cannot be mistaken for an identifier. Reaches no graded byte.
+crates/c2-reference/src/lib.rs	WIBO_KNOWN_GOOD	N] a loader version string. Environment, not a fact about c2 — but see its doc: an older loader produces a fake correctness alarm on the oracle seam, which is why it is pinned at all.
+crates/c2-reference/src/lib.rs	X360_TOOLCHAIN_REL	N] the decomp.dev compilers-archive layout. Environment, not a fact about c2.
+crates/c2-reference/src/lib.rs	CAPTURE_IL_DEFAULT_FLAGS	N] a measurement configuration, not a derived value — and its doc is the warning that it is NOT the workload's profile.
+crates/c2-reference/src/lib.rs	SCRATCH_COUNTER	N] a scratch-directory counter. Reaches no graded byte.
+crates/c2-reference/tests/middle_interfaces.rs	COUNTER	N] a scratch-directory counter.
+crates/c2-reference/tests/middle_interfaces.rs	FLAGS	N] a measurement configuration; its doc records WHY this profile and not the workload's.
+crates/c2-reference/tests/middle_interfaces.rs	MNEMONIC_TABLE	R] DISCLOSURE `W-MID-1` — table address `0x10b1b260`, read from `c2.dll`. No ENTRY is copied: the test reads the strings out of the pinned image at run time and refuses if four spot cells disagree.
+crates/c2-reference/tests/middle_interfaces.rs	MNEMONIC_STRIDE	R] DISCLOSURE `W-MID-1` — stride 12, fixed by the inline-asm name lookup's `imul eax,eax,0xc` at `0x10c00900`.
+crates/c2-reference/tests/middle_interfaces.rs	MNEMONIC_LAST	R] DISCLOSURE `W-MID-1` — the `_last` sentinel index, which is what fixes the machine opcode space at `0x001..0x294`. Corroborated three ways (`P_DAG.md` §2.1's independent 0-based agreement, the alphabetical PPC run 1..11, and W-MID-2's base words landing correctly at the same indices).
+crates/c2-reference/tests/middle_interfaces.rs	BASE_WORD_TABLE	R] DISCLOSURE `W-MID-2` — table address `0x10c3a578`, read at `0x10bf9f3c`, the sole reader in the image. Obj-confirmed on 9 words, 32 bits of 32; no entry is copied.
+crates/c2-reference/tests/middle_interfaces.rs	FORM_TABLE	R] DISCLOSURE `W-MID-2` — table address `0x10c39b18`, read at `0x10bf9f43`; `value - 1` indexes the 111-arm jump table at `0x10bfae2d`.
+crates/c2-reference/tests/middle_interfaces.rs	ABSENT	N] a sentinel for "no register in this list", chosen by the port. Not derived from anything.
+crates/c2-reference/tests/middle_interfaces.rs	EX_CLASS_TABLE	R] `WB_READER_FINDINGS.md` §3.1 — `DAT_10b25e48`, the `.ex` operand-class table. NO DISCLOSURE ROW EXISTS FOR THIS ADDRESS, and this marker is the first thing in the tree to say so; the decoder reads the class byte out of the image rather than transcribing it, and refuses every opcode outside the traced subset.
+crates/c2-reference/tests/middle_interfaces.rs	FORM_XO_RT_RA_RB	R] DISCLOSURE `W-MID-2` — form value `0x31`, one of the two arms of the 111 that are read (`W-MID-3`: the other 109 are not). Asserted against the live table so a wrong form fails loudly instead of selecting the other arm.
+crates/c2-reference/tests/middle_interfaces.rs	FORM_RET	R] DISCLOSURE `W-MID-2` — form value `0x37`, the `ret`/`blr` arm, which reads NO operand and ORs `0x02800000` onto the base word (`W-MID-3`, `0x10bfa2a5`).
+crates/c2-reference/tests/listing.rs	COUNTER	N] a scratch-directory counter.
+crates/c2-reference/tests/listing.rs	LISTING_FIXTURE	N] a fixture choice. Its doc is the finding — `add3.cpp` was the wrong control and is recorded as the twelfth instance of absence-read-as-success.
+crates/c2-reference/tests/listing.rs	RELOCATED_BRANCHES	O] a pinned QUANTITY off the graded fixture — exactly 3 `b` + 7 `bl` — so the assertions that depend on it cannot become unreachable.
+crates/c2-reference/tests/listing.rs	LISTING_PROFILE	N] a measurement configuration — the workload's own flags, spelled here so both sides of the non-perturbation comparison carry the same ones.
+crates/c2-reference/tests/reference.rs	COUNTER	N] a scratch-directory counter.
+crates/c2-reference/tests/stage.rs	COUNTER	N] a scratch-directory counter.
+crates/c2-reference/tests/stage.rs	STAGE_FIXTURE	N] a fixture choice, made for calls and relocated branches.
+crates/c2-reference/tests/stage.rs	BANNED_CONTROL	N] a fixture NAME that must not be used, recorded so a future edit trips over the reason. Not a derived value.

@@ -4,10 +4,12 @@
 use super::*;
 
 /// `.text` COMDAT selection: `IMAGE_COMDAT_SELECT_NODUPLICATES`.
+/// PROV[S] PE/COFF spec — `IMAGE_COMDAT_SELECT_NODUPLICATES` is 1. Which selection c2 chooses for a `/Gy` `.text` is `[O]`; the value 1 is not from c2.
 pub(crate) const COMDAT_SELECT_NODUPLICATES: u8 = 1;
 
 /// `.text` characteristics under **function-level linking** (`/Gy`): the packed
 /// [`CH_TEXT`] plus `IMAGE_SCN_LNK_COMDAT` (0x1000).
+/// PROV[O] transcribed from real `/Gy` objs.
 pub(crate) const CH_TEXT_COMDAT: u32 = 0x6040_1020;
 
 /// How many relocation records one function's `.text` carries.

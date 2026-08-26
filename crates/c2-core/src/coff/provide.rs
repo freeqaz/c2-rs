@@ -58,10 +58,13 @@ pub struct ProvideObj<'a> {
 }
 
 /// COMDAT `IMAGE_COMDAT_SELECT_ANY`.
+/// PROV[S] PE/COFF spec — `IMAGE_COMDAT_SELECT_ANY` is 2. Not from c2.
 const COMDAT_SELECT_ANY: u8 = 2;
 
 /// Section characteristics bases (align nibble OR'd in at bit 20).
+/// PROV[O] transcribed from real objs.
 const CH_RDATA_BASE: u32 = 0x4000_1040;
+// PROV[O] transcribed from real objs.
 const CH_DATA_COMDAT_BASE: u32 = 0xC000_1040;
 
 /// The witnessed size → alignment-nibble table (module doc). `None` refuses.

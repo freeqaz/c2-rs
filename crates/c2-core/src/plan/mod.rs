@@ -344,6 +344,7 @@ pub struct AttrCensus {
 /// them TUs the port does not convert — and it over-claims exactly **once** in
 /// the whole workload. See `docs/rungs/2026-08-20-objplan.md` and the
 /// `W-OBJPLAN-1` row in `docs/whitebox/DISCLOSURE.md`.
+/// PROV[R] DISCLOSURE `W-OBJPLAN-1` — bit `0x20` at symbol offset `0x4c`, read at `0x10b7f16b`/`0x10b7f16e` inside `0x10b7f022`. A BIT POSITION, which no black-box experiment over `.gl` can name. The row is amended twice: the reading is sound, the seed-plus-closure RULE built on it is REFUTED, and the constant is kept because the refutation is the deliverable. It feeds one instrument and no emit path.
 pub const FN_FLAG_EMIT_SEED: u8 = 0x20;
 
 /// Predict the object plan from the IL bundle, **without emitting**.
