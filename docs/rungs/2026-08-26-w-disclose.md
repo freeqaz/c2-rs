@@ -243,13 +243,83 @@ is one level **deeper**, and it is the level the field placement actually lives
 at. The imprecision was in the sentence, not in the addresses; the mapping is
 now written down and check F holds all 36 addresses.
 
-## 5. REQUIRED-ZERO
+## 5. REQUIRED-ZERO and gate evidence
 
-See §5.1 below for the measured result.
+**`IDENTITY DIFF: 0 lines over 21 rows — required-zero byte delta HOLDS`**
+
+Both ends are **real gate runs on this worktree** (`#3075`/`#3117`/`#3128`: the
+base end is measured, never inherited):
+
+* **base** `e548f01fd`, from a **detached clean checkout** of the base commit in
+  this worktree — `work/w-disclose/gate_base.txt`
+  * `GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them graded a corpus,`
+    `the sweep graded 19460 of 19556 generated cases and the cross graded`
+    `90424 of 90812 case-lane cells, with 0 mismatches anywhere`
+* **tip** `4c6822549` — `work/w-disclose/gate_tip.out`
+  * **byte-identical verdict block**, same four lines, same counts
+* `work/w-disclose/identity_diff.txt`: `count-bearing rows: 21 base, 21 tip
+  (enumerated, not asserted)`
+
+**The verdict line was read, never the exit code** — `gate.sh` prints
+`GATE: REFUSED (DIRTY crates/)` and still exits 0, so a status is not evidence.
+The diff instrument's own control was run beside it:
+`scripts/gate_identity_diff.sh --self-test` → `SELF-TEST PASS: enumeration 21,
+control silent, #3515's signature found exactly (14 lines / 7 rows) and
+nonzero, truncation refused.`
+
+`cargo test --workspace`, both ends, **59 targets · 1925 passed · 0 failed ·
+1 ignored — identical**. `work/w-disclose/test_base.txt`,
+`work/w-disclose/test_tip.txt`.
+
+**Which check this lane owes, per `#3215`.** `#3215` asks a test-landing lane
+for the BINARY hash and a revert-everything lane for the TREE hash. This lane is
+**neither and is closer to the second**: it lands **zero** non-comment bytes in
+`crates/`, so the identity diff is the discriminating check and it is 0 lines.
+The tree hash necessarily moves — comments are content — and claiming it did not
+would be false.
+
+**The first tip run was RED and is recorded rather than quietly re-run.**
+`cargo test --workspace` failed `rung_registry` twice over: *"no `Tag:` in the
+header block"* (this rung's header used bold prose instead of the template's
+indented `Tag:`/`Slug:`/`Kind:` block) and *"`docs/rungs/INDEX.md` is stale — it
+is GENERATED"*. Both were **found by the suite, not by review**, and both are
+exactly the class a docs-only lane assumes it cannot hit. Fixed at `4c6822549`,
+re-run green.
 
 ## 6. Prereg grade
 
-See §6.1 below.
+`work/w-disclose/PREREG.md`, committed at `e0150d1c1` before the first row was
+written and never edited. **Eleven predictions: 11 HIT, 0 MISS.**
+
+| # | predicted | measured | |
+|---|---|---|---|
+| **P1** | ledger ends at **21** rows | 21 | **HIT** |
+| **P2** | **4** new rows | `W-MOP-1`, `W-MOP-2`, `W-MOP-3`, `W-EXCLASS-1` | **HIT** |
+| **P3** | **89** constants covered | 88 (`mop.rs`) + 1 (`EX_CLASS_TABLE`) | **HIT** |
+| **P4** | `mod op`'s 85 covered by **one** row via the block marker | one row, `W-MOP-1` | **HIT** |
+| **P5** | a live dump reproduces `ENCODE_OPCODES.txt`, and `OPCODES` agrees with the **image** 85/85 | byte-identical, 660 rows; 85/85 on mnemonic + base + form | **HIT** |
+| **P6** | **0** further provenance mismatches | 0 | **HIT** |
+| **P7** | **0** dead ledger→`crates/` citations over 17 rows | 17 of 17 live (20 of 20 counting `c2host/`) | **HIT** |
+| **P8** | identity diff **0 lines over 21 rows** | 0 over 21 | **HIT** |
+| **P9** | test and target counts identical base vs tip | 59 / 1925 / 0 both ends | **HIT** |
+| **P10** | gate GREEN, 0 mismatch, graded > 0 | `GATE: PASS`, 18/18 lanes, 0 mismatches, 19,460 + 90,424 graded | **HIT** |
+| **P11** | **5** board rows, `#3647` unspent | `#3642`–`#3646` filed, `#3647` unspent | **HIT** |
+
+**Eleven for eleven is a weak result and the prereg says why in its own §0.**
+Most of the measurement was already taken when the prereg was written — the
+census re-run, the 85-row comparison against `ENCODE_OPCODES.txt`, the dead
+`W-EXT-1` citation, the 71/589 count error — and §0 lists all ten of those as
+**M1–M10, explicitly not predictions**. The predictions that carried real risk
+were **P5** (a stale committed transcription would have shown), **P6** and
+**P7**, and they were stated with their bias direction (**optimistic**) before
+the checks existed. **P3 is the one that would have been a MISS under a weaker
+definition of covered** and was not, because check C's bar was fixed in the
+prereg's grouping rule rather than after the fact.
+
+**The decline floor was not reached.** Its first clause discharged at M1 (the
+census's `[R]` count for `mop.rs` is 88 on this tree); its second — *"`OPCODES`
+disagrees with a live dump, in which case the finding is a board row and not a
+row in the ledger"* — was the one worth having, and the dump agreed 85/85.
 
 ## 7. Deliberately not taken
 
