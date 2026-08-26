@@ -55,9 +55,19 @@ cursor advances by the right amount — and it is **not** a statement that 72 %
 of I1 exists. **No port site anywhere mints an IR node**: `P_ILRECORD.md` §6
 fixes the node space at `≥ 0x2af`, and a grep of all five crates for the
 sixteen node opcodes that dispatch mints (`0x2af`, `0x2b4`, `0x2b5`, `0x2c5`,
-`0x2d4`, `0x2dd`, `0x2f4`, `0x2f5`, `0x310`, `0x311`, …) returns **zero
-non-comment hits**. The port has no analogue of the artifact these arms
-build. Width is the part that is cheap; `P_ILRECORD.md` §8.1 already said the
+`0x2d4`, `0x2dd`, `0x2f4`, `0x2f5`, `0x310`, `0x311`, …) returns ~~**zero
+non-comment hits**~~ **exactly ONE — and §0's conclusion survives it.
+CORRECTED 2026-08-26 (`w-price4a` found it, `w-opclass` confirmed it and owns
+this page; §10).** The hit is
+`crates/c2-harness/tests/pwords_bijection.rs:57`,
+`const OP_PROLOGUE: [u32; 2] = [0x2f0, 0x2f4];` — **a `#[cfg(test)]` constant
+in a test**, naming `0x2f4` as an *expander pseudo-op* out of
+`ref/P_EXPAND.md` §4.1, not as an IL-record node. `0x2f4` is a **homograph**:
+it is minted by this dispatch *and* is a prologue arm of a different table, and
+the test means the second one. So no port site on any production path mints a
+node in this space, which is what the paragraph is for — but the sentence as
+written was false and is struck rather than reworded.** The port has no analogue
+of the artifact these arms build. Width is the part that is cheap; `P_ILRECORD.md` §8.1 already said the
 cost is in the **76 tree builders**, and nothing on this page moves that.
 
 ---

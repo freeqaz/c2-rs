@@ -434,8 +434,32 @@ record's shape.
 ## 6. THE SELECT/DECODE BOUNDARY — located, and it is a numeric line
 
 This is what read R5 was funded for. `READ_PLAN` §4: *"that boundary is the
-I1/I2 split the whole 15–45 eng-mo estimate rests on, and it has never been
-located."*
+I1/I2 split the whole ~~15–45 eng-mo estimate~~ **[see the correction below]**
+rests on, and it has never been located."*
+
+> **⚠ THE QUOTED ESTIMATE IS AMENDED — `w-price4a`, wave 12, 2026-08-26
+> (`../../rungs/2026-08-26-w-price4a.md`, board #3603–#3608).** The **magnitude
+> does not move**, and that is that lane's headline: none of the three refuted
+> inputs was ever an input to any published figure — `15–45` is
+> `ARCH_REVIEW:116`'s top-down `3–9` *for the pair*, split by ordering and
+> multiplied by 5. What **is** withdrawn is the word **"calibrated"**:
+> `CEILING` §5's ~5:1 factor was fitted on frontier depth, refusal counts and
+> rung counts — *work quantity*, not time — and is outside its own fitted
+> domain here, by its own words. And the measured direction is the opposite of
+> the estimate: **R2** priced 2–4 days ran in **1 h 36 m**, **R5** priced
+> 15–25 days ran in **30 minutes**, **C1** priced 2–4 weeks ran in **1 h 18 m**
+> — pessimistic by 30×–1,200×, and none of the three converted anything.
+>
+> **This page's own §8 item 6 already refuses to re-price and that refusal
+> stands** (`#1767`). The amendment is to the *quoted* figure only, and it is
+> made here by `w-opclass` because `ref/` is that lane's fence this wave and
+> `w-price4a` could not reach it. Enumerated rather than grepped: this is the
+> **only** restatement of the 4a(i)/I1 magnitude anywhere under
+> `docs/whitebox/ref/`. Two further effort figures live on this shelf and are
+> **deliberately not amended** — `ref/P_BLOCKORDER.md:14` and
+> `ref/SUBSYS.md:149`, both the *5–10 day* price of read **R8**, both in dated
+> records that already report what that read actually cost. The word
+> "calibrated" appears **nowhere** on this shelf as a claim about a price.
 
 **It is located. It is the value `0x294` in c2's single opcode numbering.**
 
