@@ -33,23 +33,32 @@ pub enum ObjDiff {
 }
 
 /// Byte offset of the COFF `TimeDateStamp` field.
+/// PROV[S] PE/COFF §3.3 — `TimeDateStamp` is the file header's third field, at offset 4. The value would be 4 if `c2.dll` had never existed. It is the one field the byte judge normalizes away (CLAUDE.md § The one correctness rule).
 const TIMESTAMP_OFFSET: usize = 4;
+// PROV[S] PE/COFF §3.3 — `TimeDateStamp` is 4 bytes wide, so the normalized span ends at 8.
 const TIMESTAMP_END: usize = 8;
 
 /// COFF file header width, section-header width, symbol-record width.
+/// PROV[S] PE/COFF §3.3 — `IMAGE_FILE_HEADER` is 20 bytes. Not a c2 choice.
 const COFF_HEADER_LEN: usize = 20;
+// PROV[S] PE/COFF §4 — `IMAGE_SECTION_HEADER` is 40 bytes.
 const SECTION_HEADER_LEN: usize = 40;
+// PROV[S] PE/COFF §5.4 — a symbol record, and every aux record, is 18 bytes.
 const SYMBOL_LEN: usize = 18;
 /// `IMAGE_SCN_LNK_COMDAT`.
+/// PROV[S] PE/COFF §4.1 section flags — `IMAGE_SCN_LNK_COMDAT = 0x1000`.
 const IMAGE_SCN_LNK_COMDAT: u32 = 0x0000_1000;
 /// `IMAGE_SYM_CLASS_STATIC`.
+/// PROV[S] PE/COFF §5.4.4 storage classes — `IMAGE_SYM_CLASS_STATIC = 3`.
 const IMAGE_SYM_CLASS_STATIC: u8 = 3;
 /// `IMAGE_SYM_CLASS_WEAK_EXTERNAL` — a symbol that is *defined as another
 /// symbol's alias*. Its one aux record carries the default symbol's table index
 /// and a `Characteristics` word.
+/// PROV[S] PE/COFF §5.4.4 storage classes — `IMAGE_SYM_CLASS_WEAK_EXTERNAL = 105`, and §5.5.3 for the aux record this reader then decodes.
 const IMAGE_SYM_CLASS_WEAK_EXTERNAL: u8 = 105;
 /// Emitted code lands in `.text` and its `$`-suffixed variants (`.text$yd`
 /// carries the dynamic-initializer thunks).
+/// PROV[O] the ONE non-spec value in this crate, and the reason P1's prereg bias said "wrong toward more [O]". PE/COFF publishes the grouped-section `$` convention but names no section; that c2 puts emitted code in `.text` and its `$`-suffixed variants, `.text$yd` carrying the dynamic-initializer thunks, is read off real c2 objs — see `docs/SECTION_LAYOUT.md` and `crates/c2-core/src/coff/`'s own section table. A different compiler obeying the same spec would be free to choose otherwise.
 const TEXT_SECTION_PREFIX: &str = ".text";
 
 /// Is this symbol name one of c2's **compiler labels** — `$M<digits>` or

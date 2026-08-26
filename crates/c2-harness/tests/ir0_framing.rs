@@ -66,6 +66,7 @@ use c2_harness::all_fixtures;
 use c2_il::{Ir0, Ir0Framing, RecordKind};
 use c2_reference::Toolchain;
 
+// PROV[N] not load-bearing — a per-binary counter for unique scratch names. Scratch state.
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn work(tag: &str) -> PathBuf {

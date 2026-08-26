@@ -1015,6 +1015,7 @@ fn render_cfg_reachability(report: &GapReport) {
     // The control is printed whether or not it passes, and an ABSENT control
     // prints as absent rather than as a pass — `cfg_reach_control` returns
     // `None` for a scan whose list does not contain the TU.
+    // PROV[N] not load-bearing — one workload TU path used as a presence CONTROL, so a scan whose list does not contain it prints as absent rather than as a pass.
     const CONTROL: &str = "src/xdk/nuispeech/xboxmem.cpp";
     match report.cfg_reach_control(CONTROL) {
         Some(true) => println!(

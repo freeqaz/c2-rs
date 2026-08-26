@@ -68,6 +68,7 @@ struct M<'a> {
 
 /// The longest a receiver/type run may be before this is not the shape that was
 /// measured. Both captures give 5 and 4; 8 is the refusal boundary.
+/// PROV[F] fitted, and its own doc gives the fit and the slack in one line: "Both captures give 5 and 4; 8 is the refusal boundary". A run of 9 in a real TU is the off-sample failure the two captures could not see.
 const MAX_RUN: usize = 8;
 
 impl<'a> M<'a> {
@@ -267,6 +268,7 @@ fn match_template(body: &[u8]) -> Option<(u32, u32, u32, u32, u32, [u32; 2], u32
 
 /// The statement opcodes this class accounts for. A byte from this set anywhere
 /// in the segment PREFIX means a statement the template never saw.
+/// PROV[F] an enumerated SET assembled from the statements this class was measured on. A statement opcode outside the seven is exactly the off-sample case, and the set is used as a NEGATIVE test ("a byte from this set means a statement the template never saw"), so an omission fails OPEN.
 const STATEMENT_BYTES: [u8; 7] = [0x26, 0x2C, 0x4B, 0x4C, 0x54, 0x5C, 0x5E];
 
 /// **The one region of the segment the template does not cover, fenced rather
@@ -367,12 +369,15 @@ pub(crate) fn sy_local_type_index(sy: &[u8], tok: u32) -> Option<u32> {
 // ---------------------------------------------------------------------------
 
 /// CodeView `LF_CLASS` / `LF_STRUCTURE`.
+/// PROV[S] CodeView `LF_CLASS = 0x1504` — Microsoft's published symbolic-debug record type, identical in any CodeView producer. Not a c2 choice.
 const LF_CLASS: u16 = 0x1504;
+// PROV[S] CodeView `LF_STRUCTURE = 0x1505`, published alongside [`LF_CLASS`].
 const LF_STRUCTURE: u16 = 0x1505;
 
 /// The `property` bit that marks a **forward reference** — a record with no
 /// members and `size = 0`. c2 emits one of these for every class before the
 /// complete definition, so the walk must skip them or it reads `sizeof` as 0.
+/// PROV[S] CodeView's published `forward reference` property bit `0x0080`. THAT c2 emits a forward reference for every class before the complete definition is an observation, and it is stated in the doc as one; the bit's VALUE is the spec's.
 const CV_FWDREF: u16 = 0x0080;
 
 /// `sizeof` the class at CodeView type index `want`, from the `.db` type

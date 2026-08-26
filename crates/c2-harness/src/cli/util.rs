@@ -8,6 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::Args;
 
+// PROV[N] not load-bearing — a process-local counter for unique scratch names. Scratch state.
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn scratch_path(tag: &str) -> PathBuf {
@@ -112,6 +113,7 @@ pub(crate) fn require_cpp(args: &Args) -> Option<PathBuf> {
 
 /// The profile plumbing `capture`, `compile` and `census` share, plus the
 /// `--cwd` dependency that all three used to drop in silence.
+/// PROV[N] not load-bearing — an argument-dependency table for this crate's own CLI (`--cwd` requires `--flags-file`).
 pub(crate) const CPP_PROFILE_REQUIRES: &[(&str, &str)] = &[("--cwd", "--flags-file")];
 
 pub(crate) fn first_line(s: &str) -> &str {

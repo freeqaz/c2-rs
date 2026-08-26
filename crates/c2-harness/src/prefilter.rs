@@ -57,6 +57,7 @@ use c2_reference::Toolchain;
 use crate::jstr;
 
 /// Wire schema tag. Bump the major only on a breaking field/semantic change.
+/// PROV[N] not load-bearing — this crate's own wire-schema tag for the prefilter's JSON output.
 pub const SCHEMA: &str = "c2rs.prefilter/1";
 
 /// The four-valued answer. Only [`Verdict::Reject`] licenses skipping a real

@@ -1,0 +1,76 @@
+provenance census — TWO-TREE DIFF
+  base  e548f01fd decision 16: wave 14 funded — the four follow-ups wave 13 named, as three lanes
+  tip   0fa8eccbea5fbd44b4d7e9f8065e677ff092bd19 (clean)
+  scope crates
+
+rows are in PATH ORDER, never sorted by count or by delta (#3505).
+The tracked signal is the CHANGE per module — never the distance
+from 0 or from 100 % [R] (DISCLOSURE.md § What these numbers do NOT
+license, item 3).
+
+module                                        popB  popT   Δpop |  tagB  tagT   Δtag |   covB   covT     Δpp
+------------------------------------------------------------------------------------------------------------
+crates/c2-core/src                               4     4     +0 |     0     0     +0 |   0.0%   0.0%   +0.0
+crates/c2-core/src/codegen                     307   307     +0 |   102   102     +0 |  33.2%  33.2%   +0.0
+crates/c2-core/src/codegen/leaf                  3     3     +0 |     0     0     +0 |   0.0%   0.0%   +0.0
+crates/c2-core/src/coff                         56    56     +0 |    56    56     +0 | 100.0% 100.0%   +0.0
+crates/c2-core/src/plan                          1     1     +0 |     1     1     +0 | 100.0% 100.0%   +0.0
+crates/c2-harness/src                           27    27     +0 |     0    21    +21 |   0.0%  77.8%  +77.8
+crates/c2-harness/src/cli                       32    32     +0 |     0    31    +31 |   0.0%  96.9%  +96.9
+crates/c2-harness/src/gap                       33    33     +0 |     0    33    +33 |   0.0% 100.0% +100.0
+crates/c2-harness/src/search                     2     2     +0 |     0     2     +2 |   0.0% 100.0% +100.0
+crates/c2-harness/tests                        123   123     +0 |     0   123   +123 |   0.0% 100.0% +100.0
+crates/c2-harness/tests/cellgrade                4     4     +0 |     0     4     +4 |   0.0% 100.0% +100.0
+crates/c2-il/src                                19    19     +0 |     0    19    +19 |   0.0% 100.0% +100.0
+crates/c2-il/src/func                          156   156     +0 |     4   156   +152 |   2.6% 100.0%  +97.4
+crates/c2-il/src/func/body                      77    77     +0 |     0    77    +77 |   0.0% 100.0% +100.0
+crates/c2-il/src/func/body/shapes               83    83     +0 |     0    83    +83 |   0.0% 100.0% +100.0
+crates/c2-obj/src                               43    43     +0 |     0    43    +43 |   0.0% 100.0% +100.0
+crates/c2-reference/src                          7     7     +0 |     7     7     +0 | 100.0% 100.0%   +0.0
+crates/c2-reference/tests                       19    19     +0 |    19    19     +0 | 100.0% 100.0%   +0.0
+------------------------------------------------------------------------------------------------------------
+TOTAL                                          996   996     +0 |   189   777   +588 |  19.0%  78.0%  +59.0
+
+Δpop is printed BESIDE Δcov and is never omitted: #3045 moved an
+accuracy by 0.0035 while its denominator moved 10.8 %, and the two
+numbers together were the finding. A rate delta alone is a defect.
+
+WHY THE TAGGED COUNT MOVED — provenance work vs. new surface
+These two halves are NEVER summed. 'a constant was tagged' and 'a
+constant appeared' have opposite meanings for the goal: the first is
+understanding recorded, the second is unprovenanced surface added.
+
+module                                         →tag  →untag  reclass |  +new  +new(t)  -gone  -gone(t)
+------------------------------------------------------------------------------------------------------
+crates/c2-harness/src                            21       0        0 |     0        0      0         0
+crates/c2-harness/src/cli                        31       0        0 |     0        0      0         0
+crates/c2-harness/src/gap                        33       0        0 |     0        0      0         0
+crates/c2-harness/src/search                      2       0        0 |     0        0      0         0
+crates/c2-harness/tests                         123       0        0 |     0        0      0         0
+crates/c2-harness/tests/cellgrade                 4       0        0 |     0        0      0         0
+crates/c2-il/src                                 19       0        0 |     0        0      0         0
+crates/c2-il/src/func                           152       0        0 |     0        0      0         0
+crates/c2-il/src/func/body                       77       0        0 |     0        0      0         0
+crates/c2-il/src/func/body/shapes                83       0        0 |     0        0      0         0
+crates/c2-obj/src                                43       0        0 |     0        0      0         0
+------------------------------------------------------------------------------------------------------
+TOTAL                                           588       0        0 |     0        0      0         0
+
+  →tag      an EXISTING constant gained a marker      (provenance work)
+  →untag    an EXISTING constant LOST its marker      (a regression)
+  reclass   an EXISTING marker changed letter         (a judgement moved)
+  +new      constants that did not exist at the base  (new surface)
+  +new(t)   … of which arrived already tagged
+  -gone     constants deleted since the base;  -gone(t) … were tagged
+
+PER-CLASS DELTA, with the decomposition identity checked
+class      base    tip      Δ    appeared  vanished  retag-in  retag-out   check
+--------------------------------------------------------------------------------
+[R]         100    100     +0           0         0         0          0   OK
+[O]          49    207   +158           0         0       158          0   OK
+[F]           4     41    +37           0         0        37          0   OK
+[S]          18     88    +70           0         0        70          0   OK
+[N]          18    341   +323           0         0       323          0   OK
+untag       807    219   -588           0         0         0        588   OK
+--------------------------------------------------------------------------------
+DECOMPOSITION: HOLDS for all 6 classes (Δ[X] = appeared − vanished + retag-in − retag-out)

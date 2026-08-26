@@ -751,13 +751,17 @@ pub(crate) struct SyBlock {
 /// The `.ex` close of a function body's own lexical scope — depth
 /// [`super::body::expr::BODY_SCOPE_DEPTH`], the innermost one, so it is the last
 /// close before the terminal return. The anchor [`ex_exit_label`] keys on.
+/// PROV[O] `54 02`, the `.ex` close of a body's own lexical scope, read off captures. The anchor `ex_exit_label` keys on.
 const BODY_SCOPE_CLOSE: [u8; 2] = [0x54, 0x02];
 /// `.ex` RETURN, which names the exit label.
+/// PROV[O] `29`, the `.ex` RETURN opcode, read off captures.
 const EX_RETURN: u8 = 0x29;
 /// `.ex` ASSIGN, which names the same label earlier in the segment. The second
 /// channel that makes [`ex_exit_label`] a measurement and not a guess.
+/// PROV[O] `3A`, the `.ex` ASSIGN opcode, read off captures. The second channel that makes `ex_exit_label` a measurement rather than a guess.
 const EX_ASSIGN: u8 = 0x3A;
 
+// PROV[O] `03 01`, the `.sy` block-open record lead, read off captures.
 const BLOCK_OPEN: [u8; 2] = [0x03, 0x01];
 /// A record between function blocks, sharing the block header's `03` lead and its
 /// width. Kind `03` is a label declaration, `06` another form seen only in real
@@ -765,6 +769,7 @@ const BLOCK_OPEN: [u8; 2] = [0x03, 0x01];
 /// function with any control flow reach its own local sections at all — and
 /// skipping one that *did* open a block cannot go unnoticed, because the block
 /// count then disagrees with the `.ex` segment count and nothing is bound.
+/// PROV[O] `03`, the inter-block record kind, read off captures. Skipping one that DID open a block cannot go unnoticed — the block count then disagrees with the `.ex` segment count and nothing binds.
 const REC_INTER_BLOCK: u8 = 0x03;
 /// A **second** inter-block record family, with its own lead byte and a payload
 /// that is nothing like the `03` family's. It sits at top level, always between a
@@ -798,6 +803,7 @@ const REC_INTER_BLOCK: u8 = 0x03;
 ///
 /// UNVERIFIED, and stated as such: what the record *means*, and what the byte in the
 /// depth position (`02` or `05`) is. Nothing reads either.
+/// PROV[O] `1A`, the wide inter-block record kind, read off a real TU after the literal form refused 4 of 200 TUs; the size-8 witness carries type id `0x14A1`, corroborating. Its own doc marks what is UNVERIFIED — the record's meaning and the depth-position byte — and nothing reads either.
 const REC_WIDE_INTER_BLOCK: u8 = 0x1A;
 /// The four bytes after a block's or label's token. **Not interpreted**, only
 /// stepped over: they read `1F 00 01 01` in every fixture and `1F 00 02 01` in a
@@ -806,46 +812,62 @@ const REC_WIDE_INTER_BLOCK: u8 = 0x1A;
 /// this against a 649 KB workload `.sy` rather than the probes it was written from.
 /// A block header and a label declaration share this tail, and so share a width;
 /// the byte after `03` is the only thing that tells them apart.
+/// PROV[O] a WIDTH, four bytes, read off captures — deliberately a width and not a literal: the field reads `1F 00 01 01` in every fixture and `1F 00 02 01` in a real TU, and requiring it literally refuses real input. The doc names that as the trap of reading a never-varied field as a constant.
 const HEADER_TAIL_LEN: usize = 4;
 /// The last two bytes of an inter-block record's tail, which the named shape keeps
 /// while replacing the first field with a string. See [`skip_inter_block`].
+/// PROV[O] the two-byte tail an inter-block record keeps, read off captures.
 const INTER_BLOCK_TAIL_LEN: usize = 2;
+// PROV[O] `06`, the `.sy` block-close kind, read off captures.
 const BLOCK_CLOSE: u8 = 0x06;
 /// Opens a lexical scope's variable group: `0D <depth>`, preorder. Depth 1 is the
 /// formals, 2 the function body, 3+ each nested brace.
+/// PROV[O] `0D`, the record that opens a lexical scope's variable group (`0D <depth>`, preorder), read off captures.
 const SECTION: u8 = 0x0D;
+// PROV[O] depth `01` is the formals group, read off captures beside [`SECTION`].
 const DEPTH_FORMALS: u8 = 0x01;
 /// A plain automatic variable.
+/// PROV[O] `01`, a plain automatic variable record, read off `.sy` captures.
 const REC_PLAIN: u8 = 0x01;
 /// An array. Same fields plus a trailing element size; never admitted, only
 /// stepped over.
+/// PROV[O] `02`, an array record, read off captures. Never admitted, only stepped over.
 const REC_ARRAY: u8 = 0x02;
 /// A function-scope `static` — a memory object with a relocation, carrying its
 /// fully mangled name and a second token. Never admitted, only stepped over.
+/// PROV[O] `07`, a function-scope `static` record, read off captures.
 const REC_STATIC: u8 = 0x07;
 /// A **typedef**: a name bound to a type, declaring no object. Never admitted, only
 /// stepped over — see [`read_record`].
+/// PROV[O] `0B`, a typedef record, read off captures.
 const REC_TYPEDEF: u8 = 0x0B;
 /// The type tag of the 4-byte scalar family. **Not** a constant across the file —
 /// an 8-byte type reads `88`, so the tag is read as part of the type and only
 /// *admission* requires this value; the region's width does not depend on it.
+/// PROV[O] `86`, the `.sy` type-tag lead byte, read off captures. Same byte the `.ex` type triples open with.
 const TYPE_TAG: u8 = 0x86;
 /// A type tag with this bit set carries one **extra byte** before the kind (`C6 81
 /// 06`, `CA 81 0D`), displacing every field after it. See [`read_type_prefix`].
+/// PROV[O] `40`, the wide bit — `docs/IL_TYPE_WIDE_TAG.md`, derived for `.ex`/`.sy` on 2026-07-31.
 const TYPE_TAG_WIDE_BIT: u8 = 0x40;
 /// The wide prefix's extra byte. Constant at every witness, so required and not
 /// interpreted.
+/// PROV[O] `81`, the wide mark this reader requires, read off captures.
 const TYPE_WIDE_MARK: u8 = 0x81;
 /// Flags bit 7: the type carries one extra 2-byte field before its id. See
 /// [`read_type_extent`] — the single-channel rule, and why the two-channel one it
 /// replaced was wrong.
+/// PROV[O] `0080`, the flags bit that adds the extra type field, read off captures.
 const FLAGS_HAS_EXTRA: u16 = 0x0080;
 /// That extra field's value at every witness. Meaning unknown, so required.
+/// PROV[O] `80 00`, the extra field itself, read off captures.
 const TYPE_EXTRA_FIELD: [u8; 2] = [0x80, 0x00];
+// PROV[O] `01`, read off `.sy` captures.
 const TYPE_KIND_INT: u8 = 0x01;
 /// The `.sy` type kind for a plain **unsigned** integer. Its own constant beside
 /// the signed one because the address-taken clause admits both and the two are
 /// separate rows of the 21-cell grid in [`read_record`].
+/// PROV[O] `02`, read off `.sy` captures.
 const TYPE_KIND_UNSIGNED: u8 = 0x02;
 /// `.sy` type kind **`05` = "real"**: the floating-point family, and the field
 /// that says a formal is numbered in the FP register file rather than the GPR
@@ -870,19 +892,26 @@ const TYPE_KIND_UNSIGNED: u8 = 0x02;
 /// argument. The kind is `05` for all three spellings; the **size** (4 or 8, and
 /// the tag's width nibble agrees) is what separates the widths, and neither is
 /// per-TU.
+/// PROV[O] `05`, read off `.sy` captures.
 const TYPE_KIND_REAL: u8 = 0x05;
 /// The `.sy` type kind for a **data pointer**. Distinct from the function
 /// pointer's `0x04` and the aggregate's `0x06`, both of which share its size —
 /// see the 21-cell grid at the `plain_ptr4` clause in [`read_record`].
+/// PROV[O] `03`, read off `.sy` captures.
 const TYPE_KIND_DATA_PTR: u8 = 0x03;
 /// Storage class: `01` automatic, `03` formal. Redundant with the section depth in
 /// every witness, and required to agree with it.
+/// PROV[O] `01`, the storage-class byte for an automatic, read off captures.
 const CLS_AUTOMATIC: u8 = 0x01;
+// PROV[O] `03`, the storage-class byte for a formal, read off captures.
 const CLS_FORMAL: u8 = 0x03;
 /// Constant across every witness, between the storage class and the size.
+/// PROV[O] `04`, the lead byte of the size field, read off captures.
 const SIZE_LEAD: u8 = 0x04;
+// PROV[S] 4 — `sizeof(int)` on this 32-bit PowerPC ABI, fixed by the Xbox 360 EABI and not by c2. Would be 4 if `c2.dll` had never existed.
 const SIZEOF_INT: u32 = 4;
 /// `.ex` type-table id of plain `int`.
+/// PROV[O] `0x74`, the type id for `int`, read off `.sy` captures — the same `74` the `.ex` triple `86 41 74` ends with.
 const TID_INT: u32 = 0x74;
 
 /// The `unsigned` type id — **row 2 of the 21-cell table** in [`read_record`],
@@ -891,23 +920,30 @@ const TID_INT: u32 = 0x74;
 /// that one is: `const unsigned` moves the id into the constructed range and
 /// must NOT be admitted, so the id is what separates the plain type from its
 /// cv-qualified spellings — the kind alone does not.
+/// PROV[O] `0x75`, the type id for `unsigned`, read off captures.
 const TID_UINT: u32 = 0x75;
 /// Flags bit 0 is *referenced* and bit 5 is *address-taken*, so `0x0001` is an
 /// ordinary variable and `0x0021` one whose address escapes. `0x0000` — seen on an
 /// unreferenced formal — is accepted for locals too: an unread variable cannot
 /// change what the return expression evaluates to. Every other bit pattern is
 /// refused, because a bit this module cannot name might mean escape as well.
+/// PROV[O] `0001`, read off `.sy` captures.
 const FLAGS_REFERENCED: u16 = 0x0001;
+// PROV[O] `0000` — the absence of every flag this reader knows, read off captures.
 const FLAGS_NONE: u16 = 0x0000;
 /// Flags bit 5 set: the variable's address escapes. Decoded and *excluded* since
 /// `w-hash`; `w-XLR` gives it a positive list (`SyBlock::addr_locals`).
+/// PROV[O] `0021`, read off `.sy` captures.
 const FLAGS_ADDRESS_TAKEN: u16 = 0x0021;
 /// A `.sy` name is an identifier or a mangled name; the bound keeps a corrupt
 /// stream from scanning the rest of the file for a NUL.
+/// PROV[N] not load-bearing — a 4 KiB anti-garbage ceiling on a name read. It bounds a parse; a wrong value refuses a record rather than changing a graded byte.
 const MAX_NAME: usize = 4096;
 /// Refuse absurd files rather than allocating against a length read from data.
+/// PROV[N] not load-bearing — the same kind of parse ceiling, on block count.
 const MAX_BLOCKS: usize = 65536;
 /// A lexical nesting depth past this is not a real function.
+/// PROV[N] not load-bearing — the same kind of parse ceiling, on lexical depth.
 const MAX_DEPTH: u8 = 64;
 
 /// Parse every `.sy` function block, or `None` if any byte deviates from the

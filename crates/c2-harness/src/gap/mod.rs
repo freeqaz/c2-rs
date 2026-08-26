@@ -596,6 +596,7 @@ use c2_core::coff::PORT_WRITER_SECTIONS;
 /// Each entry carries its own key (`emit-whole-tu|<name>`) so the marginal of
 /// each recognizer is separately visible: a registry that grew an entry which
 /// never fires would otherwise be indistinguishable from one that did not.
+/// PROV[N] not load-bearing — a registry of THIS PORT's whole-TU recognizers, each separately visible so a registry entry that never fires is distinguishable from one that does not exist.
 pub const WHOLE_TU_RECOGNIZERS: &[(&str, fn(&c2_il::IlBundle) -> bool)] = &[
     ("dyninit-??__E", |b| b.dyninit_tu().is_some()),
     // **W-SECT, board #174 — the functionless data TU.** Registered in the same
@@ -861,6 +862,7 @@ pub struct FenceBlocks {
 /// vocabulary; a cause **added** upstream is still printed (the aggregation is
 /// data-driven and this list only pins the zero rows) but should be appended
 /// here in the same change, like `diag.rs`'s own distinctness test.
+/// PROV[N] not load-bearing — a list of this port's own fence key NAMES, pinning the zero rows so a new cause is a visible change. Same class as `func::diag::cause`.
 pub const FENCE_CAUSES: &[&str] = &[
     c2_il::func::cause::NO_GL,
     c2_il::func::cause::NO_EX,

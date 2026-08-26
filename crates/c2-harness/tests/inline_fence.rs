@@ -38,10 +38,12 @@ use c2_reference::Toolchain;
 
 /// The workload's own profile, minus the `/I` paths a standalone cell cannot
 /// use. `/O1` implies `/Gy`, which is the regime the whole 878-TU scan lives in.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// The census key the fence mints. Spelled once: a test that re-types the string
 /// its subject produces is a test of two spellings.
+/// PROV[N] not load-bearing — this port's own census key NAME (`callee-defined-in-tu`), quoted so the test pins which fence fires. Same class as `func::diag::cause`.
 const FENCE: &str = "callee-defined-in-tu";
 
 /// A scratch directory keyed on the tag **and** the pid — board #1045: four

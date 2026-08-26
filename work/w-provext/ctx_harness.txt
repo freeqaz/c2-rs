@@ -1,0 +1,560 @@
+### crates/c2-harness/src/capture_cache.rs
+-- 153: CACHE_FORMAT  >>> const CACHE_FORMAT: &str = "c2rs-capture-cache/v2";
+     /// the root, they are invalidated by a `cache-root` change no predicate could
+     /// have matched anyway.
+-- 161: ENTRY_BLOB  >>> pub const ENTRY_BLOB: &str = "entry.bin";
+     /// against one exported name rather than each hard-coding a string. Decode it
+     /// with [`c2_il::decode_entry`]; do not parse it by hand.
+-- 167: TMP_PREFIX  >>> const TMP_PREFIX: &str = ".entry.tmp.";
+     /// and `find_bundle_base` matches `_CL_*ex`, so such a name would be deleted
+     /// mid-write or mistaken for an IL stream.
+-- 178: CAPTURE_PATH_KEY  >>> pub const CAPTURE_PATH_KEY: &str = "objpath ";
+     /// every existing entry — ~450 s of CPU per scan, paid by every concurrent lane
+     /// — to re-derive bytes that are already correct.
+-- 392: LOCK_DIR  >>> pub const LOCK_DIR: &str = ".locks";
+     /// files inside are live cross-process locks, and deleting one on age grounds
+     /// silently un-guards a key.
+-- 396: LOCK_WAIT_MAX  >>> const LOCK_WAIT_MAX: Duration = Duration::from_secs(600);
+     /// Give up waiting and proceed unguarded. Nothing downstream blocks on the
+     /// lock, so the failure mode is today's behaviour, not a wedged scan.
+-- 401: LOCK_STALE_AFTER  >>> const LOCK_STALE_AFTER: Duration = Duration::from_secs(1800);
+     /// (~1–2 s); 30 minutes is ~1000× headroom, and without it a single SIGKILL
+     /// would poison one key of the cache permanently.
+-- 919: SEQ  >>> static SEQ: AtomicUsize = AtomicUsize::new(0);
+     // work dir before compiling and `find_bundle_base` matches `_CL_*ex`, so a
+     // tmp file named that way would be deleted mid-write or mistaken for IL.
+-- 1096: SRC_ARG_TAG  >>> const SRC_ARG_TAG: &[u8] = b"src-arg\x00";
+     /// `src-arg\0` — the first NUL-delimited field of the per-TU key tail.
+-- 1098: CWD_TAG  >>> const CWD_TAG: &[u8] = b"\x00cwd\x00";
+     /// `\0cwd\0`.
+### crates/c2-harness/src/cli/cache.rs
+-- 25: CACHE_SPEC  >>> static CACHE_SPEC: Spec = Spec::new(
+-- 38: VERBS  >>> const VERBS: &str = "stat | index | generations | show <key> | gc";
+### crates/c2-harness/src/cli/census.rs
+-- 37: CENSUS_SPEC  >>> static CENSUS_SPEC: Spec = Spec::new(
+### crates/c2-harness/src/cli/corpus.rs
+-- 14: CORPUS_GEN_SPEC  >>> static CORPUS_GEN_SPEC: Spec = Spec::new(
+-- 91: CORPUS_SAMPLE_SPEC  >>> static CORPUS_SAMPLE_SPEC: Spec = Spec::new("corpus sample", &[]);
+     /// so `c2rs corpus sample --out /tmp/x` wrote the sample into a directory
+     /// literally named `--out`.
+-- 113: CORPUS_STATS_SPEC  >>> static CORPUS_STATS_SPEC: Spec = Spec::new("corpus stats", &[]);
+### crates/c2-harness/src/cli/factors.rs
+-- 24: FACTORS_SPEC  >>> static FACTORS_SPEC: Spec = Spec {
+### crates/c2-harness/src/cli/gap.rs
+-- 24: GAP_SPEC  >>> static GAP_SPEC: Spec = Spec {
+     /// (`mismatch` TUs or a replay-soundness divergence) or a harness error —
+     /// gaps themselves are the expected measurement, not a failure.
+### crates/c2-harness/src/cli/listing.rs
+-- 16: LISTING_SPEC  >>> static LISTING_SPEC: Spec = Spec::new(
+     /// The listing is a **decode aid, never a gate**: the obj byte-compare remains
+     /// the sole judge of the port.
+-- 99: LISTING_SCAN_SPEC  >>> static LISTING_SCAN_SPEC: Spec = Spec::new(
+     /// **Boards #134 and #136** — the population scan over the listing seam.
+### crates/c2-harness/src/cli/perf.rs
+-- 19: PERF_SPEC  >>> static PERF_SPEC: Spec = Spec::new(
+-- 186: PERF_SCALE_SPEC  >>> static PERF_SCALE_SPEC: Spec = Spec::new(
+### crates/c2-harness/src/cli/prefilter.rs
+-- 17: PREFILTER_SPEC  >>> static PREFILTER_SPEC: Spec = Spec {
+     /// verdict, including `not_implemented`. Exit 2 means "you called me wrong" —
+     /// a caller must treat that as a hard error, never as a verdict.
+### crates/c2-harness/src/cli/reference.rs
+-- 21: CAPTURE_SPEC  >>> static CAPTURE_SPEC: Spec = Spec::new(
+-- 129: COMPILE_SPEC  >>> static COMPILE_SPEC: Spec = Spec::new(
+-- 287: SELFTEST_SPEC  >>> static SELFTEST_SPEC: Spec = Spec::new("selftest", &[]).positionals(usize::MAX);
+     /// looked for two "fixtures" named `--flags-file` and `f.txt` and failed as a
+     /// missing file — exit 1, not a usage error.
+-- 329: REPLAY_SPEC  >>> static REPLAY_SPEC: Spec = Spec::new("replay", &[]);
+     /// `/Ox` default and said nothing — the documented *"`replay` does not take
+     /// `--flags-file`"* meant "accepts and ignores it", which is the class.
+-- 391: REPLAY_C1_SPEC  >>> static REPLAY_C1_SPEC: Spec = Spec::new("replay-c1", &[]);
+     /// `/Ox` default and said nothing — the documented *"`replay-c1` does not take
+     /// `--flags-file`"* meant "accepts and ignores it", which is the class.
+-- 476: DIFF_SPEC  >>> static DIFF_SPEC: Spec = Spec::new(
+     /// standing instrument takes it. See [`c2_harness::differential_cached`] for
+     /// what is and is not cached — the replay and the port are not.
+-- 640: BENCH_SPEC  >>> static BENCH_SPEC: Spec = Spec::new("bench", &[]).positionals(0);
+     /// above any handler that could have refused it — the same class, at the only
+     /// site where the handler never even saw the arguments.
+### crates/c2-harness/src/cli/retrieve.rs
+-- 38: RETRIEVE_INDEX_SPEC  >>> static RETRIEVE_INDEX_SPEC: Spec = Spec::new("retrieve index", &[]);
+-- 101: RETRIEVE_EVAL_SPEC  >>> static RETRIEVE_EVAL_SPEC: Spec = Spec::new(
+### crates/c2-harness/src/cli/search.rs
+-- 22: SEARCH_FIXTURES  >>> const SEARCH_FIXTURES: &[&str] = &[
+     /// literals and/or arithmetic terms (the move set's sites). C++-only; each is
+     /// captured fresh (no committed IL/obj).
+-- 91: SEARCH_COMMON  >>> const SEARCH_COMMON: &[(&str, Arity)] = &[
+     /// The options every `search` subcommand shares.
+-- 110: SEARCH_SOLVE_SPEC  >>> static SEARCH_SOLVE_SPEC: Spec = search_spec("search solve", SEARCH_COMMON);
+     /// ran d=1. Refusing it is the honest reading of "this subcommand does not take
+     /// it"; the ladder lives on `search eval`.
+-- 169: SEARCH_EVAL_SPEC  >>> static SEARCH_EVAL_SPEC: Spec = Spec {
+-- 270: SEARCH_FROM_RETRIEVAL_SPEC  >>> static SEARCH_FROM_RETRIEVAL_SPEC: Spec = Spec {
+-- 407: SEARCH_FROM_LIFTER_SPEC  >>> static SEARCH_FROM_LIFTER_SPEC: Spec = Spec {
+### crates/c2-harness/src/cli/stage.rs
+-- 43: STAGE_SPEC  >>> static STAGE_SPEC: Spec = Spec::new(
+### crates/c2-harness/src/cli/subsys.rs
+-- 23: SUBSYS_SPEC  >>> static SUBSYS_SPEC: Spec = Spec {
+### crates/c2-harness/src/cli/util.rs
+-- 11: COUNTER  >>> static COUNTER: AtomicU64 = AtomicU64::new(0);
+-- 115: CPP_PROFILE_REQUIRES  >>> pub(crate) const CPP_PROFILE_REQUIRES: &[(&str, &str)] = &[("--cwd", "--flags-file")];
+     /// The profile plumbing `capture`, `compile` and `census` share, plus the
+     /// `--cwd` dependency that all three used to drop in silence.
+### crates/c2-harness/src/corpus.rs
+-- 60: GENERATOR_VERSION  >>> pub const GENERATOR_VERSION: &str = "straightline_int_v1";
+     /// Bumped whenever the source-generation grammar changes in a way that alters
+     /// the emitted corpus for a fixed `(seed, index)`. Recorded in `config.json`.
+-- 63: DEFAULT_TIMEOUT  >>> pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
+     /// Default per-capture wall-clock timeout.
+-- 105: PARAM_NAMES  >>> const PARAM_NAMES: [&str; 4] = ["a", "b", "c", "d"];
+-- 106: OPS  >>> const OPS: [(&str, &str); 3] = [("+", "add"), ("-", "sub"), ("*", "mul")];
+-- 1123: K  >>> const K: [u32; 64] = [
+### crates/c2-harness/src/fixture_profile.rs
+-- 95: PROFILE_MARKER  >>> pub const PROFILE_MARKER: &str = "// c2rs-profile:";
+     /// line, so leading indentation is allowed and a marker inside a block comment
+     /// or a string is not (it must start the line).
+-- 98: PROFILE_REASON_SEP  >>> pub const PROFILE_REASON_SEP: char = '#';
+     /// Separator between the flag list and the mandatory reason.
+### crates/c2-harness/src/gap/blind.rs
+-- 97: LEVEL_ENV  >>> pub const LEVEL_ENV: &str = "C2RS_BLIND_LEVEL";
+     ///
+     /// Unset means [`DEFAULT_LEVEL`]. `0` is the identity control (§`measure`).
+-- 105: DEFAULT_LEVEL  >>> pub const DEFAULT_LEVEL: u32 = 1;
+     /// control sets `C2RS_BLIND_LEVEL=0` and gets it, and the report says which
+     /// depth produced the numbers it is printing.
+-- 178: ALL  >>> pub const ALL: [Why; 4] = [Why::NoDecode, Why::NoSelect, Why::NoCompose, Why::NoRefBytes];
+     /// Every value, so the report can print each one including as a zero.
+### crates/c2-harness/src/gap/decode.rs
+-- 104: ENABLE_ENV  >>> pub const ENABLE_ENV: &str = "C2RS_DECODE_REACH";
+     /// rather than a baked constant (`docs/GOAL_DECISION_2026-08-21.md`
+     /// § "AMENDED"); `off` is a legal instrument state and licenses nothing.
+-- 113: POP_ENV  >>> pub const POP_ENV: &str = "C2RS_DECODE_REACH_POP";
+     /// denominator — which is the defect `calc_fuzzy_match_percent` has and FBM was
+     /// built to avoid.
+-- 126: SEPARATION_KEY  >>> pub const SEPARATION_KEY: &str = "decode-reach-reached-not-admitted";
+     /// check — 'the run must have GRADED something' — never an enumeration of the
+     /// ways it can be empty."*
+-- 138: DECODER  >>> pub const DECODER: &str = "statement-layer";
+     /// reaches more. A drop across that boundary is a change of instrument, not a
+     /// regression, and only a recorded decoder identity can tell the two apart.
+-- 228: ALL  >>> pub const ALL: [Reach; 3] = [Reach::Reached, Reach::Stopped, Reach::NoBody];
+     /// Every value, so the report can print each one including as a zero.
+### crates/c2-harness/src/gap/factors.rs
+-- 102: PORT_CFG_CLASSES  >>> const PORT_CFG_CLASSES: &[CfgClass<'static>] = &[
+     /// See `cfg_class::SHIPPED_CFG_CLAIMS`, and `rungs/2026-08-19-cfgclass.md` §5
+     /// for the two-sided price of promoting one.
+### crates/c2-harness/src/gap/fnbytes.rs
+-- 812: MAX_CALLTARGET_WITNESSES  >>> const MAX_CALLTARGET_WITNESSES: usize = 4;
+     /// worth its bytes only until the population repeats; the *counts* beside it are
+     /// unbounded and are what a lane sizes work off.
+-- 822: MAX_BLR_STOP_LEVELS  >>> pub(crate) const MAX_BLR_STOP_LEVELS: usize = 8;
+     /// can never reach. Raise it when a scan reports a non-zero count at the last
+     /// level, which is the observation that says the chain outran the instrument.
+-- 1030: DEPTHS  >>> const DEPTHS: [&str; 8] = [
+### crates/c2-harness/src/gap/fndiff.rs
+-- 196: A_FORM_XO  >>> const A_FORM_XO: [u32; 12] = [18, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30, 31];
+     /// membership in this set is a *sound* discriminator against X-form and not a
+     /// heuristic.
+-- 586: LCS_CELL_CAP  >>> const LCS_CELL_CAP: usize = 400_000;
+     /// pathological pair cannot dominate a scan, and it is **counted**
+     /// (`fndiff-align-capped`) rather than silently degrading the table.
+-- 776: BODY_CAP  >>> pub const BODY_CAP: usize = 64;
+     /// workload is far shorter than this; the cap exists so one outlier cannot make
+     /// the file unreadable, and it is reported per row rather than silently applied.
+-- 780: SUB_SAMPLE  >>> pub const SUB_SAMPLE: usize = 8;
+     /// How many substitutions a row carries verbatim. Enough to decode a cluster's
+     /// worked example by hand; short enough that the JSONL stays a text file.
+### crates/c2-harness/src/gap/mod.rs
+-- 599: WHOLE_TU_RECOGNIZERS  >>> pub const WHOLE_TU_RECOGNIZERS: &[(&str, fn(&c2_il::IlBundle) -> bool)] = &[
+     /// each recognizer is separately visible: a registry that grew an entry which
+     /// never fires would otherwise be indistinguishable from one that did not.
+-- 864: FENCE_CAUSES  >>> pub const FENCE_CAUSES: &[&str] = &[
+     /// data-driven and this list only pins the zero rows) but should be appended
+     /// here in the same change, like `diag.rs`'s own distinctness test.
+### crates/c2-harness/src/gap/plan.rs
+-- 104: PLAN_COMPONENTS  >>> pub const PLAN_COMPONENTS: &[&str] = &["emitset-members", "emitset-order"];
+     /// column order, and the names are the `gap-metric` key stems, so a rename is
+     /// a visible interface change rather than a silent `NO-RESULT` (STATUS trap 5).
+-- 179: PLAN_KEYS  >>> pub const PLAN_KEYS: &[PlanKeys] = &[
+-- 206: PLAN_OBSERVED_KEYS  >>> pub const PLAN_OBSERVED_KEYS: &[&str] = &[
+     /// externals (675 TUs)" and "COMDAT synthesis (450 TUs)" are **carried**
+     /// figures with no locator; these keys re-derive them directly.
+### crates/c2-harness/src/gap/render.rs
+-- 1018: CONTROL  >>> const CONTROL: &str = "src/xdk/nuispeech/xboxmem.cpp";
+     // prints as absent rather than as a pass — `cfg_reach_control` returns
+     // `None` for a scan whose list does not contain the TU.
+### crates/c2-harness/src/gap/sets.rs
+-- 125: NAMED_SETS  >>> pub const NAMED_SETS: &[NamedSet] = &[
+     /// easiest way to make this file disagree with the scan by 11, which is why the
+     /// control is mechanical.
+-- 252: TSV_COLUMNS  >>> pub const TSV_COLUMNS: &str =
+     /// join produces a confident wrong answer. This constant going stale breaks a
+     /// unit test in the same crate, not a lane's arithmetic three days later.
+### crates/c2-harness/src/gap/symbind.rs
+-- 93: ENABLE_ENV  >>> pub const ENABLE_ENV: &str = "C2RS_SYMBIND";
+     /// rather than a baked constant (`docs/GOAL_DECISION_2026-08-21.md`
+     /// § "AMENDED"); `off` is a legal instrument state and licenses nothing.
+-- 102: FUSED_KEY  >>> pub const FUSED_KEY: &str = "symbind-fused";
+     /// is 0 the lane reports `FAILED`**. A criterion that cannot move is `#3336`,
+     /// and this whole line of work exists to prevent `#3336` at program scale.
+-- 114: RELAX_LEVEL_KEY  >>> pub const RELAX_LEVEL_KEY: &str = "symbind-relax-level";
+     /// the instrument's own free identity control, and the arm the prereg requires
+     /// a full workload scan of.
+-- 121: PLACEHOLDER_NONE_KEY  >>> pub const PLACEHOLDER_NONE_KEY: &str = "symbind-placeholder-none";
+     /// than a supplied name — i.e. this module's account of the seam is incomplete
+     /// and the residue is exactly the size of what it is missing.
+-- 178: ALL  >>> pub const ALL: [Cell; 4] = [
+     /// Every value, so the report can print each one including as a zero.
+### crates/c2-harness/src/gap/witness.rs
+-- 24: OUT  >>> static OUT: std::sync::OnceLock<Option<Mutex<std::fs::File>>> = std::sync::OnceLock::new();
+-- 82: P  >>> static P: std::sync::OnceLock<Option<PathBuf>> = std::sync::OnceLock::new();
+-- 90: WITNESS_CAP  >>> const WITNESS_CAP: usize = 40;
+     /// printed as a count of names *and* a count of symbols, never elided — a tail
+     /// that renders as nothing is the failure mode `docs/GAPS.md` §7 is about.
+-- 166: OUT  >>> static OUT: std::sync::OnceLock<Option<Mutex<std::fs::File>>> = std::sync::OnceLock::new();
+### crates/c2-harness/src/prefilter.rs
+-- 60: SCHEMA  >>> pub const SCHEMA: &str = "c2rs.prefilter/1";
+     /// Wire schema tag. Bump the major only on a breaking field/semantic change.
+### crates/c2-harness/src/search/similarity.rs
+-- 84: OPCODE_WEIGHT  >>> const OPCODE_WEIGHT: f64 = 0.5;
+     /// above "wrong opcode" (`≤ 0.15`) and strictly below a full match, so descending
+     /// one field at a time is monotone.
+-- 392: BLR_WORD  >>> const BLR_WORD: u32 = 0x4E80_0020;
+     /// function ends with; used to split a `.text` word stream into per-function
+     /// segments (each such function returns via exactly one `blr`).
+### crates/c2-harness/src/subsys.rs
+-- 68: REF_DIR  >>> pub const REF_DIR: &str = "docs/whitebox/ref";
+     /// Where the whitebox reference index lives, relative to the repo root.
+-- 73: SECTIONS_JSONL  >>> pub const SECTIONS_JSONL: &str = "work/w-bss/census/sections.jsonl";
+     /// Committed (lane `w-bss`); regenerating it needs the `dc3` tree and ~102 MB
+     /// of objs, which is why it is in the tree rather than rebuilt.
+-- 78: BYTE_OWNED_CITATION  >>> pub const BYTE_OWNED_CITATION: &str = concat!(
+     /// `w-permeasure`, 2026-08-25, port tree `a8593651b`, the 878-TU workload.
+     /// Decision 15 says so in its own words: *"Not re-measured this wave"*.
+-- 92: BYTE_OWNED_RESIDUE  >>> pub const BYTE_OWNED_RESIDUE: &str = concat!(
+     /// the one measurement that exists, once, with its citation — and a residue
+     /// naming what an attributed column would need.
+-- 274: SUBSYSTEMS  >>> pub const SUBSYSTEMS: &[Subsystem] = &[
+     /// `cargo test`. The `*_doc` fields are the reference beside each number so a
+     /// reader can tell a carried figure from a computed one.
+-- 1116: TRAPS  >>> pub const TRAPS: &[&str] = &[
+     /// The three standing traps, printed verbatim with every render. Decision 15's
+     /// own words plus `FUNCTION_BYTE_MATCH.md` §0's.
+### crates/c2-harness/src/testsupport.rs
+-- 40: WORKLOAD_FLAGS  >>> pub const WORKLOAD_FLAGS: [&str; 8] = [
+     /// vacuously. Each converted site kept its own doc comment saying so in its own
+     /// words; those stay, because they say what the flags mean *for that cell*.
+-- 52: SCRATCH_SEQ  >>> static SCRATCH_SEQ: AtomicUsize = AtomicUsize::new(0);
+     /// Monotonic tie-breaker for [`unique_scratch_dir`]. One per test binary, which
+     /// is what the per-file `static COUNTER`s it replaces were.
+### crates/c2-harness/src/toolchain_gate.rs
+-- 56: REQUIRE_TOOLCHAIN_VAR  >>> pub const REQUIRE_TOOLCHAIN_VAR: &str = "C2RS_REQUIRE_TOOLCHAIN";
+     /// The variable a caller sets to say *"this run is expected to grade against
+     /// real `c2.dll`"*. Any value but `0` and the empty string means yes.
+### crates/c2-harness/tests/call_targets.rs
+-- 42: FLAGS  >>> const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
+     /// fixture default would produce a packed obj with no `.text` COMDAT at all and
+     /// every assertion below would pass vacuously.
+-- 56: CELL  >>> const CELL: &str = r#"
+     /// same-TU callee — kept in the cell so the shape is on the record next to the
+     /// claim, even though the IL parser refuses it.
+### crates/c2-harness/tests/callee_unresolved_sites.rs
+-- 36: CENSUS_RS  >>> const CENSUS_RS: &str = "crates/c2-il/src/func/census.rs";
+     /// deliberately — `w-mutcensus`' own table went stale on two peer merges in one
+     /// wave, and a line number is the first thing to rot.
+-- 38: BODY_MOD_RS  >>> const BODY_MOD_RS: &str = "crates/c2-il/src/func/body/mod.rs";
+     /// Where the four key strings are declared.
+-- 43: ARM_PATTERNS  >>> const ARM_PATTERNS: [&str; 7] = [
+     /// blocking key, **in source order**, each named by the pattern text this test
+     /// requires to be present exactly once.
+-- 57: FAMILY  >>> const FAMILY: [(&str, &str); 4] = [
+     /// `FnVerdict::key()` into `emit-cflow-modeled-key|{}` — so a rename of the
+     /// constant alone is invisible downstream and a change to the *string* is not.
+### crates/c2-harness/tests/cellgrade/mod.rs
+-- 52: FLAGS  >>> pub const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
+     /// The workload's own profile, minus the `/I` paths a standalone cell cannot
+     /// use. `/O1` implies `/Gy`; `/Ox` does not.
+-- 62: ANCHOR  >>> pub const ANCHOR: &str = "\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n";
+     /// `eat_fn_tail` refuses. Appended, the ANCHOR came back `Refused` in four of eight
+     /// cells and every verdict under it was worthless.
+-- 72: TAIL  >>> pub const TAIL: &str = "
+     /// source order — and five is what the census reads back as `empty-body`
+     /// (`w-inl0` §4, measured rather than guessed).
+-- 83: BLR  >>> pub const BLR: [u8; 4] = [0x4e, 0x80, 0x00, 0x20];
+     /// The one word an elided body is, and the one word c2 emits for a function it
+     /// emits nothing for.
+### crates/c2-harness/tests/census_gate.rs
+-- 122: KNOWN_DISAGREEMENTS_PACKED  >>> const KNOWN_DISAGREEMENTS_PACKED: usize = 1;
+     /// The number is asserted rather than allow-listed away so that it cannot grow
+     /// quietly: a new gate landing in codegen instead of the parser fails this test.
+-- 145: KNOWN_DISAGREEMENTS_GY  >>> const KNOWN_DISAGREEMENTS_GY: usize = 12;
+     /// name, so trading one of these for a genuinely new refusal still fails even
+     /// though the total would not move.
+-- 163: FLOOR_FIXTURE_CELLS  >>> const FLOOR_FIXTURE_CELLS: usize = 1_200;
+     /// identical in both linkage modes — the mode changes the verdict, not the
+     /// population.
+-- 167: FLOOR_FIXTURE_SHAPES  >>> const FLOOR_FIXTURE_SHAPES: usize = 25;
+     /// Fixture lane, distinct census shape keys among the discriminating cells.
+     /// Measured **35**.
+-- 176: FLOOR_WIDE_CELLS  >>> const FLOOR_WIDE_CELLS: usize = 10_000;
+     /// generated corpus buys is BREADTH, not bulk. Sixteen thousand more cells found
+     /// three families the fixtures cannot express, not more of the one they can.
+-- 181: FLOOR_WIDE_SHAPES  >>> const FLOOR_WIDE_SHAPES: usize = 24;
+     /// fixture corpus's 35, which is the same point from the other side: the
+     /// fixtures are denser in hand-chosen shapes and blind to whole constructs.
+-- 538: WIDE_CAUSES_PACKED  >>> const WIDE_CAUSES_PACKED: &[&str] = &[
+     /// this test asks `census_functions()` + `function_gate` a **per-function** one.
+     /// Two instruments, one name, disjoint findings.
+-- 553: WIDE_CAUSES_GY  >>> const WIDE_CAUSES_GY: &[&str] = &[
+     /// enumerates FP *shapes* and rarely needs a pooled constant at all. A generated
+     /// corpus is broader, not uniformly denser.
+-- 716: FLOOR_REGISTRY_CELLS  >>> const FLOOR_REGISTRY_CELLS: usize = 1_200;
+     /// headroom, for `FLOOR_FIXTURE_CELLS`' reason: a floor's job is to fail a run
+     /// that collapsed, not to pin a number that moves whenever a fixture lands.
+-- 719: FLOOR_REGISTRY_LOWERINGS  >>> const FLOOR_REGISTRY_LOWERINGS: usize = 10;
+     /// How many distinct `Lowering` arms the fixtures must exercise. A registry
+     /// graded on two arms says nothing about the other thirty-three.
+-- 793: PROFILES  >>> const PROFILES: &[(&str, &[&str])] = &[
+     /// default. A registry graded at `/Ox` alone would have declared twenty arms
+     /// and measured none of them.
+### crates/c2-harness/tests/census_key_routing.rs
+-- 63: FLAGS  >>> const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
+     /// source reports `expr-jump` — it never reaches the object gate at all, and
+     /// every assertion about that gate would be vacuous.
+-- 66: FLAGS_OD  >>> const FLAGS_OD: [&str; 8] = [
+     /// `/Od`, for the one row whose subject is the optimization word itself.
+### crates/c2-harness/tests/cli_flags.rs
+-- 70: C2RS  >>> const C2RS: &str = env!("CARGO_BIN_EXE_c2rs");
+     /// `target/release/c2rs` off disk (`scripts/harness_bin.sh` documents what a
+     /// stale harness binary costs).
+### crates/c2-harness/tests/dead_temp_elision.rs
+-- 44: FLAGS  >>> const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
+     /// The workload's own profile, minus the `/I` paths a standalone cell cannot
+     /// use. `/O1` implies `/Gy`; `/Ox` does not.
+-- 59: ANCHOR  >>> const ANCHOR: &str = "\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n";
+     /// `Refused` in four of the eight cells and the control could not fire at all.
+     /// Prepended, the trailer lands on `?use`, which no test asserts about.
+-- 81: TAIL  >>> const TAIL: &str = "
+     /// past it, and the census then reads `??$aux@…` as `empty-body` — which is what
+     /// seeds the chain.
+-- 90: BLR  >>> const BLR: [u8; 4] = [0x4e, 0x80, 0x00, 0x20];
+-- 93: M01  >>> const M01: &str = include_str!("../../../work/w-inl0/cells/m01.cpp");
+     // The FROZEN grid. `include_str!` and not a copy — see the module header.
+-- 94: M02  >>> const M02: &str = include_str!("../../../work/w-inl0/cells/m02.cpp");
+-- 95: M03  >>> const M03: &str = include_str!("../../../work/w-inl0/cells/m03.cpp");
+-- 96: M04  >>> const M04: &str = include_str!("../../../work/w-inl0/cells/m04.cpp");
+-- 97: M05  >>> const M05: &str = include_str!("../../../work/w-inl0/cells/m05.cpp");
+-- 98: M06  >>> const M06: &str = include_str!("../../../work/w-inl0/cells/m06.cpp");
+-- 99: M07  >>> const M07: &str = include_str!("../../../work/w-inl0/cells/m07.cpp");
+-- 100: M08  >>> const M08: &str = include_str!("../../../work/w-inl0/cells/m08.cpp");
+### crates/c2-harness/tests/destroy_loop_elision.rs
+-- 74: L01  >>> const L01: &str = include_str!("../../../work/w-memset/cells/l01.cpp");
+-- 75: L02  >>> const L02: &str = include_str!("../../../work/w-memset/cells/l02.cpp");
+-- 76: L03  >>> const L03: &str = include_str!("../../../work/w-memset/cells/l03.cpp");
+-- 77: L04  >>> const L04: &str = include_str!("../../../work/w-memset/cells/l04.cpp");
+-- 78: L05  >>> const L05: &str = include_str!("../../../work/w-memset/cells/l05.cpp");
+-- 79: L06  >>> const L06: &str = include_str!("../../../work/w-memset/cells/l06.cpp");
+-- 80: L07  >>> const L07: &str = include_str!("../../../work/w-memset/cells/l07.cpp");
+-- 81: L08  >>> const L08: &str = include_str!("../../../work/w-memset/cells/l08.cpp");
+-- 82: L09  >>> const L09: &str = include_str!("../../../work/w-memset/cells/l09.cpp");
+-- 83: L10  >>> const L10: &str = include_str!("../../../work/w-memset/cells/l10.cpp");
+-- 84: L11  >>> const L11: &str = include_str!("../../../work/w-memset/cells/l11.cpp");
+-- 85: L12  >>> const L12: &str = include_str!("../../../work/w-memset/cells/l12.cpp");
+### crates/c2-harness/tests/edit_differential.rs
+-- 35: TIMEOUT  >>> const TIMEOUT: Duration = Duration::from_secs(60);
+     /// Replay budget — well above a normal ~1 s replay, tight enough to turn a
+     /// function-set-mismatch hang (P0.6a G) into a prompt failure.
+### crates/c2-harness/tests/empty_elision.rs
+-- 36: FLAGS  >>> const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
+     /// The workload's own profile, minus the `/I` paths a standalone cell cannot
+     /// use. `/O1` implies `/Gy`; `/Ox` does not.
+-- 42: ANCHOR  >>> const ANCHOR: &str = "\nvoid ext_anchor();\nvoid anchor() { ext_anchor(); }\n";
+     /// from "nothing in this cell emitted anything", which is `docs/STATUS.md`
+     /// trap 5 in its most literal form.
+-- 134: BLR  >>> const BLR: [u8; 4] = [0x4e, 0x80, 0x00, 0x20];
+### crates/c2-harness/tests/fence_count.rs
+-- 48: FLAGS  >>> const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
+     /// `/Ox` this fixture is `NotImplemented` and the cell would grade a different
+     /// question.
+-- 53: FIXTURE  >>> const FIXTURE: &str = "fixtures/cpp/wfcnt_fence_holds_exact.cpp";
+     /// the string below is both the source argument and the `src` the report keys
+     /// on.
+### crates/c2-harness/tests/fence_site_census.rs
+-- 85: EXPECTED  >>> const EXPECTED: &[(&str, usize, usize)] = &[
+     /// Measured at master `1744ced1` by lane `w-deadsites`
+     /// (`docs/rungs/2026-08-18-deadsites.md`).
+-- 123: AXIS_TAGS  >>> const AXIS_TAGS: &[&str] = &[
+     /// reaches `Block::at_end`, so they are not fences and are excluded **by name**
+     /// rather than by a heuristic.
+-- 134: EXPECTED_REFUSE_SITES  >>> const EXPECTED_REFUSE_SITES: usize = 23;
+     /// literal rather than a constant, so the table above cannot see them. That
+     /// lane counted **23**; this rule reproduces it exactly.
+-- 145: EXPECTED_AT_END_SITES  >>> const EXPECTED_AT_END_SITES: usize = 8;
+     /// `EXPECTED_AT_END_SITES_BY_FILE` below before quoting this total: the 8 are
+     /// **not** one population any more.
+-- 182: EXPECTED_AT_END_SITES_BY_FILE  >>> const EXPECTED_AT_END_SITES_BY_FILE: &[(&str, usize)] = &[
+     /// that caller owes its own two-sided price for widening the decision surface
+     /// into production.
+-- 192: EXPECTED_AT_END_SITES_INSTRUMENT_ONLY  >>> const EXPECTED_AT_END_SITES_INSTRUMENT_ONLY: usize = 1;
+     /// "how many published keys does nothing measure" is a *quantity* on this page
+     /// and not a paragraph.
+### crates/c2-harness/tests/float_leaf_neighbors.rs
+-- 27: VOLF_SEGMENT  >>> const VOLF_SEGMENT: &[u8] = &[
+     /// `VOLF_SEGMENT` fixture in `codec.rs` (the codec's round-trip test owns the
+     /// provenance); duplicated here because that fixture is a private test const.
+### crates/c2-harness/tests/fnbyte_gy.rs
+-- 53: SHAPE_FIXTURES  >>> const SHAPE_FIXTURES: [(&str, &str); 4] = [
+     /// All four are required. A shape that stops appearing here fails the test with
+     /// its own name, which is the difference between this and a corpus total.
+-- 62: GY_FLAGS  >>> const GY_FLAGS: [&str; 7] = [
+     /// The workload's own profile. `/O1` implies `/Gy`; `/Ox` does not, and the
+     /// fixtures' default profile is `/Ox`.
+### crates/c2-harness/tests/gate_cause.rs
+-- 37: FLAGS  >>> const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
+     /// different `.ex`, so a cell graded there would not be grading `vec.cpp`'s
+     /// question.
+### crates/c2-harness/tests/inline_fence.rs
+-- 41: FLAGS  >>> const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
+     /// The workload's own profile, minus the `/I` paths a standalone cell cannot
+     /// use. `/O1` implies `/Gy`, which is the regime the whole 878-TU scan lives in.
+-- 45: FENCE  >>> const FENCE: &str = "callee-defined-in-tu";
+     /// The census key the fence mints. Spelled once: a test that re-types the string
+     /// its subject produces is a test of two spellings.
+### crates/c2-harness/tests/ir0_framing.rs
+-- 69: COUNTER  >>> static COUNTER: AtomicU64 = AtomicU64::new(0);
+### crates/c2-harness/tests/lane_registry.rs
+-- 74: EXPECTED_LANES  >>> const EXPECTED_LANES: usize = 18;
+     ///
+     /// It read `12` from 2026-07-31 until lane `w-gr` closed the `/GR` hole.
+-- 367: WORKLOAD_PROFILE  >>> const WORKLOAD_PROFILE: &[&str] = &["/EHsc", "/GR", "/O1", "/Oi"];
+     /// *is* present it is compared against this constant, so the two cannot drift
+     /// apart silently in either direction.
+### crates/c2-harness/tests/noinline_boundary.rs
+-- 83: FLAGS  >>> const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
+     /// The workload's own profile, minus the `/I` paths a standalone cell cannot
+     /// use. `/O1` implies `/Gy`, which is the regime FBM's denominator lives in.
+-- 89: W04A  >>> const W04A: &str = "\
+     /// silently skips because its input is not checked in is a test that reports
+     /// absence as success.
+-- 99: W10  >>> const W10: &str = "\
+     /// **GRID-W2 cell `w10`** — the same attribute on a leaf the splice DOES reach.
+-- 111: W12  >>> const W12: &str = "\
+     /// in its own TU: a grid with only the suspicious cell cannot tell "the rule is
+     /// wrong here" from "the rule is off in this build".
+### crates/c2-harness/tests/nonformal_sites.rs
+-- 85: FLAGS  >>> const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
+     /// the neighbouring gate this lane also guards
+     /// (`tests/census_key_routing.rs`).
+-- 89: NONFORMAL  >>> const NONFORMAL: &str = "call-arg-nonformal:eof";
+     /// The one key all five raise sites publish. Spelled once: a test that re-types
+     /// the string its subject produces is a test of two spellings.
+-- 93: COMPUTED  >>> const COMPUTED: &str = "call-arg-computed:eof";
+     /// `CA8`'s key — the *other* refusal of the same argument-slot loop, and the
+     /// one `w-mutcensus`' `M-CA6`/`M-CA8` mutations swap with it.
+-- 145: S1  >>> const S1: &str = "int gi;\nvoid g2(int, int);\nvoid f(int a) { g2(gi, a); }\n";
+     /// ROW 1 — `calls.rs:693`. Two arguments, so `tail_call_shape` takes the SLOT
+     /// path; slot 0 is `[Load(gi)]` and `gi` is not in `params`.
+-- 146: S1_CTL  >>> const S1_CTL: &str = "void g2(int, int);\nvoid f(int a, int b) { g2(a, b); }\n";
+-- 150: S2  >>> const S2: &str = "int gi;\nint g1(int);\nint f(int a) { return g1(gi); }\n";
+     /// ROW 2 — `calls.rs:807`. ONE argument, so the slot path is skipped entirely
+     /// and the single-argument operand path asks `arg_loads_are_formals`.
+-- 151: S2_CTL  >>> const S2_CTL: &str = "int g1(int);\nint f(int a) { return g1(a); }\n";
+-- 155: S3  >>> const S3: &str = "int gi;\nint g1(int);\nint f(int a) { return g1(gi) + 1; }\n";
+     /// ROW 3 — `calls.rs:1749`. A non-zero post-op makes it a FRAMED call, whose
+     /// passthrough argument must still be a formal.
+-- 156: S3_CTL  >>> const S3_CTL: &str = "int g1(int);\nint f(int a) { return g1(a) + 1; }\n";
+-- 160: S4  >>> const S4: &str = "struct S { int m(); };\nS* gp;\nbool f(S* p) { return p->m() == gp->m(); }\n"
+     /// ROW 4 — `mcall_cmp.rs:246`. Two nullary member calls compared; the SECOND
+     /// receiver is a global rather than a formal.
+-- 161: S4_CTL  >>> const S4_CTL: &str = "struct S { int m(); };\nbool f(S* p, S* q) { return p->m() == q->m(); }\n
+-- 164: S5  >>> const S5: &str = "struct S { int m(); };\nS* gp;\nint f(S* p) { return gp->m() + 1; }\n";
+     /// ROW 5 — `mcall_tail.rs:673`. A framed MEMBER call whose receiver is a global.
+-- 165: S5_CTL  >>> const S5_CTL: &str = "struct S { int m(); };\nint f(S* p) { return p->m() + 1; }\n";
+### crates/c2-harness/tests/nothing_seed.rs
+-- 62: N01  >>> const N01: &str = include_str!("../../../work/w-seed/cells/n01.cpp");
+     // whose `sha256` was committed before the first `cl.exe`
+     // (`work/w-seed/CELLS.sha256`).
+-- 63: N02  >>> const N02: &str = include_str!("../../../work/w-seed/cells/n02.cpp");
+-- 64: N03  >>> const N03: &str = include_str!("../../../work/w-seed/cells/n03.cpp");
+-- 65: N04  >>> const N04: &str = include_str!("../../../work/w-seed/cells/n04.cpp");
+-- 66: N05  >>> const N05: &str = include_str!("../../../work/w-seed/cells/n05.cpp");
+-- 67: N06  >>> const N06: &str = include_str!("../../../work/w-seed/cells/n06.cpp");
+-- 68: N07  >>> const N07: &str = include_str!("../../../work/w-seed/cells/n07.cpp");
+-- 69: N08  >>> const N08: &str = include_str!("../../../work/w-seed/cells/n08.cpp");
+-- 70: N09  >>> const N09: &str = include_str!("../../../work/w-seed/cells/n09.cpp");
+-- 71: N10  >>> const N10: &str = include_str!("../../../work/w-seed/cells/n10.cpp");
+-- 72: N11  >>> const N11: &str = include_str!("../../../work/w-seed/cells/n11.cpp");
+-- 75: SETTINGS  >>> const SETTINGS: [(&str, &[&str]); 2] = [("/O1", &[]), ("/O1 /Ob0", &["/Ob0"])];
+     /// Both flag settings, in order: the workload's own, then `/Ob0`.
+### crates/c2-harness/tests/plan_agreement.rs
+-- 59: FLAGS  >>> const FLAGS: [&str; 8] = WORKLOAD_FLAGS;
+     /// funnel. A missed copy keeps grading the old profile and reads green, which is
+     /// the absence family wearing a flags list.
+-- 61: GY  >>> const GY: &str = "\
+-- 67: WEAK  >>> const WEAK: &str = "\
+-- 75: RELO  >>> const RELO: &str = "\
+### crates/c2-harness/tests/pool2_cells.rs
+-- 105: FLAGS  >>> const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
+     /// `/Gy`, which is the regime the 878-TU scan lives in and the one
+     /// `Pool.obj`'s three COMDAT `.text` sections belong to.
+-- 107: POSITIVE  >>> const POSITIVE: &str = include_str!("../../../fixtures/cpp/wpool2_free_list.cpp");
+-- 108: NEGATIVE  >>> const NEGATIVE: &str = include_str!("../../../fixtures/cpp/wpool2_free_list_neg.cpp");
+### crates/c2-harness/tests/pool_cells.rs
+-- 74: FLAGS  >>> const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
+     /// 878-TU scan lives in and the one `Pool.obj`'s three COMDAT `.text` sections
+     /// belong to.
+-- 76: CELL_A  >>> const CELL_A: &str = include_str!("../../../fixtures/cpp/wpool_store_leaf_member_value.cpp");
+-- 77: CELL_B  >>> const CELL_B: &str = include_str!("../../../fixtures/cpp/wpool_store_run_member_value_neg.cpp")
+-- 78: CELL_C  >>> const CELL_C: &str = include_str!("../../../fixtures/cpp/wpool_guard_bclr_fold_neg.cpp");
+### crates/c2-harness/tests/pwords_bijection.rs
+-- 49: FLAGS  >>> const FLAGS: [&str; 3] = ["/Ox", "/GS-", "/c"];
+     /// (`middle_interfaces.rs:66`), so this lane's population is comparable with
+     /// the three functions the bijection already grades.
+-- 53: PHASE  >>> const PHASE: &str = "after0";
+     /// The site: **after the final schedule**, the order that actually reaches the
+     /// encoder. A count taken at `sched0` would be the last schedule's *input*.
+-- 57: OP_PROLOGUE  >>> const OP_PROLOGUE: [u32; 2] = [0x2f0, 0x2f4];
+     // The pseudo-op opcodes this lane names, all from `docs/whitebox/ref/P_EXPAND.md`.
+     /// Prologue arms (§4.1): `0x2f0` → `FUN_10c21719`, `0x2f4` → `FUN_10c216f5`.
+-- 60: OP_EPILOGUE  >>> const OP_EPILOGUE: u32 = 0x2f6;
+     /// The restore/epilogue arm (§4.1): `0x2f6` → `FUN_10bffb72`. **Its word count
+     /// is in no field of the obj** — this is #3431's caveat 2, the ungraded term.
+-- 64: OP_UNBOUNDED  >>> const OP_UNBOUNDED: [u32; 3] = [0x27b, 0x2e5, 0x28f];
+     /// loop, so no constant describes it. Any instrument asserting a word count
+     /// must special-case them — this one *strata-fies* on them instead.
+-- 130: PAD_WORD  >>> const PAD_WORD: u32 = 0x0000_0000;
+     /// PPC primary opcode, so a trailing zero word is unambiguously padding and
+     /// never a truncated instruction.
+-- 836: CALL  >>> static CALL: AtomicUsize = AtomicUsize::new(0);
+     // "perturbation changed the graded population". The single-test evidence
+     // runs never hit it because a filtered run has only one caller.
+-- 940: HAZARD_FIXTURES  >>> const HAZARD_FIXTURES: [&str; 2] = ["wkg_splice_pos.cpp", "w14_dtor_delegate_neg.cpp"];
+     /// file — a fence keyed to *where the stride happened to land* is not keyed to
+     /// anything.
+### crates/c2-harness/tests/reloc_identity.rs
+-- 58: FLAGS  >>> const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
+     /// The workload's own profile, minus the `/I` paths a standalone cell cannot
+     /// use. `/O1` implies `/Gy`, which is the regime FBM's denominator lives in.
+-- 64: S12  >>> const S12: &str = "\
+     /// that silently skips because its input is not checked in is a test that
+     /// reports absence as success.
+-- 74: WORK_SEQ  >>> static WORK_SEQ: AtomicUsize = AtomicUsize::new(0);
+     /// Per-CALL scratch counter. See [`work`].
+### crates/c2-harness/tests/search_differential.rs
+-- 21: TIMEOUT  >>> const TIMEOUT: Duration = Duration::from_secs(60);
+### crates/c2-harness/tests/stage_region_trace.rs
+-- 44: FLAGS  >>> const FLAGS: [&str; 5] = ["/O1", "/Oi", "/EHsc", "/GS-", "/c"];
+     /// The fixture profile `stage` and the fixture gate both use.
+-- 54: FIXTURE  >>> const FIXTURE: &str = "w5_chain.cpp";
+     /// one it refuses. A refused function would make the whole comparison vacuous
+     /// in the most ordinary way.
+### crates/c2-harness/tests/strlit_fence.rs
+-- 66: FLAGS  >>> const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
+     /// `data-sym-unresolved:eof` — measured at `d28326b4`. A cell captured at the
+     /// wrong profile grades a different question and would pass with the fence gone.
+-- 71: FENCED  >>> const FENCED: &str = "data-sym-strlit-fenced:eof";
+     /// each: a test that re-types the string its subject produces is a test of two
+     /// spellings.
+-- 72: IN_CLASS  >>> const IN_CLASS: &str = "multiarg-tail-call";
+-- 82: BLIND  >>> const BLIND: &str = "struct Bd { Bd(); ~Bd(); int b0; };\n\
+     /// question *"is this callee defined in this TU?"* falls through to clause (c2),
+     /// which asks it against the **emit binding** instead.

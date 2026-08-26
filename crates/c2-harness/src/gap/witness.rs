@@ -21,6 +21,7 @@ use super::{GapReport, TuResult};
 /// cannot tell those apart, and the whole reading of the wall rests on which it
 /// is. Read-only: it changes no count.
 pub(super) fn wall_dump(src: &str, name: &str, kind: &str) {
+    // PROV[N] not load-bearing — a `OnceLock` holding the witness log file handle. Scratch state.
     static OUT: std::sync::OnceLock<Option<Mutex<std::fs::File>>> = std::sync::OnceLock::new();
     let out = OUT.get_or_init(|| {
         let p = std::env::var("C2RS_WALL_DUMP").ok()?;
@@ -79,6 +80,7 @@ pub(super) fn wall_dump(src: &str, name: &str, kind: &str) {
 /// carry `??`-names. Reporting both, and naming which is which, is the whole
 /// discipline `ROADMAP.md` §10.11/§10.14 was written about.
 pub(super) fn witness_path() -> Option<&'static std::path::Path> {
+    // PROV[N] not load-bearing — a `OnceLock` holding the witness log path.
     static P: std::sync::OnceLock<Option<PathBuf>> = std::sync::OnceLock::new();
     P.get_or_init(|| std::env::var_os("C2RS_WITNESS").map(PathBuf::from))
         .as_deref()
@@ -87,6 +89,7 @@ pub(super) fn witness_path() -> Option<&'static std::path::Path> {
 /// How many names each bucket prints in the ranked summary. The remainder is
 /// printed as a count of names *and* a count of symbols, never elided — a tail
 /// that renders as nothing is the failure mode `docs/GAPS.md` §7 is about.
+/// PROV[N] not load-bearing — how many witness names are printed; the counts are printed too and the tail is never elided (`docs/GAPS.md` §7).
 const WITNESS_CAP: usize = 40;
 
 /// One witness row: which residue bucket, the mangled name, and whether that
@@ -163,6 +166,7 @@ pub(super) fn row_dump(
     census: &[(c2_il::FnCensus, Result<c2_il::IlFunction, &'static str>)],
     emitted: Option<&[String]>,
 ) {
+    // PROV[N] not load-bearing — a second witness-log `OnceLock`. Scratch state.
     static OUT: std::sync::OnceLock<Option<Mutex<std::fs::File>>> = std::sync::OnceLock::new();
     let Ok(want) = std::env::var("C2RS_ROW_DUMP") else {
         return;

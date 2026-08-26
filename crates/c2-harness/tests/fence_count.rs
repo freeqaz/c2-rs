@@ -45,11 +45,13 @@ use c2_reference::Toolchain;
 /// the only mode where the fence's exemption is live at all (board #1638). At
 /// `/Ox` this fixture is `NotImplemented` and the cell would grade a different
 /// question.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// The fixture, relative to the repo root — which is also the scan's `cwd`, so
 /// the string below is both the source argument and the `src` the report keys
 /// on.
+/// PROV[N] not load-bearing — a FIXTURE NAME, which DISCLOSURE lists under [N] verbatim.
 const FIXTURE: &str = "fixtures/cpp/wfcnt_fence_holds_exact.cpp";
 
 fn repo_root() -> PathBuf {

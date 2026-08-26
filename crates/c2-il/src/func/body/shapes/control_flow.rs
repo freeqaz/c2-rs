@@ -60,11 +60,14 @@ use crate::func::readers::{
 
 /// The lexical depth a function body starts at: the formals scope is 1 and the
 /// body is 2 (`docs/IL_STMT_GRAMMAR.md` §1), so the body's own `53` opens 3.
+/// PROV[O] `docs/IL_STMT_GRAMMAR.md` §1 — the formals scope is depth 1 and the body 2, read off captures. Same fact as `expr::BODY_SCOPE_DEPTH` and `sy::SECTION`'s preorder.
 const PRE_BODY_DEPTH: u32 = 2;
 /// Deeper than any real function; a stream claiming more has desynchronized.
 /// (The widest witness is 40 nested braces at depth 42 — **[P] `p6.cpp`**.)
+/// PROV[N] not load-bearing — a desynchronization guard, "deeper than any real function"; the widest witness is 40 nested braces at depth 42. It bounds a parse, not an emit.
 const MAX_DEPTH: u32 = 96;
 /// The function tail every decoded body lands exactly on.
+/// PROV[O] the seven-byte `.ex` function tail, read off captures. See `alloc_init_or_fail::FN_TAIL`.
 const FN_TAIL: [u8; 7] = [0x4F, 0x12, 0x47, 0x54, 0x01, 0x54, 0x00];
 
 /// A body's control-flow **shape**, as decoded. Purely a census axis — no arm of
@@ -654,6 +657,7 @@ fn walk(s: &mut Scan) -> Result<CfBody, Block> {
 /// that read a missing key as "no admissions" would be right, and one that read
 /// an empty key as "the file has no arms" would not.
 fn residue_admits(why: &str) -> bool {
+    // PROV[N] not load-bearing — a `OnceLock` measurement sink.
     static ON: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
     ON.get_or_init(|| {
         std::env::var("C2RS_CFRESIDUE_ADMIT")

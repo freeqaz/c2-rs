@@ -94,6 +94,7 @@ use super::TuResult;
 /// baked constant.
 ///
 /// Unset means [`DEFAULT_LEVEL`]. `0` is the identity control (§`measure`).
+/// PROV[N] not load-bearing — the environment variable that exposes the blind-reach level as a named, settable parameter rather than a baked constant (`GOAL_DECISION_2026-08-21.md` § AMENDED). An instrument control; it licenses no emit.
 pub const LEVEL_ENV: &str = "C2RS_BLIND_LEVEL";
 
 /// The ladder depth a plain scan runs at.
@@ -102,6 +103,7 @@ pub const LEVEL_ENV: &str = "C2RS_BLIND_LEVEL";
 /// which is a correct answer and a useless default. A reader who wants the
 /// control sets `C2RS_BLIND_LEVEL=0` and gets it, and the report says which
 /// depth produced the numbers it is printing.
+/// PROV[N] not load-bearing — the instrument's default relaxation depth. `0` is the identity control, and the report says which depth produced its numbers.
 pub const DEFAULT_LEVEL: u32 = 1;
 
 /// Read the ladder depth. A value that does not parse is **refused loudly**
@@ -175,6 +177,7 @@ impl Why {
     }
 
     /// Every value, so the report can print each one including as a zero.
+    /// PROV[N] not load-bearing — every variant of this module's own `Why` enum, so the report can print each one including as a zero. Derived from the enum.
     pub const ALL: [Why; 4] = [Why::NoDecode, Why::NoSelect, Why::NoCompose, Why::NoRefBytes];
 
     /// **The per-TU `res.emit` key — ONE LOCATOR, and this exists because the

@@ -78,12 +78,14 @@ use crate::func::readers::{
 use crate::func::StaticScanLoop;
 
 /// The scope depth the body opens at, mirrored from `expr::BODY_SCOPE_DEPTH`.
+/// PROV[N] derived — mirrored from `expr::BODY_SCOPE_DEPTH`.
 const BODY_SCOPE_DEPTH: usize = 2;
 
 /// The element scale the emitter's `slwi rA,rS,2` encodes. Pinned as a named
 /// constant because it is the one number in the token stream that could change
 /// without changing the stream's *shape*, and the shift field is a literal in
 /// `c2_core::codegen::static_scan_loop`.
+/// PROV[S] `sizeof(int)` is 4 on this ABI. The `slwi rA,rS,2` word that encodes it is c2's choice of instruction; the scale is the language's. Named because it is the one number in the token stream that could change without changing the stream's shape.
 const INT_SCALE: i32 = 4;
 
 /// Consume `26 <tok>` and return the token.

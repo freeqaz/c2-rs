@@ -79,6 +79,7 @@ fn fnv1a64(seed: u64, bytes: &[u8]) -> u64 {
     h
 }
 
+// PROV[S] FNV-1a's published 64-bit offset basis (Fowler/Noll/Vo; `0xcbf29ce484222325`). Would be this value if `c2.dll` had never existed, and it hashes a cache key that reaches no emitted byte.
 const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 
 /// 128-bit content digest: FNV-1a-64 forward, and a second FNV-1a-64 over the
@@ -99,23 +100,29 @@ pub fn digest128(bytes: &[u8]) -> String {
 
 /// Container magic. The trailing byte is the format generation, so a v1-shaped
 /// or future blob is refused by the very first check.
+/// PROV[N] not load-bearing: this is the PORT's own capture-cache container, not c2's. Nothing c2 reads or writes contains it, and a wrong value refuses a cache load rather than changing a graded byte.
 pub const MAGIC: &[u8; 8] = b"C2RSCAP\x02";
 
 /// Format version. Bump with [`MAGIC`]'s last byte.
+/// PROV[N] not load-bearing — the port's own cache format generation. See [`MAGIC`].
 pub const VERSION: u32 = 2;
 
 /// Fixed header length; also the first byte covered by [`digest128`].
+/// PROV[N] not load-bearing — a field of the port's own cache header. See [`MAGIC`].
 pub const HEADER_LEN: usize = 56;
 
 /// Bytes per section-table row: `TAG[8] OFF[8] LEN[8]`.
+/// PROV[N] not load-bearing — a row width in the port's own cache section table. See [`MAGIC`].
 pub const SECT_LEN: usize = 24;
 
 /// A ceiling far above the seven tags that exist, so a garbage `N_SECT` cannot
 /// make the reader allocate or loop.
+/// PROV[N] not load-bearing — an anti-garbage ceiling on the port's own cache reader; its own doc says it is "far above the seven tags that exist".
 pub const MAX_SECTIONS: usize = 16;
 
 /// Section tags in canonical order. `key` and `meta` are mandatory; the five IL
 /// suffixes follow [`IL_SUFFIXES`] and any of them may be absent.
+/// PROV[N] not load-bearing — the port's own cache tag order. The five IL suffixes inside it are c2-derived and carry their provenance at [`crate::IL_SUFFIXES`]; `key` and `meta` are this crate's invention.
 pub const TAGS: [&str; 7] = ["key", "meta", "ex", "gl", "sy", "in", "db"];
 
 /// Position of `tag` in [`TAGS`], or `None` if it is not a tag we define.

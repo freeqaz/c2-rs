@@ -83,9 +83,11 @@ use crate::func::DivModLeaf;
 use super::params::parse_params;
 
 /// IL opcode byte for integer DIVIDE.
+/// PROV[O] `05`, the `.ex` integer DIVIDE opcode byte, read off captures. Same byte as `expr::DIV_MOD_OPS[0]`.
 const IL_DIV: u8 = 0x05;
 /// IL opcode byte for integer MODULO. The same byte
 /// [`super::ptr_walk_loop`] consumes inside the loop body.
+/// PROV[O] `06`, the `.ex` integer MODULO opcode byte, read off captures; the same byte `ptr_walk_loop` consumes inside the loop body.
 const IL_MOD: u8 = 0x06;
 
 /// Try to parse the two-formal integer `/` or `%` leaf.

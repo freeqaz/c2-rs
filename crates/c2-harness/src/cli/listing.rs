@@ -13,6 +13,7 @@ use crate::cli::util::Scratch;
 ///
 /// The listing is a **decode aid, never a gate**: the obj byte-compare remains
 /// the sole judge of the port.
+/// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static LISTING_SPEC: Spec = Spec::new(
     "listing",
     &[
@@ -96,6 +97,7 @@ pub(crate) fn cmd_listing(rest: &[String]) -> ExitCode {
 }
 
 /// **Boards #134 and #136** — the population scan over the listing seam.
+/// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static LISTING_SCAN_SPEC: Spec = Spec::new(
     "listing-scan",
     &[

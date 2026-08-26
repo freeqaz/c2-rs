@@ -119,6 +119,7 @@ use c2_reference::Toolchain;
 ///
 /// The number is asserted rather than allow-listed away so that it cannot grow
 /// quietly: a new gate landing in codegen instead of the parser fails this test.
+/// PROV[N] not load-bearing in the PROVENANCE sense — a pinned expectation over THIS PORT's own tree, asserted so a change is visible. It records the port's state, never c2's. (It is load-bearing for the test; that is a different question and the test is what guards it.)
 const KNOWN_DISAGREEMENTS_PACKED: usize = 1;
 
 /// The disagreements under **`/Gy`** (function-level linking), which is what the
@@ -142,6 +143,7 @@ const KNOWN_DISAGREEMENTS_PACKED: usize = 1;
 /// is precisely what they have to contain. The `causes` table below pins them by
 /// name, so trading one of these for a genuinely new refusal still fails even
 /// though the total would not move.
+/// PROV[N] not load-bearing in the PROVENANCE sense — a pinned expectation over THIS PORT's own tree, asserted so a change is visible. It records the port's state, never c2's. (It is load-bearing for the test; that is a different question and the test is what guards it.)
 const KNOWN_DISAGREEMENTS_GY: usize = 12;
 
 // ---------------------------------------------------------------------------
@@ -160,10 +162,12 @@ const KNOWN_DISAGREEMENTS_GY: usize = 12;
 /// Fixture lane, discriminating cells. Measured **1,692** over 286 sources,
 /// identical in both linkage modes — the mode changes the verdict, not the
 /// population.
+/// PROV[N] not load-bearing in the PROVENANCE sense — a pinned expectation over THIS PORT's own tree, asserted so a change is visible. It records the port's state, never c2's. (It is load-bearing for the test; that is a different question and the test is what guards it.) A FLOOR, so the gate fails when the sweep grades less than it did, which is `#3336`'s discipline: a criterion that cannot move is decoration.
 const FLOOR_FIXTURE_CELLS: usize = 1_200;
 
 /// Fixture lane, distinct census shape keys among the discriminating cells.
 /// Measured **35**.
+/// PROV[N] not load-bearing in the PROVENANCE sense — a pinned expectation over THIS PORT's own tree, asserted so a change is visible. It records the port's state, never c2's. (It is load-bearing for the test; that is a different question and the test is what guards it.)
 const FLOOR_FIXTURE_SHAPES: usize = 25;
 
 /// Wide lane, discriminating cells over the generated corpus. Measured
@@ -173,11 +177,13 @@ const FLOOR_FIXTURE_SHAPES: usize = 25;
 /// disagreements.** That ratio is the argument for this whole file: what a
 /// generated corpus buys is BREADTH, not bulk. Sixteen thousand more cells found
 /// three families the fixtures cannot express, not more of the one they can.
+/// PROV[N] not load-bearing in the PROVENANCE sense — a pinned expectation over THIS PORT's own tree, asserted so a change is visible. It records the port's state, never c2's. (It is load-bearing for the test; that is a different question and the test is what guards it.)
 const FLOOR_WIDE_CELLS: usize = 10_000;
 
 /// Wide lane, distinct census shape keys. Measured **31** — four FEWER than the
 /// fixture corpus's 35, which is the same point from the other side: the
 /// fixtures are denser in hand-chosen shapes and blind to whole constructs.
+/// PROV[N] not load-bearing in the PROVENANCE sense — a pinned expectation over THIS PORT's own tree, asserted so a change is visible. It records the port's state, never c2's. (It is load-bearing for the test; that is a different question and the test is what guards it.)
 const FLOOR_WIDE_SHAPES: usize = 24;
 
 fn fixtures_dir() -> PathBuf {
@@ -535,6 +541,7 @@ fn the_census_and_the_port_agree_about_what_is_in_class() {
 /// `c2rs gap`, which asks `IlBundle::functions()` a **whole-TU** question, while
 /// this test asks `census_functions()` + `function_gate` a **per-function** one.
 /// Two instruments, one name, disjoint findings.
+/// PROV[N] not load-bearing — a list of THIS PORT's own cause key NAMES expected on the wide arm. Same class as `func::diag::cause`.
 const WIDE_CAUSES_PACKED: &[&str] = &[
     "a store run with an interior address BESIDE another producer",
     "a store-run-before-a-call whose run materialises nothing",
@@ -550,6 +557,7 @@ const WIDE_CAUSES_PACKED: &[&str] = &[
 /// `w13_fscratch` and the W13b family exist to test); the generated corpus
 /// enumerates FP *shapes* and rarely needs a pooled constant at all. A generated
 /// corpus is broader, not uniformly denser.
+/// PROV[N] not load-bearing — the `/GY` arm's expected cause key NAMES.
 const WIDE_CAUSES_GY: &[&str] = &[
     "a store run with an interior address BESIDE another producer",
     "a store-run-before-a-call whose run materialises nothing",
@@ -713,9 +721,11 @@ fn the_census_and_the_port_agree_over_the_generated_corpus() {
 /// **The floor for the registry grading.** Below its measured value with
 /// headroom, for `FLOOR_FIXTURE_CELLS`' reason: a floor's job is to fail a run
 /// that collapsed, not to pin a number that moves whenever a fixture lands.
+/// PROV[N] not load-bearing in the PROVENANCE sense — a pinned expectation over THIS PORT's own tree, asserted so a change is visible. It records the port's state, never c2's. (It is load-bearing for the test; that is a different question and the test is what guards it.)
 const FLOOR_REGISTRY_CELLS: usize = 1_200;
 /// How many distinct `Lowering` arms the fixtures must exercise. A registry
 /// graded on two arms says nothing about the other thirty-three.
+/// PROV[N] not load-bearing in the PROVENANCE sense — a pinned expectation over THIS PORT's own tree, asserted so a change is visible. It records the port's state, never c2's. (It is load-bearing for the test; that is a different question and the test is what guards it.)
 const FLOOR_REGISTRY_LOWERINGS: usize = 10;
 
 /// One run of the CFG-class registry against `select_function` and the census.
@@ -790,6 +800,7 @@ fn fname(f: &c2_il::FnCensus) -> String {
 /// dc3 workload compiles in and the mode the fixtures do *not* capture in by
 /// default. A registry graded at `/Ox` alone would have declared twenty arms
 /// and measured none of them.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2. The profile table the census gate sweeps.
 const PROFILES: &[(&str, &[&str])] = &[
     ("Ox", &["/Ox", "/GS-", "/c"]),
     ("O1", &["/O1", "/GS-", "/c"]),

@@ -402,6 +402,7 @@ fn finish_load_store_stmt(
 
 /// The FP scratch register a loaded floating-point value lands in — `f0`, never
 /// `f1`. MEASURED: `lfs f0,16(r4) ; stfs f0,16(r3)`.
+/// PROV[O] `f0`, never `f1` — MEASURED, and the doc gives the cell: `lfs f0,16(r4) ; stfs f0,16(r3)`. A register CHOICE of c2's, read out of its output.
 pub const FP_SCRATCH: u8 = 0;
 
 /// Whether `tok` may stand in a store's **base** or **value** position.
@@ -1483,12 +1484,14 @@ fn collect_store_run(
             {
                 return None;
             }
+            // PROV[F] a verified-extent bound on how many distinct producers this shape models; a fourth refuses.
             const MAX_MODELLED_PRODUCERS: usize = 3;
             if distinct.len() > MAX_MODELLED_PRODUCERS {
                 return None;
             }
             // `params[0]` is r3, so the first free register is r(3 + len), and
             // the pool top is r11.
+            // PROV[F] **r11 as c2's register-pool top is a FIT, and this census exists to say so.** `P_REGALLOC.md` consequence 3 lost its premise to read R1, so the ten refuted allocation keys have no explanation on that mechanism at all (decision 6), and R4 was funded to read the mint order precisely because nothing establishes this. `func::mod::COND_PARK_REG` is the same number reached from four functions.
             const POOL_TOP: usize = 11;
             let pool_floor = 3 + params.len();
             if pool_floor > POOL_TOP || POOL_TOP - pool_floor + 1 < distinct.len() {
@@ -2231,8 +2234,10 @@ pub(crate) fn bind_run_ops(
     // `alloc::POOL_TOP` is r11 and the pool starts one above the live-in
     // formals, so a run with a producer needs `3 + params <= 11`. Restated here
     // rather than left to codegen for this file's census/gate invariant.
+    // PROV[F] the same fitted pool top, restated in this file rather than left to codegen so the census and the gate cannot disagree. See the earlier [`POOL_TOP`].
     const POOL_TOP: usize = 11;
     // `order::MAX_SYMBOL_CROSSINGS`.
+    // PROV[F] a verified-extent bound mirroring `order::MAX_SYMBOL_CROSSINGS`; a third crossing refuses.
     const MAX_SYMBOL_CROSSINGS: usize = 2;
 
     let bound = |t: u32| binds.iter().find(|b| b.tok == t);

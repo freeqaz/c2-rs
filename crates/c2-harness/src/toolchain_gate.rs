@@ -53,6 +53,7 @@ use c2_reference::Toolchain;
 
 /// The variable a caller sets to say *"this run is expected to grade against
 /// real `c2.dll`"*. Any value but `0` and the empty string means yes.
+/// PROV[N] not load-bearing — the environment variable name a caller sets to demand a real-toolchain run. A harness control, not a c2 fact.
 pub const REQUIRE_TOOLCHAIN_VAR: &str = "C2RS_REQUIRE_TOOLCHAIN";
 
 /// What the caller said about whether this run must grade.

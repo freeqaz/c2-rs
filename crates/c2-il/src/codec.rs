@@ -40,6 +40,7 @@ use crate::{detect_token_width, IlBundle};
 
 /// The int type encoding inline in the `.ex` body (`86 41 74`). Mirrors
 /// `func::INT_TYPE`; duplicated here to keep [`crate::func`] untouched.
+/// PROV[O] the inline int type annotation `86 41 74`, transcribed from real `.ex` captures and cross-checked against `msvc-src/tools/il_parser.py`'s `KNOWN_TYPES`. Mirrors `func::readers::INT_TYPE`.
 const INT_TYPE: [u8; 3] = [0x86, 0x41, 0x74];
 
 /// The **float** type encoding inline in the `.ex` body (`86 45 40`) — the
@@ -50,17 +51,20 @@ const INT_TYPE: [u8; 3] = [0x86, 0x41, 0x74];
 /// materialize a float temp, and the float result-type annotation
 /// (`41 86 45 40`). Verified against a live 16.00.11886.00 capture of a
 /// `Box::Volume`-class float leaf (see `VOLF_SEGMENT`).
+/// PROV[O] `86 45 40`, from `il_parser.py`'s `KNOWN_TYPES` and verified against a live 16.00.11886.00 capture of a float leaf (`VOLF_SEGMENT`).
 const FLOAT_TYPE: [u8; 3] = [0x86, 0x45, 0x40];
 
 /// The 2-byte **pointer** type prefix (`86 43`) — a pointer type is
 /// `86 43 XX XX` (4 bytes; the two low bytes name the pointee), per the
 /// reference decoder (`try_parse_type`: prefix `86` with `43` → pointer). It
 /// leads a pointer LOAD (`B9 <tok> 86 43 XX XX`) and the MEMBER_PTR op.
+/// PROV[O] `86 43`, per the reference decoder's `try_parse_type` and the pointer LOAD/MEMBER_PTR forms it appears in.
 const PTR_TYPE_PREFIX: [u8; 2] = [0x86, 0x43];
 
 /// The class/struct-pointer type prefix (`A6`) — an `A6 XX XX XX` 4-byte type
 /// (per `try_parse_type`: prefix `A6` → class-pointer). It types the DEREF
 /// (`30 A6 XX XX XX`) that loads a struct member through the member pointer.
+/// PROV[O] `A6`, per `try_parse_type` and the `30 A6 XX XX XX` DEREF form.
 const CLASS_PTR_PREFIX: u8 = 0xA6;
 
 /// The 6 bytes this codec still writes as a CALL token's tail (`00 80 01 10 00 00`).
@@ -75,9 +79,11 @@ const CLASS_PTR_PREFIX: u8 = 0xA6;
 /// CALL token whose tail differs simply fails to match here and falls through to an
 /// opaque span that re-encodes byte-for-byte. It costs the IL-mutation search
 /// coverage, never correctness.
+/// PROV[F] fitted, and its own doc says why: the variable-width read is unported, so this six-byte tail is an ANCHOR chosen to match the CALL tokens observed. Its off-sample failure mode — a CALL whose tail differs — is real, and the codec is designed to fall through to an opaque span rather than mis-decode.
 const CALL_CALLEE_ANCHOR: [u8; 6] = [0x00, 0x80, 0x01, 0x10, 0x00, 0x00];
 
 /// The `.ex` per-function start marker (`4F 1F`). Mirrors `func::FN_START`.
+/// PROV[O] `4F 1F`, the `.ex` per-function start marker, read off captures. Mirrors `func::bundle::FN_START`.
 const FN_START: [u8; 2] = [0x4F, 0x1F];
 
 /// The one-byte `4C` 'LO' body-start token — the point from which the `.ex`
@@ -91,15 +97,18 @@ const FN_START: [u8; 2] = [0x4F, 0x1F];
 /// second copy of the rule — a private re-derivation of a rule the crate already
 /// owns is not a shortcut, it is a second rule that agrees until it matters
 /// (§10.14).
+/// PROV[O] `4C`, the `.ex` body lead byte (ROADMAP §10.12's `4C 4F 11 53`). Read off captures.
 const LO: u8 = 0x4C;
 
 /// The optional `4F 11` record between [`LO`] and the body's first `53`.
+/// PROV[O] `4F 11`, the optional record between [`LO`] and the body's first `53`, read off captures.
 const LO_RECORD: [u8; 2] = [0x4F, 0x11];
 
 /// The `4F 02 20 00` per-function block-start marker prefix. In the metadata
 /// prefix it is followed by `4F 01 NN` (block index) then `53 53`; at the end of
 /// the last function it is `4F 02 20 00 4F 01 NN 4D` (the module end). Mirrors
 /// the leading bytes of `func`'s module-end sequence.
+/// PROV[O] `4F 02 20 00`, the per-function block-start marker prefix, read off captures.
 const BLOCK_START: [u8; 4] = [0x4F, 0x02, 0x20, 0x00];
 
 /// A single decoded `.ex` operand-stream token. Every variant re-encodes to
@@ -1419,6 +1428,7 @@ pub(crate) fn gl_offset_framed(gl: &[u8], o: usize) -> bool {
 /// [`crate::func::bind::Bindings::selective`] clause 3) an unclaimed run
 /// refuses the whole TU. `docs/GAPS.md` §6's rule applies: this says what the
 /// byte *is worth*, not what it *means*.
+/// PROV[F] its own doc is the citation: "not a *proof* that no real offset can exceed it — nothing in the container promises a width". A plausibility bound fitted to observed offsets, failing in the refusing direction. Textbook [F] under DISCLOSURE's off-sample discriminator.
 const GL_OFFSET_MAX: u32 = 0x0100_0000;
 
 /// [`gl_offset_framed`] with **board #2783's relaxation** — the `gl[o-5] ==

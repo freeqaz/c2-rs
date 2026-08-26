@@ -46,21 +46,26 @@ use c2_reference::Toolchain;
 /// The capture profile. Identical to the one the bijection itself uses
 /// (`middle_interfaces.rs:66`), so this lane's population is comparable with
 /// the three functions the bijection already grades.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 3] = ["/Ox", "/GS-", "/c"];
 
 /// The site: **after the final schedule**, the order that actually reaches the
 /// encoder. A count taken at `sched0` would be the last schedule's *input*.
+/// PROV[N] not load-bearing — the name of the codegen phase this instrument taps (`after0`). A tap identity, not a value from c2.
 const PHASE: &str = "after0";
 
 // The pseudo-op opcodes this lane names, all from `docs/whitebox/ref/P_EXPAND.md`.
 /// Prologue arms (§4.1): `0x2f0` → `FUN_10c21719`, `0x2f4` → `FUN_10c216f5`.
+/// PROV[O] c2's own pseudo-opcodes `0x2f0`/`0x2f4` for the prologue, READ during R6 (`docs/whitebox/ref/P_EXPAND.md`; the final-expansion arms rewrite them in situ into many words). [O] and not [R] here because THIS file adopts them as an instrument's expectation rather than establishing them — the address citation lives in the whitebox page, and this lane may not mint a DISCLOSURE row for it (peer w-disclose owns that namespace).
 const OP_PROLOGUE: [u32; 2] = [0x2f0, 0x2f4];
 /// The restore/epilogue arm (§4.1): `0x2f6` → `FUN_10bffb72`. **Its word count
 /// is in no field of the obj** — this is #3431's caveat 2, the ungraded term.
+/// PROV[O] c2's own epilogue pseudo-opcode `0x2f6`, from the same R6 read. Same [O]-not-[R] note as [`OP_PROLOGUE`].
 const OP_EPILOGUE: u32 = 0x2f6;
 /// The genuinely **unbounded** arms (§3 reading 3): alignment padding is a
 /// loop, so no constant describes it. Any instrument asserting a word count
 /// must special-case them — this one *strata-fies* on them instead.
+/// PROV[O] the three pseudo-opcodes whose expansion length is not bounded by this instrument's model, from the same R6 read. Same [O]-not-[R] note as [`OP_PROLOGUE`].
 const OP_UNBOUNDED: [u32; 3] = [0x27b, 0x2e5, 0x28f];
 
 // ---------------------------------------------------------------------------
@@ -127,6 +132,7 @@ impl<'a> Coff<'a> {
 /// `blr`, then a **zero** word. c2 pads with zeros here. Zero is not a valid
 /// PPC primary opcode, so a trailing zero word is unambiguously padding and
 /// never a truncated instruction.
+/// PROV[O] the all-zero word c2 pads with, read off real objs.
 const PAD_WORD: u32 = 0x0000_0000;
 
 /// One `.text` function.
@@ -833,6 +839,7 @@ fn run_corpus(
     // and the sensitivity check died on a population mismatch it reported as
     // "perturbation changed the graded population". The single-test evidence
     // runs never hit it because a filtered run has only one caller.
+    // PROV[N] not load-bearing — a call counter for this test. Scratch state.
     static CALL: AtomicUsize = AtomicUsize::new(0);
     let base = std::env::temp_dir().join(format!(
         "c2rs-pwords-{}-{}",
@@ -937,6 +944,7 @@ fn limit() -> usize {
 /// compare and must say so. `w-pwords` §6.1 records the same repair in the same
 /// file — a fence keyed to *where the stride happened to land* is not keyed to
 /// anything.
+/// PROV[N] not load-bearing — two FIXTURE NAMES this test treats as known hazards.
 const HAZARD_FIXTURES: [&str; 2] = ["wkg_splice_pos.cpp", "w14_dtor_delegate_neg.cpp"];
 
 /// [`population`] with the hazard fixtures guaranteed present.

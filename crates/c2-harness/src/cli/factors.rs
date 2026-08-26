@@ -21,6 +21,7 @@ use c2_harness::gap::sets::{
 
 use crate::{Args, Arity, Spec};
 
+// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static FACTORS_SPEC: Spec = Spec {
     cmd: "factors",
     opts: &[

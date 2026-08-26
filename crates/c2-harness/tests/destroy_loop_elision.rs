@@ -71,17 +71,29 @@ use c2_reference::Toolchain;
 // `cellgrade`'s module doc for why they were deliberately not migrated here.
 use cellgrade::{grade_cell, row, work, BLR};
 
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const L01: &str = include_str!("../../../work/w-memset/cells/l01.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const L02: &str = include_str!("../../../work/w-memset/cells/l02.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const L03: &str = include_str!("../../../work/w-memset/cells/l03.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const L04: &str = include_str!("../../../work/w-memset/cells/l04.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const L05: &str = include_str!("../../../work/w-memset/cells/l05.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const L06: &str = include_str!("../../../work/w-memset/cells/l06.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const L07: &str = include_str!("../../../work/w-memset/cells/l07.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const L08: &str = include_str!("../../../work/w-memset/cells/l08.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const L09: &str = include_str!("../../../work/w-memset/cells/l09.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const L10: &str = include_str!("../../../work/w-memset/cells/l10.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const L11: &str = include_str!("../../../work/w-memset/cells/l11.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const L12: &str = include_str!("../../../work/w-memset/cells/l12.cpp");
 
 

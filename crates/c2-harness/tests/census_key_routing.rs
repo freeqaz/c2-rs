@@ -60,9 +60,11 @@ use c2_reference::Toolchain;
 /// transcription, and at the `census` CLI's default `/Ox /GS- /c` the very same
 /// source reports `expr-jump` — it never reaches the object gate at all, and
 /// every assertion about that gate would be vacuous.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// `/Od`, for the one row whose subject is the optimization word itself.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2. The `/Od` arm.
 const FLAGS_OD: [&str; 8] = [
     "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/Od", "/Oi", "/EHsc",
 ];

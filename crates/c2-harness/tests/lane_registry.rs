@@ -71,6 +71,7 @@ use std::path::{Path, PathBuf};
 /// **floor**, not an equality — see the module doc.
 ///
 /// It read `12` from 2026-07-31 until lane `w-gr` closed the `/GR` hole.
+/// PROV[N] not load-bearing in the PROVENANCE sense — a pinned expectation over THIS PORT's own tree, asserted so a change is visible. It records the port's state, never c2's. (It is load-bearing for the test; that is a different question and the test is what guards it.) The 18 gate lanes; the same 18 `scripts/gate_identity_diff.sh` enumerates.
 const EXPECTED_LANES: usize = 18;
 
 fn repo_root() -> PathBuf {
@@ -364,6 +365,7 @@ fn shipped_registry_varies_every_flag_the_workload_depends_on() {
 /// `/work` is gitignored, so the file cannot be a test dependency — but when it
 /// *is* present it is compared against this constant, so the two cannot drift
 /// apart silently in either direction.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2. The dc3 workload's own four flags.
 const WORKLOAD_PROFILE: &[&str] = &["/EHsc", "/GR", "/O1", "/Oi"];
 
 /// The shaping flags of a `cl` command line: everything that is not `/nologo`,

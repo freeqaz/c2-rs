@@ -101,6 +101,7 @@ impl PlanVerdict {
 /// reference supplies. The key order here is the printed order and the TSV
 /// column order, and the names are the `gap-metric` key stems, so a rename is
 /// a visible interface change rather than a silent `NO-RESULT` (STATUS trap 5).
+/// PROV[N] not load-bearing — this instrument's own `gap-metric` key stems, held as constants so a rename is a visible interface change rather than a silent NO-RESULT (`STATUS.md` trap 5).
 pub const PLAN_COMPONENTS: &[&str] = &["emitset-members", "emitset-order"];
 
 /// **BOTH COMPONENTS SHIP `Unknown`, AND THAT IS THE REGISTERED RULE APPLIED TO
@@ -176,6 +177,7 @@ pub struct PlanKeys {
     pub distinct: &'static str,
 }
 
+// PROV[N] not load-bearing — the instrument's own key table. Same class as `PLAN_COMPONENTS`.
 pub const PLAN_KEYS: &[PlanKeys] = &[
     PlanKeys {
         component: "emitset-members",
@@ -203,6 +205,7 @@ pub const PLAN_KEYS: &[PlanKeys] = &[
 /// and nothing in this repo had measured any of them. `docs/BOARD.md`'s "weak
 /// externals (675 TUs)" and "COMDAT synthesis (450 TUs)" are **carried**
 /// figures with no locator; these keys re-derive them directly.
+/// PROV[N] not load-bearing — the instrument's own key names for figures it re-derives directly rather than carrying.
 pub const PLAN_OBSERVED_KEYS: &[&str] = &[
     "plan-obs-weak-tus",
     "plan-obs-weak-records",

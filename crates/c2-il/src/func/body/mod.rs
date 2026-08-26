@@ -99,23 +99,30 @@ use super::{CompareLeaf, IlOp, Rel};
 
 /// The dispatch ladder never ran for this body (it was refused on its NAME, before
 /// any byte of it was read — see `census`'s varargs arm).
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`'s block marker for the full argument; it applies verbatim to every key in this file.
 pub(crate) const DISP_NOT_RUN: &str = "disp-not-run";
 /// [`try_parse_member_tail_call`] — and therefore `mcall_chain` and `mcall_cmp`,
 /// which are reached only through it — was never entered for this body.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const PROD_NOT_ENTERED: &str = "prod-not-entered";
 /// A member-call production was entered, declined **non-committally**, and no
 /// tagged bail inside it fired. The residue that measures the tag coverage of
 /// `shapes::mcall_{tail,chain,cmp}`; its target is 0.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const PROD_ENTERED_UNTAGGED: &str = "prod-entered-untagged";
 /// A member-call production accepted the body. Not a blocker at all — the
 /// in-class control group for this axis.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const PROD_ACCEPTED: &str = "prod-accepted";
 /// A member-call production **committed** and then refused, so the body's census
 /// key is that gate's own and no first-blocker attribution is owed.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const PROD_COMMITTED_REFUSAL: &str = "prod-committed-refusal";
 
 thread_local! {
+    // PROV[N] not load-bearing — a thread-local CELL holding whichever key above is current. Scratch state, initialized from an already-marked constant.
     static DISPATCH: std::cell::Cell<&'static str> = const { std::cell::Cell::new(DISP_NOT_RUN) };
+    // PROV[N] not load-bearing — the second such thread-local cell.
     static PROD: std::cell::Cell<&'static str> = const { std::cell::Cell::new(PROD_NOT_ENTERED) };
 }
 
@@ -216,6 +223,7 @@ pub(crate) fn prod_site() -> &'static str {
 /// Diagnostic only. Nothing here is consulted by the emitter or by acceptance.
 pub(crate) fn call_tokens(seg: &[u8]) -> usize {
     /// The floor of the per-TU function-type id space (`parse_call_shape`).
+    /// PROV[F] a floor on the per-TU function-type id space, inside a function whose own doc says "diagnostic only. Nothing here is consulted by the emitter or by acceptance". Fitted to the ids observed; kept [F] rather than [N] because a wrong floor changes a published diagnostic count, which is DISCLOSURE's third load-bearing clause.
     const FN_TYPE_ID_MIN: i32 = 0x1000;
     let mut n = 0usize;
     let mut p = 0usize;
@@ -1142,6 +1150,7 @@ pub struct Block {
 /// deliberately: gating it up front would replace every real function's actual
 /// blocking feature with this one and destroy the histogram that ranks the
 /// roadmap. Applied last, it removes exactly the over-claim and nothing else.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`. The RULE it names (that this port has never been verified at this mode, and that it is applied LAST so it does not replace every function's real blocking feature) is what carries the weight, and it is documented on the item.
 pub(crate) const OPT_MODE: &str = "opt-mode";
 
 /// Census `ctx` for a **pointer-walk accumulate loop outside `/O1`**.
@@ -1158,6 +1167,7 @@ pub(crate) const OPT_MODE: &str = "opt-mode";
 /// census calls in class is one `PortC2` emits, and a mode-conditional refusal
 /// that lived in codegen alone would be an error term on the published
 /// numerator (`docs/GAPS.md` §6, roadmap #44).
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const PTR_WALK_LOOP_NOT_O1: &str = "ptr-walk-loop-not-o1";
 
 /// Census `ctx` for a **body-parameterized pointer-walk loop outside `/O1`**.
@@ -1173,10 +1183,12 @@ pub(crate) const PTR_WALK_LOOP_NOT_O1: &str = "ptr-walk-loop-not-o1";
 /// `crates/c2-harness/tests/census_gate.rs` asserts every function the census
 /// calls in class is one `PortC2` emits, and a mode-conditional refusal living
 /// in codegen alone is an error term on the published numerator.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const PTR_WALK_CHAIN_LOOP_NOT_O1: &str = "ptr-walk-chain-loop-not-o1";
 
 /// Census `ctx` for a body that parses as a call shape whose callee token has no
 /// `.gl` symbol. See the census for why this is a refusal and not a fallback.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const CALLEE_UNRESOLVED_TAIL: &str = "callee-unresolved-tail-call";
 
 /// **W-INLFENCE — the body parses in class, its callee resolves, and the TU
@@ -1196,6 +1208,7 @@ pub(crate) const CALLEE_UNRESOLVED_TAIL: &str = "callee-unresolved-tail-call";
 /// front would replace every real function's actual blocking feature with this
 /// one and destroy the histogram that ranks the roadmap. Applied last, it
 /// removes exactly the over-claim and nothing else.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`. The measurement behind the refusal it names (444 of 444 functions, board #2082) is on the item.
 pub(crate) const CALLEE_DEFINED_IN_TU: &str = "callee-defined-in-tu";
 
 /// **F3's residue key** — the body is a store run followed by a call, it parses
@@ -1214,6 +1227,7 @@ pub(crate) const CALLEE_DEFINED_IN_TU: &str = "callee-defined-in-tu";
 /// only for a body the whole-segment parser already accepted, and acceptance
 /// requires the cursor to reach `seg.len()`. So the `:eof` it renders is the
 /// true statement — the body is grammar-complete and directly sizeable.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const STORE_RUN_CALL_NO_CARRIER: &str = "store-run-call-no-emitter-carrier";
 
 /// **W-DATA — the body is a static-array scan loop and the OBJECT it reads is
@@ -1237,6 +1251,7 @@ pub(crate) const STORE_RUN_CALL_NO_CARRIER: &str = "store-run-call-no-emitter-ca
 /// `Block::at_end` is earned for the same reason the constant above earns it:
 /// the arm runs only for a body the whole-segment parser already accepted, so
 /// the `:eof` it renders is the true statement.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const STATIC_SCAN_LOOP_OBJECT: &str = "static-scan-loop-object-out-of-class";
 
 /// **#839's residue key** — the body is a store run whose base is a C++
@@ -1265,6 +1280,7 @@ pub(crate) const STATIC_SCAN_LOOP_OBJECT: &str = "static-scan-loop-object-out-of
 /// a bind body today each carry their own key below, because a shared one would
 /// make each of their residues unsizeable — and one of them is the frontier's
 /// last refusal.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const STORE_RUN_BIND_NO_CARRIER: &str = "store-run-bind-no-emitter-carrier";
 
 /// **#836/#868's residue key, and the reason board #1199 is worth paying** —
@@ -1317,6 +1333,7 @@ pub(crate) const STORE_RUN_BIND_NO_CARRIER: &str = "store-run-bind-no-emitter-ca
 ///   `census/gate disagreement: 1` (`w-mrslot` §5, re-derived rather than
 ///   carried at `w-mixkind` §5). A lane that lifts this clause alone breaks the
 ///   invariant `codegen::select::function_gate` exists to hold.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const STORE_RUN_BIND_MIXED_KIND: &str = "store-run-bind-mixed-kind-alloc";
 
 /// The bind body's run puts the bound name in a store's **value** position with
@@ -1331,6 +1348,7 @@ pub(crate) const STORE_RUN_BIND_MIXED_KIND: &str = "store-run-bind-mixed-kind-al
 /// pair whose objs are identical while refusing the other is a divergence with no
 /// grid behind it, so this lane declines the family and names it. See
 /// `docs/rungs/2026-08-08-w-carrier.md`.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const STORE_RUN_BIND_ADDR_PRODUCER: &str = "store-run-bind-address-producer";
 
 /// The bind body's run carries **more than one distinct producer**.
@@ -1341,6 +1359,7 @@ pub(crate) const STORE_RUN_BIND_ADDR_PRODUCER: &str = "store-run-bind-address-pr
 /// real `c2` emits source order there where the model has no answer at all. The
 /// gate is drawn at **one** producer, which is the region `w-carrier` proved
 /// `store_order` cannot refuse, rather than at `MAX_MULTISYM_PRODUCERS`.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const STORE_RUN_BIND_MULTI_PRODUCER: &str = "store-run-bind-multi-producer";
 
 /// The bind body's run crosses more than
@@ -1354,6 +1373,7 @@ pub(crate) const STORE_RUN_BIND_MULTI_PRODUCER: &str = "store-run-bind-multi-pro
 /// because the emitted symbol pattern is always the source pattern (board #601,
 /// 7,589 of 7,589 cells) — so this gate is provably at least as strict as the
 /// one it stands in for.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const STORE_RUN_BIND_SYMBOL_CROSSINGS: &str = "store-run-bind-symbol-crossings";
 
 /// **THE REFUSAL THE SWEEP EARNED, AND THE CORRECTION THAT RETIRED IT** — board
@@ -1405,6 +1425,7 @@ pub(crate) const STORE_RUN_BIND_SYMBOL_CROSSINGS: &str = "store-run-bind-symbol-
 // Retired keys have no producer by definition, so the only consumer is the
 // invariant that says so — `the_call_tail_key_has_no_producer_since_1212`.
 #[allow(dead_code)]
+// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const STORE_RUN_BIND_CALL_TAIL_RETIRED: &str = "store-run-bind-call-tail-mr-slot";
 
 /// The bind body's run is not a stream of three-op GPR store groups.
@@ -1413,6 +1434,7 @@ pub(crate) const STORE_RUN_BIND_CALL_TAIL_RETIRED: &str = "store-run-bind-call-t
 /// load-valued one is four; `codegen::leaf::store::parse_simple_gpr_run` matches
 /// exactly three. Refused positively so a bind body cannot reach an emitter
 /// through a group shape nothing graded.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const STORE_RUN_BIND_GROUP_SHAPE: &str = "store-run-bind-group-shape";
 
 /// **Board #1199** — why a [`BodyShape::StoreRunBind`] body is refused, or `None`
@@ -1441,8 +1463,11 @@ pub(crate) fn bind_refusal_key(shape: &BodyShape) -> Option<&'static str> {
     }
 }
 
+// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const CALLEE_UNRESOLVED_DTOR: &str = "callee-unresolved-dtor-delegation";
+// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const CALLEE_UNRESOLVED_FRAMED: &str = "callee-unresolved-framed-call";
+// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const CALLEE_UNRESOLVED_SEQ: &str = "callee-unresolved-call-sequence";
 
 /// **WR1** — census `ctx` for a body that parses as a tail call materializing a
@@ -1456,6 +1481,7 @@ pub(crate) const CALLEE_UNRESOLVED_SEQ: &str = "callee-unresolved-call-sequence"
 /// perfectly well in every one of these bodies — filing them under the callee's
 /// name would be the mis-attribution `docs/GAPS.md` §6 keeps recording, and it
 /// would hide the one number a follow-on rung has to be sized from.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const DATA_SYM_UNRESOLVED: &str = "data-sym-unresolved";
 
 /// **WR1** — census `ctx` for a data symbol that DOES resolve to a `.gl` name
@@ -1466,6 +1492,7 @@ pub(crate) const DATA_SYM_UNRESOLVED: &str = "data-sym-unresolved";
 ///
 /// Kept apart from [`DATA_SYM_UNRESOLVED`] because the two are different jobs:
 /// this one needs a section emitter, that one needs a name.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const DATA_SYM_LINKAGE: &str = "data-sym-not-extern";
 
 /// **W-FENCE163** — census `ctx` for a NARROW string literal
@@ -1483,6 +1510,7 @@ pub(crate) const DATA_SYM_LINKAGE: &str = "data-sym-not-extern";
 /// standing two-sided price of the fence: every scan counts what the fence is
 /// holding, so the refusal's own cost cannot go quiet (CLAUDE.md's two-sided
 /// pricing rule; `docs/CFG_SHAPE.md` §6.3 rule 2).
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const DATA_SYM_STRLIT_FENCED: &str = "data-sym-strlit-fenced";
 
 /// **W-ATEND — the ADMISSION layer's OWN refusal reason**, raised when the
@@ -1533,6 +1561,7 @@ pub(crate) const DATA_SYM_STRLIT_FENCED: &str = "data-sym-strlit-fenced";
 /// unchanged, because that reason was never admission's. So the layer owns a
 /// reason for exactly the bodies it alone refuses, which is the whole of the
 /// finding.
+/// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 pub(crate) const ADMISSION_DECLINED: &str = "admission-declined";
 
 /// **The grammar-completeness axis** — `docs/ROADMAP.md` §9.11 / §9.14.

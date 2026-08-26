@@ -19,6 +19,7 @@ use c2_harness::search::{self, Budget, MoveSet, Perturb};
 /// The default solvable-instance roster: straight-line int fixtures that carry
 /// literals and/or arithmetic terms (the move set's sites). C++-only; each is
 /// captured fresh (no committed IL/obj).
+/// PROV[N] not load-bearing — a list of FIXTURE NAMES the search subcommands default to; each is captured fresh and none is committed.
 const SEARCH_FIXTURES: &[&str] = &[
     "mvp_edit_addk.cpp",
     "mvp_lit.cpp",
@@ -88,6 +89,7 @@ fn search_timeout(args: &Args) -> Result<Duration, ExitCode> {
 }
 
 /// The options every `search` subcommand shares.
+/// PROV[N] not load-bearing — the option table every `search` subcommand shares. See the `*_SPEC` items.
 const SEARCH_COMMON: &[(&str, Arity)] = &[
     ("--moves", Arity::Value),
     ("--keep-widen", Arity::Flag),
@@ -107,6 +109,7 @@ const fn search_spec(cmd: &'static str, opts: &'static [(&'static str, Arity)]) 
 /// calls `search_perturbs`, so `search solve <cpp> --d 3` accepted the option and
 /// ran d=1. Refusing it is the honest reading of "this subcommand does not take
 /// it"; the ladder lives on `search eval`.
+/// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static SEARCH_SOLVE_SPEC: Spec = search_spec("search solve", SEARCH_COMMON);
 
 pub(crate) fn cmd_search_solve(rest: &[String]) -> ExitCode {
@@ -166,6 +169,7 @@ pub(crate) fn cmd_search_solve(rest: &[String]) -> ExitCode {
     code
 }
 
+// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static SEARCH_EVAL_SPEC: Spec = Spec {
     cmd: "search eval",
     opts: &[
@@ -267,6 +271,7 @@ pub(crate) fn cmd_search_eval(rest: &[String]) -> ExitCode {
     }
 }
 
+// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static SEARCH_FROM_RETRIEVAL_SPEC: Spec = Spec {
     cmd: "search from-retrieval",
     opts: &[
@@ -404,6 +409,7 @@ pub(crate) fn cmd_search_from_retrieval(rest: &[String]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static SEARCH_FROM_LIFTER_SPEC: Spec = Spec {
     cmd: "search from-lifter",
     opts: &[

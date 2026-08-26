@@ -113,15 +113,18 @@ use crate::func::{GuardRetChain, GuardRetGuard, GuardRetSpine};
 /// table in [`crate::func::body::expr_opcode_name`]'s doc lists **172** for
 /// `memcpy`, and both witnesses carry `33 <int> 80 ac 00 00 00` — the varint
 /// escape form of 172 — immediately before their `40`.
+/// PROV[O] 172, from the intrinsic-selector table in `expr_opcode_name`'s doc, and both witnesses carry `33 <int> 80 ac 00 00 00` — the varint escape form of 172 — immediately before their `40`.
 pub(crate) const MEMCPY_SELECTOR: i32 = 172;
 
 /// The lowest copy length c2 lowers to a CALL at `/O1 /Oi`. Measured, 25 cells:
 /// `work/w-ifn/probe/mcpy.cpp`. `c2_core::codegen::guard_ret_chain` re-asserts
 /// the same window, and that module's test is what stops the two drifting.
+/// PROV[O] the lowest copy length c2 lowers to a CALL at `/O1 /Oi`, measured over 25 cells (`work/w-ifn/probe/mcpy.cpp`) — a window with cells on both sides of the boundary, so no other value is consistent. `c2_core::codegen::guard_ret_chain` re-asserts it and a test stops the two drifting.
 pub(crate) const MEMCPY_CALL_STEP: i32 = 6;
 
 /// The lexical depth the body sits at when `parse_segment_shape` dispatches:
 /// `eat_scopes` has already taken the body's own `53` and the first `if`'s.
+/// PROV[O] the lexical depth the body sits at when `parse_segment_shape` dispatches, read off captures: `eat_scopes` has already taken the body's own `53` and the first `if`'s.
 pub(crate) const GUARD_ENTRY_DEPTH: u8 = 3;
 
 /// `29 <tok>` — a label definition.

@@ -34,6 +34,7 @@ use crate::func::readers::{
 /// `signed` is the pointee's own signedness (kind's low nibble 1 vs 2), which
 /// matters only when a `2C` widens the value to `int`: an unsigned narrow load is
 /// already zero-extended by `lbz`/`lhz`, a signed one is not.
+/// PROV[F] a WIDTH TABLE assembled from witnesses, listing both tags for each width because "neither implies anything about the load". A `(tag, kind, width)` triple outside it is the off-sample case the captures could not contain.
 pub(crate) const SIZED_PTEE: &[(u8, u8, u8, bool)] = &[
     (0x82, 0x11, 1, true),  // char / signed char        `30 82 11 70` / `… 10`
     (0xA2, 0x11, 1, true),  // const char                `30 a2 11 8e 20`
@@ -56,6 +57,7 @@ pub(crate) const SIZED_PTEE: &[(u8, u8, u8, bool)] = &[
 /// member function's getter carries `27 a2 43 f0 08` over a `30 82 11 70`
 /// (`D::n_c()`), so both tags are listed for each width and neither implies
 /// anything about the load.
+/// PROV[F] the pointer-side companion table, same construction and same off-sample failure mode as [`SIZED_PTEE`].
 pub(crate) const SIZED_PTR: &[(u8, u8, u8)] = &[
     (0x82, 0x43, 1),
     (0xA2, 0x43, 1),
@@ -110,10 +112,12 @@ pub(crate) fn parse_base_member_designator(
     ptr_ok: fn(u8, u8) -> bool,
 ) -> Option<(i32, u32, usize)> {
     /// `33 <int-like> 80 45 08 00 00` — the selector literal, wide form.
+    /// PROV[O] `80 45 08 00 00`, the selector literal in wide form, read off captures.
     const SELECTOR_2117: [u8; 5] = [0x80, 0x45, 0x08, 0x00, 0x00];
     /// Longest argument-header type list accepted. Two witnesses (`n` = 2 and 3)
     /// bound what is understood; a deeper list is refused rather than skipped on
     /// the assumption that the shape keeps repeating.
+    /// PROV[F] a verified-extent bound: "Two witnesses (`n` = 2 and 3) bound what is understood; a deeper list is refused rather than skipped on the assumption that the shape keeps repeating." Refusing is the right behaviour; the number is still a fit to two cells.
     const MAX_HEADER_REFS: u8 = 3;
 
     let mut p = start;
@@ -224,6 +228,7 @@ pub(crate) fn parse_base_member_designator(
 /// and a code pointer is the one case where "the pointee width does not matter"
 /// has not been checked.
 pub(crate) fn is_ptr_any(tag: u8, kind: u8) -> bool {
+    // PROV[F] and its own doc is the citation, in the strongest terms this file offers: four of the sixteen tags are captured, "the other twelve are the same two axes crossed and are admitted on that basis, which is a HYPOTHESIS about the encoding and not a capture". Twelve of sixteen entries are extrapolation.
     const PTR_TAGS: [u8; 16] = [
         0x82, 0x84, 0x86, 0x88, // plain, width nibble 2/4/6/8
         0x92, 0x94, 0x96, 0x98, // volatile

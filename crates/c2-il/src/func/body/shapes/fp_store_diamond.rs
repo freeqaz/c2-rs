@@ -133,6 +133,7 @@ use crate::func::readers::{
 use crate::func::{FpDiamondConstStore, FpDiamondDiv, FpStoreDiamond};
 
 /// The lexical depth an arm's two `53`s reach, from the body's own depth.
+/// PROV[O] the lexical depth an arm's two `53`s reach from the body's own depth, read off captures.
 const ARM_DEPTH: u8 = 5;
 
 /// Consume `54 <k>`, requiring the exact depth `k`. The depths are pinned rather

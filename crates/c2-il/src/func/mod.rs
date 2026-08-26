@@ -544,6 +544,7 @@ pub struct CondPlan {
 
 /// The scratch register a value both arms need is parked in. Measured at r11 in
 /// `?MemFree`, `?MemAlloc`, `?MemSize` and `?mmioGetInfo`; **only** at r11.
+/// PROV[F] a REGISTER NUMBER fitted to four functions: its own doc says "measured at r11 in `?MemFree`, `?MemAlloc`, `?MemSize` and `?mmioGetInfo`; ONLY at r11". Nothing establishes that c2's allocator must choose r11 here, and the ten refuted allocation keys (`P_REGALLOC.md`, R1's subtraction) are the standing evidence that allocation order is UNEXPLAINED. Off-sample failure mode: a fifth function that parks elsewhere.
 pub const COND_PARK_REG: u8 = 11;
 
 /// **The register schedule, and the class boundary it draws.**
@@ -767,6 +768,7 @@ impl CondPlan {
     ) -> Option<()> {
         // r0..r11 is enough: every destination in class is an argument register
         // or [`COND_PARK_REG`].
+        // PROV[N] derived from [`COND_PARK_REG`] and nothing else — a table size. DISCLOSURE lists values derived from another marked constant under [N].
         const NREG: usize = COND_PARK_REG as usize + 1;
         let mut regs: [Option<CondVal>; NREG] = [None; NREG];
         for i in 0..n_params {
@@ -895,6 +897,7 @@ pub struct SeqCall {
 /// Measured at one and **only** one: no capture in this family separates "the
 /// receiver occupies slot 0" from "the first explicit argument goes to r4", so a
 /// per-call slot *number* would be a degree of freedom nothing has graded.
+/// PROV[F] fitted, and its own doc names the degree of freedom it is collapsing: "measured at one and ONLY one: no capture in this family separates 'the receiver occupies slot 0' from 'the first explicit argument goes to r4'". A constant standing in for a distinction nothing has graded is the definition of a fit.
 pub const LINK_FIRST_SLOT: usize = 1;
 
 /// The formal index each slot of `slots` is filled from, with a **literal slot

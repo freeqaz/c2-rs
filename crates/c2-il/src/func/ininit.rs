@@ -104,27 +104,34 @@
 use super::readers::read_token_var;
 
 /// The byte between the operand token and the first element.
+/// PROV[O] the `.in` byte between the operand token and the first element, read off captures.
 const RECORD_TAG: u8 = 0x00;
 
 /// The element tag this reader handles: a scalar constant.
+/// PROV[O] `01`, the scalar-constant element tag, read off `.in` captures.
 const ELEMENT_SCALAR: u8 = 0x01;
 
 /// The element tag for **the address of another symbol** — `02 <target-token>
 /// <offset> <n>` (board #931, `work/w-tag02/GRAMMAR.md`).
+/// PROV[O] `02`, the symbol-address element tag, with its full grammar `02 <target-token> <offset> <n>` recorded at board `#931` / `work/w-tag02/GRAMMAR.md`.
 const ELEMENT_SYMBOL_ADDRESS: u8 = 0x02;
 
 /// The `<n>` a tag-`02` element must carry. **OBSERVED constant, not a known
 /// one**: every pointer on this 32-bit target is four bytes, so no cell in the
 /// 24-cell grid can vary it. Any other value refuses.
+/// PROV[O] `04`, and its own doc states the limit of the observation honestly: "an OBSERVED constant, not a known one — every pointer on this 32-bit target is four bytes, so no cell in the 24-cell grid can vary it". Any other value refuses, so the unobservable case fails closed rather than being guessed.
 const ADDRESS_WIDTH: u8 = 0x04;
 
 /// The byte that closes an initializer record. Shared with [`super::inlit`].
+/// PROV[O] `07`, the byte that closes an initializer record, read off `.in` captures and shared with `inlit`.
 const RECORD_END: u8 = 0x07;
 
 /// Scalar element **type** bytes this reader admits — signed and unsigned
 /// integer. `05` is floating point and is refused (see the module docs); every
 /// other value is unseen and refuses with it.
+/// PROV[O] `01`, a scalar element type byte read off `.in` captures. `05` (floating point) is refused and every unseen value refuses with it.
 const TYPE_INT_SIGNED: u8 = 0x01;
+// PROV[O] `02`, read off the same captures beside [`TYPE_INT_SIGNED`].
 const TYPE_INT_UNSIGNED: u8 = 0x02;
 
 /// **A DATA pointer whose value is a plain integer** — canonically a null
@@ -144,6 +151,7 @@ const TYPE_INT_UNSIGNED: u8 = 0x02;
 /// **14,703 of the workload's 14,705 type-03 elements over the first 40 TUs**.
 /// A `.data` object initialized with `(int*)4` carries the four bytes and **no
 /// relocation** — `z11_data_ptr_4`'s obj, checked.
+/// PROV[O] `03`, and the doc names the population: 14,703 of the workload's 14,705 type-03 elements over the first 40 TUs, plus an obj-side check that a `.data` object initialized with `(int*)4` carries four bytes and no relocation.
 const TYPE_PTR_DATA: u8 = 0x03;
 
 /// **A FUNCTION pointer whose value is a plain integer.** The same shape as
@@ -162,6 +170,7 @@ const TYPE_PTR_DATA: u8 = 0x03;
 /// function pointers (`pmfnUnwind` is null too, because the thrown type has no
 /// destructor). All **228** of the workload's type-04 elements in the sampled
 /// TUs sit at element index 2 of a four-element `_TI` record.
+/// PROV[O] `04`, with its population named: all 228 type-04 elements in the sampled TUs sit at element index 2 of a four-element `_TI` record.
 const TYPE_PTR_FUNC: u8 = 0x04;
 
 /// The only width [`TYPE_PTR_DATA`] and [`TYPE_PTR_FUNC`] are measured at.
@@ -172,9 +181,11 @@ const TYPE_PTR_FUNC: u8 = 0x04;
 /// that size. `work/w-emitp2/scalartypes.txt` finds **no** type-03 or type-04
 /// element at any other width anywhere in the 850-TU workload, so the
 /// restriction costs nothing and keeps the claim to what was measured.
+/// PROV[O] 4, an OBSERVED constant like [`ADDRESS_WIDTH`] — `work/w-emitp2/scalartypes.txt` finds no type-03 or type-04 element at any other width anywhere in the 850-TU workload, and any other width refuses.
 const POINTER_WIDTH: u8 = 4;
 
 /// Element widths this reader admits, in bytes.
+/// PROV[F] an enumerated SET of admitted element widths. An 8-byte element is exactly the off-sample case the grid could not contain; it refuses rather than mis-reading, but the set is a fit to what was seen.
 const WIDTHS: [u8; 3] = [1, 2, 4];
 
 /// **Element tag `03` — inline bytes**, `03 <len> <len bytes>`, contributing
@@ -187,6 +198,7 @@ const WIDTHS: [u8; 3] = [1, 2, 4];
 /// is [`super::inlit::read_len`]'s — `80` + LE**16** — reused rather than
 /// re-spelled, because the crate already has three different varints and a
 /// fourth spelling of this one is how they drift.
+/// PROV[O] `03` in the element position, read off `.in` captures — the inline-bytes element `??_R0`'s third field needs. Its length field reuses `inlit::read_len`'s `80` + LE16 rather than being re-spelled.
 const ELEMENT_INLINE_BYTES: u8 = 0x03;
 
 /// **Element tag `08` — a zero fill of `<count>` BYTES.**
@@ -218,6 +230,7 @@ const ELEMENT_INLINE_BYTES: u8 = 0x03;
 /// The count's varint is [`read_offset`]'s shape (`00..7F`, else `80` + LE32),
 /// separated at 124 / 128 by `z05` and `z04`, and **not** [`super::inlit`]'s
 /// LE16.
+/// PROV[O] `08`, the zero-fill element tag, read off captures — the doc works it on `struct S{bool b; int a[2];} s = {true};` where the first fill is the struct's own padding.
 const ELEMENT_ZERO_FILL: u8 = 0x08;
 
 /// Why a record that framed as an initializer did not yield bytes.
@@ -279,6 +292,7 @@ impl InInitResidue {
     /// occur. The array's length is asserted in the tests, so adding a variant
     /// without adding it here is a compile-adjacent failure rather than a silent
     /// hole in the report.
+    /// PROV[N] not load-bearing — an array of this crate's OWN residue enum variants, enumerated so a diagnostic can iterate them. Derived entirely from the enum it lists.
     pub const ALL: [InInitResidue; 9] = [
         Self::SymbolAddress,
         Self::FloatingPoint,
@@ -570,6 +584,7 @@ fn read_fill_count(inb: &[u8], p: &mut usize) -> Result<u32, InInitResidue> {
 /// length-carrying elements check it **before** allocating, so a corrupt
 /// `08 80 ff ff ff 7f` cannot ask for two gigabytes on the way to being
 /// refused.
+/// PROV[N] not load-bearing — a 64 KiB anti-garbage ceiling on the reader's allocation. It bounds a parse, not an emit; a wrong value refuses a record rather than changing a graded byte.
 const MAX_OBJECT_BYTES: usize = 1 << 16;
 
 /// Parse the element run of one record, starting just past its [`RECORD_TAG`].

@@ -71,10 +71,14 @@ use c2_reference::Toolchain;
 /// use. **`/O1`, deliberately**: it implies `/Gy`, which is the regime the
 /// 878-TU scan lives in and the one `Pool.obj`'s three COMDAT `.text` sections
 /// belong to.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const CELL_A: &str = include_str!("../../../fixtures/cpp/wpool_store_leaf_member_value.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const CELL_B: &str = include_str!("../../../fixtures/cpp/wpool_store_run_member_value_neg.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const CELL_C: &str = include_str!("../../../fixtures/cpp/wpool_guard_bclr_fold_neg.cpp");
 
 fn work(tag: &str) -> PathBuf {

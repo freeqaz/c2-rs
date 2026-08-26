@@ -35,6 +35,7 @@ fn parse_ks(args: &Args) -> Result<Vec<usize>, ExitCode> {
     Ok(v)
 }
 
+// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static RETRIEVE_INDEX_SPEC: Spec = Spec::new("retrieve index", &[]);
 
 pub(crate) fn cmd_retrieve_index(rest: &[String]) -> ExitCode {
@@ -98,6 +99,7 @@ fn class_sizes<I: Iterator<Item = String>>(keys: I) -> std::collections::BTreeMa
     m
 }
 
+// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static RETRIEVE_EVAL_SPEC: Spec = Spec::new(
     "retrieve eval",
     &[

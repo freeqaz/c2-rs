@@ -109,10 +109,12 @@ pub use func::{
 
 /// The five IL suffixes (no leading dot), in canonical order. `.ex` first
 /// because it is the main IL stream; mirrors `IL_SUFFIXES` in il_parser.py.
+/// PROV[O] the five per-TU IL files the real front end writes beside the obj, observed in every capture this project has taken (`fixtures/README.md`, `c2rs corpus gen`). Not a spec: nothing outside MSVC names these.
 pub const IL_SUFFIXES: [&str; 5] = ["ex", "gl", "sy", "in", "db"];
 
 /// `.ex` header magic — the first four bytes of a real IL bytecode stream.
 /// (`5B 80 54 0A`, per `msvc-src/docs/IL_FORMAT.md`.)
+/// PROV[O] the first four bytes of every captured `.ex`. Read off real captures; no other value is consistent with any of them.
 pub const EX_MAGIC: [u8; 4] = [0x5B, 0x80, 0x54, 0x0A];
 
 /// Returns true iff `data` begins with the `.ex` header magic `5B 80 54 0A`.

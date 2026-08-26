@@ -41,6 +41,7 @@ use c2_reference::stage::STAGE_SITES;
 use c2_reference::Toolchain;
 
 /// The fixture profile `stage` and the fixture gate both use.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 5] = ["/O1", "/Oi", "/EHsc", "/GS-", "/c"];
 
 fn fixture(name: &str) -> PathBuf {
@@ -51,6 +52,7 @@ fn fixture(name: &str) -> PathBuf {
 /// concept" is a statement about a function the port GETS RIGHT — not about
 /// one it refuses. A refused function would make the whole comparison vacuous
 /// in the most ordinary way.
+/// PROV[N] not load-bearing — a FIXTURE NAME.
 const FIXTURE: &str = "w5_chain.cpp";
 
 #[test]

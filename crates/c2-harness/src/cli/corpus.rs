@@ -11,6 +11,7 @@ use c2_harness::toolchain_gate::{toolchain_ready, Cap};
 
 use crate::{Args, Arity, Spec};
 
+// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static CORPUS_GEN_SPEC: Spec = Spec::new(
     "corpus gen",
     &[
@@ -88,6 +89,7 @@ pub(crate) fn cmd_corpus_gen(rest: &[String]) -> ExitCode {
 /// One optional output directory, no options. `rest.first()` was taken verbatim,
 /// so `c2rs corpus sample --out /tmp/x` wrote the sample into a directory
 /// literally named `--out`.
+/// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static CORPUS_SAMPLE_SPEC: Spec = Spec::new("corpus sample", &[]);
 
 pub(crate) fn cmd_corpus_sample(rest: &[String]) -> ExitCode {
@@ -110,6 +112,7 @@ pub(crate) fn cmd_corpus_sample(rest: &[String]) -> ExitCode {
     }
 }
 
+// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static CORPUS_STATS_SPEC: Spec = Spec::new("corpus stats", &[]);
 
 pub(crate) fn cmd_corpus_stats(rest: &[String]) -> ExitCode {

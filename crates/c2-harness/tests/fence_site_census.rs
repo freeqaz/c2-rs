@@ -82,6 +82,7 @@ fn repo_root() -> PathBuf {
 ///
 /// Measured at master `1744ced1` by lane `w-deadsites`
 /// (`docs/rungs/2026-08-18-deadsites.md`).
+/// PROV[N] not load-bearing in the PROVENANCE sense — a pinned expectation over THIS PORT's own tree, asserted so a change is visible. It records the port's state, never c2's. (It is load-bearing for the test; that is a different question and the test is what guards it.) A per-file site census over this repo's own `crates/`.
 const EXPECTED: &[(&str, usize, usize)] = &[
     // **W-ATEND, `docs/rungs/2026-08-26-w-atend.md`** — the ADMISSION layer's
     // own refusal reason, raised by `AdmissionPolicy::Nothing` for a body the
@@ -120,6 +121,7 @@ const EXPECTED: &[(&str, usize, usize)] = &[
 /// fence keys and read by `dispatch_site()` / `prod_site()`; none of them ever
 /// reaches `Block::at_end`, so they are not fences and are excluded **by name**
 /// rather than by a heuristic.
+/// PROV[N] not load-bearing — the axis tag NAMES this repo's own fence sites carry.
 const AXIS_TAGS: &[&str] = &[
     "DISP_NOT_RUN",
     "PROD_NOT_ENTERED",
@@ -131,6 +133,7 @@ const AXIS_TAGS: &[&str] = &[
 /// `w-mutcensus` §2's **E1** — `refuse("<key>")` raise sites, whose key is a
 /// literal rather than a constant, so the table above cannot see them. That
 /// lane counted **23**; this rule reproduces it exactly.
+/// PROV[N] not load-bearing in the PROVENANCE sense — a pinned expectation over THIS PORT's own tree, asserted so a change is visible. It records the port's state, never c2's. (It is load-bearing for the test; that is a different question and the test is what guards it.)
 const EXPECTED_REFUSE_SITES: usize = 23;
 
 /// `Block::at_end(` sites in **production** code — `w-mutcensus` §2's **E3**
@@ -142,6 +145,7 @@ const EXPECTED_REFUSE_SITES: usize = 23;
 /// **#3592**), which is the named follow-up board **#3556** left. Read
 /// `EXPECTED_AT_END_SITES_BY_FILE` below before quoting this total: the 8 are
 /// **not** one population any more.
+/// PROV[N] not load-bearing in the PROVENANCE sense — a pinned expectation over THIS PORT's own tree, asserted so a change is visible. It records the port's state, never c2's. (It is load-bearing for the test; that is a different question and the test is what guards it.)
 const EXPECTED_AT_END_SITES: usize = 8;
 
 /// **THE PARTITION, AND IT IS THE POINT OF THE 7 → 8 RATHER THAN A DECORATION.**
@@ -179,6 +183,7 @@ const EXPECTED_AT_END_SITES: usize = 8;
 /// non-default policy, this row moves back into the reachable column** — and
 /// that caller owes its own two-sided price for widening the decision surface
 /// into production.
+/// PROV[N] not load-bearing in the PROVENANCE sense — a pinned expectation over THIS PORT's own tree, asserted so a change is visible. It records the port's state, never c2's. (It is load-bearing for the test; that is a different question and the test is what guards it.)
 const EXPECTED_AT_END_SITES_BY_FILE: &[(&str, usize)] = &[
     ("crates/c2-il/src/func/body/decode.rs", 1),
     ("crates/c2-il/src/func/census.rs", 7),
@@ -189,6 +194,7 @@ const EXPECTED_AT_END_SITES_BY_FILE: &[(&str, usize)] = &[
 /// scan's key histogram can ever show. Stated as its own number so that
 /// "how many published keys does nothing measure" is a *quantity* on this page
 /// and not a paragraph.
+/// PROV[N] not load-bearing in the PROVENANCE sense — a pinned expectation over THIS PORT's own tree, asserted so a change is visible. It records the port's state, never c2's. (It is load-bearing for the test; that is a different question and the test is what guards it.)
 const EXPECTED_AT_END_SITES_INSTRUMENT_ONLY: usize = 1;
 
 // ---------------------------------------------------------------------------

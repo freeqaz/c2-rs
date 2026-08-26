@@ -106,10 +106,13 @@ use P::{Line, B, F, K, T, Y};
 
 /// The number of distinct IL tokens the body names: three formals (`this`
 /// included), six locals and sixteen labels.
+/// PROV[O] a property of ONE captured reference body (three formals, six locals, sixteen labels), transcribed from `work/w-json/probe/ref.obj`'s IL capture. This whole class is a single pinned function; its constants describe that capture and nothing wider.
 const NTOK: usize = 25;
 /// The number of distinct TYPEs it names.
+/// PROV[O] the number of distinct TYPEs the same captured body names.
 const NTY: usize = 12;
 /// The number of free fields.
+/// PROV[O] the number of free fields in the same captured body.
 const NFLD: usize = 4;
 
 /// The `(tag, kind)` of each TYPE slot, read off the reference IL. The third
@@ -122,6 +125,7 @@ const NFLD: usize = 4;
 /// and differ only here — and c2 emits `cmpw` for the signed one where this
 /// class's emitter has an unconditional `cmplw`, in four places. Board **#1788**
 /// a second time: read the TYPE, not the byte.
+/// PROV[O] the captured body's own `(tag, kind)` list. Its doc carries board #1788 a second time — read the TYPE, not the byte — because two types differing only here make c2 emit `cmpw` where this class's emitter has an unconditional `cmplw`, in four places.
 const TY_TAG_KIND: [(u8, u8); NTY] = [
     (0x86, 0x42), // 0  unsigned long — hr, outputSize, index, maxSize, *pSize
     (0x86, 0x43), // 1  unsigned long *
@@ -138,8 +142,11 @@ const TY_TAG_KIND: [(u8, u8); NTY] = [
 ];
 
 /// Which slots are the formals, in `parse_params` order.
+/// PROV[O] the `parse_params`-order slot of `this` in the captured body.
 const SLOT_THIS: usize = 8;
+// PROV[O] the buffer formal's slot in the same captured body.
 const SLOT_BUFFER: usize = 3;
+// PROV[O] the size formal's slot in the same captured body.
 const SLOT_SIZE: usize = 1;
 
 /// True for a wide constant this class materializes with the pinned `lis`+`ori`
@@ -157,6 +164,7 @@ fn is_two_word_constant(k: i32) -> bool {
 /// naming a single fall-through key cannot tell ten `_neg` cells apart. The
 /// boundaries are the pattern's own label definitions (`29 <tok>`), so they are
 /// the body's real blocks and not a hand-chosen split.
+/// PROV[N] not load-bearing — a DIAGNOSTIC split of the pattern into named regions, so ten `_neg` cells can be told apart instead of collapsing onto one fall-through key. The boundaries are the pattern's own `29 <tok>` label definitions, so they are derived from [`PAT`] rather than chosen.
 const REGIONS: [(usize, &str); 9] = [
     (0, "json-init-and-arg-guard"),
     (31, "json-arg-error-arm"),
@@ -363,6 +371,7 @@ pub(crate) fn try_parse_json_utf8_copy(
 /// The reference function's own token stream, from the first statement byte to
 /// the closing `4D`. Generated from `work/w-json/probe/ref.obj`'s IL capture and
 /// checked against it by a test in this file.
+/// PROV[O] the reference function's own token stream from the first statement byte to the closing `4D`, generated from `work/w-json/probe/ref.obj`'s IL capture and checked against it by a test in this file. A verbatim transcription of a real artifact.
 const PAT: &[P] = &[
     B(0x26), T(0), B(0x33), Y(0), K(0), B(0x32), Y(0), B(0x4B), Line, B(0x53),
     B(0xB9), T(1), Y(1), B(0x38), T(2), B(0xB9), T(3), Y(2), B(0x39), T(4),

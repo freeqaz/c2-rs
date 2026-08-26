@@ -102,9 +102,12 @@ use c2_reference::Toolchain;
 /// use. **`/O1`, deliberately**: both classes are `/O1`-only, and `/O1` implies
 /// `/Gy`, which is the regime the 878-TU scan lives in and the one
 /// `Pool.obj`'s three COMDAT `.text` sections belong to.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const POSITIVE: &str = include_str!("../../../fixtures/cpp/wpool2_free_list.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const NEGATIVE: &str = include_str!("../../../fixtures/cpp/wpool2_free_list_neg.cpp");
 
 fn work(tag: &str) -> PathBuf {

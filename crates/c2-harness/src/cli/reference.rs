@@ -18,6 +18,7 @@ use c2_obj::{ObjDiff, ObjImage};
 use crate::{Args, Arity, Spec};
 use crate::cli::util::{first_line, require_cpp, Scratch, CPP_PROFILE_REQUIRES};
 
+// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static CAPTURE_SPEC: Spec = Spec::new(
     "capture",
     &[
@@ -126,6 +127,7 @@ pub(crate) fn cmd_capture(rest: &[String]) -> ExitCode {
     }
 }
 
+// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static COMPILE_SPEC: Spec = Spec::new(
     "compile",
     &[
@@ -284,6 +286,7 @@ fn selftest_row(r: &SelfTestReport) -> String {
 /// map `rest` wholesale to fixture paths, so `c2rs selftest --flags-file f.txt`
 /// looked for two "fixtures" named `--flags-file` and `f.txt` and failed as a
 /// missing file — exit 1, not a usage error.
+/// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static SELFTEST_SPEC: Spec = Spec::new("selftest", &[]).positionals(usize::MAX);
 
 pub(crate) fn cmd_selftest(rest: &[String]) -> ExitCode {
@@ -326,6 +329,7 @@ pub(crate) fn cmd_selftest(rest: &[String]) -> ExitCode {
 /// so `c2rs replay <cpp> --flags-file work/dc3-workload/flags.txt` compiled at the
 /// `/Ox` default and said nothing — the documented *"`replay` does not take
 /// `--flags-file`"* meant "accepts and ignores it", which is the class.
+/// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static REPLAY_SPEC: Spec = Spec::new("replay", &[]);
 
 pub(crate) fn cmd_replay(rest: &[String]) -> ExitCode {
@@ -388,6 +392,7 @@ pub(crate) fn cmd_replay(rest: &[String]) -> ExitCode {
 /// so `c2rs replay-c1 <cpp> --flags-file work/dc3-workload/flags.txt` compiled at the
 /// `/Ox` default and said nothing — the documented *"`replay-c1` does not take
 /// `--flags-file`"* meant "accepts and ignores it", which is the class.
+/// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static REPLAY_C1_SPEC: Spec = Spec::new("replay-c1", &[]);
 
 pub(crate) fn cmd_replay_c1(rest: &[String]) -> ExitCode {
@@ -473,6 +478,7 @@ pub(crate) fn cmd_replay_c1(rest: &[String]) -> ExitCode {
 /// it on; `diff` defaulting it *off* would mean the fast path exists and no
 /// standing instrument takes it. See [`c2_harness::differential_cached`] for
 /// what is and is not cached — the replay and the port are not.
+/// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static DIFF_SPEC: Spec = Spec::new(
     "diff",
     &[
@@ -637,6 +643,7 @@ pub(crate) fn cmd_diff(rest: &[String]) -> ExitCode {
 /// every argument after `bench` was discarded **by the dispatcher**, one level
 /// above any handler that could have refused it — the same class, at the only
 /// site where the handler never even saw the arguments.
+/// PROV[N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
 static BENCH_SPEC: Spec = Spec::new("bench", &[]).positionals(0);
 
 pub(crate) fn cmd_bench(rest: &[String]) -> ExitCode {

@@ -32,6 +32,7 @@ use c2_reference::{CapturedReference, Toolchain};
 
 /// Replay budget — well above a normal ~1 s replay, tight enough to turn a
 /// function-set-mismatch hang (P0.6a G) into a prompt failure.
+/// PROV[N] not load-bearing — a wall-clock timeout for this test's subprocess.
 const TIMEOUT: Duration = Duration::from_secs(60);
 
 fn fixture(name: &str) -> PathBuf {

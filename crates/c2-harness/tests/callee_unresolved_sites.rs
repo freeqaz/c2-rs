@@ -33,13 +33,16 @@ use std::path::PathBuf;
 /// The file the arms live in. Named as a path rather than a line number
 /// deliberately — `w-mutcensus`' own table went stale on two peer merges in one
 /// wave, and a line number is the first thing to rot.
+/// PROV[N] not load-bearing — a path into THIS repo's own source, so a site census can be taken over it. Nothing derived from c2.
 const CENSUS_RS: &str = "crates/c2-il/src/func/census.rs";
 /// Where the four key strings are declared.
+/// PROV[N] not load-bearing — the second such path into this repo's own source.
 const BODY_MOD_RS: &str = "crates/c2-il/src/func/body/mod.rs";
 
 /// The arms of the `match label` that routes a parsed-but-unbuildable body to a
 /// blocking key, **in source order**, each named by the pattern text this test
 /// requires to be present exactly once.
+/// PROV[N] not load-bearing — source-text patterns this test greps for in this repo's own `crates/`. A structural assertion about the port, not a value from c2.
 const ARM_PATTERNS: [&str; 7] = [
     "\"store-run-call\" =>",
     "\"static-scan-loop\" =>",
@@ -54,6 +57,7 @@ const ARM_PATTERNS: [&str; 7] = [
 /// **The string is the published thing** — `scan.rs` concatenates
 /// `FnVerdict::key()` into `emit-cflow-modeled-key|{}` — so a rename of the
 /// constant alone is invisible downstream and a change to the *string* is not.
+/// PROV[N] not load-bearing — this port's own census key family, paired with the sites that raise it. Same class as `func::diag::cause`.
 const FAMILY: [(&str, &str); 4] = [
     ("CALLEE_UNRESOLVED_FRAMED", "callee-unresolved-framed-call"),
     ("CALLEE_UNRESOLVED_SEQ", "callee-unresolved-call-sequence"),

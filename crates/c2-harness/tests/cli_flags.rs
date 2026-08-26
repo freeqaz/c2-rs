@@ -67,6 +67,7 @@ use c2_reference::{Toolchain, CAPTURE_IL_DEFAULT_FLAGS};
 /// The `c2rs` binary cargo just built for this test — never a stale
 /// `target/release/c2rs` off disk (`scripts/harness_bin.sh` documents what a
 /// stale harness binary costs).
+/// PROV[N] not load-bearing — `env!("CARGO_BIN_EXE_c2rs")`, the path cargo builds this crate's own binary at. Supplied by the build system.
 const C2RS: &str = env!("CARGO_BIN_EXE_c2rs");
 
 fn fixture() -> PathBuf {

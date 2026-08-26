@@ -90,6 +90,7 @@ use super::TuResult;
 /// **The env switch.** `on` (default) | `off`. A named, settable parameter
 /// rather than a baked constant (`docs/GOAL_DECISION_2026-08-21.md`
 /// § "AMENDED"); `off` is a legal instrument state and licenses nothing.
+/// PROV[N] not load-bearing — the instrument's on/off variable, a named settable parameter per `GOAL_DECISION_2026-08-21.md` § AMENDED.
 pub const ENABLE_ENV: &str = "C2RS_SYMBIND";
 
 /// **THE DISCRIMINATING CELL: bodies the strict census REFUSES that the
@@ -99,6 +100,7 @@ pub const ENABLE_ENV: &str = "C2RS_SYMBIND";
 /// rather than admission, and the prereg freezes a threshold on it: **if this
 /// is 0 the lane reports `FAILED`**. A criterion that cannot move is `#3336`,
 /// and this whole line of work exists to prevent `#3336` at program scale.
+/// PROV[N] not load-bearing — a metric key NAME. Its doc carries the criterion that MUST be able to move (`#3336`); the criterion is the load-bearing thing, not the string.
 pub const FUSED_KEY: &str = "symbind-fused";
 
 /// **WHICH RELAXATION LEVEL PRODUCED THESE NUMBERS.** Recorded on every scan as
@@ -111,6 +113,7 @@ pub const FUSED_KEY: &str = "symbind-fused";
 /// `strict_relax_is_the_incumbent_census`), so [`FUSED_KEY`] must read **0** —
 /// the instrument's own free identity control, and the arm the prereg requires
 /// a full workload scan of.
+/// PROV[N] not load-bearing — a metric key NAME for the instrument's own free identity control.
 pub const RELAX_LEVEL_KEY: &str = "symbind-relax-level";
 
 /// **A FUSED ROW WHOSE RELAXED BODY CARRIES NO PLACEHOLDER ANYWHERE THE PUBLIC
@@ -118,6 +121,7 @@ pub const RELAX_LEVEL_KEY: &str = "symbind-relax-level";
 /// not an alarm: it means the relaxation flipped a verdict for a reason other
 /// than a supplied name — i.e. this module's account of the seam is incomplete
 /// and the residue is exactly the size of what it is missing.
+/// PROV[N] not load-bearing — a metric key NAME for the residue this module's account of the seam is missing.
 pub const PLACEHOLDER_NONE_KEY: &str = "symbind-placeholder-none";
 
 /// Whether the instrument runs. An unparseable value is **refused loudly**
@@ -175,6 +179,7 @@ impl Cell {
     }
 
     /// Every value, so the report can print each one including as a zero.
+    /// PROV[N] not load-bearing — every variant of this module's own `Cell` enum. Derived from the enum.
     pub const ALL: [Cell; 4] = [
         Cell::InClass,
         Cell::Fused,

@@ -59,19 +59,31 @@ use cellgrade::{grade_cell, hex, row, row_anchor, row_opt, work, Rows, BLR};
 // The FROZEN grid — `include_str!` and not a copy, so this test grades the bytes
 // whose `sha256` was committed before the first `cl.exe`
 // (`work/w-seed/CELLS.sha256`).
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const N01: &str = include_str!("../../../work/w-seed/cells/n01.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const N02: &str = include_str!("../../../work/w-seed/cells/n02.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const N03: &str = include_str!("../../../work/w-seed/cells/n03.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const N04: &str = include_str!("../../../work/w-seed/cells/n04.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const N05: &str = include_str!("../../../work/w-seed/cells/n05.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const N06: &str = include_str!("../../../work/w-seed/cells/n06.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const N07: &str = include_str!("../../../work/w-seed/cells/n07.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const N08: &str = include_str!("../../../work/w-seed/cells/n08.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const N09: &str = include_str!("../../../work/w-seed/cells/n09.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const N10: &str = include_str!("../../../work/w-seed/cells/n10.cpp");
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const N11: &str = include_str!("../../../work/w-seed/cells/n11.cpp");
 
 /// Both flag settings, in order: the workload's own, then `/Ob0`.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2. The two `/Ob0` arms this seed is graded at.
 const SETTINGS: [(&str, &[&str]); 2] = [("/O1", &[]), ("/O1 /Ob0", &["/Ob0"])];
 
 /// Print every graded row's shape, verdict, relocation count and **whole

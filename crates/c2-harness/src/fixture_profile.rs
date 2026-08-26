@@ -92,9 +92,11 @@ use c2_reference::CAPTURE_IL_DEFAULT_FLAGS;
 /// The marker a fixture declares its profile with. Matched on the **trimmed**
 /// line, so leading indentation is allowed and a marker inside a block comment
 /// or a string is not (it must start the line).
+/// PROV[N] not load-bearing — the in-source marker this repo's OWN fixture convention uses to carry a per-fixture flag list. A c2-rs convention, invisible to c2 (it is a C++ comment).
 pub const PROFILE_MARKER: &str = "// c2rs-profile:";
 
 /// Separator between the flag list and the mandatory reason.
+/// PROV[N] not load-bearing — the separator inside that same c2-rs-only marker.
 pub const PROFILE_REASON_SEP: char = '#';
 
 /// The compile profile `oracle_selftest` will use for one fixture.

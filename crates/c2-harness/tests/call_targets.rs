@@ -39,6 +39,7 @@ use c2_reference::Toolchain;
 /// use. **`/O1` implies `/Gy`; `/Ox` does not** — a cell compiled at the
 /// fixture default would produce a packed obj with no `.text` COMDAT at all and
 /// every assertion below would pass vacuously.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// The cell. Three one-word bodies fall out of it at `/O1`:
@@ -53,6 +54,7 @@ const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 /// callees.** The third is the mechanism this lane came from — c2 expanding a
 /// same-TU callee — kept in the cell so the shape is on the record next to the
 /// claim, even though the IL parser refuses it.
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const CELL: &str = r#"
 void ext_anchor();
 void anchor() { ext_anchor(); }

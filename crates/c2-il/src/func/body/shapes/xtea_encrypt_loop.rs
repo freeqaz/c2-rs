@@ -69,6 +69,7 @@ use crate::func::readers::{eat, eat_byte, eat_opt_stmt_marker, read_type};
 
 /// The block element's byte stride — the `ld`/`stdu` displacement and the
 /// `addi r31,r31,8` step. Fixed: all three cells carry 8.
+/// PROV[O] the 8-byte element stride of the encrypt loop, read off the class's captures.
 pub(crate) const ELEM: i64 = 8;
 
 /// `B9 <tok> <TYPE>` where the TYPE is a pointer.

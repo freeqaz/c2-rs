@@ -250,8 +250,11 @@ macro_rules! recv_vocab {
     };
 }
 
+// PROV[N] not load-bearing — a vocabulary static carrying a census key NAME. See `func::diag::cause`'s block marker.
 static RECV_TAIL: RecvVocab = recv_vocab!("tail-recv-not-a-plain-b9-load");
+// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 static RECV_CHAIN: RecvVocab = recv_vocab!("chain-recv-not-a-plain-b9-load");
+// PROV[N] not load-bearing — a census key NAME. See `func::diag::cause`.
 static RECV_CMP: RecvVocab = recv_vocab!("cmp-second-recv-not-a-plain-b9-load");
 
 impl RecvSlot {

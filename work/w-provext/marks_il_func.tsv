@@ -1,0 +1,141 @@
+# crates/c2-il/src/func/*.rs — the IL RECORD GRAMMAR layer.
+# Rows are in ascending line order within each file; a `NAME:LINE` target pins a
+# repeated const name to its occurrence (apply_marks.py, this lane's copy).
+#
+# The dominant call here is [O]: these are record tags, kind bytes and type
+# triples transcribed from real `.ex`/`.gl`/`.sy`/`.in` captures, and DISCLOSURE
+# names a `.gl`/`.ex` capture as an [O] source explicitly. An enumerated SET
+# assembled from a corpus is [F] instead — a value outside the corpus is the
+# off-sample failure mode the observations could not see.
+
+crates/c2-il/src/func/bind.rs	EMIT_MAX_NAME_TO_OFFSET	F] fitted to a measured maximum and then rounded UP: its own doc records "27 and nothing else, over 676 records on `TextFile.cpp` and 127 across the held-out structural grid — maximum 27", and this constant is 32. The five bytes of slack are the fit, and its off-sample failure is a record whose name sits further than 32 away.
+crates/c2-il/src/func/bind.rs	STRLIT_NARROW_PREFIX	O] MSVC's mangling for a narrow (`char`) string literal, read off real objs and `.gl` records: `w-section` §3.3 measures it as 1,457 of 1,458 head functions with wide (`??_C@_1`) 0 and other 0. Kept narrow deliberately; a unit test pins the wide form refused.
+crates/c2-il/src/func/bundle.rs	INITIALIZER_SUFFIX	O] `docs/OBJ_DYNINIT_SHAPE.md` §3.1 — the suffix a `.CRT$XCU` slot symbol carries, read out of real `.gl` rather than synthesized, because it is built from the source identifier and not from the decorated name.
+crates/c2-il/src/func/bundle.rs	FN_START	O] `4F 1F`, the `.ex` per-function start marker, read off captures. Same value as `codec::FN_START`.
+crates/c2-il/src/func/bundle.rs	LO	O] `4C`, the `.ex` body-start token, read off captures. Overloaded as a bare byte — its own doc records the two other records it is the last/first byte of — so the RULE that locates a body is `body_start`, not this atom.
+crates/c2-il/src/func/bundle.rs	LO_RECORD	O] `4F 11`, one more `4F xx` record tag in the family `4F 1F`/`4F 01`/`4F 02`/`4F 12`/`4F 20`/`4F 33`, read off captures.
+crates/c2-il/src/func/bundle.rs	LO_MARKER	N] derived from two marked constants ([`LO`] and [`LO_RECORD`]) and nothing else; DISCLOSURE lists "values derived from another marked constant" under [N]. Its own doc warns it is a composition, not an atom, and reading its absence as "no function" is a catalogued defect.
+crates/c2-il/src/func/bundle.rs	FORMALS	O] `46`, the `.ex` formals-list marker, read off captures.
+crates/c2-il/src/func/bundle.rs	FORMAL	O] `2D`, the `.ex` per-formal entry tag, read off captures.
+crates/c2-il/src/func/bundle.rs	OPT_WORD_OX	O] `docs/OPT_MODE.md`'s matrix — the per-function optimization word read off real `.ex` captures at each flag setting. The bits are treated as opaque and the word is compared whole, which is what keeps this an observation rather than a model.
+crates/c2-il/src/func/bundle.rs	OPT_WORD_O1	O] `docs/OPT_MODE.md` — the `/O1` word, read off captures. The behavioural difference it names (r11 reuse for a dead-predecessor intermediate) was verified over all 108 three- and four-operator integer chains and all 27 depth-2 trees.
+crates/c2-il/src/func/bundle.rs	OPT_WORD_O1_NO_FP_CONTRACT	O] `docs/OPT_MODE.md` — `/O1` with `0x4` clear, read off a capture carrying the pragma. Its doc carries the live hazard: with the bit clear a contracting emitter would produce a valid, wrong and invisible `fmadds`, so the word is accepted only while the guard refuses that body.
+crates/c2-il/src/func/bundle.rs	OPT_WORD_OX_NO_FP_CONTRACT	O] `docs/OPT_MODE.md` — the `/Ox` counterpart, read off a capture. Worth 0 functions on the workload; it exists so the pragma fixture grades in every lane.
+crates/c2-il/src/func/bundle.rs	OPT_WORD_SPECIAL_MEMBER	O] the bit a compiler-generated special member carries, read off captures. Masked rather than ignored — every other bit still has to match a word this port was verified against.
+crates/c2-il/src/func/bundle.rs	INTRO	O] `4F 02 20 00 4F 01`, the module block-start introduction, read off captures. Same bytes as `codec::BLOCK_START` plus the `4F 01` that follows it.
+crates/c2-il/src/func/census.rs	BLIND_PLACEHOLDER_CALLEE	N] not load-bearing — a sentinel chosen to be an INVALID MSVC mangled name so it can never bind to anything in any obj. Its value reaches no emitted byte by construction; that is its entire specification.
+crates/c2-il/src/func/census.rs	BLIND_PLACEHOLDER_DATA	N] not load-bearing — the DATA sentinel with the same contract as [`BLIND_PLACEHOLDER_CALLEE`].
+crates/c2-il/src/func/census.rs	STRICT	N] not load-bearing — the port's own relaxation profile (all clauses off). A measurement profile, which DISCLOSURE names under [N].
+crates/c2-il/src/func/census.rs	LEVELS	N] not load-bearing — the count of the port's own relaxation levels; a property of this crate's instrument, not of c2.
+crates/c2-il/src/func/census.rs	CENSUS_HEX_BACK	N] not load-bearing — how many bytes of context a census diagnostic prints. A display width; no byte the judge grades depends on it.
+crates/c2-il/src/func/census.rs	CENSUS_HEX_FWD	N] not load-bearing — the forward half of the same diagnostic window.
+crates/c2-il/src/func/ehscope.rs	MAX_RUN	F] fitted, and its own doc gives the fit and the slack in one line: "Both captures give 5 and 4; 8 is the refusal boundary". A run of 9 in a real TU is the off-sample failure the two captures could not see.
+crates/c2-il/src/func/ehscope.rs	STATEMENT_BYTES	F] an enumerated SET assembled from the statements this class was measured on. A statement opcode outside the seven is exactly the off-sample case, and the set is used as a NEGATIVE test ("a byte from this set means a statement the template never saw"), so an omission fails OPEN.
+crates/c2-il/src/func/ehscope.rs	LF_CLASS	S] CodeView `LF_CLASS = 0x1504` — Microsoft's published symbolic-debug record type, identical in any CodeView producer. Not a c2 choice.
+crates/c2-il/src/func/ehscope.rs	LF_STRUCTURE	S] CodeView `LF_STRUCTURE = 0x1505`, published alongside [`LF_CLASS`].
+crates/c2-il/src/func/ehscope.rs	CV_FWDREF	S] CodeView's published `forward reference` property bit `0x0080`. THAT c2 emits a forward reference for every class before the complete definition is an observation, and it is stated in the doc as one; the bit's VALUE is the spec's.
+crates/c2-il/src/func/gl.rs	INLINE_NAME_MAX	S] PE/COFF §5.4.1 — a symbol record's name field is 8 bytes, and a longer name goes to the string table. The value would be 8 if `c2.dll` had never existed.
+crates/c2-il/src/func/gl.rs	RETSIZE_ESCAPE	O] the one-byte return-size field's escape value, read off `.gl` captures. Related but NOT identical to `GL_SIZE_ESCAPE_PAYLOAD` above, whose width is DISCLOSURE `W-ALIAS`-adjacent row `W-GLATTRS-1` at `0x10c1f9a6`; this constant is the escape test, not the payload width.
+crates/c2-il/src/func/gl.rs	FN_FLAG_VARARGS	O] the varargs bit in a `.gl` function record, read off captures — and its doc carries the obj-side confirmation: `cva.obj` against `cnv.obj` is 36 bytes of `.text` against 8 on a body whose `.ex` is byte-identical, so the flag is the only channel that can see it.
+crates/c2-il/src/func/gl.rs	LINKAGE_DEFINED_EXTERNAL	O] GRID-K — a defined function record takes `05` external, `03` static, `09` dllexport and no other value across the grid. A pinned enumeration on a small field, not a fit.
+crates/c2-il/src/func/gl.rs	FLAGS_PLAIN	O] the flags byte of an ordinary defined function, read off the same grid; `inline`, `__forceinline` and in-class definitions are what move it.
+crates/c2-il/src/func/gl.rs	GATE_BIND_FRAME	N] not load-bearing — a function-pointer ALIAS whose only purpose, per its own doc, is to make three call sites a table rather than three literals that can drift apart. The rule it points at carries the provenance; this item carries none.
+crates/c2-il/src/func/gl.rs	LINKAGE_EXPORT	O] `09` under `__declspec(dllexport)`, from the same GRID-K cells as [`LINKAGE_DEFINED_EXTERNAL`].
+crates/c2-il/src/func/gl.rs	ANCHOR	O] the literal `/include:__C1_11886` directive string present in every captured `.gl` from XDK build 16.00.11886.00. It embeds the toolchain build id, which is intentional project context (CLAUDE.md § Project context) and is a fact about the captures, not a spec.
+crates/c2-il/src/func/gl.rs	MAX_NAME_TO_OFFSET	F] fitted, and its own doc shows the fit: observed distances are 15 and 19, and this is 32 to "leave room for wider types". The slack is chosen, not measured, and a record with a still wider type is the off-sample case.
+crates/c2-il/src/func/gl.rs	NAME_SEPARATORS	F] an enumerated SET of delimiter bytes assembled from measured records — `00`, `26`, and `25` appended later by `w-fence163` after it paid the global re-bind risk. Its own doc says `24` has NOT met that bar. A separator byte outside the three is the off-sample failure.
+crates/c2-il/src/func/gl.rs	SYMBOL_RECORD_KINDS	F] an enumerated SET measured on the 878-TU workload, and its own doc states the residue it leaves: 1,750 junk tokens of which 44 collide with a real symbol's token. It "fails closed: a fifth kind is not indexed" — which is the correct handling of an off-sample failure, not the absence of one.
+crates/c2-il/src/func/gl.rs	GL_HEADER_PREFIX	O] the fixed seven-byte `.gl` header prefix `11 02 06 '1' 'j' '2' 01`, read off captures and required literally. A `.gl` that does not start exactly like this is reported undetermined rather than guessed at.
+crates/c2-il/src/func/gl.rs	FN_FLAG_INLINABLE	O] the inlinable bit in a `.gl` function record, located from the IL side. **Corroborated by a read that is NOT this constant's source**: `WB_INLINE_FINDINGS` §1 read c2's own legality test at `0x10b5c06b` as "requires bit 6 of `[sym+0x4c]`", from the other side of the seam and before this byte was located, and the two derivations agree. Marked [O] and not [R] because the image did not establish it — it confirmed it.
+crates/c2-il/src/func/gl.rs	TAG_WIDE	O] the `.gl` type-tag bit that inserts one extra byte before the kind, read off captures. `docs/IL_TYPE_WIDE_TAG.md` derived it for `.ex`/`.sy` on 2026-07-31 and lane `w-align` measured the field under it unchanged in a `.gl` DATA record.
+crates/c2-il/src/func/gl.rs	WIDE_MARK	O] the mark byte a wide tag's extra byte must carry, read off captures beside [`TAG_WIDE`].
+crates/c2-il/src/func/gl.rs	DATA_FLAG_THREAD_LOCAL	O] MEASURED on four cells (initialized/uninitialized x external/static), set in all four and clear in every non-thread-local record captured. Its doc names the neighbouring rule that is NOT this: `OBJ_DATA_BSS_SHAPE.md` §5.8's Rule T1 is fitted on ten probe cells and has never been seen on a real TU, so a writer must refuse on this bit.
+crates/c2-il/src/func/gl.rs	DATA_FLAG_REFERENCED	O] the referenced bit, read off captures. Its doc records the blind spot in the older cells that could not see it — every §5.2 static cell has one function each, so every object in them is referenced.
+crates/c2-il/src/func/gl.rs	NAME_SEPARATOR_UNDECORATED	O] `24`, the undecorated-name separator byte, read off `.gl` captures. It is deliberately NOT in [`NAME_SEPARATORS`]: admitting it has not paid the global re-bind risk `25` paid, and the doc says so in those words.
+crates/c2-il/src/func/gl.rs	LINKAGE_DEFINED_EXTERN	O] `01`, the defined-here linkage byte at the fixed offset `data_linkage` reads, from the `.gl` DATA grid. `02` (undefined external) is deliberately excluded and anything unseen fails closed with it.
+crates/c2-il/src/func/gl.rs	TAG_WIDE:1860	O] the same `.gl` wide-tag bit as the earlier [`TAG_WIDE`], re-declared in the DATA reader's scope. `docs/IL_TYPE_WIDE_TAG.md`; `w-align` measured the field under it unchanged for DATA records.
+crates/c2-il/src/func/gl.rs	LINKAGE_STATIC	O] `04`, the `static` linkage byte in a `.gl` DATA record, from the same grid.
+crates/c2-il/src/func/gl.rs	DATA_ATTR_UNINITIALIZED	O] `00` in the DATA attribute byte, from the grid its doc tabulates cell by cell. A value that is neither this nor [`DATA_ATTR_INITIALIZED`] fails closed, because guessing the section is guessing the section COUNT, which mismatches at file offset 2.
+crates/c2-il/src/func/gl.rs	DATA_ATTR_INITIALIZED	O] `80` in the same attribute byte, from the same tabulated grid.
+crates/c2-il/src/func/gl.rs	DATA_ATTR_COMDAT	O] `20`, graded on this lane's cells. `0x40` — the `__declspec(selectany)` forms `60`/`E0` — is deliberately NOT admitted because no cell of the grid is a `selectany`; that refusal is what keeps this a measurement.
+crates/c2-il/src/func/gl.rs	NAME_SEPARATOR_STRING_LITERAL	O] `25`, the string-literal name separator, read off `.gl` captures. Named separately rather than indexed out of [`NAME_SEPARATORS`] positionally, and its consumer is gated to the narrow `??_C@_0` form.
+crates/c2-il/src/func/gl.rs	WIDE_MARK:2137	O] the same wide-tag mark byte as the earlier [`WIDE_MARK`], re-declared in the DATA reader's scope. Read off captures.
+crates/c2-il/src/func/gl.rs	WIDE_MARK_MEASURED	O] `81` — its own doc is the citation: "the only mark value any `.gl` DATA record in the frozen grid carries". A pinned single-valued field on a frozen grid.
+crates/c2-il/src/func/gl.rs	LINKAGE_UNDEF_EXTERN	O] `02` undefined external, from the `.gl` DATA grid; `01` and `04` are exactly the two it must refuse and everything unseen refuses with them.
+crates/c2-il/src/func/gl.rs	LINKAGE_UNDEFINED_EXTERN	O] `02`, the same undefined-external linkage byte for the extern-data reader. Read off `.gl` captures.
+crates/c2-il/src/func/gl.rs	WIDE_MARK:2395	O] the same wide-tag mark byte again, in the extern-data reader's scope. Read off captures.
+crates/c2-il/src/func/glalias.rs	KIND4_TAGS	O] the three tags the shared kind-4 handler serves, named at `0x10b9bdcf` in the disassembly beside DISCLOSURE `W-ALIAS-1`'s own read at `0x10b9c01e`. [O] rather than [R] because the ADDRESS is what the doc cites for the handler, while the tag VALUES are located in the `.gl` byte stream; a lane that reads the handler's own comparisons can promote this to [R].
+crates/c2-il/src/func/glalias.rs	KIND1_TAGS	O] the two-byte-prefixed record kinds, located by the same `.gl` owner scan. Same promotion note as [`KIND4_TAGS`].
+crates/c2-il/src/func/glalias.rs	NAME_SEPARATORS	F] the same enumerated delimiter SET as `gl::NAME_SEPARATORS` minus `25`, and [F] for the same reason: a separator byte outside the measured pair is the off-sample case.
+crates/c2-il/src/func/ininit.rs	RECORD_TAG	O] the `.in` byte between the operand token and the first element, read off captures.
+crates/c2-il/src/func/ininit.rs	ELEMENT_SCALAR	O] `01`, the scalar-constant element tag, read off `.in` captures.
+crates/c2-il/src/func/ininit.rs	ELEMENT_SYMBOL_ADDRESS	O] `02`, the symbol-address element tag, with its full grammar `02 <target-token> <offset> <n>` recorded at board `#931` / `work/w-tag02/GRAMMAR.md`.
+crates/c2-il/src/func/ininit.rs	ADDRESS_WIDTH	O] `04`, and its own doc states the limit of the observation honestly: "an OBSERVED constant, not a known one — every pointer on this 32-bit target is four bytes, so no cell in the 24-cell grid can vary it". Any other value refuses, so the unobservable case fails closed rather than being guessed.
+crates/c2-il/src/func/ininit.rs	RECORD_END	O] `07`, the byte that closes an initializer record, read off `.in` captures and shared with `inlit`.
+crates/c2-il/src/func/ininit.rs	TYPE_INT_SIGNED	O] `01`, a scalar element type byte read off `.in` captures. `05` (floating point) is refused and every unseen value refuses with it.
+crates/c2-il/src/func/ininit.rs	TYPE_INT_UNSIGNED	O] `02`, read off the same captures beside [`TYPE_INT_SIGNED`].
+crates/c2-il/src/func/ininit.rs	TYPE_PTR_DATA	O] `03`, and the doc names the population: 14,703 of the workload's 14,705 type-03 elements over the first 40 TUs, plus an obj-side check that a `.data` object initialized with `(int*)4` carries four bytes and no relocation.
+crates/c2-il/src/func/ininit.rs	TYPE_PTR_FUNC	O] `04`, with its population named: all 228 type-04 elements in the sampled TUs sit at element index 2 of a four-element `_TI` record.
+crates/c2-il/src/func/ininit.rs	POINTER_WIDTH	O] 4, an OBSERVED constant like [`ADDRESS_WIDTH`] — `work/w-emitp2/scalartypes.txt` finds no type-03 or type-04 element at any other width anywhere in the 850-TU workload, and any other width refuses.
+crates/c2-il/src/func/ininit.rs	WIDTHS	F] an enumerated SET of admitted element widths. An 8-byte element is exactly the off-sample case the grid could not contain; it refuses rather than mis-reading, but the set is a fit to what was seen.
+crates/c2-il/src/func/ininit.rs	ELEMENT_INLINE_BYTES	O] `03` in the element position, read off `.in` captures — the inline-bytes element `??_R0`'s third field needs. Its length field reuses `inlit::read_len`'s `80` + LE16 rather than being re-spelled.
+crates/c2-il/src/func/ininit.rs	ELEMENT_ZERO_FILL	O] `08`, the zero-fill element tag, read off captures — the doc works it on `struct S{bool b; int a[2];} s = {true};` where the first fill is the struct's own padding.
+crates/c2-il/src/func/ininit.rs	ALL	N] not load-bearing — an array of this crate's OWN residue enum variants, enumerated so a diagnostic can iterate them. Derived entirely from the enum it lists.
+crates/c2-il/src/func/ininit.rs	MAX_OBJECT_BYTES	N] not load-bearing — a 64 KiB anti-garbage ceiling on the reader's allocation. It bounds a parse, not an emit; a wrong value refuses a record rather than changing a graded byte.
+crates/c2-il/src/func/inlit.rs	LITERAL_TAG	O] `00 03`, the `.in` literal record tag, read off captures.
+crates/c2-il/src/func/inlit.rs	RECORD_END	O] `07`, the record terminator, read off captures and shared with `ininit`.
+crates/c2-il/src/func/mod.rs	COND_PARK_REG	F] a REGISTER NUMBER fitted to four functions: its own doc says "measured at r11 in `?MemFree`, `?MemAlloc`, `?MemSize` and `?mmioGetInfo`; ONLY at r11". Nothing establishes that c2's allocator must choose r11 here, and the ten refuted allocation keys (`P_REGALLOC.md`, R1's subtraction) are the standing evidence that allocation order is UNEXPLAINED. Off-sample failure mode: a fifth function that parks elsewhere.
+crates/c2-il/src/func/mod.rs	NREG	N] derived from [`COND_PARK_REG`] and nothing else — a table size. DISCLOSURE lists values derived from another marked constant under [N].
+crates/c2-il/src/func/mod.rs	LINK_FIRST_SLOT	F] fitted, and its own doc names the degree of freedom it is collapsing: "measured at one and ONLY one: no capture in this family separates 'the receiver occupies slot 0' from 'the first explicit argument goes to r4'". A constant standing in for a distinction nothing has graded is the definition of a fit.
+crates/c2-il/src/func/readers.rs	INT_TYPE	O] `86 41 74`, the int type triple, read off `.ex` captures and cross-checked against `il_parser.py`'s `KNOWN_TYPES`.
+crates/c2-il/src/func/readers.rs	LO	S] the SWAR has-zero-byte constant `0x0101…01`; standard bit-twiddling (Mycroft's test, in Hacker's Delight), nothing to do with c2 and nothing to do with `bundle::LO`. Name collision only.
+crates/c2-il/src/func/readers.rs	HI	S] the SWAR high-bit mask `0x8080…80`, the other half of the same published test.
+crates/c2-il/src/func/readers.rs	AGGREGATE_CLASS	O] the type-kind byte for an aggregate, read off `.ex`/`.sy` captures.
+crates/c2-il/src/func/readers.rs	TYPE_TAG_WIDE_BIT	O] `40` — the same wide-tag bit `docs/IL_TYPE_WIDE_TAG.md` derived on 2026-07-31, here in the `.ex` reader.
+crates/c2-il/src/func/readers.rs	TYPE_WIDE_MARK_BIT	O] `80`, the mark byte a wide tag's extra byte carries, read off captures.
+crates/c2-il/src/func/readers.rs	UINT_TYPE	O] `86 42 75`, read off `.ex` captures beside [`INT_TYPE`].
+crates/c2-il/src/func/readers.rs	LONG_TYPE	O] `86 41 12`, read off `.ex` captures.
+crates/c2-il/src/func/readers.rs	ULONG_TYPE	O] `86 42 22`, read off `.ex` captures.
+crates/c2-il/src/func/readers.rs	INT_LIKE_TYPES	N] derived from four already-marked constants and nothing else — a grouping, not an observation.
+crates/c2-il/src/func/readers.rs	FLOAT_TYPE	O] `86 45 40`, from `il_parser.py`'s `KNOWN_TYPES` and a live 16.00.11886.00 float-leaf capture.
+crates/c2-il/src/func/readers.rs	DOUBLE_TYPE	O] `88 85 41`, read off `.ex` captures.
+crates/c2-il/src/func/readers.rs	FLOAT_LIT_TYPE	O] `86 4A 40`, the literal-position float type triple, read off captures.
+crates/c2-il/src/func/readers.rs	DOUBLE_LIT_TYPE	O] `88 8A 41`, read off captures beside [`FLOAT_LIT_TYPE`].
+crates/c2-il/src/func/readers.rs	TAG_VOLATILE	O] the `volatile` qualifier bit in a type tag, read off captures.
+crates/c2-il/src/func/readers.rs	TYPE_KIND_REAL_CLASS	O] the type-kind byte for a real (non-forward-reference) class, read off captures.
+crates/c2-il/src/func/sy.rs	BODY_SCOPE_CLOSE	O] `54 02`, the `.ex` close of a body's own lexical scope, read off captures. The anchor `ex_exit_label` keys on.
+crates/c2-il/src/func/sy.rs	EX_RETURN	O] `29`, the `.ex` RETURN opcode, read off captures.
+crates/c2-il/src/func/sy.rs	EX_ASSIGN	O] `3A`, the `.ex` ASSIGN opcode, read off captures. The second channel that makes `ex_exit_label` a measurement rather than a guess.
+crates/c2-il/src/func/sy.rs	BLOCK_OPEN	O] `03 01`, the `.sy` block-open record lead, read off captures.
+crates/c2-il/src/func/sy.rs	REC_INTER_BLOCK	O] `03`, the inter-block record kind, read off captures. Skipping one that DID open a block cannot go unnoticed — the block count then disagrees with the `.ex` segment count and nothing binds.
+crates/c2-il/src/func/sy.rs	REC_WIDE_INTER_BLOCK	O] `1A`, the wide inter-block record kind, read off a real TU after the literal form refused 4 of 200 TUs; the size-8 witness carries type id `0x14A1`, corroborating. Its own doc marks what is UNVERIFIED — the record's meaning and the depth-position byte — and nothing reads either.
+crates/c2-il/src/func/sy.rs	HEADER_TAIL_LEN	O] a WIDTH, four bytes, read off captures — deliberately a width and not a literal: the field reads `1F 00 01 01` in every fixture and `1F 00 02 01` in a real TU, and requiring it literally refuses real input. The doc names that as the trap of reading a never-varied field as a constant.
+crates/c2-il/src/func/sy.rs	INTER_BLOCK_TAIL_LEN	O] the two-byte tail an inter-block record keeps, read off captures.
+crates/c2-il/src/func/sy.rs	BLOCK_CLOSE	O] `06`, the `.sy` block-close kind, read off captures.
+crates/c2-il/src/func/sy.rs	SECTION	O] `0D`, the record that opens a lexical scope's variable group (`0D <depth>`, preorder), read off captures.
+crates/c2-il/src/func/sy.rs	DEPTH_FORMALS	O] depth `01` is the formals group, read off captures beside [`SECTION`].
+crates/c2-il/src/func/sy.rs	REC_PLAIN	O] `01`, a plain automatic variable record, read off `.sy` captures.
+crates/c2-il/src/func/sy.rs	REC_ARRAY	O] `02`, an array record, read off captures. Never admitted, only stepped over.
+crates/c2-il/src/func/sy.rs	REC_STATIC	O] `07`, a function-scope `static` record, read off captures.
+crates/c2-il/src/func/sy.rs	REC_TYPEDEF	O] `0B`, a typedef record, read off captures.
+crates/c2-il/src/func/sy.rs	TYPE_TAG	O] `86`, the `.sy` type-tag lead byte, read off captures. Same byte the `.ex` type triples open with.
+crates/c2-il/src/func/sy.rs	TYPE_TAG_WIDE_BIT	O] `40`, the wide bit — `docs/IL_TYPE_WIDE_TAG.md`, derived for `.ex`/`.sy` on 2026-07-31.
+crates/c2-il/src/func/sy.rs	TYPE_WIDE_MARK	O] `81`, the wide mark this reader requires, read off captures.
+crates/c2-il/src/func/sy.rs	FLAGS_HAS_EXTRA	O] `0080`, the flags bit that adds the extra type field, read off captures.
+crates/c2-il/src/func/sy.rs	TYPE_EXTRA_FIELD	O] `80 00`, the extra field itself, read off captures.
+crates/c2-il/src/func/sy.rs	TYPE_KIND_INT	O] `01`, read off `.sy` captures.
+crates/c2-il/src/func/sy.rs	TYPE_KIND_UNSIGNED	O] `02`, read off `.sy` captures.
+crates/c2-il/src/func/sy.rs	TYPE_KIND_REAL	O] `05`, read off `.sy` captures.
+crates/c2-il/src/func/sy.rs	TYPE_KIND_DATA_PTR	O] `03`, read off `.sy` captures.
+crates/c2-il/src/func/sy.rs	CLS_AUTOMATIC	O] `01`, the storage-class byte for an automatic, read off captures.
+crates/c2-il/src/func/sy.rs	CLS_FORMAL	O] `03`, the storage-class byte for a formal, read off captures.
+crates/c2-il/src/func/sy.rs	SIZE_LEAD	O] `04`, the lead byte of the size field, read off captures.
+crates/c2-il/src/func/sy.rs	SIZEOF_INT	S] 4 — `sizeof(int)` on this 32-bit PowerPC ABI, fixed by the Xbox 360 EABI and not by c2. Would be 4 if `c2.dll` had never existed.
+crates/c2-il/src/func/sy.rs	TID_INT	O] `0x74`, the type id for `int`, read off `.sy` captures — the same `74` the `.ex` triple `86 41 74` ends with.
+crates/c2-il/src/func/sy.rs	TID_UINT	O] `0x75`, the type id for `unsigned`, read off captures.
+crates/c2-il/src/func/sy.rs	FLAGS_REFERENCED	O] `0001`, read off `.sy` captures.
+crates/c2-il/src/func/sy.rs	FLAGS_NONE	O] `0000` — the absence of every flag this reader knows, read off captures.
+crates/c2-il/src/func/sy.rs	FLAGS_ADDRESS_TAKEN	O] `0021`, read off `.sy` captures.
+crates/c2-il/src/func/sy.rs	MAX_NAME	N] not load-bearing — a 4 KiB anti-garbage ceiling on a name read. It bounds a parse; a wrong value refuses a record rather than changing a graded byte.
+crates/c2-il/src/func/sy.rs	MAX_BLOCKS	N] not load-bearing — the same kind of parse ceiling, on block count.
+crates/c2-il/src/func/sy.rs	MAX_DEPTH	N] not load-bearing — the same kind of parse ceiling, on lexical depth.

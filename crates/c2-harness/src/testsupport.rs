@@ -37,6 +37,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// `.text` COMDAT at all — every per-function assertion over it passes
 /// vacuously. Each converted site kept its own doc comment saying so in its own
 /// words; those stay, because they say what the flags mean *for that cell*.
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE: the dc3 workload's own compiler flags, shared by the tests that grade against it. A property of the corpus, not a value derived from `c2.dll`.
 pub const WORKLOAD_FLAGS: [&str; 8] = [
     "/nologo", "/wd4355", "/wd4164", "/c", "/GR", "/O1", "/Oi", "/EHsc",
 ];
@@ -49,6 +50,7 @@ pub fn workload_flags() -> Vec<String> {
 
 /// Monotonic tie-breaker for [`unique_scratch_dir`]. One per test binary, which
 /// is what the per-file `static COUNTER`s it replaces were.
+/// PROV[N] not load-bearing — a monotonic tie-breaker for unique scratch directories. Scratch state.
 static SCRATCH_SEQ: AtomicUsize = AtomicUsize::new(0);
 
 /// `<tmp>/c2rs-<prefix>-<tag>-<pid>`, created.

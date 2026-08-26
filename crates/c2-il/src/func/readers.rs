@@ -1,4 +1,5 @@
 /// The int type encoding inline in the `.ex` body (`86 41 74`), per `IL_FORMAT`.
+/// PROV[O] `86 41 74`, the int type triple, read off `.ex` captures and cross-checked against `il_parser.py`'s `KNOWN_TYPES`.
 pub(crate) const INT_TYPE: [u8; 3] = [0x86, 0x41, 0x74];
 
 /// Real token-width detector (ports `il_parser._detect_token_width`): find the
@@ -83,7 +84,9 @@ pub(crate) fn read_token_var(ex: &[u8], p: usize) -> Option<(u32, usize)> {
 /// inside the matching word — same result as `iter().position`, just faster.
 #[inline]
 pub(crate) fn memchr_byte(needle: u8, hay: &[u8]) -> Option<usize> {
+    // PROV[S] the SWAR has-zero-byte constant `0x0101…01`; standard bit-twiddling (Mycroft's test, in Hacker's Delight), nothing to do with c2 and nothing to do with `bundle::LO`. Name collision only.
     const LO: u64 = 0x0101_0101_0101_0101;
+    // PROV[S] the SWAR high-bit mask `0x8080…80`, the other half of the same published test.
     const HI: u64 = 0x8080_8080_8080_8080;
     #[inline(always)]
     fn has_zero_byte(w: u64) -> bool {
@@ -219,6 +222,7 @@ pub(crate) fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
 /// an aggregate TYPE would first arrive. It buys no coverage and improves no
 /// bucket today. Anyone re-ranking work from this function's existence should
 /// read that paragraph before assuming it did.
+/// PROV[O] the type-kind byte for an aggregate, read off `.ex`/`.sy` captures.
 const AGGREGATE_CLASS: u8 = 0x6;
 
 /// **A type tag with this bit set carries one extra byte — the WIDE MARK —
@@ -255,6 +259,7 @@ const AGGREGATE_CLASS: u8 = 0x6;
 /// ```
 ///
 /// The wide reading lands on the `4B`; the narrow one cannot.
+/// PROV[O] `40` — the same wide-tag bit `docs/IL_TYPE_WIDE_TAG.md` derived on 2026-07-31, here in the `.ex` reader.
 const TYPE_TAG_WIDE_BIT: u8 = 0x40;
 
 /// **The wide mark's discriminator: bit 7, and it is a bit test rather than the
@@ -282,6 +287,7 @@ const TYPE_TAG_WIDE_BIT: u8 = 0x40;
 /// "tag + two-byte kind". The value is otherwise NOT interpreted, and a third
 /// value with bit 7 clear would be refused rather than read — see
 /// `docs/IL_TYPE_WIDE_TAG.md` §8.2.
+/// PROV[O] `80`, the mark byte a wide tag's extra byte carries, read off captures.
 const TYPE_WIDE_MARK_BIT: u8 = 0x80;
 
 /// Read a `.ex` inline **type**: `<tag> <kind> <LEB128 id>`, returning
@@ -452,12 +458,15 @@ pub(crate) fn read_varint(seg: &[u8], p: &mut usize) -> Option<i32> {
 /// Distinguished from [`INT_TYPE`] only by its last two bytes; the relational
 /// opcodes are sign-agnostic, so this triple is the *only* thing that says a
 /// comparison is unsigned.
+/// PROV[O] `86 42 75`, read off `.ex` captures beside [`INT_TYPE`].
 pub(crate) const UINT_TYPE: [u8; 3] = [0x86, 0x42, 0x75];
 
 /// `long` (`86 41 12`) and `unsigned long` (`86 42 22`). On this target they are
 /// 32-bit, and c2 emits **byte-identical** code for them and for `int`/`unsigned`
 /// — see `docs/IL_TYPE_TAGS.md` §3.1.
+/// PROV[O] `86 41 12`, read off `.ex` captures.
 pub(crate) const LONG_TYPE: [u8; 3] = [0x86, 0x41, 0x12];
+// PROV[O] `86 42 22`, read off `.ex` captures.
 pub(crate) const ULONG_TYPE: [u8; 3] = [0x86, 0x42, 0x22];
 
 /// The 32-bit integer operand types that are interchangeable *for the operators
@@ -470,6 +479,7 @@ pub(crate) const ULONG_TYPE: [u8; 3] = [0x86, 0x42, 0x22];
 /// ignore signedness — division and the shift-right family do differ, and both
 /// are refused elsewhere — nor does it extend to the narrow types, whose
 /// extension placement depends on the operator *and* the result type (§3.2).
+/// PROV[N] derived from four already-marked constants and nothing else — a grouping, not an observation.
 const INT_LIKE_TYPES: [[u8; 3]; 4] = [INT_TYPE, UINT_TYPE, LONG_TYPE, ULONG_TYPE];
 
 /// Consume a **width-4 integer TYPE in any spelling** at `p`, reporting whether
@@ -511,12 +521,16 @@ pub(crate) fn eat_int_like(seg: &[u8], p: &mut usize) -> bool {
 /// The `float` operand type (`86 45 40`) and the `double` one (`88 85 41`).
 /// Note the *literal* forms differ again ([`FLOAT_LIT_TYPE`] /
 /// [`DOUBLE_LIT_TYPE`]).
+/// PROV[O] `86 45 40`, from `il_parser.py`'s `KNOWN_TYPES` and a live 16.00.11886.00 float-leaf capture.
 pub(crate) const FLOAT_TYPE: [u8; 3] = [0x86, 0x45, 0x40];
+// PROV[O] `88 85 41`, read off `.ex` captures.
 pub(crate) const DOUBLE_TYPE: [u8; 3] = [0x88, 0x85, 0x41];
 
 /// The *literal* FP type tags, which are distinct from the operand ones above.
 /// A float literal carries `86 4a 40`, a double one `88 8a 41`.
+/// PROV[O] `86 4A 40`, the literal-position float type triple, read off captures.
 pub(crate) const FLOAT_LIT_TYPE: [u8; 3] = [0x86, 0x4A, 0x40];
+// PROV[O] `88 8A 41`, read off captures beside [`FLOAT_LIT_TYPE`].
 pub(crate) const DOUBLE_LIT_TYPE: [u8; 3] = [0x88, 0x8A, 0x41];
 
 /// A TYPE's implied width in bytes. The tag's low nibble is
@@ -628,6 +642,7 @@ pub(crate) fn is_volatile_tag(tag: u8) -> bool {
 /// The TYPE tag's `volatile` bit. `86` is plain, `A6` adds `const` (`0x20`),
 /// `96` adds `volatile`, `B6` is both — the four combinations `is_ptr4_kind`
 /// whitelists, read as bits here because only one of them changes the emission.
+/// PROV[O] the `volatile` qualifier bit in a type tag, read off captures.
 const TAG_VOLATILE: u8 = 0x10;
 
 /// True for a TYPE naming a **floating-point value**, returning `true` for the
@@ -674,6 +689,7 @@ pub(crate) fn is_fp_type(tag: u8, kind: u8) -> Option<bool> {
 /// side of the same fact is `sy::TYPE_KIND_REAL`; both read the low nibble of the
 /// kind byte, and a union being `16` where a struct is `06` is why neither may
 /// compare the whole byte.
+/// PROV[O] the type-kind byte for a real (non-forward-reference) class, read off captures.
 pub(crate) const TYPE_KIND_REAL_CLASS: u8 = 0x5;
 
 /// Consume a floating-point TYPE at `p` ([`is_fp_type`]), reporting `true` for a

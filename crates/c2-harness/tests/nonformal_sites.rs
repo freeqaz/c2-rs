@@ -82,14 +82,17 @@ use c2_reference::Toolchain;
 /// every cell here reports `opt-mode-00800005` instead of its own key — which is
 /// the neighbouring gate this lane also guards
 /// (`tests/census_key_routing.rs`).
+/// PROV[N] not load-bearing — a MEASUREMENT PROFILE, named under [N] in DISCLOSURE: the compiler flag list this cell is captured and graded at. It selects which behaviour is observed; it is not a value read from c2.
 const FLAGS: [&str; 8] = c2_harness::testsupport::WORKLOAD_FLAGS;
 
 /// The one key all five raise sites publish. Spelled once: a test that re-types
 /// the string its subject produces is a test of two spellings.
+/// PROV[N] not load-bearing — this port's own census key NAME. Same class as `func::diag::cause`.
 const NONFORMAL: &str = "call-arg-nonformal:eof";
 
 /// `CA8`'s key — the *other* refusal of the same argument-slot loop, and the
 /// one `w-mutcensus`' `M-CA6`/`M-CA8` mutations swap with it.
+/// PROV[N] not load-bearing — this port's own census key NAME.
 const COMPUTED: &str = "call-arg-computed:eof";
 
 /// A scratch directory keyed on the tag **and** the pid — board #1045 (four
@@ -142,26 +145,36 @@ fn n(ks: &[String], key: &str) -> usize {
 
 /// ROW 1 — `calls.rs:693`. Two arguments, so `tail_call_shape` takes the SLOT
 /// path; slot 0 is `[Load(gi)]` and `gi` is not in `params`.
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const S1: &str = "int gi;\nvoid g2(int, int);\nvoid f(int a) { g2(gi, a); }\n";
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const S1_CTL: &str = "void g2(int, int);\nvoid f(int a, int b) { g2(a, b); }\n";
 
 /// ROW 2 — `calls.rs:807`. ONE argument, so the slot path is skipped entirely
 /// and the single-argument operand path asks `arg_loads_are_formals`.
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const S2: &str = "int gi;\nint g1(int);\nint f(int a) { return g1(gi); }\n";
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const S2_CTL: &str = "int g1(int);\nint f(int a) { return g1(a); }\n";
 
 /// ROW 3 — `calls.rs:1749`. A non-zero post-op makes it a FRAMED call, whose
 /// passthrough argument must still be a formal.
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const S3: &str = "int gi;\nint g1(int);\nint f(int a) { return g1(gi) + 1; }\n";
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const S3_CTL: &str = "int g1(int);\nint f(int a) { return g1(a) + 1; }\n";
 
 /// ROW 4 — `mcall_cmp.rs:246`. Two nullary member calls compared; the SECOND
 /// receiver is a global rather than a formal.
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const S4: &str = "struct S { int m(); };\nS* gp;\nbool f(S* p) { return p->m() == gp->m(); }\n";
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const S4_CTL: &str = "struct S { int m(); };\nbool f(S* p, S* q) { return p->m() == q->m(); }\n";
 
 /// ROW 5 — `mcall_tail.rs:673`. A framed MEMBER call whose receiver is a global.
+/// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const S5: &str = "struct S { int m(); };\nS* gp;\nint f(S* p) { return gp->m() + 1; }\n";
+// PROV[N] not load-bearing — a FIXTURE SOURCE string. It is INPUT to c2, graded by the byte judge against real c2's output; nothing about its value is derived from `c2.dll`. DISCLOSURE names fixture material under [N].
 const S5_CTL: &str = "struct S { int m(); };\nint f(S* p) { return p->m() + 1; }\n";
 
 /// **The witness table — one row per raise site of `call-arg-nonformal`.**

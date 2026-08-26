@@ -73,6 +73,7 @@ use super::sy::{SyLocals, SyView};
 /// to some *other* symbol, because this record's name was invisible. Widening
 /// this constant would not have recovered one of them and would have started
 /// borrowing names, which is a mis-emit.
+/// PROV[F] fitted to a measured maximum and then rounded UP: its own doc records "27 and nothing else, over 676 records on `TextFile.cpp` and 127 across the held-out structural grid — maximum 27", and this constant is 32. The five bytes of slack are the fit, and its off-sample failure is a record whose name sits further than 32 away.
 const EMIT_MAX_NAME_TO_OFFSET: usize = 32;
 
 /// **The emitted-function binding** (`docs/GAPS.md` §8): census row ↔ the
@@ -513,6 +514,7 @@ pub(crate) enum SelectiveStop {
 /// this to `??_C@` would admit classes no capture has ever graded — the exact
 /// generalization `docs/GAPS.md` §6 forbids — and a unit test pins the wide
 /// form refused.
+/// PROV[O] MSVC's mangling for a narrow (`char`) string literal, read off real objs and `.gl` records: `w-section` §3.3 measures it as 1,457 of 1,458 head functions with wide (`??_C@_1`) 0 and other 0. Kept narrow deliberately; a unit test pins the wide form refused.
 pub(crate) const STRLIT_NARROW_PREFIX: &str = "??_C@_0";
 
 pub(crate) struct Bindings<'a> {

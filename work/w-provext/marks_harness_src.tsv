@@ -1,0 +1,95 @@
+# crates/c2-harness/src/** — the HARNESS. Peer w-encmap owns src/subsys.rs
+# and src/cli/subsys.rs; their 7 constants are DELIBERATELY ABSENT from this
+# file and are reported as a fence, not as an oversight.
+#
+# This crate is where DISCLOSURE's [N] clause was written for: instrument
+# controls, metric key names, caps, profiles and scratch state. A [N] here is
+# a statement, not a dodge -- it is what makes the [O]/[F] rows elsewhere mean
+# something.
+crates/c2-harness/src/capture_cache.rs	CACHE_FORMAT	N] not load-bearing — the port's own capture-cache format tag. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
+crates/c2-harness/src/capture_cache.rs	ENTRY_BLOB	N] not load-bearing — the port's own cache entry filename. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
+crates/c2-harness/src/capture_cache.rs	TMP_PREFIX	N] not load-bearing — the port's own temp-file prefix, chosen so `find_bundle_base`'s `_CL_*ex` glob cannot match it. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
+crates/c2-harness/src/capture_cache.rs	CAPTURE_PATH_KEY	N] not load-bearing — a field tag in the port's own cache key. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
+crates/c2-harness/src/capture_cache.rs	LOCK_DIR	N] not load-bearing — the port's own lock directory name. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
+crates/c2-harness/src/capture_cache.rs	LOCK_WAIT_MAX	N] not load-bearing — a wait ceiling; its own doc says nothing downstream blocks on the lock, so the failure mode is today's behaviour. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
+crates/c2-harness/src/capture_cache.rs	LOCK_STALE_AFTER	N] not load-bearing — a staleness ceiling with ~1000x headroom over the measured hold time. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
+crates/c2-harness/src/capture_cache.rs	SEQ	N] not load-bearing — a monotonic tmp-name tie-breaker; scratch state. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
+crates/c2-harness/src/capture_cache.rs	SRC_ARG_TAG	N] not load-bearing — a NUL-delimited field tag in the port's own cache key. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
+crates/c2-harness/src/capture_cache.rs	CWD_TAG	N] not load-bearing — the second such field tag. Nothing here is derived from `c2.dll` or from its output; a wrong value invalidates a cache entry, it does not move a graded byte.
+crates/c2-harness/src/cli/cache.rs	CACHE_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/census.rs	CENSUS_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/corpus.rs	CORPUS_GEN_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/corpus.rs	CORPUS_SAMPLE_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/corpus.rs	CORPUS_STATS_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/factors.rs	FACTORS_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/gap.rs	GAP_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/listing.rs	LISTING_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/listing.rs	LISTING_SCAN_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/perf.rs	PERF_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/perf.rs	PERF_SCALE_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/prefilter.rs	PREFILTER_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/reference.rs	CAPTURE_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/reference.rs	COMPILE_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/reference.rs	SELFTEST_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/reference.rs	REPLAY_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/reference.rs	REPLAY_C1_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/reference.rs	DIFF_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/reference.rs	BENCH_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/retrieve.rs	RETRIEVE_INDEX_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/retrieve.rs	RETRIEVE_EVAL_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/search.rs	SEARCH_SOLVE_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/search.rs	SEARCH_EVAL_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/search.rs	SEARCH_FROM_RETRIEVAL_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/search.rs	SEARCH_FROM_LIFTER_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/stage.rs	STAGE_SPEC	N] not load-bearing — a CLI argument specification for this crate's own `c2rs` binary. Nothing in it is derived from `c2.dll`; a wrong value changes a usage message or a parse, never a graded byte.
+crates/c2-harness/src/cli/cache.rs	VERBS	N] not load-bearing — the usage string listing this subcommand's verbs.
+crates/c2-harness/src/cli/search.rs	SEARCH_FIXTURES	N] not load-bearing — a list of FIXTURE NAMES the search subcommands default to; each is captured fresh and none is committed.
+crates/c2-harness/src/cli/search.rs	SEARCH_COMMON	N] not load-bearing — the option table every `search` subcommand shares. See the `*_SPEC` items.
+crates/c2-harness/src/cli/util.rs	COUNTER	N] not load-bearing — a process-local counter for unique scratch names. Scratch state.
+crates/c2-harness/src/cli/util.rs	CPP_PROFILE_REQUIRES	N] not load-bearing — an argument-dependency table for this crate's own CLI (`--cwd` requires `--flags-file`).
+crates/c2-harness/src/corpus.rs	GENERATOR_VERSION	N] not load-bearing — the port's own corpus-generator grammar version, recorded in `config.json` so a `(seed, index)` pair stays reproducible.
+crates/c2-harness/src/corpus.rs	DEFAULT_TIMEOUT	N] not load-bearing — a per-capture wall-clock timeout for this harness.
+crates/c2-harness/src/corpus.rs	PARAM_NAMES	N] not load-bearing — the identifier names the corpus GENERATOR emits into synthetic C++ source. Input to c2, not output of it.
+crates/c2-harness/src/corpus.rs	OPS	N] not load-bearing — the operator set the corpus generator emits, with its filename stems. Input to c2, not output of it.
+crates/c2-harness/src/corpus.rs	K	S] the 64 SHA-256 round constants (FIPS 180-4) — the first 32 bits of the fractional parts of the cube roots of the first 64 primes. Published; identical in every SHA-256 implementation, and used here to key the capture cache.
+crates/c2-harness/src/fixture_profile.rs	PROFILE_MARKER	N] not load-bearing — the in-source marker this repo's OWN fixture convention uses to carry a per-fixture flag list. A c2-rs convention, invisible to c2 (it is a C++ comment).
+crates/c2-harness/src/fixture_profile.rs	PROFILE_REASON_SEP	N] not load-bearing — the separator inside that same c2-rs-only marker.
+crates/c2-harness/src/prefilter.rs	SCHEMA	N] not load-bearing — this crate's own wire-schema tag for the prefilter's JSON output.
+crates/c2-harness/src/toolchain_gate.rs	REQUIRE_TOOLCHAIN_VAR	N] not load-bearing — the environment variable name a caller sets to demand a real-toolchain run. A harness control, not a c2 fact.
+crates/c2-harness/src/testsupport.rs	WORKLOAD_FLAGS	N] not load-bearing — a MEASUREMENT PROFILE: the dc3 workload's own compiler flags, shared by the tests that grade against it. A property of the corpus, not a value derived from `c2.dll`.
+crates/c2-harness/src/testsupport.rs	SCRATCH_SEQ	N] not load-bearing — a monotonic tie-breaker for unique scratch directories. Scratch state.
+crates/c2-harness/src/gap/blind.rs	LEVEL_ENV	N] not load-bearing — the environment variable that exposes the blind-reach level as a named, settable parameter rather than a baked constant (`GOAL_DECISION_2026-08-21.md` § AMENDED). An instrument control; it licenses no emit.
+crates/c2-harness/src/gap/blind.rs	DEFAULT_LEVEL	N] not load-bearing — the instrument's default relaxation depth. `0` is the identity control, and the report says which depth produced its numbers.
+crates/c2-harness/src/gap/blind.rs	ALL	N] not load-bearing — every variant of this module's own `Why` enum, so the report can print each one including as a zero. Derived from the enum.
+crates/c2-harness/src/gap/decode.rs	ENABLE_ENV	N] not load-bearing — the instrument's on/off environment variable, exposed as a named parameter per `GOAL_DECISION_2026-08-21.md` § AMENDED; `off` is a legal instrument state and licenses nothing.
+crates/c2-harness/src/gap/decode.rs	POP_ENV	N] not load-bearing — the variable naming the instrument's DENOMINATOR source, which exists so a numerator can never be published without one.
+crates/c2-harness/src/gap/decode.rs	SEPARATION_KEY	N] not load-bearing — a metric key NAME, the same class as `c2-il`'s census keys (see `func::diag::cause`).
+crates/c2-harness/src/gap/decode.rs	DECODER	N] not load-bearing — the instrument's own decoder IDENTITY string, recorded so a drop across a decoder change reads as a change of instrument rather than a regression.
+crates/c2-harness/src/gap/decode.rs	ALL	N] not load-bearing — every variant of this module's own `Reach` enum. Derived from the enum.
+crates/c2-harness/src/gap/factors.rs	PORT_CFG_CLASSES	N] not load-bearing — a registry of THIS PORT's shipped CFG claims, kept beside `cfg_class::SHIPPED_CFG_CLAIMS`. It describes the port's coverage, not c2's behaviour.
+crates/c2-harness/src/gap/fnbytes.rs	MAX_CALLTARGET_WITNESSES	N] not load-bearing — how many witness names a row prints before the population repeats. The COUNTS beside it are unbounded and are what a lane sizes work off; this is display width.
+crates/c2-harness/src/gap/fnbytes.rs	MAX_BLR_STOP_LEVELS	N] not load-bearing — an instrument depth ceiling, with the raise condition stated on the item: a non-zero count at the last level is the observation that says the chain outran the instrument.
+crates/c2-harness/src/gap/fnbytes.rs	DEPTHS	N] not load-bearing — the level NAMES the scan prints, derived from `MAX_BLR_STOP_LEVELS`.
+crates/c2-harness/src/gap/fndiff.rs	A_FORM_XO	S] the PowerPC A-form extended-opcode values (Book I; `fmadd`/`fmsub`/`fdiv`/`fsel` and the rest of the floating multiply-add family). Fixed by the ISA, which is what makes membership a SOUND discriminator against X-form rather than a heuristic — its doc's own claim.
+crates/c2-harness/src/gap/fndiff.rs	LCS_CELL_CAP	N] not load-bearing — a compute cap so a pathological pair cannot dominate a scan. Its own doc records that it is COUNTED (`fndiff-align-capped`) rather than silently degrading the table.
+crates/c2-harness/src/gap/fndiff.rs	BODY_CAP	N] not load-bearing — a rendering cap, reported per row rather than silently applied. The workload is far shorter than it.
+crates/c2-harness/src/gap/fndiff.rs	SUB_SAMPLE	N] not load-bearing — how many substitutions a row carries verbatim; a readability choice.
+crates/c2-harness/src/gap/mod.rs	WHOLE_TU_RECOGNIZERS	N] not load-bearing — a registry of THIS PORT's whole-TU recognizers, each separately visible so a registry entry that never fires is distinguishable from one that does not exist.
+crates/c2-harness/src/gap/mod.rs	FENCE_CAUSES	N] not load-bearing — a list of this port's own fence key NAMES, pinning the zero rows so a new cause is a visible change. Same class as `func::diag::cause`.
+crates/c2-harness/src/gap/plan.rs	PLAN_COMPONENTS	N] not load-bearing — this instrument's own `gap-metric` key stems, held as constants so a rename is a visible interface change rather than a silent NO-RESULT (`STATUS.md` trap 5).
+crates/c2-harness/src/gap/plan.rs	PLAN_KEYS	N] not load-bearing — the instrument's own key table. Same class as `PLAN_COMPONENTS`.
+crates/c2-harness/src/gap/plan.rs	PLAN_OBSERVED_KEYS	N] not load-bearing — the instrument's own key names for figures it re-derives directly rather than carrying.
+crates/c2-harness/src/gap/render.rs	CONTROL	N] not load-bearing — one workload TU path used as a presence CONTROL, so a scan whose list does not contain it prints as absent rather than as a pass.
+crates/c2-harness/src/gap/sets.rs	NAMED_SETS	N] not load-bearing — this instrument's own named TU sets, whose agreement with the scan is asserted mechanically rather than by hand.
+crates/c2-harness/src/gap/sets.rs	TSV_COLUMNS	N] not load-bearing — the instrument's own TSV header, pinned so going stale breaks a unit test in the same crate rather than a lane's arithmetic three days later.
+crates/c2-harness/src/gap/symbind.rs	ENABLE_ENV	N] not load-bearing — the instrument's on/off variable, a named settable parameter per `GOAL_DECISION_2026-08-21.md` § AMENDED.
+crates/c2-harness/src/gap/symbind.rs	FUSED_KEY	N] not load-bearing — a metric key NAME. Its doc carries the criterion that MUST be able to move (`#3336`); the criterion is the load-bearing thing, not the string.
+crates/c2-harness/src/gap/symbind.rs	RELAX_LEVEL_KEY	N] not load-bearing — a metric key NAME for the instrument's own free identity control.
+crates/c2-harness/src/gap/symbind.rs	PLACEHOLDER_NONE_KEY	N] not load-bearing — a metric key NAME for the residue this module's account of the seam is missing.
+crates/c2-harness/src/gap/symbind.rs	ALL	N] not load-bearing — every variant of this module's own `Cell` enum. Derived from the enum.
+crates/c2-harness/src/gap/witness.rs	OUT	N] not load-bearing — a `OnceLock` holding the witness log file handle. Scratch state.
+crates/c2-harness/src/gap/witness.rs	P	N] not load-bearing — a `OnceLock` holding the witness log path.
+crates/c2-harness/src/gap/witness.rs	WITNESS_CAP	N] not load-bearing — how many witness names are printed; the counts are printed too and the tail is never elided (`docs/GAPS.md` §7).
+crates/c2-harness/src/gap/witness.rs	OUT:166	N] not load-bearing — a second witness-log `OnceLock`. Scratch state.
+crates/c2-harness/src/search/similarity.rs	OPCODE_WEIGHT	F] a fitted SCORING WEIGHT, chosen so the ordering is monotone: strictly above 'wrong opcode' (<= 0.15) and strictly below a full match. Nothing measured 0.5; it is a parameter of this instrument's rule and it has an off-sample failure mode (a pair whose true similarity the ordering inverts).
+crates/c2-harness/src/search/similarity.rs	BLR_WORD	S] the PowerPC `blr` instruction word `0x4E800020` (`bclr 20,0,0`), fixed by the ISA. That every function in this class returns via exactly one `blr` is an observation; the WORD is the architecture's.
