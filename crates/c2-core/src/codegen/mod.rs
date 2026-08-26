@@ -112,6 +112,14 @@ pub mod select;
 pub mod static_scan_loop;
 pub mod store_run_call;
 pub mod straightline;
+/// **The word-composition seam's control** (board **#3637**) — the enumerated
+/// list of every live instruction-word production outside [`mop`], and the two
+/// tests that go red when a new one appears.
+///
+/// Content is entirely `#[cfg(test)]`: it grades the crate, it never runs in a
+/// build, and it is deliberately invisible to `scripts/provenance_census.py`,
+/// whose population is non-test code.
+pub mod word_seam;
 #[cfg(test)]
 pub(crate) mod testutil;
 

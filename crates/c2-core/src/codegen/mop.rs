@@ -915,9 +915,9 @@ pub fn encode_op(m: &MachineOp, params: &EncodeParams) -> Result<u32, BackendErr
 /// two rules that agree are invisible to the byte judge for exactly as long as
 /// they agree, and the port had eight such pairs when that lane started.
 ///
-/// `word_matches_encode_op_over_the_whole_table` in [`super::word_seam`] runs
-/// both entry points over every row and every slot pattern and requires
-/// equality, so the sharing is checked rather than asserted.
+/// `super::word_seam`'s `const_word_and_encode_op_agree` runs both entry
+/// points over every row and seven slot patterns and requires equality, so the
+/// sharing is checked rather than asserted.
 #[inline(always)]
 pub const fn compose(base: u32, fp: &FieldPlan, m: &MachineOp) -> u32 {
     let mut word = base | fp.fixed;
@@ -937,8 +937,8 @@ pub const fn compose(base: u32, fp: &FieldPlan, m: &MachineOp) -> u32 {
 /// a `static`, and a `const fn` may not read one — so this is the 85-row scan
 /// the fast path exists to avoid. That costs nothing: every caller is a `const`
 /// initialiser evaluated once by rustc, never at run time.
-/// `the_const_row_and_the_runtime_row_agree` in [`super::word_seam`] pins the
-/// two lookups against each other over the entire opcode space.
+/// `super::word_seam`'s `const_word_and_encode_op_agree` pins the two lookups
+/// against each other over every row in the table.
 const fn const_row(op: C2Op) -> &'static OpRow {
     let mut i = 0;
     while i < OPCODE_ROWS.len() {
