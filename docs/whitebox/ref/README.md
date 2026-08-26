@@ -35,7 +35,7 @@ size    1 347 072
 | **a subsystem** | which functions, and what do they do? | [`SUBSYS.md`](SUBSYS.md), then the page it names |
 | **a page's function** | the full decompiled body / raw bytes | §5, the retrieval recipe — the export regenerates in minutes and is deliberately not committed |
 | **a behaviour** ("what sets the alignment nibble?") | the rule, with its provenance | §3 below, then the named page section |
-| **whether you may use it** | | [`../DISCLOSURE.md`](../DISCLOSURE.md). **Navigation is free; adoption is not.** |
+| **whether you may use it** | | [`../DISCLOSURE.md`](../DISCLOSURE.md). **Navigation is free; adoption is not.** And **two pages here have already been adopted into `crates/` on the emit path** — [`ENCODE_OPCODES.txt`](ENCODE_OPCODES.txt) and [`P_ENCODE.md`](P_ENCODE.md) §5, rows `W-MOP-1`/`-2`/`-3`; see §7.1 before changing a value in either |
 
 ---
 
@@ -332,3 +332,33 @@ claim of the form *"address A is inside function F"* should be checked against
 * **Nothing here is evidence about the port's correctness.** A white-box
   reading is a hypothesis; the real `c2` under wibo plus a byte-exact obj
   compare remains the sole judge.
+
+> ### 7.1 **This directory is no longer purely navigational** (2026-08-26, lane `w-disclose`, board **#3642**)
+>
+> The bullet above is `w-c2map`'s statement about **itself** and it stays as
+> written — it is true of that lane. It is no longer true of the directory.
+> Two artifacts under `ref/` have since been **adopted verbatim into
+> `crates/`**, on the emit path, and the register says so:
+>
+> | artifact here | what was copied out of it | row |
+> |---|---|---|
+> | [`ENCODE_OPCODES.txt`](ENCODE_OPCODES.txt) — 660 rows dumped from the pinned image by [`../scripts/dump_opcode_tables.py`](../scripts/dump_opcode_tables.py) | **85 whole rows** — opcode number, mnemonic, base word, form — as source literals in `crates/c2-core/src/codegen/mop.rs` | [`../DISCLOSURE.md`](../DISCLOSURE.md) **`W-MOP-1`**, **`W-MOP-2`** |
+> | [`P_ENCODE.md`](P_ENCODE.md) §5, read arm by arm 79/79 | **the operand field placements** for 27 arms over 35 form numbers, as `EncodeParams::C2` in the same file | **`W-MOP-3`** |
+>
+> **What changes for a reader, in one line: §1's last row is now the *first*
+> question to ask about these two pages, not the last.** *"Navigation is free;
+> adoption is not"* still governs — reading any page here to decide where to
+> look costs nothing — but `ENCODE_OPCODES.txt` and `P_ENCODE.md` §5 are pages
+> whose **content** has already been taken, so a lane changing a value in
+> either is changing something an emitted byte depends on, and owes the row
+> an amendment.
+>
+> **What does NOT change.** §2's legend is unaffected; the `[R]` on those pages
+> still means *"the instructions were read correctly"* and still does not mean
+> *"this is what c2 does"* — `C2_MAP_METHOD.md` §7's `.bss` bump rule was `[R]`
+> and wrong. The port stays I/O-behavioral, the byte judge stays the sole
+> judge, and **an adopted row is a hypothesis with an address, not evidence.**
+> `ENCODE_OPCODES.txt` is machine-generated and re-derivable: a live re-dump of
+> the pinned image reproduces it **byte-identically**, checked at this row's
+> filing (`work/w-disclose/verify_rows.py` check E), and 85 of 85 adopted rows
+> agree with the image on mnemonic, base word **and** form (check D).

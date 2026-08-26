@@ -1,0 +1,4 @@
+TOTAL                                         1058   100    49     4    18    18    869     6
+
+denominator: 1058 const/static items in non-test code. tagged 189, untagged 869.
+rule markers: 6 — NO DENOMINATOR. The set of load-bearing rules is not mechanically enumerable; this number is a numerator and is never printed as a ratio.

@@ -18,7 +18,22 @@
 //! table `0x10c3a578`, encode-form table `0x10c39b18`, arm jump table
 //! `0x10bfae2d`). The field placements in [`place`] are transcribed from
 //! `docs/whitebox/ref/P_ENCODE.md` §5, read arm by arm — 79/79 — by lane
-//! `w-read-r2`. `docs/whitebox/DISCLOSURE.md` carries the provenance rows.
+//! `w-read-r2`.
+//!
+//! **`docs/whitebox/DISCLOSURE.md` carries the provenance rows — and it did
+//! not, for four days, while this sentence said it did.** The hole was found
+//! by `scripts/provenance_census.py` on its first real run (board **#3632**),
+//! reported and deliberately not repaired by the lane that found it, and
+//! filed by lane `w-disclose` as three rows (**#3642**): **`W-MOP-1`** the 85
+//! opcode numbers and the table extent, **`W-MOP-2`** the 85 transcribed rows
+//! of `0x10c3a578` / `0x10c39b18` / `0x10b1b260`, **`W-MOP-3`** the field
+//! placements. They are the ledger's **first rows whose `Adopted into` is on
+//! the emit path**; every `W-MID-*` and `W-STAGETAP-*` row above them is
+//! instrument-only by its own text. `W-MID-1` and `W-MID-2` still hold — they
+//! adopt these tables' *addresses, strides and index origin* into
+//! `c2-reference/tests/middle_interfaces.rs`, and both say *"no table entry is
+//! copied"*, which stays true there and is false here. That is the difference
+//! the three new rows exist to record.
 //!
 //! **`P_ENCODE.md` §9's bound is respected and is the reason this module stops
 //! where it does.** That spec is a total function *from a finished machine
@@ -97,23 +112,27 @@ pub struct OpRow {
 /// decides where a register lands, and form 39's placement is (per
 /// `P_ENCODE.md` §5.1) *"the single most safety-critical fact on this page."*
 pub mod op {
-    //! PROV-BLOCK[R] DISCLOSURE `W-MID-1` (the mnemonic table `0x10b1b260`,
-    //! stride 12, index origin, `_last` at `0x295`) — every opcode NUMBER below
-    //! is c2's own index into that table, transcribed from
+    //! PROV-BLOCK[R] DISCLOSURE `W-MOP-1` — every opcode NUMBER below is c2's
+    //! own **0-based index** into the mnemonic table `0x10b1b260`, which is the
+    //! same index the base-word table `0x10c3a578` and the encode-form table
+    //! `0x10c39b18` are read with. Transcribed from
     //! `docs/whitebox/ref/ENCODE_OPCODES.txt`, which
     //! `docs/whitebox/scripts/dump_opcode_tables.py` dumps from the pinned image
     //! (sha256 `c80981c0…a66258`). Lane `w-read-r2`, read **R2**.
     //!
-    //! **A DISCLOSURE ROW IS OWED FOR THIS FILE AND DOES NOT EXIST.** `W-MID-1`
-    //! and `W-MID-2` name `crates/c2-reference/tests/middle_interfaces.rs` and
-    //! nothing else; the ledger has no row whose `Adopted into` is any
-    //! `crates/c2-core/src/codegen/` file, while these numbers are on the EMIT
-    //! path — `base_word` is the port's only source of a primary opcode. The
-    //! module doc above says *"DISCLOSURE.md carries the provenance rows"*; at
-    //! tree `6c753ead0` it does not. Found by `scripts/provenance_census.py`,
-    //! board **#3632**; see `docs/whitebox/DISCLOSURE.md` § "Adoptions this
-    //! ledger does not carry". Filing the row is an adoption decision and is
-    //! deliberately not taken by the census lane.
+    //! **`W-MID-1` is the neighbouring row and is NOT this one.** It adopts the
+    //! table's *address, stride, index origin and `_last` sentinel* into
+    //! `c2-reference/tests/middle_interfaces.rs`, and says in its own text *"no
+    //! table entry is copied"* — true there, and false here: the 85 constants
+    //! below are 85 of the table's positions, written out as literals, on the
+    //! **emit path** (`base_word` is the port's only source of a primary
+    //! opcode). The row that says so is `W-MOP-1`, filed by lane `w-disclose`
+    //! (board **#3642**) after `scripts/provenance_census.py` found the hole
+    //! (**#3632**).
+    //!
+    //! **Verified against the image, not against the transcription**:
+    //! `work/w-disclose/verify_rows.py` check D re-dumps `c2.dll` live and
+    //! agrees with all 85 rows on mnemonic, base word and form.
     use super::C2Op;
 
     // form 49 — XO with RT/RA/RB
@@ -246,17 +265,26 @@ pub mod op {
 /// **c2's base-word table, for the opcodes this port emits.** READ from the
 /// pinned image; see the module doc and `docs/whitebox/DISCLOSURE.md`.
 ///
-/// This is a **subset** of c2's 660 rows and says so: the port emits 71
-/// distinct opcodes and the other 589 are not transcribed. That is deliberate —
+/// This is a **subset** of c2's 660 rows and says so: the port emits 85
+/// distinct opcodes and the other 575 are not transcribed. That is deliberate —
 /// a row here is a claim the port makes about a word it emits, and copying rows
-/// the port never uses would put 589 unexercised claims behind the same green
-/// test as the 71 exercised ones (`STATUS.md` trap 0: a green control is a
+/// the port never uses would put 575 unexercised claims behind the same green
+/// test as the 85 exercised ones (`STATUS.md` trap 0: a green control is a
 /// statement about the population it ran over).
-/// PROV[R] DISCLOSURE `W-MID-2` — the base-encoding table `0x10c3a578` and the
-/// encode-form table `0x10c39b18`, transcribed row by row from
-/// `docs/whitebox/ref/ENCODE_OPCODES.txt`. **A subset by design**: 71 of c2's
-/// 660 rows, because a row here is a claim the port makes about a word it
-/// emits. Same missing-row debt as `mod op` above.
+///
+/// *(**The counts above read 71 and 589 from this file's first commit
+/// `227b90dd7` until 2026-08-26**, while the table has had 85 rows throughout —
+/// and `EncodeParams::row`'s own comment below has said 575 correctly the whole
+/// time. Corrected by lane `w-disclose` while filing the row this constant was
+/// missing, board **#3643**; comment-only, no value moved and none could.)*
+/// PROV[R] DISCLOSURE `W-MOP-2` — 85 whole ROWS of c2's tables, copied as
+/// source literals: the base word from `0x10c3a578`, the encode-form number
+/// from `0x10c39b18`, the mnemonic from `0x10b1b260`, transcribed row by row
+/// from `docs/whitebox/ref/ENCODE_OPCODES.txt` (which `verify_rows.py` check E
+/// reproduces byte-identically from the pinned image). **A subset by design**:
+/// 85 of c2's 660 rows. `W-MID-2` adopts the two table ADDRESSES and their
+/// strides into `middle_interfaces.rs` and says no entry is copied there; this
+/// row is the entries, here, on the emit path.
 pub static OPCODES: &[OpRow] = &[
     row(op::ADD, "add", 0x7c00_0214, 49),
     row(op::ADDE, "adde", 0x7c00_0114, 49),
@@ -351,8 +379,10 @@ const fn row(op: C2Op, mnemonic: &'static str, base: u32, form: u16) -> OpRow {
 
 /// The largest c2 opcode number, `0x294` (`vmr128`) — the extent of the
 /// base-word table read at `0x10c3a578`.
-/// PROV[R] DISCLOSURE `W-MID-1` — `0x294` is `_last`(`0x295`) minus one, and the
-/// `_last` sentinel index is exactly what that row adopts.
+/// PROV[R] DISCLOSURE `W-MOP-1` — `0x294` is `_last`(`0x295`) minus one. The
+/// `_last` sentinel index is what `W-MID-1` adopts into `middle_interfaces.rs`;
+/// `W-MOP-1` is the same fact adopted here, beside the 85 table positions.
+/// `verify_rows.py` check D asserts this equals a live dump's own extent.
 const MAX_C2_OPCODE: usize = 0x294;
 
 /// **`opcode -> 1 + index into [`OPCODES`]`, or 0 for an opcode this port does
@@ -588,11 +618,16 @@ pub struct EncodeParams {
 
 impl EncodeParams {
     /// The default: c2's own tables and c2's own field placements.
-    /// PROV[R] `docs/whitebox/ref/P_ENCODE.md` §5, read arm by arm 79/79 by lane
-    /// `w-read-r2` — the field placements, of which §5.1 calls form 39's *"the
-    /// single most safety-critical fact on this page."* This is the DEFAULT that
-    /// every emit uses, per `docs/rungs/README.md`'s decision-surface clause; the
-    /// override fields beside it are instrument states and license no emit.
+    /// PROV[R] DISCLOSURE `W-MOP-3` — the field placements, transcribed from
+    /// `docs/whitebox/ref/P_ENCODE.md` §5, read arm by arm 79/79 by lane
+    /// `w-read-r2`, of which §5.1 calls form 39's *"the single most
+    /// safety-critical fact on this page."* This is the DEFAULT that every emit
+    /// uses, per `docs/rungs/README.md`'s decision-surface clause; the override
+    /// fields beside it are instrument states and license no emit. `W-MID-3` is
+    /// the same subject at a different scale — it reads **2** of the 111 arms
+    /// and says so; `W-MOP-3` is **27 of the 79 distinct arms**, and that row's
+    /// other half still holds: **no relocation and no label placement is
+    /// adopted anywhere in this module.**
     pub const C2: EncodeParams =
         EncodeParams { rows: OPCODES, width_override: None, drop_override: None };
 
@@ -661,12 +696,37 @@ pub fn mnemonic_of(op: C2Op) -> Option<&'static str> {
 
 /// **The field plan for one c2 form**, transcribed from `P_ENCODE.md` §5.
 ///
-/// Returns `None` for a form this port does not emit; the port's 71 opcodes
-/// reach 24 of c2's 109 forms.
+/// Returns `None` for a form this port does not emit; the port's **85** opcodes
+/// reach **34** of the **104** distinct form values c2's table contains
+/// (`P_ENCODE.md` §3), and the 27 arms below cover **35** form numbers — the
+/// extra one is form 2, which shares an arm with form 6.
+///
+/// *(**This line read "71 opcodes reach 24 of c2's 109 forms" from
+/// `227b90dd7` until 2026-08-26.** Corrected by lane `w-disclose`, board
+/// **#3643**, comment-only. See `OPCODES`' note for the same correction on the
+/// row count.)*
+///
+/// Provenance: the marker on [`EncodeParams::C2`] above covers every plan here
+/// — DISCLOSURE `W-MOP-3`. **This line deliberately carries no marker token of
+/// its own**: `plan` is a *rule*, and rule marks are `w-provext`'s surface this
+/// wave, so adding one here would move a peer's census number. Reported as
+/// owed, not taken (board **#3646**).
 #[inline(always)]
 pub fn plan(form: Form) -> Option<FieldPlan> {
     use Slot::*;
-    // Every arm below cites the address of the c2 arm it was read from.
+    // Every arm below cites an address in `code.c` that the placement was read
+    // from — **for most arms that is the jump-table arm itself, and for the
+    // four memory groups it is the COMPOSER the arm calls**, which is one level
+    // deeper and is where the placement actually lives (`P_ENCODE.md` §5.5: the
+    // memory arms do nothing but `call <composer>; or ebx,eax`). The mapping,
+    // recorded so a future reader is not left to rediscover it:
+    //     0x10bf9e55 <- arm 0x10bfa667 (forms 21/45/46, D-form load)
+    //     0x10bf9eb5 <- arm 0x10bfa676 (forms 27/58/71, D-form store)
+    //     0x10bf9788 <- arm 0x10bfa17f (forms 26/50,    X-form load)
+    //     0x10bf97c8 <- arm 0x10bfa1a1 (forms 28/61,    X-form store)
+    // `work/w-disclose/verify_rows.py` check F accounts for all 32 c2 addresses
+    // this file cites, so the set cannot rot unnoticed the way
+    // `WB_INLINE_FINDINGS.md`'s four did for eight days (board #3626).
     let p: FieldPlan = match form.0 {
         // `10bfa456` — RT=reg(S), RA=reg(D0), RB=reg(D1). 77 opcodes, the
         // busiest integer form; form 22 is the same arm (A-form FP).
