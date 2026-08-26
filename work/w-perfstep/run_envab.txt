@@ -1,0 +1,62 @@
+toolchain inherited from the caller's environment: C2RS_COMPILERS=/home/free/code/milohax/c2-rs/.claude/worktrees/w-perfstep/compilers
+                 C2RS_WIBO=/home/free/code/milohax/wibo/build/release/wibo
+preflight — each arm proves it can grade before anything is timed:
+  walk       graded 157 Match fixtures at --port-iters 1
+  pinn       graded 157 Match fixtures at --port-iters 1
+  wdup       graded 157 Match fixtures at --port-iters 1
+arm identity (md5 / size / build dir) — a sha is NOT an arm (#3525):
+  walk       3e6b66018cbd3546417226dee80c5779         248 B  /home/free/code/milohax/c2-rs/.claude/worktrees/w-perfstep/work/w-perfstep/env_ab
+  pinn       a835e4fd43e85cce8e813b2d061ded64         301 B  /home/free/code/milohax/c2-rs/.claude/worktrees/w-perfstep/work/w-perfstep/env_ab
+  wdup       3e6b66018cbd3546417226dee80c5779         248 B  /home/free/code/milohax/c2-rs/.claude/worktrees/w-perfstep/work/w-perfstep/env_ab
+null arm wdup verified byte-identical to walk
+rotation: carryover-balanced, cycle = 6 rounds, verified — {'rounds': 6, 'cross_each': 2, 'self_each': 2, 'pos_each': 2}
+rounds=6 port_iters=2000 load_at_start=4.8
+  round 1/6 done (walk pinn wdup)
+  round 2/6 done (wdup walk pinn)
+  round 3/6 done (pinn walk wdup)
+  round 4/6 done (wdup pinn walk)
+  round 5/6 done (walk wdup pinn)
+  round 6/6 done (pinn wdup walk)
+
+population: n = 157 fixtures matched by EVERY arm in EVERY round (per-arm first-round counts: walk 157, pinn 157, wdup 157)
+load at end: 1.7
+
+PER-ROUND geomeans over the common 157 fixtures (this is what status.sh collects: ONE run, no minimum)
+arm        round    speedup       ref_ns    port_ns
+walk           1     536.3x    8,349,629     15,569
+walk           2     541.3x    8,845,074     16,339
+walk           3     539.3x    8,376,316     15,533
+walk           4     536.7x    8,330,961     15,523
+walk           5     539.5x    8,350,565     15,480
+walk           6     542.2x    8,392,135     15,477
+pinn           1     542.9x    8,424,843     15,519
+pinn           2     530.4x    8,353,313     15,749
+pinn           3     539.9x    8,355,447     15,477
+pinn           4     536.2x    8,312,467     15,503
+pinn           5     537.0x    8,329,624     15,512
+pinn           6     537.9x    8,331,896     15,491
+wdup           1     539.6x    8,421,286     15,607
+wdup           2     633.0x   10,362,958     16,371
+wdup           3     540.0x    8,358,695     15,480
+wdup           4     541.6x    8,354,999     15,427
+wdup           5     544.0x    8,433,745     15,504
+wdup           6     541.6x    8,395,175     15,502
+
+PER-ARM spread across rounds (max/min - 1) — THE NOISE FLOOR, in the units the row is published in
+arm         speedup min       max    spread  ref spread  port spread
+walk             536.3x    542.2x      1.1%        6.2%         5.6%
+pinn             530.4x    542.9x      2.4%        1.4%         1.8%
+wdup             539.6x    633.0x     17.3%       24.0%         6.1%
+
+MIN-OVER-ROUNDS estimator (cost_arms.py's), each side separately
+arm           speedup   vs base       ref_ns   vs base    port_ns   vs base
+walk           525.7x    +0.00%    8,066,211    +0.00%     15,343    +0.00%
+pinn           523.7x    -0.39%    8,034,837    -0.39%     15,343    -0.00%
+wdup (NULL)     527.2x    +0.27%    8,086,538    +0.25%     15,340    -0.02%
+
+PAIRED per-fixture vs walk (min-over-rounds), port side and ref side separately
+arm        side        mean                 95% CI    median        slower on
+pinn       port      +0.00% [  -0.12,   +0.12]    +0.11%      83 of 157 (53%)
+pinn       ref       -0.35% [  -0.79,   +0.09]    -0.68%      63 of 157 (40%)
+wdup       port      -0.02% [  -0.13,   +0.09]    +0.00%      74 of 157 (47%)
+wdup       ref       +0.30% [  -0.17,   +0.77]    +0.00%      78 of 157 (50%)
