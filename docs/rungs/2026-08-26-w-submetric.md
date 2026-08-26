@@ -320,7 +320,33 @@ meantime, so the rule is published; only the cross-link is missing.
 
 ## 5. REQUIRED-ZERO
 
-*(filled in at §7 with the measured identity diff.)*
+**`IDENTITY DIFF: 0 lines over 21 rows — required-zero byte delta HOLDS`**
+
+Graded base→tip with `scripts/gate_identity_diff.sh`, both ends from **real gate
+runs on this worktree**:
+
+* **base** `6c753ead0`, from a **detached clean checkout** of the base commit in this
+  worktree (`#3075`/`#3117`/`#3128`: the base end is measured, never inherited) —
+  `work/w-submetric/gate_base.txt`
+* **tip** `8f38c9c9c` — `work/w-submetric/gate_tip.txt`
+* `work/w-submetric/identity_diff.txt`
+
+`21 base, 21 tip` count-bearing rows, **enumerated rather than asserted**, and the
+diff instrument's own control was run beside it: `gate_identity_diff.sh --self-test`
+→ `SELF-TEST PASS: enumeration 21, control silent, #3515's signature found exactly
+(14 lines / 7 rows) and nonzero, truncation refused.`
+
+**Which check this lane owes, per `#3215`.** `#3215`'s rule is *ask a test-landing
+lane for the BINARY hash and a revert-everything lane for the TREE hash*. This lane
+is **neither**: it lands non-`#[cfg(test)]` code in `crates/c2-harness` (a new module
+and a new subcommand), so **both** the tree hash and the release binary hash move **by
+construction** and claiming either would be false. The check that discriminates here
+is the one `#3215` names first and `rungs/README.md` already specifies — **the
+line-for-line identity diff of per-lane gate counts** — and it is 0 lines.
+
+The structural reason it holds: `c2rs subsys` is a **separate offline subcommand**
+that no gate row invokes, adds **no `gap-metric` key**, and touches no path in
+`c2-core`/`c2-il`/`c2-obj`/`c2-reference`. It cannot reach a graded byte.
 
 ---
 
@@ -338,7 +364,7 @@ deliverable measurement. Predictions were not edited.
 | **P5** | ≥ 2 §1 cells in different units, incl. **at least one I had not already seen** | **HIT** — 5, and three (`regalloc`, `globregs`, `label`) were not among the two disclosed in the prereg. `label`'s `25` reproducing nowhere is the one I would not have predicted |
 | **P6** | all band denominators reproduce, 10 of 10 | **HIT with a correction to my own framing** — 7 of 7 *band* rows reproduce; the other three (`globregs`, `label`, `symbol`) have no band, exactly the escape my stated bias flagged. I wrote "10 of 10" in a prediction about a quantity only 7 rows have |
 | **P7** | band vs TU-level differ > 2× on ≥ 3 | **HIT** — 4 (`inline` 3.8×, `regalloc` 3.3×, `eh` 2.7×, `section` 2.4×) |
-| **P8** | required-zero holds, `0 lines over 21 rows` | *(§7)* |
+| **P8** | required-zero holds, `0 lines over 21 rows` | **HIT** — `IDENTITY DIFF: 0 lines over 21 rows`, both ends from real gate runs, base from a detached clean checkout (§5) |
 | **P9** | controls watched red on both fabrications | **HIT** — and a third red I had not predicted: the self-test's mutation-applied guard fired on my own bad `sed` (§3.1) |
 
 **Decline floor: not reached.** All ten rows carry a measured strength-1 denominator
@@ -352,7 +378,32 @@ was written before I knew whether it would bind.
 
 ## 7. GATE
 
-*(filled in below.)*
+Run **detached** (`setsid nohup`), waited on a **bounded** loop against the PID this
+lane launched, and read from the **`GATE:` verdict line, never the exit code**.
+
+**Tip `8f38c9c9c`**, finished in 195 s:
+
+```
+GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them graded a corpus,
+  the sweep graded 19460 of 19556 generated cases and the cross graded
+  90424 of 90812 case-lane cells, with 0 mismatches anywhere
+  (96 sweep cases carried ungraded — the reference rejects the source),
+  and 18/18 lanes ran again through a DEBUG-profile c2rs for
+  7038 more fixture-verdicts at 0 panics
+```
+
+**Base `6c753ead0`**, finished in 165 s: the **same** verdict line, and the same 21
+rows — that is §5's diff.
+
+18 mode lanes at `391/391`, `expr-sweep` `19556/19556` with `19460` graded,
+`mode-cross` `90812/90812` with `90424` graded, `debug-lane` `18/18` at `2479` /
+0 panics, **0 mismatch anywhere**. `hatch-red REFUSED 0/14 — HATCH-STALE` at **both
+ends**, which is `#3219`'s standing condition of the tree and not this lane's: it is
+identical at base and tip and the headline forfeits the unqualified word accordingly.
+`ladder-red PASS 5/5`.
+
+**`cargo test --workspace`: all green, exit 0** — 627 lib + 289 + the integration
+suites, including this lane's 10 (`test result: ok. 10 passed; 0 failed`).
 
 ---
 
