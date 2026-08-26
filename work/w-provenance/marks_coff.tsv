@@ -1,0 +1,57 @@
+# path	const	marker text (goes after "PROV[")
+crates/c2-core/src/coff/container.rs	MACHINE_POWERPCBE	S] PE/COFF spec — `IMAGE_FILE_MACHINE_POWERPCBE`. Not from c2.
+crates/c2-core/src/coff/container.rs	CHARACTERISTICS	O] the bit NAMES are PE/COFF; this COMBINATION is c2's, transcribed from real objs and graded by the byte judge on every gate run.
+crates/c2-core/src/coff/container.rs	CH_TEXT	O] the bit names are PE/COFF; the composed word is c2's, transcribed from real objs.
+crates/c2-core/src/coff/container.rs	SECTION_HEADER_LEN	S] PE/COFF spec — `IMAGE_SECTION_HEADER` is 40 bytes.
+crates/c2-core/src/coff/container.rs	COFF_HEADER_LEN	S] PE/COFF spec — `IMAGE_FILE_HEADER` is 20 bytes.
+crates/c2-core/src/coff/data.rs	CH_DATA_BASE	O] the bit names are PE/COFF; the composed word is c2's, transcribed from real objs.
+crates/c2-core/src/coff/data.rs	MAX_OBJECTS_PER_SECTION	F] `OBJ_DATA_BSS_SHAPE.md` §8.1 — a THRESHOLD FITTED TO A GRID, and its own doc names the off-sample residue: right on 47 of 48, not 48 of 48. The class `LABEL_SEED_GAP = 9` died in; board #184 is the read that would replace it.
+crates/c2-core/src/coff/dyninit.rs	CH_TEXT_YC	O] `docs/OBJ_DYNINIT_SHAPE.md` — transcribed from real `??__E` objs; prereg P3 got the SELECTION backwards, not this word.
+crates/c2-core/src/coff/dyninit.rs	CH_CRT_XCU	O] `docs/OBJ_DYNINIT_SHAPE.md` — ALIGN_4 in every cell measured.
+crates/c2-core/src/coff/dyninit.rs	CH_RDATA_STRING_BASE	O] `docs/OBJ_DYNINIT_SHAPE.md` — transcribed from real objs.
+crates/c2-core/src/coff/dyninit.rs	CH_BSS_BASE	O] `docs/OBJ_DATA_BSS_SHAPE.md` §5.2/§6.2 — prereg P2 refuted the COMDAT direction on cells.
+crates/c2-core/src/coff/dyninit.rs	COMDAT_SELECT_ANY	S] PE/COFF spec — `IMAGE_COMDAT_SELECT_ANY` is 2. Which selection c2 CHOOSES here is `[O]` and is the doc above; the value 2 is not from c2.
+crates/c2-core/src/coff/ehscope.rs	CH_RDATA_EH	O] transcribed from real EH objs; see `docs/EH_RECORDS.md`.
+crates/c2-core/src/coff/ehscope.rs	EH_MAGIC	O] read out of real objs' `__ehfuncinfo$`; board #1869 adds the corroboration that it is the only occurrence of the immediate in `c2.dll` — corroboration, not the source of the value.
+crates/c2-core/src/coff/ehscope.rs	EH_FUNCINFO_DWORDS	O] `docs/EH_RECORDS.md` §11.1 — separated from "ten dwords" by c2's own `/FAsc` listing (pad 0 on 13 probes, pad 4 on 50), which no obj could do.
+crates/c2-core/src/coff/ehscope.rs	EH_IP2STATE_ENTRY	O] `docs/EH_RECORDS.md` §11.2 — the entry stride as the objs carry it.
+crates/c2-core/src/coff/ehscope.rs	EH_UNWIND_ENTRY	O] `docs/EH_RECORDS.md` §11.2 — the entry stride as the objs carry it.
+crates/c2-core/src/coff/ehscope.rs	EH_FLAGS_EHS	O] 1 on every cell measured (the doc above).
+crates/c2-core/src/coff/ehscope.rs	FUNCLET_ESTABLISHER_REG	O] the funclet's first instruction is in the bytes the judge grades; `r12` was read off real `__unwind$N` bodies, and the unwinder ABI is the explanation, not the source.
+crates/c2-core/src/coff/ehscope.rs	FRAME_PTR_REG	O] c2's choice, read off real framed bodies — not an ABI requirement.
+crates/c2-core/src/coff/ehscope.rs	ARG0	S] PowerPC EABI — the first argument register is `r3`. Not from c2.
+crates/c2-core/src/coff/ehscope.rs	HANDLER_PREFIX_LEN	O] the eight relocated bytes in front of an EH function's first instruction, read off real objs.
+crates/c2-core/src/coff/ehscope.rs	UNWIND_HAS_HANDLER	O] the doc above IS the grade: the bit is decided by one measured predicate on the funclet/body cell pair.
+crates/c2-core/src/coff/function.rs	PORT_WRITER_SECTIONS	O] the section vocabulary the port writes, each name transcribed from real objs.
+crates/c2-core/src/coff/function.rs	CH_RDATA_F32	O] transcribed from real pooled-FP objs; the alignment nibble is the only difference from the `f64` pool.
+crates/c2-core/src/coff/function.rs	CH_RDATA_F64	O] transcribed from real pooled-FP objs.
+crates/c2-core/src/coff/function.rs	NAME_FLTUSED	O] read out of real objs' symbol tables. `docs/whitebox/ref/P_LABEL.md` §5.1 reads the `_fltused` LABEL-CHARGE row out of `c2.dll`; that read is about the charge, not about this string.
+crates/c2-core/src/coff/mangle.rs	LITERAL_TEXT_BYTE_LIMIT	O] the doc above is the grade, and it is a PINNED boundary rather than a fitted one: probe cells sit at 31 and 32 source bytes, one on each side, so no off-sample value is consistent with the measurement. Contrast `MAX_OBJECTS_PER_SECTION`, which is `[F]`.
+crates/c2-core/src/coff/pdata.rs	CH_PDATA	O] the bit names are PE/COFF; the composed word is c2's, transcribed from real objs.
+crates/c2-core/src/coff/pdata.rs	COMDAT_SELECT_ASSOCIATIVE	S] PE/COFF spec — `IMAGE_COMDAT_SELECT_ASSOCIATIVE` is 5. Not from c2.
+crates/c2-core/src/coff/pdata.rs	CH_PDATA_COMDAT	O] transcribed from real `/Gy` objs.
+crates/c2-core/src/coff/pdata.rs	UNWIND_THIRTY_TWO_BIT	O] set in every record c2 emitted across every probe (the doc above).
+crates/c2-core/src/coff/provide.rs	COMDAT_SELECT_ANY	S] PE/COFF spec — `IMAGE_COMDAT_SELECT_ANY` is 2. Not from c2.
+crates/c2-core/src/coff/provide.rs	CH_RDATA_BASE	O] transcribed from real objs.
+crates/c2-core/src/coff/provide.rs	CH_DATA_COMDAT_BASE	O] transcribed from real objs.
+crates/c2-core/src/coff/shell.rs	DRECTVE	O] `docs/OBJ_DYNINIT_SHAPE.md` §4.1 — byte-identical across 61 reference objs.
+crates/c2-core/src/coff/shell.rs	S_COMPILE2	O] `docs/OBJ_DYNINIT_SHAPE.md` §4.1 — byte-identical across all fixtures.
+crates/c2-core/src/coff/shell.rs	XBLD_C2	O] `docs/OBJ_DYNINIT_SHAPE.md` §4.1 — transcribed from real objs.
+crates/c2-core/src/coff/shell.rs	XBLD_C1	O] `docs/OBJ_DYNINIT_SHAPE.md` §4.1 — transcribed from real objs.
+crates/c2-core/src/coff/shell.rs	XBLD_C2_CHECKSUM	O] `docs/OBJ_DYNINIT_SHAPE.md` §4.1 — the aux CheckSum as real objs carry it.
+crates/c2-core/src/coff/shell.rs	XBLD_C1_CHECKSUM	O] `docs/OBJ_DYNINIT_SHAPE.md` §4.1 — the aux CheckSum as real objs carry it.
+crates/c2-core/src/coff/shell.rs	COMP_ID_VALUE	O] the `@comp.id` stamp as real 16.00.11886 objs carry it.
+crates/c2-core/src/coff/shell.rs	NAME_C2	O] read out of real objs' symbol tables (and out of `DRECTVE`'s own `/include:`).
+crates/c2-core/src/coff/shell.rs	NAME_C1	O] read out of real objs' symbol tables.
+crates/c2-core/src/coff/shell.rs	CH_DRECTVE	O] verified constant across fixtures (the comment above).
+crates/c2-core/src/coff/shell.rs	CH_DEBUGS	O] verified constant across fixtures.
+crates/c2-core/src/coff/shell.rs	CH_XBLD_C2	O] verified constant across fixtures.
+crates/c2-core/src/coff/shell.rs	CH_XBLD_C1	O] verified constant across fixtures.
+crates/c2-core/src/coff/shell.rs	N_SHELL_SYMBOLS	O] eleven is what c2 writes, checked mechanically identical across 61 reference objs (module doc).
+crates/c2-core/src/coff/shell.rs	FIRST_BSS_SYMBOL_SLOT_B	O] board #2727 — the slot-`B` splice position, obj-established; the arithmetic in the doc above re-derives it rather than restating it.
+crates/c2-core/src/coff/symbol.rs	SYMBOL_LEN	S] PE/COFF spec — `IMAGE_SYMBOL` is 18 bytes. Not from c2.
+crates/c2-core/src/coff/writer.rs	COMDAT_SELECT_NODUPLICATES	S] PE/COFF spec — `IMAGE_COMDAT_SELECT_NODUPLICATES` is 1. Which selection c2 chooses for a `/Gy` `.text` is `[O]`; the value 1 is not from c2.
+crates/c2-core/src/coff/writer.rs	CH_TEXT_COMDAT	O] transcribed from real `/Gy` objs.
+crates/c2-core/src/coff/label.rs	LABEL_SEED_GAP	F] DISCLOSURE `W-SEEDGAP-1` — derived from `SeedGapModel::READ`, which that row records as BLACK BOX: a fit to `scripts/gt_label_seedgap.py`'s 22-cell obj grid, not a read. The literal `9` this replaced was refuted (board #3388).
+crates/c2-core/src/coff/label.rs	PORT_ADMITTED	F] DISCLOSURE `W-SEEDGAP-1` — the two indicators R3's 22-cell grid resolved the gap into, plus the port's own admission facts. Fitted with the model; the doc above names the two refusals each value depends on.
+crates/c2-core/src/coff/label.rs	READ	F] DISCLOSURE `W-SEEDGAP-1`, AND ITS NAME IS THE TRAP THIS CENSUS EXISTS TO CATCH. The row says the three coefficients are BLACK BOX — `gt_label_seedgap.py`'s 22-cell obj grid — and the doc above says it in its own words: *"a fit to a read grid, one level short of the mechanism"*. `[R]` is what the whitebox record supplies here and it is NEGATIVE: `P_LABEL.md` §4 bounds the candidate sites to five and shows the gap is mode-dependent. The read that would make this `[R]` is a live tap on `0x10b97de5`, which no lane has built.

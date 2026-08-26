@@ -70,6 +70,7 @@ use super::*;
 /// `.data` characteristics with the alignment nibble cleared: CNT_INIT_DATA |
 /// READ | WRITE. OR in `nibble << 20`. The COMDAT form (`| 0x1000`, Selection 2)
 /// is **not** emitted here — see [`emit_data_obj`]'s class check.
+/// PROV[O] the bit names are PE/COFF; the composed word is c2's, transcribed from real objs.
 pub(crate) const CH_DATA_BASE: u32 = 0xC000_0040;
 
 /// One namespace-scope object, as the writer needs it.
@@ -126,6 +127,7 @@ pub struct DataObjReloc<'a> {
 /// **A measured bound, not a preference** (§8.1). Two is where a `.bss` is right
 /// on 47 of 48 real sections; three is where it falls to 38 of 62. Raising this
 /// requires board **#184**, not a bigger grid.
+/// PROV[F] `OBJ_DATA_BSS_SHAPE.md` §8.1 — a THRESHOLD FITTED TO A GRID, and its own doc names the off-sample residue: right on 47 of 48, not 48 of 48. The class `LABEL_SEED_GAP = 9` died in; board #184 is the read that would replace it.
 pub(crate) const MAX_OBJECTS_PER_SECTION: usize = 2;
 
 /// Lay out one section's objects by **Rule A3′** — a plain bump, no free list.

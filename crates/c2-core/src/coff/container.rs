@@ -6,13 +6,18 @@
 use super::*;
 
 // COFF machine + characteristics.
+// PROV[S] PE/COFF spec — `IMAGE_FILE_MACHINE_POWERPCBE`. Not from c2.
 pub(crate) const MACHINE_POWERPCBE: u16 = 0x01F2;
+// PROV[O] the bit NAMES are PE/COFF; this COMBINATION is c2's, transcribed from real objs and graded by the byte judge on every gate run.
 pub(crate) const CHARACTERISTICS: u16 = 0x0180;
 
 
+// PROV[O] the bit names are PE/COFF; the composed word is c2's, transcribed from real objs.
 pub(crate) const CH_TEXT: u32 = 0x6040_0020;
 
+// PROV[S] PE/COFF spec — `IMAGE_SECTION_HEADER` is 40 bytes.
 pub(crate) const SECTION_HEADER_LEN: usize = 40;
+// PROV[S] PE/COFF spec — `IMAGE_FILE_HEADER` is 20 bytes.
 pub(crate) const COFF_HEADER_LEN: usize = 20;
 
 /// Which function a `/Gy` section belongs to. The COMDAT layout interleaves

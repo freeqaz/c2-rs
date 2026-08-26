@@ -10,25 +10,30 @@ use super::*;
 /// Numerically the same word as an ordinary `/Gy` `.text`; the **selection**
 /// is what differs (2 ANY here, 1 NODUPLICATES there), which prereg P3 got
 /// backwards.
+/// PROV[O] `docs/OBJ_DYNINIT_SHAPE.md` — transcribed from real `??__E` objs; prereg P3 got the SELECTION backwards, not this word.
 pub(crate) const CH_TEXT_YC: u32 = 0x6040_1020;
 
 /// `.CRT$XCU` characteristics — CNT_INIT_DATA | ALIGN_4 | READ | WRITE.
 /// ALIGN_4 in every cell measured, and **not** a COMDAT.
+/// PROV[O] `docs/OBJ_DYNINIT_SHAPE.md` — ALIGN_4 in every cell measured.
 pub(crate) const CH_CRT_XCU: u32 = 0xC030_0040;
 
 /// `.rdata` (string literal, `/GF`) characteristics with the alignment nibble
 /// cleared: CNT_INIT_DATA | COMDAT | READ. OR in `nibble << 20`.
+/// PROV[O] `docs/OBJ_DYNINIT_SHAPE.md` — transcribed from real objs.
 pub(crate) const CH_RDATA_STRING_BASE: u32 = 0x4000_1040;
 
 /// `.bss` characteristics with the alignment nibble cleared: CNT_UNINIT_DATA |
 /// READ | WRITE. OR in `nibble << 20`. **Never** a COMDAT (prereg P2, refuted
 /// in that direction).
+/// PROV[O] `docs/OBJ_DATA_BSS_SHAPE.md` §5.2/§6.2 — prereg P2 refuted the COMDAT direction on cells.
 pub(crate) const CH_BSS_BASE: u32 = 0xC000_0080;
 
 /// `IMAGE_COMDAT_SELECT_ANY` — the selection a `??__E` thunk's `.text$yc` and
 /// its string `.rdata` carry. An *ordinary* function's `.text` uses
 /// [`COMDAT_SELECT_NODUPLICATES`] instead, so this is a discriminator and not a
 /// constant (prereg P3).
+/// PROV[S] PE/COFF spec — `IMAGE_COMDAT_SELECT_ANY` is 2. Which selection c2 CHOOSES here is `[O]` and is the doc above; the value 2 is not from c2.
 pub(crate) const COMDAT_SELECT_ANY: u8 = 2;
 
 

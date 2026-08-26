@@ -145,6 +145,7 @@ use super::*;
 /// spelled literally in `.in`, and the one thing standing between the existing
 /// [`c2_il`] initializer reader and every RTTI record is **element tag `02`**,
 /// the symbol-address element it currently refuses by design.
+/// PROV[O] the section vocabulary the port writes, each name transcribed from real objs.
 pub const PORT_WRITER_SECTIONS: [&str; 10] = [
     ".drectve",
     ".debug$S",
@@ -552,7 +553,9 @@ impl<'a> Function<'a> {
 /// `.rdata` COMDAT characteristics for a pooled FP constant:
 /// CNT_INITIALIZED_DATA | LNK_COMDAT | ALIGN_4/8 | MEM_READ. The alignment field
 /// is the only difference between the `float` and `double` pools.
+/// PROV[O] transcribed from real pooled-FP objs; the alignment nibble is the only difference from the `f64` pool.
 pub(crate) const CH_RDATA_F32: u32 = 0x4030_1040;
+// PROV[O] transcribed from real pooled-FP objs.
 pub(crate) const CH_RDATA_F64: u32 = 0x4040_1040;
 
 
@@ -580,6 +583,7 @@ pub(crate) fn real_raw_bytes(bits: u64, double: bool) -> Vec<u8> {
 }
 
 /// The CRT float-support marker symbol.
+/// PROV[O] read out of real objs' symbol tables. `docs/whitebox/ref/P_LABEL.md` §5.1 reads the `_fltused` LABEL-CHARGE row out of `c2.dll`; that read is about the charge, not about this string.
 pub(crate) const NAME_FLTUSED: &str = "_fltused";
 
 #[cfg(test)]

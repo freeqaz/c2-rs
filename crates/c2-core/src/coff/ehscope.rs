@@ -47,10 +47,12 @@ use crate::codegen::frame::{
 /// deliberately spelled separately — they are two sections with two alignments
 /// that happen to agree, and a lane that changes one must not silently change
 /// the other.
+/// PROV[O] transcribed from real EH objs; see `docs/EH_RECORDS.md`.
 pub(crate) const CH_RDATA_EH: u32 = 0x4040_1040;
 
 /// `__ehfuncinfo$`'s leading magic. The only occurrence of this immediate in
 /// `c2.dll` (board **#1869**).
+/// PROV[O] read out of real objs' `__ehfuncinfo$`; board #1869 adds the corroboration that it is the only occurrence of the immediate in `c2.dll` — corroboration, not the source of the value.
 pub(crate) const EH_MAGIC: u32 = 0x1993_0522;
 
 /// `_s_FuncInfo` is **NINE** dwords — `magic`, `maxState`, `pUnwindMap`,
@@ -72,6 +74,7 @@ pub(crate) const EH_MAGIC: u32 = 0x1993_0522;
 /// disagree about is what happens when the ip-to-state array is already
 /// 8-aligned, and the recognizer's one-object gate means this emitter never
 /// meets that case. Written as the sum so the next reader sees the seam.
+/// PROV[O] `docs/EH_RECORDS.md` §11.1 — separated from "ten dwords" by c2's own `/FAsc` listing (pad 0 on 13 probes, pad 4 on 50), which no obj could do.
 pub(crate) const EH_FUNCINFO_DWORDS: u32 = 9;
 
 /// The `ORG $+4` alignment pad `EH_RECORDS.md` §11.1 reads out of c2's own
@@ -86,26 +89,32 @@ fn eh_ip2state_pad(off: u32) -> u32 {
 
 /// One ip-to-state entry: `{ ip, state }`, both 4 bytes, the `ip` carrying an
 /// ADDR32 relocation against a `$M` label.
+/// PROV[O] `docs/EH_RECORDS.md` §11.2 — the entry stride as the objs carry it.
 pub(crate) const EH_IP2STATE_ENTRY: u32 = 8;
 
 /// One `__unwindtable$` entry: `{ toState, action }`, the `action` carrying an
 /// ADDR32 relocation against the `__unwind$N` funclet.
+/// PROV[O] `docs/EH_RECORDS.md` §11.2 — the entry stride as the objs carry it.
 pub(crate) const EH_UNWIND_ENTRY: u32 = 8;
 
 /// The `EHFlags` word `c2` writes at `__ehfuncinfo$ + 0x20` for a `/EHsc`
 /// compilation. 1 on every cell measured.
+/// PROV[O] 1 on every cell measured (the doc above).
 const EH_FLAGS_EHS: u32 = 1;
 
 /// The register the funclet reconstructs its frame pointer from. The unwinder
 /// enters `__unwind$N` with the *establisher frame* in `r12`, which is why the
 /// funclet's first instruction is `addi r31, r12, −F` and not a load.
+/// PROV[O] the funclet's first instruction is in the bytes the judge grades; `r12` was read off real `__unwind$N` bodies, and the unwinder ABI is the explanation, not the source.
 const FUNCLET_ESTABLISHER_REG: u8 = 12;
 
 /// The frame-pointer register a scope-object function establishes. `r31` is
 /// also the one saved GPR, so the two facts are one register.
+/// PROV[O] c2's choice, read off real framed bodies — not an ABI requirement.
 const FRAME_PTR_REG: u8 = 31;
 
 /// `r3`, and the argument registers the class passes through.
+/// PROV[S] PowerPC EABI — the first argument register is `r3`. Not from c2.
 const ARG0: u8 = 3;
 
 /// The description of one `/EHsc` scope-object TU, as the reader hands it over.
@@ -226,6 +235,7 @@ struct TextPlan {
 /// The ADDR32 prefix c2 puts in front of an EH function's first instruction:
 /// the language handler and this function's `__ehfuncinfo$`, both patched
 /// entirely by relocation, so the raw bytes are zero.
+/// PROV[O] the eight relocated bytes in front of an EH function's first instruction, read off real objs.
 const HANDLER_PREFIX_LEN: u32 = 8;
 
 fn plan_text(tu: &EhScopeTu) -> Option<TextPlan> {
@@ -351,6 +361,7 @@ fn plan_text(tu: &EhScopeTu) -> Option<TextPlan> {
 /// funclet's does not, and the two rivals — *"has a language handler"* and
 /// *"has a prologue"* — are both refuted on that one cell (the funclet's prolog
 /// field is 4).
+/// PROV[O] the doc above IS the grade: the bit is decided by one measured predicate on the funclet/body cell pair.
 pub(crate) const UNWIND_HAS_HANDLER: u32 = 0x8000_0000;
 
 /// The 8-byte X360 `RUNTIME_FUNCTION` with the EH flag as an argument.

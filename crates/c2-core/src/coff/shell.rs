@@ -8,12 +8,14 @@
 use super::*;
 
 /// Fixed `.drectve` directive string (132 bytes, no NUL). 100% constant.
+/// PROV[O] `docs/OBJ_DYNINIT_SHAPE.md` §4.1 — byte-identical across 61 reference objs.
 pub(crate) const DRECTVE: &[u8] =
     b"   /include:__C1_11886 /DEFAULTLIB:\"OLDNAMES\" /DEFAULTLIB:\"LIBCMT\" \
       /DEFAULTLIB:\"XAPILIB\" /DEFAULTLIB:\"XBOXKRNL\" /include:__C2_11886 ";
 
 /// `.debug$S` record 2 — S_COMPILE2 (type 0x1116), 100% constant, 57 bytes
 /// incl. its own u16 length. Byte-identical across all fixtures.
+/// PROV[O] `docs/OBJ_DYNINIT_SHAPE.md` §4.1 — byte-identical across all fixtures.
 pub(crate) const S_COMPILE2: [u8; 57] = [
     0x37, 0x00, 0x16, 0x11, 0x01, 0x02, 0x00, 0x00, 0x42, 0x00, 0x10, 0x00, 0x00, 0x00, 0x6E, 0x2E,
     0x10, 0x00, 0x00, 0x00, 0x6E, 0x2E, 0x4D, 0x69, 0x63, 0x72, 0x6F, 0x73, 0x6F, 0x66, 0x74, 0x20,
@@ -22,31 +24,42 @@ pub(crate) const S_COMPILE2: [u8; 57] = [
 ];
 
 /// `.XBLD$W` C2 watermark payload (16 bytes). Constant.
+/// PROV[O] `docs/OBJ_DYNINIT_SHAPE.md` §4.1 — transcribed from real objs.
 pub(crate) const XBLD_C2: [u8; 16] = [
     0x43, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x2E, 0x6E, 0x44, 0x00,
 ];
 /// `.XBLD$W` C1 watermark payload (16 bytes). Differs from C2 only in byte 1.
+/// PROV[O] `docs/OBJ_DYNINIT_SHAPE.md` §4.1 — transcribed from real objs.
 pub(crate) const XBLD_C1: [u8; 16] = [
     0x43, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x2E, 0x6E, 0x44, 0x00,
 ];
 
 /// Aux section-def CheckSum for the two COMDAT watermark sections (constant —
 /// fixed watermark content).
+/// PROV[O] `docs/OBJ_DYNINIT_SHAPE.md` §4.1 — the aux CheckSum as real objs carry it.
 pub(crate) const XBLD_C2_CHECKSUM: u32 = 0x92F8_7AA0;
+// PROV[O] `docs/OBJ_DYNINIT_SHAPE.md` §4.1 — the aux CheckSum as real objs carry it.
 pub(crate) const XBLD_C1_CHECKSUM: u32 = 0x8385_10D9;
 
 /// `@comp.id` value — the cl 16.00.11886 toolchain-version stamp. Constant.
+/// PROV[O] the `@comp.id` stamp as real 16.00.11886 objs carry it.
 pub(crate) const COMP_ID_VALUE: u32 = 0x00AB_2E6E;
 
 /// External watermark symbol names (constant toolchain build-number watermarks).
+/// PROV[O] read out of real objs' symbol tables (and out of `DRECTVE`'s own `/include:`).
 pub(crate) const NAME_C2: &str = "__C2_11886";
+// PROV[O] read out of real objs' symbol tables.
 pub(crate) const NAME_C1: &str = "__C1_11886";
 
 
 // Section characteristics (verified constant across fixtures).
+// PROV[O] verified constant across fixtures (the comment above).
 pub(crate) const CH_DRECTVE: u32 = 0x0010_0A00;
+// PROV[O] verified constant across fixtures.
 pub(crate) const CH_DEBUGS: u32 = 0x4210_0040;
+// PROV[O] verified constant across fixtures.
 pub(crate) const CH_XBLD_C2: u32 = 0xC040_1040;
+// PROV[O] verified constant across fixtures.
 pub(crate) const CH_XBLD_C1: u32 = 0xC230_1040;
 
 /// Build the `.debug$S` raw section: CV signature + one `0xF1` SYMBOLS
@@ -156,6 +169,7 @@ pub(crate) fn emit_shell_symbols(b: &mut Buf, strtab: &mut StringTable, sections
 }
 
 /// How many symbol records [`emit_shell_symbols`] writes.
+/// PROV[O] eleven is what c2 writes, checked mechanically identical across 61 reference objs (module doc).
 pub(crate) const N_SHELL_SYMBOLS: u32 = 11;
 
 /// **W-WORDWRAP2 — the shell with a non-COMDAT `.bss` SPLICED INTO IT at Rule
@@ -214,6 +228,7 @@ pub(crate) fn n_shell_symbols_bss(n: usize) -> u32 {
 ///
 /// Derived from that function's own sequence and asserted where the records go
 /// out, never hard-coded twice.
+/// PROV[O] board #2727 — the slot-`B` splice position, obj-established; the arithmetic in the doc above re-derives it rather than restating it.
 pub(crate) const FIRST_BSS_SYMBOL_SLOT_B: u32 = 10;
 
 
