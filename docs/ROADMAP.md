@@ -12181,3 +12181,87 @@ Two-sided pricing of every fence. Read-before-probe. The decision-surface
 rule (now with measured evidence it works). And the coverage bound: a green
 run is sound only on the IL it was tested against — waves 7–9 added the
 sharpest demonstrations yet (#3515, #3493), not exceptions.
+
+### 11.8 2026-08-26 — row 4a(i)/I1 RE-PRICED: the direction is UP, the magnitude does not move, and the reason is that the corrections were never inputs
+
+*Lane `w-price4a`, wave 12, funded by `DECISIONS_2026-08-22.md` **decision
+14**. Board **#3603**–**#3608**. Canonical block:
+`STEP5_PRICING_2026-08-21.md` §2.1 — **every other pricing surface points there
+rather than restating it**, which is the #3370 mitigation applied at
+authoring time instead of after. §11.5 and §11.6's Track 2 are the paragraphs
+this bears on; neither is rewritten.*
+
+**The five inputs and their directions.** Four push **up** on I1's *build*;
+one — the `189 → 61` arm count — pushes **down** on R5's *read*, which is
+already spent. **They cannot cancel**: a read is a spec and a build is an
+implementation, and `STEP5_PRICING` §2's own annotation says so. And the four
+are **three**: `decode-reach-inmodel` and the complement of `-offmodel` are
+both **275,295**, so *"83.5 % is wrong"* and *"98.2 % is framing"* are one
+measurement counted twice.
+
+**The magnitude does not move, and that is a finding rather than a refusal.**
+`1.5–4.5 eng-mo` is `ARCH_REVIEW:116`'s top-down **3–9 for the pair**, halved by
+ordering; `7.5–22.5` and `15–45` are that × 5; `31–59` is
+`n_slices × flat 2–4 wk × 5` in which a slice's mass never appears. **No
+published figure reads an arm count, a body count or a reach percentage.** A
+figure whose inputs cannot be corrected cannot be re-priced — it can only be
+withdrawn, or left standing with its derivation printed. It is left standing,
+with its derivation printed.
+
+**What did move is the DENOMINATOR.** On MODEL reach the residue is
+**2,142,499 bodies** against the **42,404** the published 98.2 % implied —
+**50.5×**; by byte, **25.1×**. Those are residue ratios and they are published
+for the first time; `IL_DECODE_REACH`'s 8.6×/17.6× are *reach* ratios. **They
+are not a cost multiplier** — cost is not linear in residue and nobody has
+measured how it scales.
+
+**Two terms no published price contains.**
+
+1. **The calibration is applied outside its fitted domain, and the other
+   direction is now measured.** `CEILING` §5's ~5:1 was fitted on *rung counts*,
+   not on time. Meanwhile **R2, R5 and C1 have each executed** and each missed
+   **pessimistic** by 30×–1,200× on the unit actually spent (spans read from
+   git, §2.1(e)(ii)) — and **none of the three converted anything**. The two
+   calibrations compose in opposite directions and nobody has multiplied them
+   out. The word *"calibrated"* is withdrawn from `7.5–22.5`; the digits stand.
+2. **I1's output is structurally unobservable** (`whitebox/ref/P_ILRECORD.md`
+   §8.5). Corroborated from the port side: the port's entire contact with c2's
+   ≥ `0x2af` node space is **two constants in one test file over nine words**,
+   zero production sites. **So 4a(i) funded alone is itself the unconsumable
+   instrument row 4a exists to prevent** — not an argument against funding it,
+   but a term its price does not contain.
+
+**What would resolve the magnitude — 1–2 characterization lanes plus one
+construct rung**, not a re-estimate: the **depth-2 read** of R5's 76 callees /
+19 DEFER arms opening at `0x10bbfebb`; and a **single-arm end-to-end
+byte-judged slice**, the experiment **#3393** recorded that S0 had *not* run
+(99.66 % of S0's population never reached the lowering). Unresolved by all of
+it: `ROADMAP_SLICING` §4's *model-or-fit* question, which makes 4a **unbounded**
+if the answer is "fit".
+
+**It bears on §11.5 and Track 2, and the lane STOPS there.** The ten construct
+rows sum to exactly `reached − modeled` (**2,100,095**), so **Phase 1's slice
+decomposition survives the correction intact** and only its denominator moved.
+**#3529**'s TU reach 0 and §11.4(a)'s 97.2 % floor are untouched. And
+§11.4(c)'s C1 datum now has a second reading: at **1 h 18 m** against
+`2–4 wk raw / 10–20 wk LB`, the Phase-1 per-slice price is **50–100 ×
+pessimistic on cost** while its buy was 0 TUs — the estimate was pricing
+construction, which is nearly free, and pricing nothing about conversion, which
+is not. **Decision 11's hold is the owner's; decisions 13 and 14 each declined
+to lift it; this lane does not either.**
+
+**Live pricing surfaces the lane could not write, reported instead** — found by
+enumerating **1,183 files**, not by topic grep (`w-ilarms` found a banner-named
+consumer list short by two; every *other* `98.2 %` in this tree is a different
+98.2 % at four unrelated sites). Outside decision 14's five-file fence **and**
+outside `w-decodereach` §12.4's eleven-file list: **`SHIPPING_ROADMAP_2026-08-22.md:778`**
+(the most quotable `15–45` row in the tree), **`CEILING.md`** (carries *no*
+token yet holds the ~5:1 multiplier six documents cite by reference),
+**`docs/rungs/README.md:279`**, **`docs/README.md:46-47`** (*"45 months"*,
+matching neither `15-45` nor `15–45`),
+**`crates/c2-harness/tests/stage_region_trace.rs:196`** (a live assertion that
+fails *into* a re-pricing instruction, tokenless),
+**`crates/c2-harness/src/gap/decode.rs:348`** (quotes the **refuted 83.5 %**),
+**`crates/c2-il/src/func/body/decode.rs:78-83`**, and the whole
+`docs/whitebox/ref/` shelf. **Both existing enumerations were short**, and the
+`ref/` shelf is short *by fence* this time rather than by oversight.
