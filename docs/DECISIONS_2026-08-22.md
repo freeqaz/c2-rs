@@ -817,3 +817,108 @@ the repair).
 Next free `#3615`.
 
 **Nothing is waiting on the owner.**
+
+## Decision 15 — OWNER DECISION: the goal is restructured onto per-subsystem scoreboards; the instrument wave that makes them trackable is funded (2026-08-26)
+
+**The owner's words, which this section implements:** *"lets restructure our
+goal so that we can get each submodule in shape and have measurements for
+that. the overall TU goal is too broad because it is binary. we need a
+smarter goal. for example, inliner is extremely valuable to understanding how
+that logic works in the compiler. focus your effort on this right now before
+we resume the broader goal. focus on building tools we can use to measure our
+progress for each unit. we are breaking down a monolithic task into discrete,
+smaller subtasks."*
+
+### What changes and what does not
+
+- **The working scoreboard becomes per-subsystem.** Dispatch criterion moves
+  from "what moves `match`" to "what moves a named subsystem's tuple".
+  `SUBSYS.md` §1's ten subsystems are the unit list; each gets a metric tuple
+  with a **published denominator taken from the whitebox read**.
+- **The correctness rule is untouched.** Real `c2` under wibo + byte-exact
+  obj compare stays the sole judge; a wrong emit still scores below the
+  refusal it replaced. Per-subsystem keys are **progress instruments under
+  `FUNCTION_BYTE_MATCH.md` §0's separation rule — published beside FBM,
+  never in `gate.sh`, licensing no emit.**
+- **`match`/`fnbyte-exact` stay measured** as goal (2)'s terminal metric.
+  They stop being the *dispatch* criterion, which is what "binary" costs us:
+  a subsystem can go from 20% to 90% understood with `match` unchanged, and
+  until now that progress was invisible to the roadmap.
+- **The broader-goal items are paused, not cancelled** — the one-arm
+  byte-judged slice, 4a(ii)/I2, 4b/IR3, step 5 wait behind this wave per the
+  owner's "before we resume the broader goal". **Phase 1 stays HELD**
+  (decision 11, the owner's hold).
+
+### The metric shape every subsystem gets
+
+A 4-tuple, never a single percentage, each strength with its denominator
+printed beside it (`w-decodereach`'s pattern, the proven template):
+
+1. **read** — of the subsystem's enumerable sites in the image, how many the
+   port implements (denominator: the P_*.md coverage line, re-measured);
+2. **agreement** — of those, how many match the read spec under a
+   differential;
+3. **exercised** — how many the 878-TU workload reaches (an unexercised site
+   is unverified, not done);
+4. **byte-owned** — of the bytes the judge grades, how many flow through it.
+   **Not re-measured this wave: `#3534` measured it 2026-08-25** (port wrong
+   bodies = 99.87% opcode substitutions, 0 reorderings, 92.78% wrong at
+   word 0, both sides one tree one day). The framework *cites* it; a
+   standalone byte-ownership lane would re-take a read already taken.
+
+**The signal is the CHANGE in each strength, never its distance from 0 or
+100.** A green subsystem row is a statement about the population the
+instrument can reach — every denominator says which tree it was taken on.
+
+### The three lanes
+
+| lane | kind | deliverable | why |
+|---|---|---|---|
+| `w-submetric` | instrument | The committed per-subsystem metric instrument: one runnable that prints the tuple per `SUBSYS.md` §1 row with denominators and a workload stamp, rendered to a committed doc; strengths it cannot yet measure print as a **named residue**, never silence | the tool the restructured goal is tracked with; without it the new goal is prose |
+| `w-inlmetric` | characterization + instrument | **The inliner's own scoreboard** — the owner's named exemplar. Clause-by-clause conformance table for c2's decision function (`P_INLINE.md` §1–§2: ceiling `16<<k`, legality bits, `__forceinline`/`noinline`, the favor-speed bit, POGO path, depth/budget, the 40-instruction test) → port state (`[R]`-derived / fitted / absent) → graded agreement where measurable. Re-freeze `INLINE-P`'s hold-out **by content hash** (`#3045`'s named fix) and re-grade with denominator beside rate | the richest-read subsystem with a fitted incumbent whose blind axes are already measured (right in fitted class; wrong on a flag axis and a LOOP axis) — the exemplar the other nine copy |
+| `w-provenance` | instrument | The **derived-vs-fitted census**: a greppable provenance convention for load-bearing constants/rules in `crates/`, seeded from `DISCLOSURE.md`'s rows, plus the per-module counter script with a positive control watched failing | goal (1)'s scoreboard. Today `crates/` carries **6** provenance markers against a 247-line `DISCLOSURE.md` — the ratio that most directly tracks "understanding MSVC internals" is invisible |
+
+### Concurrency fences — writing is fenced, reading is not
+
+`w-submetric` owns **`crates/c2-harness/**`**, new `scripts/subsys_*` files,
+and its rendered doc (new file). `w-inlmetric` owns **`P_INLINE.md`**,
+**`INLINE_PREDICATE.md`**, **`WB_INLINE_FINDINGS.md`** (amend-beside only),
+and `work/w-inlmetric/**`; it writes **zero `crates/` bytes** and may not
+ship any decision rule into the port (`INLINE_PREDICATE.md`'s own standing
+rule). `w-provenance` owns **comment-only** edits in `crates/c2-core`,
+`c2-il`, `c2-obj`, `c2-reference` (NOT `c2-harness` — that is `w-submetric`'s
+this wave), **`DISCLOSURE.md`**, and new `scripts/provenance_*` files. Every
+lane writes its own rung file and appends only its own board rows. Owned
+surfaces include **predicates, keys and facts, not just files** — two lanes
+building a reader for the same quantity is a collision even when git
+auto-merges it. A lane that needs a peer's surface STOPS and reports.
+
+### What every lane is told, and what none of them may do
+
+- **Prereg first, committed before the first measurement**, graded honestly.
+- **Read-before-probe** stands.
+- **No lane widens emission.** No lane moves the admitted set. Lanes
+  touching `crates/` (including comment-only edits) carry a
+  **required-zero byte delta** graded by the 21-row identity diff
+  (`scripts/gate_identity_diff.sh`).
+- **Re-measure every denominator on your own tree** with the workload stamp
+  recorded beside it; the coordinator has NOT verified the addresses or
+  figures quoted in your brief.
+- **Read the gate's verdict line, never its exit code**; run the gate
+  detached (it can exceed the 600 s cap) and never commit while one runs.
+- **Do not reap or unlock a peer's worktree**; check
+  `scripts/wt_pin_audit.sh` before reaping your own.
+- **A lane that produced none of its deliverable says `FAILED`** in those
+  words; a priced `declined` is a legitimate outcome.
+
+### Deliberately not dispatched
+
+A standalone byte-ownership lane (`#3534` already measured it, this week);
+any repair of the emit-set ceiling predicate (`#3577`); the
+`expr_sweep` pin-by-name lane (`#3614`); everything listed as paused above.
+
+**Board:** `#3616` this decision · `#3617`–`#3622` `w-submetric` ·
+`#3623`–`#3628` `w-inlmetric` · `#3629`–`#3634` `w-provenance`.
+Next free `#3635`.
+
+**Nothing further is waiting on the owner.**
