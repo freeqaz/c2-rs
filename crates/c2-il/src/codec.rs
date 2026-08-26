@@ -1070,6 +1070,11 @@ fn walk_ex_prefix(prefix: &[u8], tw: usize, spans: &mut Vec<Span>) {
 /// `func::ehscope`'s `opt_line`). A source line is never negative, so the case
 /// is unreachable from c1xx-produced IL — but the narrowing is deliberate and
 /// is recorded rather than discovered later and called a fix.
+/// PROV[R] DISCLOSURE `W-SUB4F-2` — `0x10c1f9e9`, the VI32 reader, is the one
+/// address the width rule rests on. A RULE marker. The black-box twin grid
+/// establishes the BOUNDARY at 10/10 cells but cannot establish that the escape
+/// byte is `0x80` rather than another sentinel, nor that the escaped form is
+/// exactly four LE bytes: the read supplies the rule, the grid the confirmation.
 fn read_line_record(b: &[u8], p: usize) -> Option<(i32, bool, usize)> {
     if !starts_with(b, p, &[0x4F, 0x01]) {
         return None;
@@ -1090,6 +1095,8 @@ fn read_line_record(b: &[u8], p: usize) -> Option<(i32, bool, usize)> {
 /// carried rather than re-derived so that a narrowly-representable value that
 /// c2 encoded wide re-encodes to the bytes it was parsed from — the same reason
 /// [`ExToken::Lit`] carries it.
+/// PROV[R] DISCLOSURE `W-SUB4F-2` — the inverse of [`read_line_record`], same
+/// rule, same address. A RULE marker.
 fn encode_line_record(out: &mut Vec<u8>, line: i32, wide: bool) {
     out.extend_from_slice(&[0x4F, 0x01]);
     if wide {

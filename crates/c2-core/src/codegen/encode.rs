@@ -403,6 +403,7 @@ pub fn encode_mtctr(rs: u8) -> [u8; 4] {
 /// nothing to it but the absence of the final `.word()`.
 #[inline(always)]
 pub fn mop_mtctr(rs: u8) -> MachineOp {
+    // PROV[S] PowerPC ISA — `SPR` 9 is `CTR`. Not from c2. The split-field spelling beside it (`(spr & 0x1F) << 5 | spr >> 5`) is the ISA's, too.
     const SPR_CTR: u32 = 9;
     MachineOp::new(op::MTSPR)
         .s(rs)
@@ -454,6 +455,7 @@ pub fn mop_bctrl() -> MachineOp {
 /// compare would still assemble and still branch correctly — and would differ
 /// from c2's word in bits nobody would think to look at. `BI` is **0** in every
 /// captured `bdnz`.
+/// PROV[S] PowerPC ISA — `BO` 16 is decrement-CTR-and-branch-if-nonzero. Its DOC is `[O]` and worth reading: `BI` is 0 in every captured `bdnz`, and because `BO = 16` ignores `BI`, a wrong `BI` would still assemble and still branch correctly while differing from c2's word.
 pub const BO_DNZ: u8 = 16;
 
 /// `bdnz <target>` — decrement CTR and branch back while it is non-zero.
@@ -1742,18 +1744,25 @@ pub fn mop_twi(to: u8, ra: u8, simm: i16) -> MachineOp {
 /// obj has `4082…` for every decrement-and-test loop — board #188, and the
 /// reason this constant exists to be *passed in* the day a record-form producer
 /// is admitted.
+/// PROV[O] board #188 — WHICH CR field c2 uses is c2's choice, not the ISA's: `cr6` for an explicit compare, but `addic.` writes `cr0` and c2 branches on `cr0` there with no intervening compare. A lowering that hard-codes `4*6 + bit` emits `409a…` where the obj has `4082…`.
 pub const CR_COMPARE: u8 = 6;
 
 /// `BO` for "branch if the CR bit is SET".
+/// PROV[S] PowerPC ISA — `BO` 12 is branch-if-CR-bit-set.
 pub const BO_TRUE: u8 = 12;
 /// `BO` for "branch if the CR bit is CLEAR".
+/// PROV[S] PowerPC ISA — `BO` 4 is branch-if-CR-bit-clear.
 pub const BO_FALSE: u8 = 4;
 /// `BO` for "branch always" — what makes `bclr` a plain `blr`.
+/// PROV[S] PowerPC ISA — `BO` 20 is branch-always, which is what makes `bclr` a plain `blr`.
 pub const BO_ALWAYS: u8 = 20;
 
 /// The bit within a CR field, by relation: LT=0, GT=1, EQ=2, SO=3.
+/// PROV[S] PowerPC ISA — the CR field bit order is LT=0, GT=1, EQ=2, SO=3.
 pub const CR_BIT_LT: u8 = 0;
+// PROV[S] PowerPC ISA — CR field bit order.
 pub const CR_BIT_GT: u8 = 1;
+// PROV[S] PowerPC ISA — CR field bit order.
 pub const CR_BIT_EQ: u8 = 2;
 
 /// `BI` = `4*crf + bit`.
@@ -1769,6 +1778,7 @@ pub fn cr_bi(crf: u8, bit: u8) -> u8 {
 /// expansion — invert the condition, branch over an unconditional `b` — at
 /// **+34148**. The switch is at the limit with **no slack**: c2 uses the full
 /// field before expanding.
+/// PROV[O] `docs/CFG_SHAPE.md` §3.3.1 — the ISA gives the 14-bit scaled field; what is MEASURED is that c2 uses the full field with no slack, direct `bne` at +32628 and the two-instruction expansion at +34148. The number is architectural, the CHOICE to switch exactly here is c2's and is graded.
 pub const BC_MAX_DISP: i32 = 32764;
 
 /// Encode `bc BO,BI,<target>` — primary opcode 16, `AA=0`, `LK=0`.
@@ -1802,6 +1812,7 @@ pub fn mop_bc(bo: u8, bi: u8, disp: i32) -> Option<MachineOp> {
 
 /// The largest displacement an unconditional `b` reaches: `LI` is a signed
 /// 24-bit field scaled by 4.
+/// PROV[S] PowerPC ISA — `LI` is a signed 24-bit field scaled by 4. No c2-side measurement pins the switch point here the way `CFG_SHAPE.md` §3.3.1 does for `BC_MAX_DISP`; the reach is the architecture's.
 pub const B_MAX_DISP: i32 = 0x01FF_FFFC;
 
 /// Encode an **intra-section** unconditional branch `b` — primary opcode 18,

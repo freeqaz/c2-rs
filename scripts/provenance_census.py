@@ -79,6 +79,14 @@ MARKS = ("R", "O", "F", "S", "N")
 # in `codegen/` module docs would otherwise be counted as tags they are not.
 MARK_RE = re.compile(r"PROV\[([RSOFN])\]")
 
+# The BLOCK form. One citation covering every population member lexically
+# inside the block it is declared in, so a 91-entry transcribed opcode table
+# does not need 91 identical lines. It is still greppable, still cited, and
+# still counted PER CONSTANT — the count is what the census publishes, so the
+# saving is in the source and not in the number. An item's own marker always
+# wins over the block it sits in.
+BLOCK_RE = re.compile(r"PROV-BLOCK\[([RSOFN])\]")
+
 # A `const`/`static` item declaration. Anchored at line start with optional
 # indentation so a `const` in expression position is not matched; requires a
 # SCREAMING_SNAKE name, which is Rust's own convention for these items and is
@@ -140,6 +148,7 @@ def scan_file(path):
     # --- pass 1: mark the line spans that live inside a `#[cfg(test)]` block
     # or a `#[test]` fn, so their consts are out of the population.
     in_test = [False] * len(lines)
+    depth_after = [0] * len(lines)
     pending_test_attr = False
     test_depth = None
     depth = 0
@@ -152,6 +161,7 @@ def scan_file(path):
                 in_block_comment = False
             else:
                 in_test[i] = test_depth is not None or is_test_file
+                depth_after[i] = depth
                 continue
         if "/*" in line and "*/" not in line.split("/*", 1)[1]:
             line = line.split("/*", 1)[0]
@@ -172,8 +182,23 @@ def scan_file(path):
                 in_test[i] = True
             pending_test_attr = False
         depth += opens - closes
+        depth_after[i] = depth
         if test_depth is not None and depth <= test_depth:
             test_depth = None
+
+    # --- pass 1b: block markers. A `PROV-BLOCK[X]` declared on line b inside a
+    # block whose depth is d covers every later line until the depth drops
+    # below d — i.e. until that block closes.
+    block_at = [None] * len(lines)
+    for b, raw in enumerate(lines):
+        mb = BLOCK_RE.search(raw)
+        if not mb or in_test[b]:
+            continue
+        d = depth_after[b]
+        for k in range(b + 1, len(lines)):
+            if depth_after[k] < d:
+                break
+            block_at[k] = mb.group(1)
 
     # --- pass 2: items, markers
     items = []
@@ -198,6 +223,14 @@ def scan_file(path):
         if len(cite) < 3:
             defects.append((i + 1, mark))
 
+    for b, raw in enumerate(lines):
+        mb = BLOCK_RE.search(raw)
+        if not mb or in_test[b]:
+            continue
+        cite = raw[mb.end():].strip().lstrip("—-: ").strip()
+        if len(cite) < 3:
+            defects.append((b + 1, mb.group(1)))
+
     consumed = set()
     for i, raw in enumerate(lines):
         m = ITEM_RE.match(raw)
@@ -221,6 +254,8 @@ def scan_file(path):
                     consumed.add(j)
                     break
                 j -= 1
+            if mark is None:
+                mark = block_at[i]
         items.append((i + 1, name, mark))
 
     for i, mark in marked_lines.items():
@@ -375,6 +410,20 @@ pub fn a_rule() -> u32 { 0 }
 /// marker and the census must not count either.
 pub const PROSE_TRAP: u32 = 8;
 
+/// A block marker: one citation covering every const in this module.
+pub mod table {
+    //! PROV-BLOCK[R] W-FAKE-3 — transcribed from a made-up table dump.
+
+    pub const T0: u32 = 0;
+    pub const T1: u32 = 1;
+
+    /// PROV[F] rung/fake — an item marker BEATS the block it sits in.
+    pub const T2: u32 = 2;
+}
+
+/// Outside the block again — the block must not leak past its closing brace.
+pub const AFTER_BLOCK: u32 = 99;
+
 #[cfg(test)]
 mod tests {
     /// PROV[R] this must not be counted — it is in a test region.
@@ -391,9 +440,12 @@ mod tests {
 # Expected, by construction from FIXTURE above. Enumerated by hand so the
 # fixture and the expectation are two independent statements: the population
 # is READ_ONE, OBJ_ONE, FIT_ONE, SPEC_ONE, NOT_LOAD_BEARING, UNTAGGED_ONE,
-# UNTAGGED_TWO, PROSE_TRAP = 8; the residue is the last three; `a_rule`'s
-# marker is the one rule mark; everything inside `mod tests` is invisible.
-EXPECT = {"pop": 8, "R": 1, "O": 1, "F": 1, "S": 1, "N": 1, "untagged": 3, "rules": 1}
+# UNTAGGED_TWO, PROSE_TRAP, T0, T1, T2, AFTER_BLOCK = 12; the residue is
+# UNTAGGED_ONE, UNTAGGED_TWO, PROSE_TRAP and AFTER_BLOCK = 4 (the block must
+# NOT leak past its closing brace); `a_rule`'s marker is the one rule mark;
+# everything inside `mod tests` is invisible. [R] = READ_ONE + T0 + T1 = 3,
+# because T2 carries its own [F] and an item marker beats its block.
+EXPECT = {"pop": 12, "R": 3, "O": 1, "F": 2, "S": 1, "N": 1, "untagged": 4, "rules": 1}
 
 
 def self_test():
@@ -444,6 +496,20 @@ def self_test():
             ))
         _, _, defects3 = census([src])
         check("one citation defect found", len(defects3), 1)
+
+        print()
+        print("[4] THE THIRD RED — remove the BLOCK marker; two tags MUST move")
+        with open(src, "w", encoding="utf-8") as fh:
+            fh.write(text.replace(
+                "    //! PROV-BLOCK[R] W-FAKE-3 — transcribed from a made-up table dump.\n",
+                "",
+            ))
+        rows4, _, _ = census([src])
+        r4 = list(rows4.values())[0]
+        print(f"  before: [R]={r['R']} untagged={r['untagged']}")
+        print(f"  after:  [R]={r4['R']} untagged={r4['untagged']}")
+        check("[R] fell by two", r["R"] - r4["R"], 2)
+        check("untagged rose by two", r4["untagged"] - r["untagged"], 2)
 
     print()
     print("SELF-TEST:", "PASS" if ok else "FAIL")

@@ -735,6 +735,7 @@ pub const OPT_WORD_OX_NO_FP_CONTRACT: u32 = 0x00a0_0001;
 ///
 /// **This adds no acceptance.** `opt_word_mode` is untouched and still returns
 /// `None` here; naming the word does not admit it.
+/// PROV[O] DISCLOSURE `W-SEEDGAP-1` says it in those words: the two `OPT_WORD_*` constants are IL CAPTURES, not disassembly. `0x00800005` has been in `docs/OPT_MODE.md`'s matrix since the word table was read off `.ex` bytes. Naming it admits nothing — `opt_word_mode` is untouched and still refuses it.
 pub const OPT_WORD_OD: u32 = 0x0080_0005;
 
 /// **`#pragma optimize("", off)`** under `/Ox` — the same "no optimization"
@@ -745,6 +746,7 @@ pub const OPT_WORD_OD: u32 = 0x0080_0005;
 /// reason. Note the word is also reachable in the **short varint form** `04`
 /// (`opt_word_at`'s `b < 0x80` branch), which is how a capture actually spells
 /// it; both forms mean the global optimizer did not run.
+/// PROV[O] DISCLOSURE `W-SEEDGAP-1` — an IL capture, not disassembly. Also reachable in the short varint form `04`, which is how a capture actually spells it.
 pub const OPT_WORD_PRAGMA_OFF: u32 = 0x0080_0004;
 
 /// Bit `0x0000_0100` of the per-function optimization word: **this function is a
@@ -2792,6 +2794,10 @@ impl IlBundle {
     /// It reads and asserts nothing. The two known-answer-0 fields are counted
     /// here and *judged* by the scan that prints them, so that a `crates/` guard
     /// and the instrument that watches it are not the same code.
+    /// PROV[R] DISCLOSURE `W-ALIAS-2` — `0x10b99621`/`0x10b99635`, logged
+    /// `route:`: the reading told this lane what the record MEANS and the
+    /// meaning was then established black box (`w-emitp` §4 on real `c2.dll`,
+    /// and `dom(alias) ∩ E` = 0 over 174,417 emitted names). A RULE marker.
     pub fn in_alias_report(&self) -> Option<InAliasReport> {
         let gl = self.get("gl")?;
         let alias = super::glalias::gl_alias_table(gl);
@@ -2988,6 +2994,10 @@ impl IlBundle {
         Some(out)
     }
 
+    /// PROV[R] DISCLOSURE `W-ALIAS-1` (as extended by the 2026-08-08 `w-phase7`
+    /// note beside that row) — the alias fence this function carries is the
+    /// row's first CONSUMER, and `w-phase7` adopted no new address to build it.
+    /// A RULE marker.
     pub fn data_tu(&self) -> Option<DataTu> {
         let gl = self.get("gl")?;
         let ex = self.ex()?;

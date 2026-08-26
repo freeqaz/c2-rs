@@ -105,6 +105,7 @@ use super::gl::gl_symbol_index;
 use super::readers::read_token_var;
 
 /// The record tag this module reads. **Disclosed** — `0x10b9c01e`.
+/// PROV[R] DISCLOSURE `W-ALIAS-1` — `0x10b9c01e`, the tag test in the shared kind-4 handler. Confirmed by lane `w-emitp` (15/15 interventional draws, 0/15 parity control) and reproduced by two implementations agreeing on 850 TUs; the black-box alternative was tried first and binds at 0.019/0.026 one byte either side, so the position is identified by the read and only GRADED by the corpus.
 const ALIAS_TAG: u8 = 0x10;
 
 /// The tags the shared kind-4 handler at `0x10b9bdcf` serves. A run's tag is
@@ -216,6 +217,9 @@ fn blob_skip(b: &[u8], p: usize) -> Option<usize> {
 /// This is the same walk a tag-0x0E record needs to find its `.ex` body offset;
 /// the tag-0x10 arm reuses it verbatim, which is the whole reason
 /// `0x10b9b91f` routes both tags to one handler.
+/// PROV[R] DISCLOSURE `W-ALIAS-1` — the shared kind-4 header walk `0x10b9bdcf`,
+/// and the routing `0x10b9b91f` that sends tags `0x04`/`0x0E`/`0x10` to it. A
+/// RULE marker, not a constant: what is adopted here is a record grammar.
 fn record_head(b: &[u8], p: usize) -> Option<(usize, u8)> {
     let n = b.len();
     let (sc, mut p) = get_byte(b, p)?; // 0x10b9be0e — the storage class
