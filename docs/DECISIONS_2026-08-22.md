@@ -733,3 +733,87 @@ so they need the floor quoted beside them, not just a re-run);
 `#3573`–`#3578` `w-guard`. Next free `#3579`.
 
 **Nothing is waiting on the owner.**
+
+---
+
+## Decision 14 — the five follow-ons wave 11 named are funded (2026-08-26)
+
+**Asked and answered in one turn.** Wave 11 closed with four follow-ons
+named, specified, and deliberately not taken — each because it crossed a
+lane's fence, not because anybody judged it unaffordable — plus one open
+row the coordinator filed against its own regeneration (`#3583`). The
+owner's instruction was to dig into each and get answers, and that nothing
+here needs them. **All five are funded.**
+
+**Nothing in this decision relaxes the correctness rule.** Real `c2` under
+wibo plus a byte-exact obj compare is still the sole judge, a wrong emit
+still scores strictly below the refusal it replaced, and every lane below
+that touches `crates/` carries a **required-zero byte delta** graded by the
+21-row identity diff — now with a committed instrument
+(`scripts/gate_identity_diff.sh`, `#3579`) rather than a retyped procedure.
+
+### The five lanes
+
+| lane | kind | the question it must answer | why now |
+|---|---|---|---|
+| `w-opclass` | characterization | **Read the 29 operand-class arms at `0x10b3d954`.** `w-ilarms` published that **65 of its 68 `MATCHED*` rows have limb 2 of the NARROW test genuinely unchecked** — it did not budget these arms. One read closes all 65 at once. It must also adjudicate the two hazards `w-ilarms` reported *beside* its count rather than folding in: `0x28` as `NARROW(fields)`, and arms 17/26's `0x43` escape **that does not exist in the real dispatch** | the cheapest large closure on the board: 65 unchecked rows, one budgeted read, and a live hazard where the port is currently right by coincidence |
+| `w-atend` | construct | **Can the admission layer own a refusal reason at all?** `w-unfuse` shipped `AdmissionPolicy` with **one** variant because a `Block` says where the *read* stopped, so a policy refusing a body the decode read whole has no key — and minting one publishes a `:eof` census key **no scan can reach**. The named follow-up is `EXPECTED_AT_END_SITES` 7 → 8. **If the answer is no, `declined` with the two-sided price is the correct outcome** and the lane must say so | it is the one thing blocking `AdmissionPolicy` from being a policy rather than an identity |
+| `w-symbind` | instrument | **Is symbol binding a third fused layer, and is it separable the way the grammar layer was?** `w-decodereach` measured `grammar-not-admitted` = **4,001** bodies, all `:eof`, all symbol binding, refused at `shape_to_function` (`census.rs:957`) **downstream of `AdmissionPolicy`**. `w-unfuse` unfused the grammar layer only | 4,001 bodies is the first quantified estimate of what the next unfusing is worth, and nobody has looked at the layer |
+| `w-price4a` | characterization | **Re-price row 4a(i) / I1 against inputs that are now known to be wrong.** The live 15–45 engineer-month figure was written against **189 arms** (really **61**), **83.5 % off-model** (arithmetically **refuted**; really 88.61 %), and a **98.2 % reach** that is *framing*, not model reach (really **11.39 %**). Three of its four inputs moved | a price standing on a refuted premise is worse than no price, and this row is the critical path |
+| `w-perfstep` | instrument | **Resolve `#3583`** — the published speedup moved 664× → 553× (≈15 %) with a same-session re-run at 571× (spread ≈3 %). Three candidates are named and none chosen: the workload advanced under both arms; `w-hygiene`'s `repo_root()` now resolves at **runtime**; box state across a day | a published metric moved an order beyond its own spread and the tree currently cannot say why |
+
+### Concurrency fences — writing is fenced, reading is not
+
+`w-opclass` owns **`docs/whitebox/**`** (including `READ_PLAN_2026-08-21.md`)
+and writes **zero `crates/` bytes**. `w-atend` owns **`crates/c2-il/**`** plus
+**`crates/c2-harness/tests/fence_site_census.rs`**. `w-symbind` owns
+**`crates/c2-harness/src/gap/**`**. `w-price4a` owns the **top-level pricing
+docs** — `ARCHITECTURE_PROPOSAL_2026-08-20.md`, `STEP5_PRICING_2026-08-21.md`,
+`ROADMAP_SLICING_2026-08-21.md`, `WHITEBOX_LEVERAGE_2026-08-21.md`, `ROADMAP.md`
+— and **may not write `docs/whitebox/`**. `w-perfstep` owns **`scripts/**`** and
+**`crates/c2-harness/src/perf.rs`**. Every lane writes its own rung file and
+appends its own board rows. **A lane that needs a peer's file STOPS and
+reports** — the wave-7 precedent, honoured by `w-unfuse` in wave 11 when it
+hit `fence_site_census.rs` and stopped.
+
+**No merge order is imposed.** Wave 11 needed one because the instrument
+measured the surface the construct created; these five are independent.
+`w-price4a` is told explicitly that `w-opclass` is in flight and may sharpen
+limb 2 — it prices off what has **landed**, states that input as of its own
+tree, and does not wait.
+
+### What every lane is told, and what none of them may do
+
+- **Prereg first, committed before the first measurement**, and graded
+  honestly at the end. Wave 11 produced two lanes whose registered brackets
+  MISSED and both said so; that is the standard.
+- **Read-before-probe** (`WHITEBOX_LEVERAGE_2026-08-21.md`) — price the
+  binary read that would answer the question before any probe grid.
+- **No lane widens emission.** Not one of these five is authorized to move
+  the admitted set. `w-symbind` in particular measures a refusal population
+  and may not convert it.
+- **Read the gate's verdict line, never its exit code.** Both failure
+  shapes appeared in wave 11: `GATE: REFUSED (DIRTY crates/)` at exit 0,
+  and `GATE: PASS` at exit 1 from the tree-movement guard.
+- **Do not reap or unlock a peer's worktree**, and check
+  `scripts/wt_pin_audit.sh` before reaping your own (`#3552`, three losses
+  in three waves).
+- **A lane that produced none of its deliverable says `FAILED`** in those
+  words. `declined` with a two-sided price is a legitimate outcome for
+  `w-atend` and is not a failure.
+
+### Deliberately not dispatched
+
+**Phase 1 stays HELD** — decision 11's hold is the owner's and no lane here
+touches it. Also not funded: 4a(ii) / I2, 4b / IR3, step 5, the
+against-zero emitters, `DIFF_STRUCTURE.md`'s edit, and any repair of the
+emit-set ceiling **predicate** (`#3577` diagnosed it; `STATUS.md` now
+renders both ceilings VOID, which is the honest state until somebody funds
+the repair).
+
+**Board:** `#3584` this decision · `#3585`–`#3590` `w-opclass` ·
+`#3591`–`#3596` `w-atend` · `#3597`–`#3602` `w-symbind` ·
+`#3603`–`#3608` `w-price4a` · `#3609`–`#3614` `w-perfstep`.
+Next free `#3615`.
+
+**Nothing is waiting on the owner.**
