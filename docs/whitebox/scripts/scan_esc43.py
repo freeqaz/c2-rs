@@ -140,6 +140,300 @@ def any_wide_token(ex):
     return sum(1 for b in ex if b & 0x80)
 
 
+
+
+# ---------------------------------------------------------------------------
+# A TOKEN WALK, added after the raw scan, because a raw scan can only bound the
+# answer.  The grammar below is transcribed from THIS lane's own arm walk
+# (`dump_opclass.py --arms`, committed at `labels/opclass_arms.txt`) — not from
+# `WB_READER_FINDINGS.md` §3 and not from `work/wb-eh/extok.py`, both of which
+# already carry a transcription.  `--walk` prints a per-class agreement check
+# against `extok.py` so the two independent transcriptions can be compared
+# rather than one silently trusted.
+
+class Cur:
+    def __init__(self, b, i):
+        self.b, self.i = b, i
+
+    def byte(self):
+        v = self.b[self.i]
+        self.i += 1
+        return v
+
+    def skip(self):                       # 0x10c1f90a
+        while self.byte() & 0x80:
+            pass
+
+    def varu(self):                       # 0x10c1f91b — 2 or 4, never 1
+        b0, b1 = self.byte(), self.byte()
+        if not (b1 & 0x80):
+            return b0 | (b1 << 8), 2
+        self.byte(); self.byte()
+        return None, 4
+
+    def i16c(self):                       # 0x10c1f9a6
+        b = self.byte()
+        if b != 0x80:
+            return b
+        self.i += 2
+        return None
+
+    def i32c(self):                       # 0x10c1f9e9
+        b = self.byte()
+        if b != 0x80:
+            return b
+        self.i += 4
+        return None
+
+    def i64c(self):                       # 0x10c1fae7
+        b = self.byte()
+        if b != 0x80:
+            return b
+        self.i += 8
+        return None
+
+    def word(self):                       # 0x10c1fe40
+        b1 = self.byte()
+        if not (b1 & 0x80):
+            return b1
+        b2 = self.byte()
+        if b1 & 0x40:
+            b3 = self.byte()
+            return ((b2 & 0x7f) << 16) | ((b1 & 0x7f) << 8) | b3
+        return ((b1 & 0x7f) << 8) | b2
+
+    def TYPE(self):                       # 0x10b3d546
+        v = self.word()
+        if (v & 0xf) == 6 and ((v >> 4) & 0x1f) == 0:
+            self.i32c()
+        self.skip()                       # the globally gated trailing run
+        return v
+
+
+FMT_TABLE_VA = 0x10B26268                 # ref/P_SUB4F.md; stride 8, ptr at +0
+
+
+def fmt_of(img, sub):
+    p = img.u32(FMT_TABLE_VA + sub * 8)
+    if p == 0:
+        return None
+    o = img.off(p)
+    e = img.raw.index(b"\0", o)
+    return img.raw[o:e]
+
+
+def one_token(img, tbl, r, op):
+    c = tbl[op]
+    if c == 0x00:
+        return
+    if c == 0x01:
+        r.TYPE(); return
+    if c == 0x02:
+        r.varu(); return
+    if c == 0x03:
+        r.varu(); r.TYPE(); r.byte(); r.byte(); return
+    if c == 0x04:
+        r.varu(); r.byte(); return
+    if c == 0x05:
+        r.TYPE(); r.byte(); return
+    if c == 0x06:
+        # c2 branches on the LOWERED word node[+4], which needs FUN_10b3d40a.
+        # This walk refuses rather than guessing; the refusal is counted.
+        raise ValueError("class 06 needs the lowering (0x10b3d40a)")
+    if c == 0x07:
+        r.TYPE(); r.varu(); return
+    if c == 0x08:
+        r.varu(); return
+    if c == 0x09:
+        r.TYPE(); r.byte(); return
+    if c == 0x0A:
+        r.byte(); return
+    if c == 0x0C:
+        sub = r.i16c()
+        if sub is None:
+            raise ValueError("0x4F sub-record with an escaped i16c")
+        f = fmt_of(img, sub)
+        if f is None:
+            raise ValueError(f"0x4F sub {sub:02x} has no format string")
+        for ch in f:
+            if ch in (0x6C, 0x14):
+                r.i32c()
+            elif ch in (0x73, 0x16):
+                r.varu()
+            elif ch in (0x15, 0x0E):
+                r.i16c()
+            elif ch == 0x0B:
+                r.byte()
+            else:
+                raise ValueError(f"0x4F field code {ch:02x} not modelled")
+        return
+    if c in (0x0D, 0x11):
+        r.i32c(); return
+    if c == 0x0E:
+        r.TYPE(); r.varu(); r.varu(); return
+    if c == 0x0F:
+        r.i16c(); return
+    if c == 0x12:
+        r.TYPE(); r.varu(); return
+    if c == 0x13:
+        r.TYPE(); r.i32c(); return
+    if c == 0x14:
+        r.i32c(); r.i32c(); return
+    if c == 0x15:
+        r.varu(); r.varu(); r.i16c(); return
+    if c == 0x17:
+        n = r.i32c()
+        if n is None:
+            raise ValueError("class 17 escaped length")
+        r.i += n
+        return
+    if c == 0x18:
+        r.varu(); r.TYPE(); return
+    if c == 0x19:
+        r.TYPE(); r.byte(); r.i32c(); return
+    if c == 0x1A:
+        n = r.i32c()
+        if n is None:
+            raise ValueError("class 1A escaped count")
+        for _ in range(n):
+            r.skip()
+        return
+    if c == 0x1B:
+        r.i32c(); r.varu(); return
+    if c == 0x1C:
+        r.TYPE(); r.i32c(); return
+    raise ValueError(f"class {c:02x} refuses (op {op:02x})")
+
+
+BODY_MARK = b"\x4c\x4f\x11"
+FN_TAIL = b"\x4f\x12\x47\x54\x01\x54\x00"
+
+
+def walk_stream(img, tbl, ex):
+    """(bodies, walked, tok43_42, wide43_42, all42, wide42, stops) over one `.ex`.
+
+    A `43 42` SITE is two consecutive top-level tokens: a `0x43` (class 00,
+    payload-free) immediately followed by a `0x42` (class 02, a varU).  That is
+    exactly what `control_flow.rs:1066` reads as one 4-byte escape.  The width
+    recorded is the varU's own — 2 or 4 — taken from the cursor, not guessed.
+    """
+    bodies = walked = n43 = w43 = n42 = w42 = 0
+    p43 = pw43 = 0
+    stops = {}
+    i = 0
+    while True:
+        i = ex.find(BODY_MARK, i)
+        if i < 0:
+            break
+        bodies += 1
+        r = Cur(ex, i + 3)
+        acc = []
+        prev = None
+        try:
+            while r.i < len(ex):
+                if ex[r.i:r.i + 7] == FN_TAIL:
+                    walked += 1
+                    for a in acc:
+                        n42 += 1
+                        w42 += a[1] == 4
+                        if a[0]:
+                            n43 += 1
+                            w43 += a[1] == 4
+                    break
+                s = r.i
+                op = r.byte()
+                if op == 0x4D:
+                    walked += 1
+                    for a in acc:
+                        n42 += 1
+                        w42 += a[1] == 4
+                        if a[0]:
+                            n43 += 1
+                            w43 += a[1] == 4
+                    break
+                one_token(img, tbl, r, op)
+                if op == 0x42:
+                    acc.append((prev == 0x43, r.i - s - 1))
+                prev = op
+        except (ValueError, IndexError) as e:
+            k = str(e)[:48]
+            stops[k] = stops.get(k, 0) + 1
+            # The prefix up to a stop was still walked IN SYNC, so its sites are
+            # real token positions and are counted separately rather than thrown
+            # away with the body.
+            for a in acc:
+                if a[0]:
+                    p43 += 1
+                    pw43 += a[1] == 4
+        i += 1
+    return bodies, walked, n43, w43, n42, w42, p43, pw43, stops
+
+
+def cmd_walk(index_path, dll, limit):
+    import importlib.util
+    here = os.path.dirname(os.path.abspath(__file__))
+    spec = importlib.util.spec_from_file_location(
+        "dump_opclass", os.path.join(here, "dump_opclass.py"))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    img = m.Image(dll)
+    d = m.Decoder(img)
+    tbl = [img.u8(d.class_table_va + o) for o in range(0x100)]
+
+    rows = workload_entries(index_path)
+    seen = set()
+    tot = [0] * 8
+    stops = {}
+    tus = 0
+    srcs = set()
+    for src, ent in rows:
+        if tus >= limit:
+            break
+        if src in srcs:
+            continue
+        try:
+            raw = open(os.path.join(ent, "entry.bin"), "rb").read()
+        except OSError:
+            continue
+        blob = decode_entry(raw)
+        if blob is None or "ex" not in blob:
+            continue
+        h = hash(blob["ex"])
+        if h in seen:
+            continue
+        seen.add(h)
+        srcs.add(src)
+        tus += 1
+        b, w, n43, w43, n42, w42, p43, pw43, st = walk_stream(img, tbl, blob["ex"])
+        for k, v in enumerate((b, w, n43, w43, n42, w42, p43, pw43)):
+            tot[k] += v
+        for k, v in st.items():
+            stops[k] = stops.get(k, 0) + v
+
+    print(f"== TOKEN WALK over {tus} distinct workload `.ex` streams "
+          f"(one per source, first {limit}) ==")
+    print(f"  bodies found (the `4C 4F 11` marker)      {tot[0]}")
+    print(f"  bodies walked clean to the tail / `4D`    {tot[1]}"
+          f"  ({100.0 * tot[1] / tot[0]:.1f} %)" if tot[0] else "")
+    print(f"  top-level `0x42` tokens                   {tot[4]}")
+    print(f"    ... whose varU is WIDE (4 bytes)        {tot[5]}")
+    print(f"  `43 42` SITES (a 0x43 immediately before) {tot[2]}")
+    print(f"    ... whose varU is WIDE (4 bytes)        {tot[3]}")
+    print(f"  `43 42` sites in the IN-SYNC PREFIX of a body the walk could")
+    print(f"  not finish (still real token positions)   {tot[6]}")
+    print(f"    ... whose varU is WIDE (4 bytes)        {tot[7]}")
+    print()
+    if (tot[2] + tot[6]) and not (tot[3] + tot[7]):
+        print("  => every `43 42` site this walk reached is NARROW: the port's")
+        print("     fixed `+4` is the right width on all of them, by coincidence")
+        print("     of the token being small, not by any rule.")
+    print()
+    print("  walks that stopped, by reason (a stop is a limit of THIS walker,")
+    print("  not a defect in the stream):")
+    for k, v in sorted(stops.items(), key=lambda x: -x[1]):
+        print(f"    {v:>8}  {k}")
+
+
 def cmd_control(index_path, key):
     ent = os.path.join(os.path.dirname(index_path), key) if os.sep in key else key
     raw = open(os.path.join(ent, "entry.bin"), "rb").read()
@@ -164,6 +458,11 @@ def main():
     index_path = sys.argv[1]
     if len(sys.argv) > 3 and sys.argv[2] == "--control":
         return cmd_control(index_path, sys.argv[3])
+    if len(sys.argv) > 2 and sys.argv[2] == "--walk":
+        n = int(sys.argv[3]) if len(sys.argv) > 3 else 100
+        return cmd_walk(index_path, os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..", "..", "..", "compilers", "X360", "16.00.11886.00", "c2.dll"), n)
 
     dll = sys.argv[2] if len(sys.argv) > 2 else \
         os.path.join(os.path.dirname(os.path.abspath(__file__)),

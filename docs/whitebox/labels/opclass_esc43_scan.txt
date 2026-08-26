@@ -26,6 +26,25 @@ it ranks nothing to work on, it says where a walk would look):
     4302  src/lazer/meta_ham/CampaignPerformer.cpp   (wide 0)
     4272  src/lazer/game/GamePanel.cpp   (wide 0)
 
+== TOKEN WALK over 867 distinct workload `.ex` streams (one per source, first 900) ==
+  bodies found (the `4C 4F 11` marker)      2415405
+  bodies walked clean to the tail / `4D`    567367  (23.5 %)
+  top-level `0x42` tokens                   2404
+    ... whose varU is WIDE (4 bytes)        0
+  `43 42` SITES (a 0x43 immediately before) 2404
+    ... whose varU is WIDE (4 bytes)        0
+  `43 42` sites in the IN-SYNC PREFIX of a body the walk could
+  not finish (still real token positions)   10
+    ... whose varU is WIDE (4 bytes)        0
+
+  => every `43 42` site this walk reached is NARROW: the port's
+     fixed `+4` is the right width on all of them, by coincidence
+     of the token being small, not by any rule.
+
+  walks that stopped, by reason (a stop is a limit of THIS walker,
+  not a defect in the stream):
+     1848038  class 06 needs the lowering (0x10b3d40a)
+
 == the cachefmt second-implementation control ==
 this reader:
   .ex  1494120
