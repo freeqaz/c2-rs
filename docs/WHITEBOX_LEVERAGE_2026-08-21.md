@@ -86,7 +86,7 @@ three (§4), and five live caveats (§5). The short version:
 | R2 | the encoder: 2 tables + **79 distinct arms** ✅ (not 111 — coordinator re-measured from the pinned image) | 2–4 | **I2**, priced 1.5–4.5 eng-mo raw black-box; ~~also unlocks mismatch anatomy (§5 below)~~ **(that clause struck 2026-08-22 — mismatch anatomy is shipped and does not depend on these tables; R2 stands on I2 alone. §5 banner)** |
 | R3 | the label charge: 31+132 enumerable call sites, closed by construction | 2–4 | the fitted `LABEL_SEED_GAP = 9` / `/Gy +3`, and §2.3(b)'s "not derivable" premise |
 | R4 | `FUN_10b55732` — globregs promotion (item F1) | 3–5 | F1's 2-raw/10-calibrated lanes; may explain the 52,416-config null |
-| R5 | `FUN_10bc2d7a` — ~~the 189-arm IL→tuple dispatch~~ **61 REAL ARMS over 95 opcodes, plus one refusal over 94 — "189" is the OPCODE count; the 15–25 d in the next cell is priced against the struck number. [`WB_ILARMS_MAP.md`](whitebox/WB_ILARMS_MAP.md) §1, `DECISIONS_2026-08-22.md` decision 13** | 15–25 | **I1** (1.5–4.5 eng-mo raw) + the shared input to all ten Phase-1 slices |
+| R5 | `FUN_10bc2d7a` — ~~the 189-arm IL→tuple dispatch~~ **61 REAL ARMS over 95 opcodes, plus one refusal over 94 — "189" is the OPCODE count; the 15–25 d in the next cell is priced against the struck number. [`WB_ILARMS_MAP.md`](whitebox/WB_ILARMS_MAP.md) §1, `DECISIONS_2026-08-22.md` decision 13** | ~~15–25~~ **SPENT — see §3.1** | **I1** (1.5–4.5 eng-mo raw) + the shared input to all ten Phase-1 slices |
 | R6–R9 | expansion switches · scheduler confirm · block order · `0x4F` | 13–23 | S1's instrument, item F0, `CEILING` phase 1, the last transcribed width |
 
 **Dispatch order R1 → R2 → R3** (≈5–9 days, three `DISCLOSURE.md` rows,
@@ -96,6 +96,50 @@ headline: **the two interfaces the 15–45 eng-mo estimate rests on (I1, I2)
 both have a named, sized, mechanical read** — R5 and R2 — and the sum of
 all nine reads is ≈6–10 engineer-weeks, against black-box prices for the
 same facts that run to lane-years.
+
+### 3.1 ⛔ 2026-08-26 — **THE READ PRICES ARE SPENT, AND THE DOCTRINE THIS PAGE ARGUES FOR IS THE THING THE OUTCOMES CONFIRM**
+
+*Lane `w-price4a`, board **#3606**; canonical re-price
+[`STEP5_PRICING_2026-08-21.md`](STEP5_PRICING_2026-08-21.md) §2.1. **Nothing
+above is retracted.** `ROADMAP.md` §11.2 records that all nine reads have run;
+what is new here is putting their **outcomes** beside the **prices** in the
+table above, which no page in this tree does.*
+
+| read | priced | prereg → rung, from git | direction |
+|---|---:|---|---|
+| **R2** → I2 | 2–4 d | `f663fd27b` 10:26:26 → `c0a9e596d` 12:02:34 = **1 h 36 m** | **pessimistic ~30–60×** |
+| **R5** → **I1** | **15–25 d** | funded `1cb1526b9` 00:11:43 → rung `8ff81967b` 00:41:35 = **30 min** | **pessimistic ~700–1,200×** |
+
+These are **agent-lane wall clock, not human effort** — and that is the point.
+**Every forward-cost figure in this program is denominated in a unit the program
+does not spend.** §1's doctrine (*read before probe*) is **confirmed** by this,
+not weakened: the read side came in far under, and the black-box side it
+displaces has not.
+
+**Three things this does NOT license**, and each is this page's own rule:
+
+1. **It does not re-price I1 or I2.** §3's note stands verbatim — *"a read
+   produces a **spec**; I1 and I2 are **implementations**"* — and R5's own
+   product declines to re-price in writing (`whitebox/ref/P_ILRECORD.md` §8.6:
+   *"§1.3 and §8.1 push in opposite directions … the findings report both
+   numbers and decline to combine them"*). **The `189 → 61` correction is a
+   correction to the READ, and the read is already spent.**
+2. **It does not make R5 complete.** R5 read **depth-1 only**. 61 arms route
+   into **76 distinct direct callees over 174 call sites**, and **19 of 61 arms
+   are DEFER** — their semantics entirely below R5's bound. The successor read
+   opens at **`0x10bbfebb` (256 B)**, the C1 `off-add` builder covering
+   **33.3 %** of the residue, which `P_ILRECORD.md` §8.1 names *"the single
+   highest-value unread function this read exposes"*. Priced off R5's own
+   measured rate, the four largest callees total **7,347 B** ≈ 1.4× R5's body:
+   **1–2 lanes.** *(It belongs in `whitebox/READ_PLAN_2026-08-21.md` §3 as a
+   new ranked row; `w-price4a` may not write `docs/whitebox/` and **reports it
+   rather than writing it** — `w-opclass` owns that shelf this wave.)*
+3. **It does not touch `[R]`'s bound**, and here that bound is harder than
+   anywhere else on this page: `P_ILRECORD.md` §8.5 — **this seam's output
+   never appears in any artifact**, so R5's read cannot end in the confirmation
+   probe §5(c) requires of every other read. **That is the single largest
+   unpriced term in I1** (`STEP5_PRICING` §2.1(f)), and it is a *structural*
+   property of the seam rather than a tooling gap.
 
 ## 4. The port as instrument — the decision surface
 
