@@ -232,6 +232,7 @@ lane editing it would move a stamp:
 
 | lane | result |
 |---|---|
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1902 passed, 0 failed, 59 targets, 0 SKIP lines** — digit-for-digit the block's published `1902 passed, 0 failed, 59 targets` |
 | `scripts/gate.sh --jobs 16 --require-graded` | **`GATE: PASS (HATCH-RED REFUSED)`** — the verdict line, never the exit code (§8.1) |
 | `scripts/gate_identity_diff.sh` vs `base_c13cebbca.txt` | **`IDENTITY DIFF: 0 lines over 21 rows`**, `21 base, 21 tip` (§8.2) |
 | `scripts/expr_sweep.sh` | `checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0`, exit 0; and watched RED at `C2RS_SWEEP_MAX_UNGRADED=0` |
@@ -239,6 +240,8 @@ lane editing it would move a stamp:
 | `scripts/cost_arms.py --self-test` | unchanged by this lane; `perf_arms` imports it |
 | `scripts/tracked_artifact_audit.sh` | forbidden artifact names **0**, absolute machine paths in code surfaces **0** |
 | `scripts/board_audit.sh` | duplicate row numbers 0, unresolved anchors 0, rows-behind-prose 0 |
+| `scripts/doc_cite_audit.sh` | 34 findings, **all pre-existing** (`docs/BOARD.md:1079–1415`, `docs/whitebox/`); every citation this lane added resolves, checked by name |
+| `scripts/wt_pin_audit.sh` | green before any reap was contemplated — **and this worktree holds pinned arms; see §9** |
 | 878-TU workload scan | not re-run — this lane changes no `crates/` byte; `Census: +0` |
 
 ## 8. Gate verdicts
@@ -300,3 +303,33 @@ evidence under `work/w-perfstep/`.
 The two rows with no RED cell are marked so rather than left blank: a per-arm
 denominator and a `cmp` are assertions about this run, not detectors with a
 failing mode this lane exercised.
+
+## 9. Before this worktree is reaped — read this first (#3552)
+
+**This tree holds pinned measurement arms.** `#3552` is three destroyed-artifact
+losses in three waves, and the funnel's reap step still does not check for them.
+
+| artifact | what it is |
+|---|---|
+| `work/w-perfstep/arm1/target/release/c2rs` | `b814d1db2`, md5 `46dc08b4c4c3de7f1eb92061739e1616`, 6,126,256 B |
+| `work/w-perfstep/arm2/target/release/c2rs` | `c13cebbca`, md5 `c393f999c0ee9209dc885a28d3112019`, 6,215,456 B |
+| `work/w-perfstep/dup1/c2rs` | the NULL — a **copy** of arm1, never a rebuild |
+| `work/w-perfstep/env_ab/{walk,pinn,wdup}` | the `C2RS_REPO_ROOT` wrappers (committed — three shell scripts) |
+
+**The commits are TAGGED, so the arms are rebuildable even after a reap:**
+`pin/perfstep-pre` → `b814d1db2`, `pin/perfstep-post` → `c13cebbca`. Both were
+already reachable from `master`; the tags exist because `#3552` cost a lane a
+`git archive` recovery when a pinned commit no ref named survived on one reflog
+entry.
+
+**Rebuilding is not free of the thing this lane measured.** Two arms rebuilt at
+different path lengths are two different binaries (**#3525**); these two were
+built at `…/work/w-perfstep/arm1` and `…/work/w-perfstep/arm2`, **equal-length
+paths by construction**, which is why the size difference between them (89,200 B)
+is real code and not layout. Reproduce that or the comparison is not the same
+comparison.
+
+The binaries themselves are **not** committed and must not be. Everything
+quoted in this rung is in the committed text logs — `run_main.txt`,
+`run_envab.txt`, `p5_trace.txt`, `sweep_base.txt`, `sweep_ungraded_red.txt`,
+`gate_tip.txt`.
