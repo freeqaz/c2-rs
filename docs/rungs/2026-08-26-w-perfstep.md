@@ -249,6 +249,10 @@ lane editing it would move a stamp:
 
 ### 8.1 `scripts/gate.sh --jobs 16 --require-graded` — the VERDICT LINE
 
+Re-run after rebasing onto master `691bbbef4` (`w-atend`, `w-price4a`,
+`w-symbind` and `w-opclass` all merged while this lane was in flight), because
+§10's fix touches `scripts/`:
+
     GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them graded a corpus,
       the sweep graded 19460 of 19556 generated cases and the cross graded
       90424 of 90812 case-lane cells, with 0 mismatches anywhere
@@ -256,18 +260,23 @@ lane editing it would move a stamp:
       and 18/18 lanes ran again through a DEBUG-profile c2rs for
       7038 more fixture-verdicts at 0 panics
 
-    graded tree: 880b6cf41a5f  (791 files: crates fixtures scripts, content-hashed)
+    graded tree: 650eabd027ba  (792 files: crates fixtures scripts, content-hashed)
 
 **Quoted as the verdict line and not as an exit code, deliberately.** In wave 11
 `gate.sh` printed `GATE: REFUSED (DIRTY crates/)` at exit **0** and `GATE: PASS`
 at exit **1**. The line is the verdict; the status is not.
 
+**Digit-for-digit identical to the pre-rebase run** (19460/19556, 90424/90812,
+0 mismatch, 7038 debug verdicts) across four merges and a rebase. The one
+number that moved is the graded-tree file count, **791 → 792** — that is
+`scripts/perf_arms.py`, this lane's only tracked non-`docs/` file, and it is the
+expected +1.
+
 **`HATCH-RED REFUSED` is PRE-EXISTING and not this lane's.** The base run at
 `c13cebbca` (`work/coordinator/gate_tip_c13cebbca.txt:100,108`) carries the
-**identical** qualifier and the identical reason — `HATCH-STALE`, `hatch.py
-apply` cannot hatch this tree, board **#1389**. The working tree was clean
-(`git status --short` empty) when the gate ran, and nothing was edited while it
-ran.
+**identical** qualifier and the identical reason — `HATCH-STALE`, board
+**#1389**. The working tree was clean when the gate ran and nothing was edited
+while it ran.
 
 **One line of that verdict is now known to overclaim, by this lane's own §6:**
 *"96 sweep cases carried ungraded — the reference rejects the source"*. The
@@ -281,10 +290,28 @@ than compile rejections. The count is right; the *reason* beside it is a
     count-bearing rows: 21 base, 21 tip (enumerated, not asserted)
     IDENTITY DIFF: 0 lines over 21 rows — required-zero byte delta HOLDS
 
-Base `work/coordinator/gatebase/base_c13cebbca.txt`, tip the run's own gate
-output. **The denominator is 21 at both ends** — a
-diff over 0 rows and a diff over 21 rows both print "0 lines", which is
-`w-s1c2` §3.2's lesson and why the count is quoted beside the verdict.
+**The base is `base_71a38b024.txt`, not the `base_691bbbef4.txt` the merge
+request named, and the substitution is a MEASUREMENT rather than a
+convenience.** `base_691bbbef4.txt` does not exist in
+`work/coordinator/gatebase/`; the newest present is `71a38b024`
+(`merge w-symbind`), which is an ancestor of master. The gate hashes exactly
+three directories, and their **git tree objects are identical** at the two
+commits:
+
+| path | `71a38b024` | `691bbbef4` | |
+|---|---|---|---|
+| `crates` | `dc2a493618fd` | `dc2a493618fd` | identical |
+| `fixtures` | `aecda3341de6` | `aecda3341de6` | identical |
+| `scripts` | `0657e136532d` | `0657e136532d` | identical |
+
+So a gate at `691bbbef4` would grade a byte-identical tree to the one
+`base_71a38b024.txt` records — `w-opclass`'s merge moved `docs/` only. Tree-SHA
+equality is checked rather than inferred from an empty `git diff`, because a
+diff can be empty for reasons a hash cannot.
+
+**The denominator is 21 at both ends** — a diff over 0 rows and a diff over 21
+rows both print "0 lines", which is `w-s1c2` §3.2's lesson and why the count is
+quoted beside the verdict.
 
 Zero is the expected and required result: **this lane changed no byte of
 `crates/`.** Its whole tracked diff is `scripts/perf_arms.py` (new) and `docs/`
