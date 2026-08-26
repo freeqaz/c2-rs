@@ -1,0 +1,86 @@
+toolchain inherited from the caller's environment: C2RS_COMPILERS=/home/free/code/milohax/c2-rs/.claude/worktrees/w-perfstep/compilers
+                 C2RS_WIBO=/home/free/code/milohax/wibo/build/release/wibo
+preflight — each arm proves it can grade before anything is timed:
+  pre        graded 157 Match fixtures at --port-iters 1
+  post       graded 157 Match fixtures at --port-iters 1
+  predup     graded 157 Match fixtures at --port-iters 1
+arm identity (md5 / size / build dir) — a sha is NOT an arm (#3525):
+  pre        46dc08b4c4c3de7f1eb92061739e1616   6,126,256 B  /home/free/code/milohax/c2-rs/.claude/worktrees/w-perfstep/work/w-perfstep/arm1/target/release
+  post       c393f999c0ee9209dc885a28d3112019   6,215,456 B  /home/free/code/milohax/c2-rs/.claude/worktrees/w-perfstep/work/w-perfstep/arm2/target/release
+  predup     46dc08b4c4c3de7f1eb92061739e1616   6,126,256 B  /home/free/code/milohax/c2-rs/.claude/worktrees/w-perfstep/work/w-perfstep/dup1
+null arm predup verified byte-identical to pre
+rotation: carryover-balanced, cycle = 6 rounds, verified — {'rounds': 6, 'cross_each': 2, 'self_each': 2, 'pos_each': 2}
+rounds=12 port_iters=2000 load_at_start=3.5
+  round 1/12 done (pre post predup)
+  round 2/12 done (predup pre post)
+  round 3/12 done (post pre predup)
+  round 4/12 done (predup post pre)
+  round 5/12 done (pre predup post)
+  round 6/12 done (post predup pre)
+  round 7/12 done (pre post predup)
+  round 8/12 done (predup pre post)
+  round 9/12 done (post pre predup)
+  round 10/12 done (predup post pre)
+  round 11/12 done (pre predup post)
+  round 12/12 done (post predup pre)
+
+population: n = 157 fixtures matched by EVERY arm in EVERY round (per-arm first-round counts: pre 157, post 157, predup 157)
+load at end: 9.7
+
+PER-ROUND geomeans over the common 157 fixtures (this is what status.sh collects: ONE run, no minimum)
+arm        round    speedup       ref_ns    port_ns
+pre            1     609.0x   11,139,303     18,293
+pre            2     555.4x    9,066,983     16,326
+pre            3     555.7x    8,994,697     16,187
+pre            4     748.5x   16,116,728     21,531
+pre            5     583.8x   10,220,429     17,506
+pre            6     615.1x   10,799,348     17,558
+pre            7     561.5x    8,963,659     15,965
+pre            8     604.3x   10,181,344     16,847
+pre            9     645.3x   14,142,413     21,915
+pre           10     566.0x    9,140,220     16,147
+pre           11     549.8x    8,734,654     15,888
+pre           12     567.8x    9,143,161     16,103
+post           1     567.0x    9,179,753     16,189
+post           2     610.4x   11,655,227     19,095
+post           3     570.3x    9,145,060     16,035
+post           4     590.6x   11,563,882     19,580
+post           5     769.8x   14,945,553     19,416
+post           6     594.5x   10,605,068     17,838
+post           7     661.7x   10,823,741     16,357
+post           8     889.2x   18,904,623     21,260
+post           9     572.5x   10,241,636     17,890
+post          10     567.6x    9,165,850     16,150
+post          11     718.7x   15,558,152     21,647
+post          12     568.3x   10,510,243     18,494
+predup         1     554.4x    8,761,861     15,805
+predup         2     553.9x    8,773,029     15,838
+predup         3     575.1x    9,466,535     16,462
+predup         4     586.0x   11,431,883     19,507
+predup         5     677.7x   13,699,574     20,215
+predup         6     608.0x   11,402,450     18,755
+predup         7     615.2x    9,914,637     16,115
+predup         8     590.0x    9,571,694     16,224
+predup         9     604.5x   13,312,960     22,023
+predup        10     568.7x    9,244,395     16,256
+predup        11     565.5x    9,627,804     17,024
+predup        12     569.9x    9,149,168     16,054
+
+PER-ARM spread across rounds (max/min - 1) — THE NOISE FLOOR, in the units the row is published in
+arm         speedup min       max    spread  ref spread  port spread
+pre              549.8x    748.5x     36.2%       84.5%        37.9%
+post             567.0x    889.2x     56.8%      106.7%        35.0%
+predup           553.9x    677.7x     22.3%       56.4%        39.3%
+
+MIN-OVER-ROUNDS estimator (cost_arms.py's), each side separately
+arm           speedup   vs base       ref_ns   vs base    port_ns   vs base
+pre            534.6x    +0.00%    8,393,654    +0.00%     15,701    +0.00%
+post           547.9x    +2.48%    8,566,360    +2.06%     15,635    -0.41%
+predup (NULL)     536.3x    +0.32%    8,402,301    +0.10%     15,667    -0.21%
+
+PAIRED per-fixture vs pre (min-over-rounds), port side and ref side separately
+arm        side        mean                 95% CI    median        slower on
+post       port      -0.41% [  -0.59,   -0.23]    -0.54%      48 of 157 (31%)
+post       ref       +2.17% [  +1.43,   +2.90]    +1.80%     103 of 157 (66%)
+predup     port      -0.21% [  -0.34,   -0.08]    -0.16%      59 of 157 (38%)
+predup     ref       +0.17% [  -0.42,   +0.76]    +0.07%      81 of 157 (52%)
