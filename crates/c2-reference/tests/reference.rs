@@ -10,6 +10,7 @@ use c2_il::is_ex_magic;
 use c2_obj::{ObjDiff, ObjImage};
 use c2_reference::Toolchain;
 
+// PROV[N] a scratch-directory counter.
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn fixture(name: &str) -> PathBuf {
