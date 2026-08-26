@@ -503,6 +503,61 @@ Both samples are `sha256`-frozen (`work/w-inline/sample_a.txt`,
 `sample_b.txt`); GRID-2b is stamped `0c5f520c…` and was committed before one
 cell was compiled.
 
+> ### ✔ 2026-08-26 — **SAMPLE-B IS RE-FROZEN BY CONTENT, `#3045`'s NAMED FIX — and the drift it warned about DID NOT CONTINUE, on a corpus where a THIRD of the population's sources moved**
+>
+> Lane `w-inlmetric` ([`rungs/2026-08-26-w-inlmetric.md`](rungs/2026-08-26-w-inlmetric.md),
+> board **#3624**). `#3045` closed with *"whatever re-freezes this list should
+> record content hashes"*. It is recorded:
+> `work/w-inlmetric/sample_b_frozen.tsv` — 100 rows, each TU's `sha256` and
+> byte length, at a named dc3 stamp. `sample_b.txt` is **byte-identical and
+> unchanged**; re-freezing by content is not re-selecting.
+>
+> | | published | `#3045` re-run | **this lane** |
+> |---|---:|---:|---:|
+> | dc3 stamp | — | `2277bb73ef23` | **`15a64d92f`, 0 dirty** |
+> | **accuracy** (leaf term dropped) | 0.9716 | 0.9681 | **0.9678** |
+> | **graded callees** | 9,993 | 8,916 | **8,936** |
+> | source-leaf (`/Ob0`) | 0.9688 | 0.9650 | **0.9646** |
+> | `/O1`-obj leaf | 0.9631 | 0.9586 | **0.9585** |
+> | majority baseline | 0.6434 | — | **0.7020** |
+>
+> **The ordering replicates a third time** — dropped > source-leaf > `/O1` —
+> and §5's warning holds at every stamp it has been taken at.
+>
+> **The finding is the DENOMINATOR, and it is the opposite of `#3045`'s.**
+> `#3045` measured a 10.8 % population collapse under a byte-identical list and
+> concluded the list was not frozen. Between its stamp and this one, dc3 moved
+> 727 files, **24 of the 100 listed TUs changed their own source**, and 159
+> headers under `src/` changed. The graded population moved **8,916 → 8,936,
+> +0.22 %**, and the accuracy moved **−0.0003**. **33.0 % of the graded callees
+> live in a TU whose `.cpp` churned**, and the number did not notice.
+>
+> Registered in `work/w-inlmetric/PREREG.md` §3 before the first compile:
+> P3.1 predicted `[0.960, 0.975]` with a point estimate of **0.968** — **hit**.
+> P3.3 predicted the population would move **more than 2 %** — **miss**, and
+> the miss is the result. P3.5 fixed the reading in advance and it applies as
+> written: this is **a stable rule on a moved corpus**, and it is neither a
+> regression nor an improvement.
+>
+> **So `#3045`'s 10.8 % was a one-time event, not ongoing drift**, and the two
+> readings together say something neither says alone: `INLINE-P` is
+> considerably more robust to corpus churn than the population figure that
+> prompted the warning suggested. **The warning stands anyway** — a rate whose
+> denominator is not published is still unreadable, and the freeze is what makes
+> the next drop *attributable*: `work/w-inlmetric/per_tu_population.tsv` carries
+> the per-TU graded count and hit count, so a future collapse names its TUs
+> instead of only its size.
+>
+> **Two limits of this freeze, stated so it is not over-trusted.** (1) It hashes
+> the **`.cpp` only**; 159 headers moved in the same interval and a header
+> change moves a TU's callee set without touching its hash. (2) **4 of the 100
+> TUs contribute zero graded callees** (every callee has `sites == 0`), so the
+> effective corpus is **96 TUs**, and it always was.
+>
+> **What did NOT move, and it is worth its own line: `0 of 100` TUs are missing
+> from dc3.** PREREG P3.4 predicted 1–8 would have been deleted or renamed. All
+> 100 still exist and all 100 still compile — `built: 100 of 100` at both arms.
+
 **The step is where §6.17.4 + §6.17.5 say it is.** 11,866 `EXTERNAL` +
 `SELECT_ANY` callees of SAMPLE-A (the *diagnostic* sample — SAMPLE-B's own
 accuracy is the hold-out number and is in the table above), observed inline

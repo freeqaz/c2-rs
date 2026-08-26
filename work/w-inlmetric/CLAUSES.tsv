@@ -1,0 +1,47 @@
+# CONFORMANCE TABLE -- c2's inline decision function, clause by clause.
+# Lane w-inlmetric. Source: docs/whitebox/ref/P_INLINE.md SS1-SS2 +
+# docs/whitebox/WB_INLINE_FINDINGS.md SS1-SS2.4. Frozen by work/w-inlmetric/PREREG.md SS1.
+#
+# THIS IS A PROGRESS INSTRUMENT, NEVER A GATE (docs/FUNCTION_BYTE_MATCH.md SS0).
+# It licenses no emit. Nothing here enters crates/.
+#
+# addr        the c2 VA the clause is read at, in c2.dll sha256 c80981c0..a66258.
+#             MECHANICALLY CHECKED against FUNCS.tsv entry+size by check_table.py.
+# owner       the function the page claims the addr is in. A mismatch is RED.
+# state       R-derived | fitted | absent | unexercisable
+#               R-derived     the port's counterpart is derived from the same
+#                             field/fact c2 tests, with a DISCLOSURE-grade trail.
+#               fitted        a counterpart exists and is a black-box FIT, not
+#                             a reading of this clause.
+#               absent        no counterpart in crates/. Ties break HERE (PREREG SS5).
+#               unexercisable no compilation this project runs can reach the
+#                             clause, so `absent` would mis-read it.
+# witness     path:token  (verified present)  |  none:<token-that-must-be-ABSENT>
+# exercised   yes | no | not-separable | unexercisable  -- by the 878-TU workload,
+#             measured on the 100-TU hold-out's 8,936 graded callees where possible.
+#
+id	clause	addr	owner	state	witness	exercised	note
+C1	pass entry per function; whole pass skipped when DAT_10c40ec4 == 0	10b62675	10b62675	absent	none:DAT_10c40ec4	yes	the port has no inline PASS at all; splice/elide are emit-time rules inside lowering
+C2	caller instruction count seeded: DAT_10c3f5cc = (ushort)[fn+0x50]	10b626d8	10b62675	absent	none:caller_instrs	not-separable	F7: caller 48 B vs 5,640 B gives identical verdicts on 12 cells
+C3	growth budget B = clamp(2 x caller_instrs, 1000, 35000)	10b626f4	10b62675	absent	none:INLINE_BUDGET	not-separable	P_INLINE SS3.1 records this READ, NOT CONFIRMED; no DISCLOSURE row proposes it
+C4	driver entry FUN_10b61ee1(fn, level=1, budget=B, 0, 100000000, 0)	10b6276a	10b62675	absent	none:inline_driver	not-separable	no depth/budget parameters exist to pass
+C5	site collector: one linear scan; instruction kind 0x0f is a call site	10b600e6	10b600e6	absent	none:site_collector	yes	the port reaches sites through Terminator::TailCall / Selected, not a tuple scan
+C6	site collector: EH-region nesting + conditional/EH flag into bit 1	10b600e6	10b600e6	absent	none:eh_region_nesting	yes	the port REFUSES a conditional site (splice S1/S3) rather than flagging it; F8 = 6 cells
+C7	ceiling VALUE: DAT_10c46318 = 0x10 << DAT_10c2ea98, or 1000 at k >= 7	10b5e4d7	10b5e4cc	absent	none:DAT_10c46318	yes	16<<3 = 128 INSTRUCTIONS does not compose into the measured byte brackets (SS4.2)
+C8	candidacy SIZE TEST: cmp WORD [sym+0x50], DAT_10c46318; jl = candidate	10b5fc8a	10b5fb5f	fitted	crates/c2-core/src/splice.rs:INLINE_UNBOUNDED_BYTES	yes	port tests LOWERED BYTES (64/128/80) where c2 tests a pre-codegen COUNT; 3 constants, all obj-fitted
+C9	favour-speed bit 0x10c2e310 non-zero => the size test is SKIPPED	10b5fc7e	10b5fb5f	absent	none:favor_speed	no	the workload is pinned to /O1, so the bit is single-valued; GRID-I moved it at /O2 on 60 cells
+C10	__forceinline: test [sym+0x4c], 0x2000 bypasses every size and budget test	10b609d3	10b60930	absent	none:FN_FLAG_FORCEINLINE	yes	F4 inlines a 980-byte callee; the port has NO accept path, only refusals
+C11	legality: refuse on [sym+0x20] & {0x400, 0x1000, 0x40, 0x100}	10b5c06b	10b5c06b	absent	none:SYM20_MASK	no	no workload witness isolates any of these four bits
+C12	legality: refuse on [sym+0x4c] & {0x80000, 0x200}	10b5c06b	10b5c06b	absent	none:SYM4C_REFUSE	no	no workload witness isolates either bit
+C13	legality: REQUIRE bit 6 of [sym+0x4c]	10b5c06b	10b5c06b	R-derived	crates/c2-il/src/func/gl.rs:FN_FLAG_INLINABLE	yes	0x40 = bit 6; gl.rs's own comment records the two derivations meeting from opposite sides
+C14	depth cap: 0x10 < level - DAT_10c3f50c => decline (16 levels)	10b609ae	10b60930	absent	none:INLINE_MAX_DEPTH	no	no cell nests 16 deep; comdat.rs:503 records the port's boolean is NOT a depth counter, on purpose
+C15	maxlevel != 0xff && maxlevel < level => decline	10b609bd	10b60930	absent	none:maxlevel	no	#pragma inline_depth appears in 0 of the 100 hold-out TUs, so maxlevel is 0xff throughout
+C16	caller-huge decline: 35000 < DAT_10c3f5cc	10b609ee	10b60930	absent	none:CALLER_HUGE	no	would need a caller of 35,000 instructions
+C17	budget accept/decline: budget < instrs && instrs > 0x28 => DECLINE	10b60a04	10b60930	absent	none:budget_decline	not-separable	F7 again: the budget is not reachable from the flag/size space anyone has swept
+C18	the 40-instruction test, SECOND copy: cmp WORD [callee+0x50], 0x28	10b6249b	10b6242a	absent	none:FORTY_INSTRS	not-separable	two copies of one constant, charge-side and decline-side; neither has a port counterpart
+C19	the charge: *budget -= WORD[callee+0x50]; DAT_10c3f5cc += same	10b624a2	10b6242a	absent	none:inline_charge	not-separable	nothing in the port accumulates growth
+C20	the expansion recurses back into the driver for the inlined body	10b620fc	10b620fc	fitted	crates/c2-core/src/splice.rs:S6-chain	yes	#1020: c2 CLOSES THE CHAIN, measured on 150 workload relocation witnesses; the port's splice is a fixpoint too
+C21	POGO profitability model, entered only when a profile record exists	10b5fcd8	10b5fcd8	unexercisable	none:pogo_cost_model	unexercisable	no PGO build exists here; /GL and profile-guided appear in 0 dc3 source files
+C22	POGO per-site discount: cost -= (K + cost) / n_sites	10b600c8	10b5fcd8	unexercisable	none:site_discount	unexercisable	inside C21's model; the only site-count arithmetic in the image is this division
+C23	parameter-table selection between DAT_10c45e18 / DAT_10c45ed0	10b5b86d	10b5b86d	unexercisable	none:DAT_10c45e18	unexercisable	both 46-dword tables sit above the image's raw .data: zero at load, written at run time, unquotable
+C24	the tested quantity WORD [sym+0x50] is the .gl SIZE field, arriving verbatim	10b9bf6c	10b9b8e9	R-derived	crates/c2-il/src/func/gl.rs:GL_SIZE_ESCAPE_PAYLOAD	yes	DISCLOSURE W-GLATTRS-1. The port DECODES the field c2 tests and then DISCARDS it -- read, not consulted

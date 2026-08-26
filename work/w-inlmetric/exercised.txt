@@ -1,0 +1,25 @@
+=== EXERCISED: what the 100-TU hold-out's 8936 graded callees actually span ===
+callee emitted .text size: min 4  p25 12  median 32  p75 88  p95 248  p99 560  max 7480
+
+EXTERNAL /O1 bracket (100,116]    :   277 callees sit INSIDE the bracket = 3.10%
+STATIC /O1 bracket (300,308]      :     8 callees sit INSIDE the bracket = 0.09%
+
+linkage : {'EXTERNAL': 8935, 'STATIC': 1}
+varargs : {'0': 8936}
+selection: {'ANY': 8485, 'NODUPLICATES': 451}
+
+callees over c2's STATIC /O1 floor (>308 B) : 350 = 3.92%
+callees over c2's EXTERNAL /O1 ceiling (>116 B): 1327 = 14.85%
+callees at s<=64 -- splice.rs S7's categorical region: 5827 = 65.21%
+
+n_sites==1: 6026   n_sites>1: 2910 = 32.56%   max sites: 31
+
+=== the SINGLE STATIC callee in 8,936 -- SCHEDULE D's graduated middle is its ONLY home ===
+    {'tu': 'src/system/rndobj/ColorXfm.cpp', 'callee': '?ModChan@@YAHH@Z', 'size': '28', 'index': '28', 'nmax': 'inf', 'sites': '10', 'predicted': 'INLINED-ALL', 'observed': 'INLINED-ALL', 'verdict': 'HIT'}
+
+rows whose N_max is FINITE and non-zero (the graduated middle FIRING): 0 of 8936
+  N_max == UNBOUNDED : 6397 = 71.59%
+  N_max == 0         : 2539 = 28.41%
+
+>>> INLINE-P degenerates to a SINGLE THRESHOLD on this workload: index<=64 or not.
+>>> Its site-count schedule -- the whole of SCHEDULE D -- is exercised by 0 of 8936 callees.
