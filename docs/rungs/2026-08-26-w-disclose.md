@@ -210,6 +210,17 @@ surface **stops and reports**.
   break**, which is the whole reason `#3635` fences three facts by name rather
   than by file.
 
+**A fifth item, repaired rather than reported, because it is a typo and not a
+claim.** Every row in the ledger was cell-counted while filing: **`W-OBJPLAN-1`
+renders as an eleven-column row in a seven-column table**, because its
+twice-amended Notes cell writes `|names| / |emitted|` with the pipes unescaped —
+backticks do not escape a pipe in a markdown table. A reader loses the last
+third of that row's notes into four phantom columns. Three backslashes, no claim
+touched, and the other 20 rows are now positively verified at 7 cells rather
+than merely unchallenged. **This is `#3626`'s shape at its smallest**: the
+ledger's most-amended row had a rendering defect nobody saw because nothing
+counted.
+
 **A fourth thing was checked and is NOT a defect.** `plan`'s header says every
 arm cites *"the address of the c2 arm it was read from"*, and four memory groups
 cite `0x10bf9e55` / `0x10bf9eb5` / `0x10bf9788` / `0x10bf97c8` instead of arms
