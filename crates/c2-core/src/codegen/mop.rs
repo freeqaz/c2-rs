@@ -89,6 +89,44 @@
 //! detector was a lane reading it for another purpose.** That is what the
 //! neighbouring control is for.
 //!
+//! # The counts in this file are BOUND, not asserted
+//!
+//! *Added 2026-08-27 by lane `w-wire` (owner decision 19). Board **#3683**.
+//! Comment-only; no value moved and none could.*
+//!
+//! `#3643` is the reason this section exists: the read-marker on [`OPCODES`]
+//! said *"71 of c2's 660 rows"* for four days while the table had 85, and the
+//! wrong number was quoted forward into a board row and into `DISCLOSURE.md`
+//! on the way. **The census counts *whether* a constant is tagged, never
+//! whether the tag's own text is true**, so nothing could catch it.
+//! `scripts/prose_audit.py`'s **C4** check can: a `COUNT[<recipe>] = <N>`
+//! annotation is recounted from the tree on every run, and C4b additionally
+//! requires `N` to appear in the prose it annotates, so a binding cannot drift
+//! away from the sentence it grades.
+//!
+//! The population is the **85** `op::` opcode constants — one per row of
+//! [`OPCODE_ROWS`], which is the invariant worth watching, since an 86th
+//! `op::` constant with no row (or the reverse) is exactly the drift `#3643`
+//! was — plus seven others ([`OPCODES`], [`OPCODE_ROWS`], [`MAX_C2_OPCODE`],
+//! [`OPCODE_INDEX`], [`MAX_FIELDS`], [`NONE_FIELD`], [`EncodeParams::C2`]).
+//!
+//! This module declares **92** `const`/`static` items in non-test code:
+//!
+//! COUNT[rs-consts:crates/c2-core/src/codegen/mop.rs] = 92
+//!
+//! **What is NOT bound, and it is named rather than left silent.** The other
+//! three numbers `#3643` repaired — **575** untranscribed rows, over **34** of
+//! c2's **104** distinct form values — have **no recipe that can express
+//! them**. `run_recipe`'s whole vocabulary (`ledger-rows`, `md-rows`, `grep`,
+//! `rs-consts`, `rs-marks`, `rs-array`) counts matching lines or literal
+//! entries; `575` is a *difference* (660 − 85) and `34` / `104` are
+//! *distinct-value* counts over a column, which needs a dedup no recipe does.
+//! All three were re-derived by hand at `bce2bfc68` and all three are correct.
+//! `660` **is** bindable (`grep:docs/whitebox/ref/ENCODE_OPCODES.txt:^0x`
+//! recounts to 660) and is deliberately not bound here — this lane's prereg
+//! ruled it out of scope; it is the obvious next annotation and binding it
+//! would leave `575` checkable by a reader's subtraction.
+//!
 //! # The decision surface
 //!
 //! `docs/GOAL_DECISION_2026-08-21.md` § AMENDED and `docs/rungs/README.md`'s
@@ -338,6 +376,18 @@ pub static OPCODES: &[OpRow] = OPCODE_ROWS;
 /// at each use site, which would silently demote every emit to the 85-row
 /// linear scan that lane `w-s1` measured at **+10.67 % mean port time per obj**
 /// (board **#3336**). One address, one table, two spellings.
+///
+/// **The recipe below names `OPCODE_ROWS`, not [`OPCODES`]**, and that is not a
+/// stylistic choice: `OPCODES` is an alias (`= OPCODE_ROWS`) rather than an
+/// array literal, so `array_entries` cannot find a literal there — and an
+/// unresolvable recipe is a C4 *finding*, never a silent zero.
+///
+/// **The row count is BOUND, not asserted** (`#3643`, lane `w-wire`, board
+/// **#3683**): `scripts/prose_audit.py` C4 recounts the literal below on every
+/// run, so the **85** that every sentence in this file leans on cannot go stale
+/// the way *"71"* did for four days.
+///
+/// COUNT[rs-array:crates/c2-core/src/codegen/mop.rs:OPCODE_ROWS] = 85
 const OPCODE_ROWS: &[OpRow] = &[
     row(op::ADD, "add", 0x7c00_0214, 49),
     row(op::ADDE, "adde", 0x7c00_0114, 49),
