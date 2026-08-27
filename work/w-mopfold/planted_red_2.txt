@@ -1,0 +1,4 @@
+thread 'codegen::word_seam::seam::no_inventoried_word_is_one_mop_can_compose' (2557351) panicked at crates/c2-core/src/codegen/word_seam.rs:741:13:
+THE REFUSAL ON codegen/calls.rs::encode_call_branch HAS EXPIRED — and that is good news.
+thread 'codegen::word_seam::seam::the_value_half_can_fail' (2557355) panicked at crates/c2-core/src/codegen/word_seam.rs:800:13:
+coverable() flagged the LEGITIMATE bl — it is saying yes to everything

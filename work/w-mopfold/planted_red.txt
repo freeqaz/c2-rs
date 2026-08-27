@@ -1,0 +1,76 @@
+   Compiling c2-core v0.1.0 (<WORKTREE>/crates/c2-core)
+warning: constant `PLANTED_STH` is never used
+   --> crates/c2-core/src/codegen/frame.rs:121:18
+    |
+121 | pub(crate) const PLANTED_STH: u32 = 0xB181_FFF8;
+    |                  ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `planted_emitter` is never used
+   --> crates/c2-core/src/codegen/frame.rs:125:15
+    |
+125 | pub(crate) fn planted_emitter(reg: u32) -> [u8; 4] {
+    |               ^^^^^^^^^^^^^^^
+
+warning: `c2-core` (lib test) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.29s
+     Running unittests src/lib.rs (target/debug/deps/c2_core-e2b98bdb77b52971)
+
+running 7 tests
+test codegen::word_seam::seam::no_inventoried_word_is_one_mop_can_compose ... ok
+test codegen::word_seam::seam::the_structural_half_can_fail ... ok
+test codegen::word_seam::seam::the_value_half_can_fail ... ok
+test codegen::word_seam::seam::const_word_and_encode_op_agree ... ok
+test codegen::word_seam::seam::the_folded_words_still_have_their_captured_values ... ok
+test codegen::word_seam::seam::no_word_is_composed_outside_the_mop_seam ... FAILED
+test codegen::word_seam::seam::every_big_endian_emission_is_inventoried ... FAILED
+
+failures:
+
+---- codegen::word_seam::seam::no_word_is_composed_outside_the_mop_seam stdout ----
+
+thread 'codegen::word_seam::seam::no_word_is_composed_outside_the_mop_seam' (2553759) panicked at crates/c2-core/src/codegen/word_seam.rs:625:9:
+A SECOND PRODUCER OF AN INSTRUCTION WORD APPEARED.
+  codegen/frame.rs:121  0xb181fff8  in `PLANTED_STH`  — mop::OPCODES already composes this word as `sth`
+
+The port's READ base-word table (`mop::OPCODES`, from `docs/whitebox/ref/ENCODE_OPCODES.txt`) can compose the word above, so writing it as a literal creates two rules for one fact. They will agree today — that is the whole problem: a byte compare cannot see a CONCURRING second producer, and `mismatch 0` stays silent until the day they diverge, at which point the defect is indistinguishable from a lowering bug (board #3637).
+
+Compose it instead: `mop::const_word(mop_stw(12, 1, -8))` for a `const`, or `mop_stw(12, 1, -8).word()` at run time.
+
+If it genuinely cannot go through the table, add a row to `EXCEPTIONS` in this file saying WHY — and know that the row is checked, not believed: `no_inventoried_word_is_one_mop_can_compose` re-derives the word every run and fails if the table can in fact compose it.
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- codegen::word_seam::seam::every_big_endian_emission_is_inventoried stdout ----
+
+thread 'codegen::word_seam::seam::every_big_endian_emission_is_inventoried' (2553757) panicked at crates/c2-core/src/codegen/word_seam.rs:715:13:
+THE BIG-ENDIAN EMISSION INVENTORY IS STALE.
+
+A site that turns a value into four big-endian bytes is a site that can put an instruction into `.text`, and this crate keeps an enumerated list of them so that a NEW one is a decision somebody made on purpose rather than a diff nobody read (board #3637; ARCHITECTURE_SEAMS.md §1 class 4, where two `encode_std`s lived 2,000 lines apart and git flagged nothing).
+
+  NEW      codegen/frame.rs::planted_emitter  x1
+
+If the word is an instruction, compose it through `mop` and it needs no row. Otherwise add the row to `EMISSIONS` and say which kind it is. The whole observed table, to paste:
+
+        ("codegen/calls.rs", "encode_call_branch", 1),
+        ("codegen/frame.rs", "epilogue", 3),
+        ("codegen/frame.rs", "planted_emitter", 1),
+        ("codegen/frame.rs", "prologue", 2),
+        ("codegen/frame.rs", "prologue_gpr_helper", 1),
+        ("codegen/frame.rs", "prologue_gpr_helper_leaf", 1),
+        ("codegen/mop.rs", "word", 1),
+        ("coff/ehscope.rs", "emit_eh_scope_obj", 1),
+        ("coff/ehscope.rs", "pdata_record_eh", 2),
+        ("coff/ehscope.rs", "plan_text", 6),
+        ("coff/function.rs", "real_raw_bytes", 2),
+        ("coff/pdata.rs", "pdata_record", 2),
+
+
+
+failures:
+    codegen::word_seam::seam::every_big_endian_emission_is_inventoried
+    codegen::word_seam::seam::no_word_is_composed_outside_the_mop_seam
+
+test result: FAILED. 5 passed; 2 failed; 0 ignored; 0 measured; 627 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p c2-core --lib`

@@ -5,24 +5,42 @@
 //! policy. That is why they live together in one alphabetizable file rather
 //! than beside the lowerings that call them.
 //!
-//! **This file is a black-box re-derivation of two tables c2 states plainly,
-//! and the read is priced — comment only, nothing here changes.** Added
-//! 2026-08-22 under read-before-probe (`docs/WHITEBOX_LEVERAGE_2026-08-21.md`
-//! §1; `docs/whitebox/READ_PLAN_2026-08-21.md` §2/§3). Every word below was
-//! recovered from captured objs; c2 composes the same words from a base-word
-//! table at `0x10c3a578` and an encode-form table at `0x10c39b18`, dispatched
-//! through a 111-entry jump table at `0x10bfae2d` with **79 distinct arm
-//! targets**, all inside `FUN_10bf9f15`'s 3,861 bytes. Read **R2** (2–4 d)
-//! dumps both tables and reads the 79 arms, yielding `encode(tuple) → u32` as
-//! a **total function** — the same content this file accumulates one captured
-//! fact at a time. R2 is also the read that specs **I2**, the general-lowering
-//! row priced at 1.5–4.5 engineer-months
-//! (`docs/STEP5_PRICING_2026-08-21.md` §2).
+//! > ⚠ **STRUCK 2026-08-26, board #3640 — the paragraph below is a dated
+//! > record of this file BEFORE read R2 landed, and it is superseded by
+//! > § "2026-08-22, lane `w-s1`" twenty-odd lines down.** It describes R2 as
+//! > future work; R2 landed the same day it was written, and the 85 opcode
+//! > literals it is about are gone. Two lanes read this one `//!` block to
+//! > opposite conclusions (`#3634` vs decision 16) because the correction was
+//! > appended *below* and the original was never struck — which is
+//! > `DOC_CONVENTIONS.md` §2's own named failure mode: **an amend-beside that
+//! > does not strike its original is a second claim, not a correction.** What
+//! > survives of it is stated in the superseding section: the *choice of
+//! > opcode and operand role* is still black-box; the *bits* are read.
+//! >
+//! > ~~**This file is a black-box re-derivation of two tables c2 states
+//! > plainly, and the read is priced — comment only, nothing here changes.**
+//! > Added 2026-08-22 under read-before-probe
+//! > (`docs/WHITEBOX_LEVERAGE_2026-08-21.md` §1;
+//! > `docs/whitebox/READ_PLAN_2026-08-21.md` §2/§3). Every word below was
+//! > recovered from captured objs; c2 composes the same words from a base-word
+//! > table at `0x10c3a578` and an encode-form table at `0x10c39b18`,
+//! > dispatched through a 111-entry jump table at `0x10bfae2d` with **79
+//! > distinct arm targets**, all inside `FUN_10bf9f15`'s 3,861 bytes. Read
+//! > **R2** (2–4 d) dumps both tables and reads the 79 arms, yielding
+//! > `encode(tuple) → u32` as a **total function** — the same content this
+//! > file accumulates one captured fact at a time. R2 is also the read that
+//! > specs **I2**, the general-lowering row priced at 1.5–4.5
+//! > engineer-months (`docs/STEP5_PRICING_2026-08-21.md` §2).~~
 //!
 //! **The bound, so this is not overread**: a complete encoder is not a
 //! complete emit seam — relocations are **not** in R2's scope (0 cells read at
-//! that seam), and 2 of the 111 entries are read today. The per-function
-//! evidence notes below stay as written; they are what the port is graded on.
+//! that seam), and ~~2 of the 111 entries are read today~~ — **that clause is
+//! struck with the paragraph above, 2026-08-26, board #3640**: it counted the
+//! jump-table entries read *before* R2, and R2 read all 79 distinct arms. The
+//! port transcribes **27** of them, covering **35** form numbers (counted in
+//! `super::mop::plan` on this tree; `DISCLOSURE.md` `W-MOP-3` is the row).
+//! Relocations are still 0. The per-function evidence notes below stay as
+//! written; they are what the port is graded on.
 //!
 //! The file also exists to make one specific defect impossible. Two branches
 //! once landed two `encode_std`s 2,000 lines apart in the old single-file
@@ -33,13 +51,33 @@
 //! ---
 //!
 //! # 2026-08-22, lane `w-s1` — **THE BLACK-BOX RE-DERIVATION IS RETIRED, AND
-//! THE READ TABLE IS THE PORT'S ONLY SOURCE OF A PRIMARY OPCODE.**
+//! THE READ TABLE IS THE PORT'S ONLY SOURCE OF A PRIMARY OPCODE ~~FULL STOP~~
+//! FOR EVERY INSTRUCTION IN THIS FILE.**
+//!
+//! *(The qualifier is a correction, 2026-08-26, board **#3638**. As written the
+//! headline was true of `encode.rs` and false of the crate: `calls.rs` and
+//! `frame.rs` held **eight** word productions sourcing primaries 14, 15, 18,
+//! 31, 32 and 36 from their own literals — board **#3637**. Lane `w-mopfold`
+//! folded all eight, and three instructions the port emits still have no row
+//! (`bl`, `mfspr`, `stwux`), enumerated and re-checked every test run by
+//! `super::word_seam`. The scope word is the whole repair: the sentence was
+//! never wrong about this file.)*
 //!
 //! Every function below used to carry its own copy of a primary opcode and an
 //! extended opcode as literals. Read **R2** dumped the two tables those
 //! literals were re-deriving, so they are gone: each function is now a
 //! **[`super::mop::MachineOp`] constructor** naming c2's own opcode number, and
 //! [`super::mop::encode_op`] is the one place a word is composed.
+//!
+//! **What it did NOT retire, per `#3640`'s adjudication.** `w-s1` moved where
+//! the *bits* come from; it did not move **which opcode a lowering should name
+//! and which operand role each argument plays.** That choice is still
+//! black-box — recovered from captured objs, function by function, and recorded
+//! in the per-function evidence notes below. So `#3634` ("the black-box
+//! re-derivation was retired") and decision 16 ("this file is a black-box
+//! re-derivation") are both right about different objects, and quoting either
+//! as *"nothing in `encode.rs` is black-box-derived any more"* is the over-read
+//! neither of them made.
 //!
 //! **What that buys, concretely.** The bit layouts stopped being 85 independent
 //! facts. `xo31`, `fp_a_form`, `fp_primary` and `encode_logical_x`'s `xo`
@@ -411,6 +449,42 @@ pub fn mop_mtctr(rs: u8) -> MachineOp {
         .imm_d2(SPR_CTR >> 5)
 }
 
+/// `mtlr rS` — `mtspr 8,rS`: the epilogue's link-register restore.
+///
+/// The evidence and the split-field trap are on [`mop_mtlr`] below, because
+/// **this pair is the one place in the file where the `mop_*` half came first**:
+/// lane `w-mopfold` needed a `const fn` for `frame::FRAME_MTLR_R12`, and the
+/// `encode_*` twin exists so `mtlr` is shaped like every other instruction here
+/// rather than being the file's one lone `mop_*`. It has no caller today; that
+/// is the honest state of an encoder whose only consumer is a `const`.
+pub fn encode_mtlr(rs: u8) -> [u8; 4] {
+    mop_mtlr(rs).word()
+}
+
+/// `mtlr rS` — `mtspr 8,rS`: the epilogue's link-register restore, the same
+/// opcode and the same split field as [`mop_mtctr`] one SPR number over.
+///
+/// **Added by lane `w-mopfold` so `frame.rs` stops spelling this instruction as
+/// the literal `0x7D88_03A6`** (board **#3637**: `FRAME_MTLR_R12` was one of
+/// eight words the port composed by a second rule). `mtspr`'s base word carries
+/// the SPR field at **zero** and c2's form-62 arm does the five-and-five split
+/// itself (`mop::plan`'s arm `10bfa7a3`, `P_ENCODE.md` §8.1 residual 5), which
+/// is precisely why a baked full word cannot show which half is which and this
+/// constructor can.
+///
+/// `const fn` because its one caller is a `const`. Evidence: `7d8803a6` is
+/// `mtlr r12` in every framed epilogue this project has captured, and
+/// `word_seam`'s inventory pins the historical literal against it.
+#[inline(always)]
+pub const fn mop_mtlr(rs: u8) -> MachineOp {
+    // PROV[S] PowerPC ISA — `SPR` 8 is `LR`. Not from c2; the neighbouring `SPR_CTR` is the same fact one number over.
+    const SPR_LR: u32 = 8;
+    MachineOp::new(op::MTSPR)
+        .s(rs)
+        .imm_d1(SPR_LR & 0x1F)
+        .imm_d2(SPR_LR >> 5)
+}
+
 /// **W-MMIO3 — `bctrl`**: branch to CTR, unconditional, and set LR.
 ///
 /// `4e800421`, one word with no operands at all. `XL`-form:
@@ -501,7 +575,7 @@ pub fn encode_lwz(rd: u8, ra: u8, d: i16) -> [u8; 4] {
 /// [`encode_lwz`] directly above, and stays there.** This function adds
 /// nothing to it but the absence of the final `.word()`.
 #[inline(always)]
-pub fn mop_lwz(rd: u8, ra: u8, d: i16) -> MachineOp {
+pub const fn mop_lwz(rd: u8, ra: u8, d: i16) -> MachineOp {
     MachineOp::new(op::LWZ).s(rd).d0(ra).disp(d as i32)
 }
 
@@ -645,7 +719,7 @@ pub fn encode_stw(rs: u8, ra: u8, d: i16) -> [u8; 4] {
 /// [`encode_stw`] directly above, and stays there.** This function adds
 /// nothing to it but the absence of the final `.word()`.
 #[inline(always)]
-pub fn mop_stw(rs: u8, ra: u8, d: i16) -> MachineOp {
+pub const fn mop_stw(rs: u8, ra: u8, d: i16) -> MachineOp {
     MachineOp::new(op::STW).d0(rs).s(ra).disp(d as i32)
 }
 
