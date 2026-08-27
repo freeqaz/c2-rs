@@ -2210,6 +2210,44 @@ fn markdown(
         }
     }
 
+    // **AND EVERY MEASURED ROW'S CAVEAT, VERBATIM, IN THE PUBLISHED DOC.**
+    // `#3665`'s sibling, found in the same pass: the `ported` caveat — which
+    // for both measured rows IS the published denominator choice and its
+    // rivals, the thing decision 16 and decision 17 each demanded be stated
+    // out loud rather than picked silently — reached the CONSOLE render and
+    // `subsys.rs`'s source and **nothing else**. `docs/SUBSYS_METRICS.md` has
+    // carried `encode`'s number since `w-encmap` without the paragraph that
+    // says what its 79 means or why it is not 14 or 111. A denominator
+    // published only in the source of the tool that prints it is not
+    // published.
+    let measured: Vec<&Subsystem> = table
+        .iter()
+        .filter(|s| matches!(s.ported, Cell::Measured { .. }))
+        .collect();
+    if !measured.is_empty() {
+        let _ = writeln!(
+            m,
+            "\nAnd for each **measured** row, the caveat that carries its \
+             denominator choice and the rivals it was chosen against — verbatim, \
+             because a denominator published only in the source of the tool that \
+             prints it is not published:\n"
+        );
+        for sub in measured {
+            if let Cell::Measured { num, den, unit, source, caveat } = &sub.ported {
+                let _ = writeln!(
+                    m,
+                    "* **`{}` — {} of {} {}**\n  * source: {}\n  * {}\n",
+                    sub.key,
+                    commas(*num),
+                    commas(*den),
+                    md_escape(unit),
+                    md_escape(source),
+                    md_escape(caveat)
+                );
+            }
+        }
+    }
+
     let _ = writeln!(m, "\n## 5. Where `SUBSYS.md` §1's own cell needs reading twice\n\n\
          Found by re-measuring every denominator on this tree rather than carrying it.\n\
          **None of these is corrected here, and that is a rule rather than a fence** —\n\
@@ -2663,6 +2701,21 @@ mod tests {
                 row.contains(&format!("ported {num} / {den}")),
                 "{}: §3 does not carry the measured ported {num}/{den} -- \
                  the tuple table and §4 disagree, which is #3665: {row}",
+                sub.key
+            );
+            // ...and §4 must carry the caveat VERBATIM. A denominator
+            // published only in this file's source is not published, and
+            // `w-encmap`'s 79-arm justification lived exactly there for a
+            // whole wave.
+            let caveat = match sub.ported {
+                Cell::Measured { caveat, .. } => caveat,
+                _ => unreachable!(),
+            };
+            let head: String = caveat.split_whitespace().take(8).collect::<Vec<_>>().join(" ");
+            assert!(
+                r.markdown.contains(&head),
+                "{}: the measured ported caveat does not reach the published doc \
+                 -- looked for {head:?}",
                 sub.key
             );
         }

@@ -151,6 +151,17 @@ row.
 | `control_a_fabricated_section_ported_is_caught` | the **shipped** cell `1` → `2` | **4 tests red**, `section: ported DOES NOT REPRODUCE — table says 2/15, the tree gives 1/15` |
 | `the_observer_crate_cannot_move_its_own_ported` | `PORTED_SCAN_EXCLUDES_CRATE` disabled | **6 tests red**, and the number **moves `1/15` → `2/15`** — the hazard is measured, not asserted |
 | `control_a_measured_ported_must_reach_the_rendered_table` | the §3 cell restored to the literal `ported RESIDUE` | **1 test red**, naming the row and the missing number |
+| the same control's second half | the §4 caveat withheld from the doc | **1 test red**: *"section: the measured ported caveat does not reach the published doc — looked for `"THE DENOMINATOR IS THE 15 LIVE ARMS OF"`"* |
+
+**`#3665` has a sibling, found in the same pass and repaired with it.** The
+`ported` **caveat** — which on both measured rows *is* the published
+denominator choice and the rivals it beat, the thing decision 16 and decision
+17 each demanded be said out loud — reached the **console** render and
+`subsys.rs`'s source and **nothing else**. `docs/SUBSYS_METRICS.md` has carried
+`encode`'s `27 / 79` since `w-encmap` **without the paragraph that says what
+the 79 is or why it is not 14 or 111**. §4 now emits both caveats verbatim, and
+the control asserts it. *A denominator published only in the source of the tool
+that prints it is not published.*
 
 `the_section_ported_arm_is_the_one_the_port_actually_decodes` is not a
 fabrication: it pins **which** arm the numerator found (`0x10b9bdcf`), that tag
@@ -165,7 +176,63 @@ quietly.
 
 ## 6. Gates
 
-Filled at close — see the final report.
+**Required-zero byte delta — HOLDS.**
+
+```
+scripts/gate_identity_diff.sh work/w-secported/gate_base.out work/w-secported/gate_tip.out
+  count-bearing rows: 21 base, 21 tip (enumerated, not asserted)
+  IDENTITY DIFF: 0 lines over 21 rows — required-zero byte delta HOLDS
+
+scripts/gate_identity_diff.sh --self-test
+  enumeration: 21 count-bearing rows (hatch-red/ladder-red dropped)
+  control: a table against itself                      -> 0 lines, exit 0
+  #3515's one-TU-refused signature                     -> 14 lines, 7 rows
+  the signature case exits NONZERO
+  a TRUNCATED table -> exit 2 (a short extraction is not 'no differences')
+  SELF-TEST PASS
+```
+
+The base transcript is a **real gate run at `0dcfca959`** in a dedicated
+worktree, not a nearby baseline reused: `work/coordinator/gatebase/` holds
+none at this base, and `HOWTO_DIFF.md`'s rule is the **pre-merge** base.
+
+**Both verdicts, read off the `GATE:` line and never the exit code:**
+
+```
+base 0dcfca959 : GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one graded a corpus
+tip  7169b14b3 : GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one graded a corpus
+                 sweep 19460/19556 · cross 90424/90812 · 0 mismatches anywhere
+                 debug-lane 18/18, 7038 fixture-verdicts, 0 panics
+```
+
+`hatch-red` is `REFUSED` at both ends for the standing reason (`HATCH-STALE`,
+board `#1389`) and is one of the two rows the identity diff drops by rule.
+
+**H1 HIT · H2 HIT.** The tree hash moves because `scripts/subsys_metrics.sh`
+is written — `HOWTO_DIFF.md` says that is expected and is not part of the
+identity diff.
+
+**Test counts** — `cargo test --workspace --no-fail-fast`, both ends:
+
+| | targets | passed | failed | ignored |
+|---|---:|---:|---:|---:|
+| base `0dcfca959` | *see final report* | | | |
+| tip `7169b14b3` | *see final report* | | | |
+
+`cargo test -p c2-harness --lib subsys`: **13 → 17** (four checks added).
+
+**One self-inflicted redness, found and fixed rather than shipped**: the first
+`--no-fail-fast` run failed `rung_docs_claim_their_tag_slug_and_fixtures_exactly_once`
+and `rung_index_is_generated_and_current` — this rung's own header lacked the
+registry block and `docs/rungs/INDEX.md` is **generated**. Repaired with
+`scripts/gen_rung_index.sh`; both green. Worth recording because the plain
+`cargo test --workspace` run **stopped at the first failing target** and its
+tail looked entirely green, which is exactly why the rungs README arms
+`--no-fail-fast`.
+
+`scripts/board_audit.sh`: 0 unresolved anchors, 0 duplicate row numbers, 0
+cited-but-absent.
+`scripts/subsys_metrics.sh --self-test`: PASS, all three corruptions RED.
 
 ## 7. What this lane deliberately did NOT do
 

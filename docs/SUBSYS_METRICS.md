@@ -1,8 +1,8 @@
 # SUBSYS METRICS — the per-subsystem scoreboard
 
 > **GENERATED — do not hand-edit.** Regenerate with
-> `scripts/subsys_metrics.sh --write`. Tree `2b423a64e` (DIRTY), generated
-> `2026-08-26T23:25:00Z`. Every number below is re-verified against this tree by
+> `scripts/subsys_metrics.sh --write`. Tree `7169b14b3` (DIRTY), generated
+> `2026-08-27T00:54:06Z`. Every number below is re-verified against this tree by
 > `cargo test -p c2-harness --lib subsys`, which `scripts/gate.sh`'s
 > unit row runs; the seven positive controls run beside it, plus the two
 > checks that are not fabrications (#3665, and the observer exclusion).
@@ -136,6 +136,17 @@ Per residue row, with the reason rather than a blank:
 * **`eh`** — P_EH marks two entries `[O] port` — the port reproduces the deferred unwind-word pass's OUTPUT — but the page's marks are per-claim, not per-site, so they do not compose into a `sites implemented` numerator. Building one is the same missing port<->image map as every other row
 * **`label`** — the port mints labels from its own counter; no mapping exists from its mint points to these 163 charging sites. LABEL_COUNTER.md's own finding is that stride == minted fails both ways, so a naive site count would be wrong even if it were built
 * **`symbol`** — P_SYMBOL §2 marks several addresses `[O]` via the port's own ObjImage::weak_externals with KNOWN-ANSWER 0 alarms, so parts of this subsystem ARE implemented and graded — but per-ADDRESS, and the page's 27 addresses do not map onto port functions one-for-one. The numerator is undefined rather than zero
+
+And for each **measured** row, the caveat that carries its denominator choice and the rivals it was chosen against — verbatim, because a denominator published only in the source of the tool that prints it is not published:
+
+* **`section` — 1 of 15 live .gl record-dispatcher arms the port has a decoder for**
+  * source: lane w-secported, board #3661-#3666: work/w-secported/GLREC_ARMS.tsv (decoded from the pinned image on this tree) x a scan of crates/ outside c2-harness
+  * THE DENOMINATOR IS THE 15 LIVE ARMS OF THE .gl RECORD DISPATCHER 0x10b9b8e9, AND `27 arms` -- which this row itself used to say and decision 17 repeats -- IS NOT AN ARM COUNT. Re-measured from the image: 27 TAG VALUES (0x01..0x1B) index a 27-entry byte table into 16 jump slots, and ONE slot is the fatal C1001 path 0x10b9c5ca serving EIGHT tags (0x0C 0x0F 0x11 0x13 0x14 0x15 0x16 0x17). So the population is 15 live arms over 19 live tags plus one refusal over 8, and calling it 27 overstates the arm count by 1.8x. FOUR RIVAL DENOMINATORS WERE MEASURED AND ARE PUBLISHED RATHER THAN ONE CHOSEN SILENTLY: 16 arms counting the refusal as a site (a port that also refuses agrees with c2 by doing nothing, so this is rejected); 27 tags, on which the port names 5 (0x01 0x02 0x04 0x0E 0x10, all in c2_il::func::glalias, and three of them as pattern LOCATORS rather than decoders); the page's 24/25 read ENTRIES, on which an address grep gives 2 and is WRONG -- see recount_section_ported for the two rules the port implements while citing nothing; and the band's 137 / the TU-level 327, neither of which the port maps onto at all. CONTAINMENT: the 15 arms all live INSIDE 0x10b9b8e9, which is one of the 24 read entries, which is one of the 137 sites -- so `sites superset-of read superset-of ported` holds as a containment of SITE SETS, while the three counts are in three granularities and their RATIOS must not be compared. THE ONE ARM IS 0x10b9bdcf, the shared tag-0x04/0x0E/0x10 handler, decoded by c2_il::func::glalias under DISCLOSURE W-ALIAS-1. The 14 unported arms include 0x10b9c212 -- TAG 0x09, THE SECTION DEFINITION RECORD, every field of which P_SECTION marks obj-checked by .gl mutation. The port does not read it: it carries 17 fully-resolved (name, Characteristics) constants where c2 has a kind switch, a remapper, a base resolver and an alignment chooser. See P_SECTION.md section 7
+
+* **`encode` — 27 of 79 encode arms the port can produce a word through**
+  * source: lane w-encmap, board #3636-#3641: ENCODE_ARMS.txt (79 rows, re-measured on this tree) x c2_core::codegen::mop::{plan, OPCODES}
+  * THE DENOMINATOR IS THE 79 ARMS, NOT THE BAND'S 14 AND NOT THE 111 JUMP-TABLE ENTRIES, and the choice is published rather than silent: `read` on this row is already 79 arms, so `read superset-of ported` is well formed only in the arm unit. The 111 entries are 111 FORMS, each belonging to exactly one arm (re-measured: 111 -> 79, no form served by two arms), so the entry unit would count the same arm up to 12 times. The band's 14 is Ghidra function entries -- a different population entirely. AN ARM COUNTS ON ONE OF ITS FORMS, so this OVER-states partial arms: the strict reading (every form of the arm reachable) is 25, and the loose reading (a FieldPlan exists, whether or not an opcode reaches it) is 28 -- the extra arm is 10bfa26c, form 2, a plan no opcode reaches. The 52 unmapped arms are NOT uniform: 25 are VMX/VMX128-dominated (243 of c2's 639 form-carrying opcodes, including the 104-opcode default arm 10bf9f91), leaving 27 non-VMX arms over 100 opcodes -- the CR-logical family (10bfa81d, 19), FP multiply-add (10bfa49a, 18), the nop family (10bfa1ad, 13), the cache ops (10bfa8ae, 9), and three the port DOES emit by another route and is therefore not refusing: bl (10bfa285, form 7), mfspr (10bfa76a, form 54) and li/lis (10bfa5a0, form 33). See P_ENCODE.md section 10
+
 
 ## 5. Where `SUBSYS.md` §1's own cell needs reading twice
 
