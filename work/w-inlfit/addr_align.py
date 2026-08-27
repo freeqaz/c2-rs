@@ -88,8 +88,13 @@ def main(argv):
 
     path = args[0] if args else os.path.join(REPO, 'work/w-inlmetric/CLAUSES.tsv')
 
+    # Displayed home-relative: this file's output is COMMITTED, and an absolute
+    # machine path in a tracked file is a class-3 violation of the artifact
+    # audit (CLAUDE.md, "never commit absolute machine paths").
+    shown = LISTING.replace(os.path.expanduser('~'), '~', 1)
+
     if not os.path.exists(LISTING):
-        print(f"listing: {LISTING}")
+        print(f"listing: {shown}")
         print("\nADDR-ALIGN: SKIP  (objdump listing absent; regenerate per "
               "C2_MAP_METHOD.md, or set C2RS_OBJDUMP_ASM)")
         return 0
@@ -120,7 +125,7 @@ def main(argv):
         fails.append(f"{r['id']}: 0x{a:08x} is +{a - b} INTO the instruction at "
                      f"0x{b:08x} (both in {fn}) -- {r['clause'][:52]}")
 
-    print(f"listing  : {LISTING}")
+    print(f"listing  : {shown}")
     print(f"boundaries: {len(bs):,} instruction starts")
     print(f"rows      : {len(rows)}")
     for f in fails:

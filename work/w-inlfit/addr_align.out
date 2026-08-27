@@ -1,4 +1,4 @@
-listing  : /home/free/ghidra-projects/export/c2/objdump_intel.asm
+listing  : ~/ghidra-projects/export/c2/objdump_intel.asm
 boundaries: 425,871 instruction starts
 rows      : 24
   FAIL C2: 0x10b626d8 is +1 INTO the instruction at 0x10b626d7 (both in FUN_10b62675) -- caller instruction count seeded: DAT_10c3f5cc = (ush
