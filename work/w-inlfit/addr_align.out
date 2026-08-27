@@ -1,0 +1,13 @@
+listing  : ~/ghidra-projects/export/c2/objdump_intel.asm
+boundaries: 425,871 instruction starts
+rows      : 24
+  FAIL C2: 0x10b626d8 is +1 INTO the instruction at 0x10b626d7 (both in FUN_10b62675) -- caller instruction count seeded: DAT_10c3f5cc = (ush
+  FAIL C3: 0x10b626f4 is +1 INTO the instruction at 0x10b626f3 (both in FUN_10b62675) -- growth budget B = clamp(2 x caller_instrs, 1000, 350
+  FAIL C4: 0x10b6276a is +6 INTO the instruction at 0x10b62764 (both in FUN_10b62675) -- driver entry FUN_10b61ee1(fn, level=1, budget=B, 0, 
+  FAIL C14: 0x10b609ae is +1 INTO the instruction at 0x10b609ad (both in FUN_10b60930) -- depth cap: 0x10 < level - DAT_10c3f50c => decline (1
+  FAIL C16: 0x10b609ee is +3 INTO the instruction at 0x10b609eb (both in FUN_10b60930) -- caller-huge decline: 35000 < DAT_10c3f5cc
+  FAIL C17: 0x10b60a04 is +2 INTO the instruction at 0x10b60a02 (both in FUN_10b60930) -- budget accept/decline: budget < instrs && instrs > 0
+  FAIL C18: 0x10b6249b is +1 INTO the instruction at 0x10b6249a (both in FUN_10b6242a) -- the 40-instruction test, SECOND copy: cmp WORD [call
+  FAIL C19: 0x10b624a2 is +1 INTO the instruction at 0x10b624a1 (both in FUN_10b6242a) -- the charge: *budget -= WORD[callee+0x50]; DAT_10c3f5
+
+ADDR-ALIGN: RED  (8 misaligned of 24 rows)

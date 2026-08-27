@@ -694,3 +694,185 @@ whole of what this lane does with them.
 > filed as a **named follow-up** in
 > [`../../rungs/2026-08-26-w-inlmetric.md`](../../rungs/2026-08-26-w-inlmetric.md)
 > §8 instead, for a lane that pre-registers them.
+
+### 6.6 THE TWO `fitted` CELLS, READ — and both stay `fitted`, for two different reasons
+
+> **Added 2026-08-27 by lane `w-inlfit`** (decision 20, board **#3717**–**#3722**).
+> **Amend-beside**: §1–§6.5 are unchanged, including §2.1's struck block, its
+> correction, and §6.1's table — **no clause row is added, removed, renumbered or
+> restated**, and the reachable denominator is still **21 of 24**.
+>
+> Prereg `work/w-inlfit/PREREG.md`, registered before the image was opened.
+> **Predicted reach 0, delivered 0**: this lane wrote **zero `crates/` bytes** and
+> proposes no `DISCLOSURE` row. Both predictions held, so the value here is the
+> located *reason* each fit cannot yet be replaced.
+
+#### 6.6.1 C8 — the size ceiling is now READ END TO END, and it still does not reach the port's constant `[R]`
+
+Four facts, none of which was on this page:
+
+1. **`DAT_10c46318` has exactly ONE reader in the entire image, and it is C8's
+   own `cmp` at `0x10b5fc8a`.** It has exactly two writers, both inside
+   `FUN_10b5e4cc`: `0x10b5e4d7` stores `0x3e8` (1000) and `0x10b5e4e8` stores
+   `0x10 << k`. Three references in 22 MB of disassembly, and that is all of
+   them. **C8's right-hand operand is therefore wholly determined by C7's
+   producer**, and nothing else in c2 can perturb it between the two.
+2. **`DAT_10c46318` is above the image's raw `.data`** (which ends at
+   `0x10c3cc00`), so it is **zero at load**. Since c2 demonstrably inlines,
+   `FUN_10b5e4cc` necessarily runs before the inliner — a structural conclusion
+   from the writer set, not an assumption.
+3. **`k = DAT_10c2ea98` is `3`, and it is a real initialised datum**: `.data`,
+   file offset `0x12dc98`, inside the raw region. So the ceiling is
+   `0x10 << 3` = **128**, in the units of `WORD [sym+0x50]` — a pre-codegen
+   **instruction count** (§2.1a, and the diagnostic string is `"%d instrs"`).
+4. **`k` is never stored by any instruction; its ADDRESS is planted in an
+   option-descriptor record**, at `0x10c29800`. The record is
+   `[name_ptr, value_ptr, kind]` at stride 12, and its name field resolves to
+   the UTF-16 string **`-vol#`** — an undocumented numeric switch. So c2's
+   ceiling is command-line-settable, the workload never sets it, and `k = 3`
+   holds for every compilation this project runs.
+
+`work/w-inlfit/optmap.py` recovers the descriptor table from the run of stores
+that builds it — the table itself is zero at load and unquotable, exactly as §5
+requires. The record phase is **anchored on the `-EHs`/`-EHa` pair** rather than
+assumed, and the recovery is self-checking: `-Gs#`/`-Gt#` land on adjacent
+dwords, and `-MLd`/`-MDd`/`-MTd`/`-ML`/`-MD`/`-MT` land on six consecutive ones
+in source order. The same block names **21 further undocumented `-inl*#`
+switches** whose value words occupy `0x10c45db4`–`0x10c45e10`, immediately below
+§5's two POGO parameter tables at `0x10c45e18`/`0x10c45ed0`. `k` is also read at
+`0x10b5da64` as a **multiplier** (`(n+2) * k`) inside the unread
+`FUN_10b5da2f`, so it is a general inliner scaling knob and not solely this
+ceiling's shift. *That `-vol#` reads as an inline **vol**ume control is the
+obvious gloss and this page does not claim it* `[I]`.
+
+> **The arithmetic, registered in the prereg before the read and held.** c2's
+> ceiling is **128 instructions**. The port's `INLINE_UNBOUNDED_BYTES` is **64
+> bytes = 16 PPC words**, and its relatives are 128 B and 80 B. At one word per
+> instruction that is **8×**; against §2.1c's measured `/O1` bracket of
+> `(108,116]` — 27–29 words — it is still **4.4–4.7×**. §5's *"`16 << k` does
+> not compose into the measured numbers"* is now the same statement with its
+> operand's provenance closed on both ends.
+
+**What is missing is NAMED, and it is two links, neither of them in this band:**
+
+* `[sym+0x50]` is initialised from the `.gl` `SIZE` field at `0x10b9bf6c` and is
+  **reduced by every pass that runs between there and `0x10b5fc8a`**. §2.1b
+  measures the consequence — `arith_012` and `mix_008` at an identical `SIZE` of
+  115 with opposite verdicts — and **nothing yet located reads that reduction.**
+* Even given the reduced count, turning a count into emitted PPC bytes is the
+  whole of lowering, which is what the port's `s` measures.
+
+**So C8 stays `fitted`, and the fit is not replaceable by any read confined to
+`0x10b5b86d`–`0x10b62b00`.** The port's constant is in the wrong unit, and the
+converter is two subsystems away. Adopting 128 would be an emit change priced
+against a number that does not mean what the port's constant means.
+
+#### 6.6.2 C20 — the recursion, its six arguments, and the division nobody had `[R]`
+
+**The edge is real and it is at `0x10b62402`**, 774 bytes into `FUN_10b620fc`
+(§6.1 cites the function's entry, which is where the row's address points).
+`FUN_10b61ee1` has **exactly two callers** — the pass entry `0x10b62675` and
+this one — so the driver is entered once per function and once per expansion,
+and by nothing else.
+
+The pass entry's own call is at **`0x10b6276e`**. Reading the two call sites
+against each other fixes all six parameters:
+
+| driver parameter | pass entry `0x10b6276e` | the recursion `0x10b62402` |
+|---|---|---|
+| `ecx` — the function | the function being compiled | `esi` |
+| `edx` — **level** | `1` | **`BYTE [site+0x18] + level`** (`0x10b623f2`, `0x10b623f9`) |
+| stack 1 — **budget**, by value | `B` = §2.2's clamp | **`*budget / remaining_sites`** — `idiv` at `0x10b623ec` |
+| stack 2 | `0` | threaded through unchanged |
+| stack 3 | `100000000` | `[site+0x10]` |
+| stack 4 | `0` | `[site+0x14]` |
+
+`ret 0x10` and `sub eax,[ebp+0x8]` at `0x10b620f2` confirm §1's *"returns budget
+consumed"*: the driver saves its incoming budget at entry and returns the
+difference.
+
+> #### The finding: **THE GROWTH BUDGET IS DIVIDED EVENLY AMONG THE REMAINING CALL SITES.**
+>
+> The divisor is traced through four frames rather than guessed — expansion
+> `[ebp+0x14]` ← charge `[ebp+0x10]` ← per-site driver `[ebp+0x1c]` ← the
+> driver's **local** `[ebp-0xc]`. That local is the **out-parameter of the site
+> collector**: `lea edx,[ebp-0xc]` at `0x10b61f99`, immediately before
+> `call 0x10b600e6` — C5's function. It is decremented once per site at
+> `0x10b620c8`, at the bottom of the loop that walks the collector's list.
+>
+> **So at site *i* of *n*, the nested pass receives `remaining_budget / (n − i + 1)`.**
+> Later sites are divided by less, against a smaller remainder.
+
+Three further reads at the same call, each `[R]` and none adopted:
+
+1. **Stack 3/4 are one 64-bit quantity, and it HALVES.** `100000000` at the top
+   level, and `shrd eax,edi,0x1` / `shr edi,1` at `0x10b6204e` shifts the pair
+   `[site+0x10]`/`[site+0x14]` right by one, in place. A second budget-like
+   quota, on a different schedule from the instruction budget.
+2. **A `__forceinline` callee is charged NOTHING for its nested expansion.**
+   `0x10b6240f` tests `[sym+0x4c] & 0x2000` and `jne` skips **both**
+   `sub DWORD [ebx],eax` (`0x10b62418`) and `add ds:0x10c3f5cc,eax`
+   (`0x10b6241a`). §2.2's exemption is for callees at or under 40 instructions;
+   this is a second, orthogonal one, and it exempts the **global growth total**
+   as well as the local budget.
+3. **§5's *"the only site-count arithmetic in the image is this division"* — said
+   of C22's POGO discount — is FALSE.** There is a second site-count division,
+   at `0x10b623ec`, on the **non-POGO** path, and §6.4 measures 2,910 workload
+   callees with more than one site and up to 31. C21–C23 remain `unexercisable`;
+   it is the *exclusivity* clause in the prose that does not survive.
+
+**And the port's counterpart is still not derived from any of it.**
+`splice.rs`'s `S6-chain` has **no level, no budget, no site count and no
+division**. It walks to the chain's end and asks its size clause once. c2
+re-enters the entire decision at each level, under a level that strictly
+increases (C14's cap), a budget that is divided (C17), and C8's size test — the
+first two of which are `absent` from the port and the third of which is §6.6.1.
+These are different rules.
+
+> **Why the fit nevertheless works, which is the part the read buys** `[I]`.
+> The port admits only chains in which every link has **exactly one** call site
+> (`S6`/`S2`) and whose end has **none** (`S6-chain-open`). On that population
+> `n = 1` at every level, so **c2's division is the identity** and the nested
+> budget is the parent's, undivided. The bodies are at most 64 emitted bytes, far
+> under §2.1b's one-sided `SIZE < 98 ⇒ inlined` at `/O1` (zero counterexamples in
+> 105 cells), so C18's `jbe 0x28` means nothing is charged and C17 cannot bind.
+> **The port's fixpoint is right on its own admitted set for a reason that is now
+> read rather than only measured** — but a coincidence located on a subset is a
+> soundness argument for a fit, **not** a derivation of it, and §6.1's ties break
+> toward the weaker state. **C20 stays `fitted`.**
+
+#### 6.6.3 The grader's blind spot: eight of the twenty-four addresses are MID-INSTRUCTION
+
+`check_table.py`'s ADDRESS check asks whether an address lies inside the function
+its `owner` column names. It cannot fail on an address that is inside the right
+function and inside the middle of an instruction — and **eight of the 24 are**:
+C2, C3, C4, C14, C16, C17, C18, C19. Measured against the **independent objdump
+boundary set** (425,871 instruction starts), not against the Ghidra database the
+addresses came from. `work/w-inlfit/addr_align.py`, watched **green** on a
+two-row table and **red** on a one-byte planted shift before either verdict was
+quoted (`#3336`).
+
+Three verified by hand, with the address the clause actually describes:
+
+| row | cited | what is really there | the clause's real address |
+|---|---|---|---|
+| C4 | `0x10b6276a` | +6 into `mov ds:0x10c46330,0x10c46334` | **`0x10b6276e`** |
+| C18 | `0x10b6249b` | +1 into `mov ecx,[eax+0x4]` | **`0x10b625b6`** — `cmp eax,0x28`, the only one in the function |
+| C19 | `0x10b624a2` | +1 into `cmp ds:0x10c6f1c8,0x1` | **`0x10b625bb`** and **`0x10b625c1`**, the only two |
+
+**C18/C19's citations are `0x11b` bytes early because they landed in a DUPLICATE
+of the wrong function.** `0x10b62488`–`0x10b624be` in the charge is an
+instruction-for-instruction copy of `0x10b5fb85`–`0x10b5fbbb` in candidacy — an
+inlined helper emitted twice — and the two cited addresses fall inside the copy.
+
+**Neither of this lane's own rows is affected**: `0x10b5fc8a` (C8) and
+`0x10b620fc` (C20) are both genuine instruction starts, verified. **No row is
+edited here** — the table is another lane's frozen instrument and its green is
+quoted on its own tree. The checker is left beside it so the next lane can act
+under its own prereg.
+
+**Filed as follow-ups, NOT pursued and NOT adopted** (§6.5's convention):
+C10's cited `0x10b609d3` decodes to `call 0x10b5e64d`, not a `0x2000` test —
+aligned but describing something else, which is a defect class the new checker
+does **not** reach; and `FUN_10b5da2f` (573 B, unread) is the second consumer of
+`k`.

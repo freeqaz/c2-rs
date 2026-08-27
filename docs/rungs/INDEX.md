@@ -331,5 +331,6 @@ the header block this table is read from.
 | 2026-08-26 | w-submetric | [w-submetric](2026-08-26-w-submetric.md) | 5 | +0 — no acceptance predicate moved, no emit widened, the admitted |
 | 2026-08-26 | w-symbind | [w-symbind](2026-08-26-w-symbind.md) | 7 | +0 — no acceptance predicate moved; `crates/c2-il` is READ, never written |
 | 2026-08-27 | w-f0price | [w-f0price](2026-08-27-w-f0price.md) | 10 | unchanged → unchanged, +0 |
+| 2026-08-27 | w-inlfit | [w-inlfit](2026-08-27-w-inlfit.md) | 17 | 707728/2417794 → 707728/2417794 (29.27% → 29.27%), +0 |
 | 2026-08-27 | W-REGCELLS | [w-regcells](2026-08-27-w-regcells.md) | 10 | +0 — nothing is admitted, no crates/ file is touched |
 | 2026-08-27 | w-wire-1406 | [w-wire-1406](2026-08-27-w-wire-1406.md) | 12 | +0 (unchanged; `provenance_census.py` TOTAL identical at both ends) |
