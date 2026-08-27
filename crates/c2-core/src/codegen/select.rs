@@ -59,8 +59,24 @@ pub(crate) const ARG_REGS: [u8; 8] = [3, 4, 5, 6, 7, 8, 9, 10];
 /// Integer return register.
 pub(crate) const RET_REG: u8 = 3;
 
-/// First allocatable volatile scratch (r12 is reserved; COLOR picks r11 next).
-pub(crate) const SCRATCH_REG: u8 = 11;
+/// First allocatable volatile scratch — **derived from c2's own allocation
+/// order** as of lane `w-regsel` (decision 20, wave 16), where it was the
+/// literal `11` under the comment *"r12 is reserved; COLOR picks r11 next"*.
+///
+/// **That comment was half wrong and the half that was wrong is board `#543`.**
+/// `r12` is not *reserved*: c2 index `13` appears in **none** of the three GPR
+/// ordered arrays (`0x10c37de0`, `0x10c37e50`, `0x10c37eb8`), so it was never
+/// in the list to be reserved out of — and neither were `r13`, `r0`, `sp` or
+/// `toc`. What COLOR does is walk that list from index 0, and index 0 is
+/// `r11`, which is the whole of why this constant is 11.
+///
+/// PROV[O] `DISCLOSURE W-REGSEL-1` — the order is obj-confirmed on cells
+/// G1–G4 and P1 (`WB_REGALLOC_FINDINGS.md` §7.1) with three rivals refuted by
+/// cell count. **A second, independent copy of the same fitted 11 lived here
+/// and in `alloc::POOL_TOP` and the two could drift**; both are now the same
+/// expression over the same array, so controls C1/C2 reach all 124 use sites
+/// rather than one.
+pub(crate) const SCRATCH_REG: u8 = super::regalloc::GPR_DEFAULT.regs[0];
 
 /// Which optimization mode's codegen to emit. Read from `.ex`'s per-function
 /// optimization word (`c2_il::IlBundle::opt_words`), never guessed from argv.

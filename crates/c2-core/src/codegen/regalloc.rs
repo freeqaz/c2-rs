@@ -741,6 +741,44 @@ mod tests {
         );
     }
 
+    /// **HOW MUCH OF THE PARAMETER IS ACTUALLY EXERCISED — a denominator,
+    /// because only a denominator catches an absence (`#3470`, `#1002`).**
+    ///
+    /// The order has 27 entries. Production reaches the first **three** and no
+    /// more, because [`crate::codegen::alloc::MAX_MODELLED_PRODUCERS`] is 3 and the
+    /// allowed set is capped at the volatiles. So `w-regsel` makes 27 entries
+    /// *executable* and 3 of them *exercised by an emitted byte* — **11.1 %**
+    /// — and this test is where that number lives so nobody has to infer it
+    /// from a rung.
+    ///
+    /// Raising [`crate::codegen::alloc::MAX_MODELLED_PRODUCERS`] is board `#541`, which
+    /// is open for reasons that have nothing to do with this module.
+    #[test]
+    fn only_the_first_three_entries_of_the_order_are_reachable_from_an_emitted_byte() {
+        let mut reachable: Vec<Reg> = Vec::new();
+        for pool_floor in 0..=20u8 {
+            for n in 1..=crate::codegen::alloc::MAX_MODELLED_PRODUCERS {
+                let pool = RegSet::range_inclusive(pool_floor, crate::codegen::alloc::VOLATILE_GPR_TOP);
+                if let Some(seq) = select_sequence(&GPR_DEFAULT, pool, &Costs::ZERO, n) {
+                    for r in seq {
+                        if !reachable.contains(&r) {
+                            reachable.push(r);
+                        }
+                    }
+                }
+            }
+        }
+        reachable.sort_unstable();
+        reachable.reverse();
+        assert_eq!(
+            reachable,
+            vec![11, 10, 9],
+            "exactly the first three entries of a 27-entry order are reachable"
+        );
+        assert_eq!(GPR_DEFAULT.regs.len(), 27, "the denominator");
+        assert_eq!(&GPR_DEFAULT.regs[..3], &reachable[..], "and they are its PREFIX");
+    }
+
     #[test]
     fn regset_ranges_are_exact_including_the_degenerate_ones() {
         assert_eq!(RegSet::range_inclusive(4, 11).len(), 8);
