@@ -243,3 +243,76 @@ so the negative result is not filed as "nothing found".
 **Will not**: convert a TU, add a gate row (`#3691`), adopt anything into
 `crates/` without a `DISCLOSURE.md` row in the same commit, commit any obj, any
 `.il`, or any `_CL_*`.
+
+---
+
+# ADDENDUM 1 — tier **IN-FLIGHT**, written before the cell was compiled
+
+Registered after `physdef_grid.cpp`'s first compile and **before** the cells in
+this addendum existed. Tier is **IN-FLIGHT**, not PREREG, and it is scored
+separately, per `docs/whitebox/PREREG.md` § "Registration status".
+
+## A1.1 What the first compile changed
+
+`pd_tail` — `int pd_tail(int a,int b){ return gg2(b,a); }` — emitted
+
+```
+  mr 11, 4 ; mr 4, 3 ; mr 3, 11 ; b gg2
+```
+
+**There is no `bl` in that body.** It contains a bare physical def of `r4`
+(`mr 4,3`) with the candidate holding `b` live across it. So §2.2's premise —
+*"no C source shape on this target produces a non-call physical def of an
+allocatable GPR with a candidate live across it"* — **is wrong**, and the
+falsifier's conditions **(a)** and **(b)** are met on a real obj.
+
+**§2.2 is scored a MISS on (a)∧(b) and stands until graded on (c).** The reason
+it was wrong is worth naming: §2.2's table listed *call-sequence argument setup*
+and reasoned that a candidate live across it is live across the `bl` too — which
+is **false for a TAIL call**, where there is no `bl` at all, and false for any
+value that **dies at** the call rather than across it.
+
+And it means the cell family is not new: **`scripts/gt_argperm.py --pure` has
+been compiling exactly this shape for a month** — 152 cells at n = 2…5 plus 61
+three-minima cells at n = 6 (`docs/CODEGEN_ARG_PERM.md` §2, §5), every one a
+tail call whose body is *"no frame, no saved registers, nothing but the moves"*,
+and every one handing scratches out **`r11`, then `r10`, then `r9`** — the head
+of class 0's list at `0x10c37de0`. **Nobody connected that family to F4.**
+
+## A1.2 The cell that decides (c), and its prediction — frozen here
+
+Every existing cell of that family leaves **(c)** open: in each of them the
+register the bare def makes unavailable is *also* held by a live candidate, so
+ordinary pressure explains the skip and the narrowing is not separated.
+
+`pd_perm8` — `void pd_perm8(a…h){ gg8(h,g,f,e,d,c,b,a); }` — is the cell that
+pushes past that. σ = `(r3 r10)(r4 r9)(r5 r8)(r6 r7)`: four 2-cycles, four local
+minima, so `CODEGEN_ARG_PERM` §2's established rule says **four scratches**, and
+the eight formals occupy `r3`…`r10`, leaving exactly **one** free volatile.
+
+| # | prediction | what refutes it |
+|---|---|---|
+| **P-A** | **four** scratch registers | any other count — and that refutes `CODEGEN_ARG_PERM` §2's minima rule at n = 8, which no cell has tested |
+| **P-B** | they are **`r11`, `r31`, `r30`, `r29`** — class 0's list order with `r3`…`r10` removed | `r14`,`r15`,`r16` (an ascending non-volatile rule); `r12` or `r0` or `r13` (an emit-time temp outside the class list) |
+| **P-C** | the body is **framed** — `stwu` and a `__savegprlr_29`-shaped save — **caused by an argument permutation**, with no call tuple ahead of it | an unframed body, or a spill to the stack instead of a non-volatile |
+| **P-D** | the scratches are **dead** at whatever call the permutation feeds, so no clobber operand can be what narrowed them | a scratch read after the call |
+
+`pd_perm6` — `gg6(f,e,d,c,b,a)`, σ = three 2-cycles — is the **positive
+control**: `CODEGEN_ARG_PERM` §5.1 pins it to `r11, r10, r9` with a tail branch
+and **no `bl` at all**. If `pd_perm6` does not reproduce that verbatim, this
+lane's capture differs from the one that grid was measured on and **`pd_perm8`
+decides nothing.**
+
+## A1.3 The verdict this addendum can reach, and the one it cannot
+
+Even with P-A…P-D all confirmed, **(c) is not thereby established**. `r11` is
+free because no candidate holds it, and `r31` is reached because nine volatiles
+are gone — eight of them to live candidates. The honest ceiling is:
+
+> **(a) and (b) are `[O]`; (c) remains `[R]`, and the reason is structural: on
+> every shape this front end can express, a register made unavailable by a bare
+> physical def is simultaneously held by a live candidate, so pressure and
+> narrowing predict the same obj.**
+
+That is the finding this lane expects to publish, and it is registered before
+the cell is compiled so it cannot be presented as a discovery afterwards.
