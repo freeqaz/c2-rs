@@ -1260,3 +1260,59 @@ Priced at **~1 hour**. **This decision grants exactly that fence.**
 
 **Board:** `#3680` this decision · `#3681`–`#3686` `w-wire`.
 `#3647` remains reserved-and-unspent. Next free `#3687`.
+
+---
+
+## Decision 20 — OWNER: wave 16 is funded in full — all five register-allocator and inliner lanes (2026-08-27)
+
+**The owner's words**, on being shown `docs/REGALLOC_BRIEF_2026-08-27.md` and
+asked the scale question in its §6:
+
+> *"lets dispatch all of the lanes now"*
+
+The brief offered three scales — L1+L2 (two lanes, the smallest thing that
+produces executable allocator code), L1–L4 (four, closing the subsystem's cheap
+evidence too), or five with the inliner's two fitted clauses. **All five are
+funded.** Board `#3692` is the brief; this decision is `#3693`.
+
+### 1. What is funded, and what each lane is graded as
+
+| lane | kind | deliverable | grading |
+|---|---|---|---|
+| `w-regsel` | **construct rung** | `codegen::regalloc::select` — the minimum-cost walk with the fixed register order as a **named, settable parameter** | `Fixtures: none`, `Census: +0`, **required-zero byte delta**, identity diff on the 21 gate rows (`#290`'s pattern) |
+| `w-regprio` | **construct rung** | the worklist comparator at `0x10b2b82d`, including the `<=` tie tier and re-entry-by-priority | same, plus the **20 obj-confirmed order cells** at two profiles as its test population |
+| `w-regcells` | characterization | obj cells for the two things `P_REGALLOC` §7 says are read with **no cell in existence**: the FPR order at `0x10c37f20`, and F4's non-call physical def | prereg first; predicted reach **0**; moves the `agreement` strength (7 of 49 today) |
+| `w-f0price` | characterization | price F0 **by reading**, settling the 8-vs-4-raw disagreement between `P_REGALLOC` §7 and `READ_PLAN` R7 | a price with its derivation, not a pick |
+| `w-inlfit` | characterization | the **2 `fitted` clauses** of the inliner's 24 — replace a black-box fit with a read | `work/w-inlmetric/CLAUSES.tsv` already grades it; the table is the instrument |
+
+### 2. What this decision does NOT authorise, carried from the brief
+
+- **No full register allocator.** `P_REGALLOC` §7: a candidate is a
+  `(symbol, live-range version)` pair whose versions need the backward walk
+  over the **lowered** tuple list, and **F5 is not separable from F0** because
+  `cand+0x0c` accumulates over the code *the scheduler produced* — while the
+  `dag` scoreboard row reads *"the port schedules nothing"*. A lane that
+  proposes one has mispriced itself and should say so and stop.
+- **No `ported` numerator for regalloc.** The scoreboard says a site-level
+  numerator *is not yet defined* for this subsystem. Constructing a
+  denominator to make a percentage move is `#3505`, which is **four for four**.
+  `w-regsel`/`w-regprio` move `read` and `agreement` and are graded on those.
+- **No new count-bearing gate row**, from anyone. `w-wire` measured that a
+  22nd row makes `gate_identity_diff.sh` exit 2 **refusing to diff at all**,
+  for every live lane holding a 21-row base, on a tree they did not touch
+  (`#3691`).
+- **`#3534` stays cited, never re-taken.** `byte-owned` is not re-measured.
+
+### 3. The caveat that ships with `w-regsel`, so it is not discovered as news
+
+The selector's **cost arithmetic will stay `[R]`**. `P_REGALLOC` §3's
+correction box records that on all 10 cells of `wb-live`'s grid and all 15 of
+`wb-regalloc`'s, every cost array is **uniformly zero over its allowed set** —
+the answer is decided entirely by list order. So what `w-regsel` makes
+executable and testable is the **order**, which is the `[O]` part. A lane
+reporting "the cost model is confirmed" has confirmed nothing.
+
+**Board:** `#3693` this decision · `#3694`–`#3699` `w-regsel` ·
+`#3700`–`#3705` `w-regprio` · `#3706`–`#3711` `w-regcells` ·
+`#3712`–`#3716` `w-f0price` · `#3717`–`#3722` `w-inlfit`.
+`#3647` remains reserved-and-unspent. Next free `#3723`.
