@@ -1,0 +1,17 @@
+# P1a — demonstration, lane w-wire, 2026-08-27
+# Base table: a coordinator gate base (any 21-row table), machine paths scrubbed.
+
+=== rows() on the unmodified 21-row table ===
+21
+
+=== rows() on the same table + ONE new gate.sh row, mismatch column n/a ===
+gate_identity_diff.sh: <TMP>/tip22.txt yielded 22 count-bearing rows, expected 21.
+  A short extraction and an identical pair both print 'no differences'.
+  Refusing to diff (board #3470, #1002).
+EXIT=2
+
+=== and the identity diff REFUSES TO RUN AT ALL ===
+gate_identity_diff.sh: tip  (<TMP>/tip22.txt) yielded 22 count-bearing rows, expected 21.
+  A short extraction and an identical pair both print 'no differences'.
+  Refusing to diff (board #3470, #1002).
+EXIT=2
