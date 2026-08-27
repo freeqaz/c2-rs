@@ -190,7 +190,18 @@ FENCED_OUT = ("work/w-mopfold/", "work/w-secported/", "work/w-provaudit/",
 # recorded as one: see the rung, which also names the general fix (write the
 # literal as `/home/<user>`, which no detector matches, and which this
 # prereg's other three mentions already do).
-PROSE_EXEMPT = ("work/w-shelf/PREREG.md",)
+PROSE_EXEMPT = (
+    "work/w-shelf/PREREG.md",
+    # A FROZEN PROOF TRANSCRIPT, and the exemption is about what a proof IS.
+    # `scrub_proof.txt` is `verify_scrub.py`'s output at the moment the 513-file
+    # scrub landed; one of its LABELS quotes the literal ("still carrying
+    # <literal> : 0"). Rewriting the label would edit an evidence artifact after
+    # the fact to make a later run of a different tool look tidier — worse than
+    # the label. It is a label, not a path: no trailing separator, so no
+    # detector reads it as one, and `tracked_artifact_audit.sh` is green on it
+    # without an allowlist entry.
+    "work/w-shelf/scrub_proof.txt",
+)
 
 
 def main(argv):

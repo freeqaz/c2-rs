@@ -73,7 +73,16 @@ def main(argv):
                 fails.append(("intentional string %s moved" % s.decode(), f))
         if b"\x00" in post:
             fails.append(("NUL in post", f))
-        if re.search(rb"/home/free|\\home\\free", post):
+        # THE SCRUB CAUGHT ITS OWN VERIFIER, AND THAT IS THE COMMENT.
+        # This line used to spell the offending literal out, and the second
+        # scrub pass rewrote it to `<home>` — turning "does this file still
+        # carry a machine path" into "does this file carry the token every
+        # scrubbed file now carries", i.e. a check that would go red on all
+        # 513 and mean nothing. Caught by `git diff`, not by the check. The
+        # patterns are therefore taken from `scrub.py`'s RULES, which build
+        # themselves from segments at runtime, so there is no literal here to
+        # rewrite and the verifier is not exempt from the rule it verifies.
+        if any(rx.search(post) for rx, _, _ in RULES):
             still_abs.append(f)
 
         gp = b"\n".join(l for l in pre.split(b"\n") if l.startswith(b"GATE:"))
@@ -87,7 +96,8 @@ def main(argv):
         agg_post.update(canon(post))
 
     print("line count preserved      : %d / %d" % (n_lines_ok, len(files)))
-    print("still carrying /home/free : %d %s" % (len(still_abs), still_abs or ""))
+    print("still carrying an absolute machine path : %d %s"
+          % (len(still_abs), still_abs or ""))
     print()
     print("THE GATE: VERDICT BLOCKS — sha256 of the GATE: lines, both sides")
     print("%-58s %-16s %-16s %s" % ("file", "pre", "post", "equal"))
