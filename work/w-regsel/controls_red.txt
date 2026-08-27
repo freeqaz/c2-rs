@@ -1,0 +1,140 @@
+=================================================================
+CONTROL C1 — GPR_DEFAULT_REGS reversed — the order parameter is inverted
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/regalloc.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- verdict ---
+test result: FAILED. 450 passed; 25 failed; 0 ignored; 0 measured; 177 filtered out; finished in 0.43s
+    codegen::alloc::tests::all_in_r11_holds_for_one_producer_and_no_more
+    codegen::alloc::tests::clause_one_is_the_use_count
+    codegen::alloc::tests::one_producer_takes_pool_top_at_every_floor
+    codegen::alloc::tests::pool_top_is_the_head_of_c2s_own_order
+    codegen::alloc::tests::the_carrier_decides_only_whether_a_mixed_run_is_served
+    codegen::alloc::tests::the_four_refuted_rules_killer_cells
+    codegen::alloc::tests::the_pool_starts_below_the_live_in_formals
+    codegen::alloc::tests::the_selector_re_expression_is_exact_on_the_whole_grid
+    codegen::alloc::tests::the_tiebreak_sign_flips_on_the_count_and_on_the_kind
+    codegen::regalloc::tests::a_negative_cost_beats_the_order_and_is_the_preference_term
+    codegen::regalloc::tests::a_non_default_order_changes_the_answer_which_is_what_makes_it_a_surface
+    codegen::regalloc::tests::a_sequence_hands_out_distinct_registers_in_order
+
+=================================================================
+CONTROL C2 — c2 index 13 (r12) planted at the head of the default order — board #543's exclusion removed
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/regalloc.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- verdict ---
+test result: FAILED. 449 passed; 26 failed; 0 ignored; 0 measured; 177 filtered out; finished in 0.47s
+    codegen::alloc::tests::all_in_r11_holds_for_one_producer_and_no_more
+    codegen::alloc::tests::clause_one_is_the_use_count
+    codegen::alloc::tests::pool_top_is_the_head_of_c2s_own_order
+    codegen::alloc::tests::the_four_refuted_rules_killer_cells
+    codegen::alloc::tests::the_old_pool_arithmetic_counted_three_registers_c2_never_allocates
+    codegen::alloc::tests::the_pool_starts_below_the_live_in_formals
+    codegen::alloc::tests::the_selector_re_expression_is_exact_on_the_whole_grid
+    codegen::alloc::tests::the_tiebreak_sign_flips_on_the_count_and_on_the_kind
+    codegen::regalloc::tests::a_negative_cost_beats_the_order_and_is_the_preference_term
+    codegen::regalloc::tests::an_empty_allowed_set_is_a_spill
+    codegen::regalloc::tests::a_sequence_hands_out_distinct_registers_in_order
+    codegen::regalloc::tests::a_zero_cost_array_selects_the_earliest_surviving_entry
+
+=================================================================
+CONTROL C3 — the selector's STRICT < relaxed to <= — the [O] tie rule inverted
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/regalloc.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- verdict ---
+test result: FAILED. 453 passed; 22 failed; 0 ignored; 0 measured; 177 filtered out; finished in 0.49s
+    codegen::alloc::tests::all_in_r11_holds_for_one_producer_and_no_more
+    codegen::alloc::tests::clause_one_is_the_use_count
+    codegen::alloc::tests::one_producer_takes_pool_top_at_every_floor
+    codegen::alloc::tests::the_carrier_decides_only_whether_a_mixed_run_is_served
+    codegen::alloc::tests::the_four_refuted_rules_killer_cells
+    codegen::alloc::tests::the_pool_starts_below_the_live_in_formals
+    codegen::alloc::tests::the_selector_re_expression_is_exact_on_the_whole_grid
+    codegen::alloc::tests::the_tiebreak_sign_flips_on_the_count_and_on_the_kind
+    codegen::regalloc::tests::a_negative_cost_beats_the_order_and_is_the_preference_term
+    codegen::regalloc::tests::a_non_default_order_changes_the_answer_which_is_what_makes_it_a_surface
+    codegen::regalloc::tests::a_sequence_hands_out_distinct_registers_in_order
+    codegen::regalloc::tests::a_zero_cost_array_selects_the_earliest_surviving_entry
+
+=================================================================
+CONTROL C4 — select_sequence stops removing the register it just took — 'allocation only ever removes' dropped
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/regalloc.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- verdict ---
+test result: FAILED. 459 passed; 16 failed; 0 ignored; 0 measured; 177 filtered out; finished in 0.65s
+    codegen::alloc::tests::all_in_r11_holds_for_one_producer_and_no_more
+    codegen::alloc::tests::clause_one_is_the_use_count
+    codegen::alloc::tests::the_carrier_decides_only_whether_a_mixed_run_is_served
+    codegen::alloc::tests::the_four_refuted_rules_killer_cells
+    codegen::alloc::tests::the_old_pool_arithmetic_counted_three_registers_c2_never_allocates
+    codegen::alloc::tests::the_pool_starts_below_the_live_in_formals
+    codegen::alloc::tests::the_selector_re_expression_is_exact_on_the_whole_grid
+    codegen::alloc::tests::the_tiebreak_sign_flips_on_the_count_and_on_the_kind
+    codegen::regalloc::tests::a_sequence_hands_out_distinct_registers_in_order
+    codegen::regalloc::tests::a_sequence_longer_than_the_surviving_order_refuses
+
+=================================================================
+CONTROL C5 — the allowed-set check dropped from the selector's walk — every refusal disappears
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/regalloc.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- verdict ---
+test result: FAILED. 455 passed; 20 failed; 0 ignored; 0 measured; 177 filtered out; finished in 0.49s
+    codegen::alloc::tests::all_in_r11_holds_for_one_producer_and_no_more
+    codegen::alloc::tests::clause_one_is_the_use_count
+    codegen::alloc::tests::one_producer_takes_pool_top_at_every_floor
+    codegen::alloc::tests::the_carrier_decides_only_whether_a_mixed_run_is_served
+    codegen::alloc::tests::the_four_refuted_rules_killer_cells
+    codegen::alloc::tests::the_old_pool_arithmetic_counted_three_registers_c2_never_allocates
+    codegen::alloc::tests::the_pool_starts_below_the_live_in_formals
+    codegen::alloc::tests::the_selector_re_expression_is_exact_on_the_whole_grid
+    codegen::alloc::tests::the_tiebreak_sign_flips_on_the_count_and_on_the_kind
+    codegen::regalloc::tests::an_empty_allowed_set_is_a_spill
+    codegen::regalloc::tests::a_non_default_order_changes_the_answer_which_is_what_makes_it_a_surface
+    codegen::regalloc::tests::a_sequence_hands_out_distinct_registers_in_order
+
+=================================================================
+CONTROL C6 — the caller's allowed set widened from the volatiles to r0..r31 — the callee-saved TAIL becomes reachable. THE PREREG'S SECOND FAIL AXIS: this is byte-neutral on every fixture the corpus reaches (n<=3 never exhausts the volatiles) and silently widens the emit domain
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/alloc.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- verdict ---
+test result: FAILED. 471 passed; 4 failed; 0 ignored; 0 measured; 177 filtered out; finished in 0.48s
+    codegen::alloc::tests::one_producer_takes_pool_top_at_every_floor
+    codegen::alloc::tests::the_pool_starts_below_the_live_in_formals
+    codegen::alloc::tests::the_selector_re_expression_is_exact_on_the_whole_grid
+
+=================================================================
+SUMMARY — six planted defects, six watched RED, tree restored clean
+after every one (`git status --short crates/` empty).
+Board #3336: "a control you have never watched FAIL is decoration".
+
+  C   defect                                          failures  the grid test?
+  --  ----------------------------------------------  --------  --------------
+  C1  order reversed                                        25  RED
+  C2  r12 (c2 index 13) planted at the head                 26  RED
+  C3  strict `<` relaxed to `<=`                            22  RED
+  C4  the sequence stops removing what it took              16  RED
+  C5  the allowed-set check dropped                         24  RED
+  C6  caller's allowed set widened to r0..r31                4  RED
+
+C6 IS THE ONE THAT MATTERS, and it is why the prereg named a fail axis.
+It widens the port's allowed set past the volatiles so c2's callee-saved
+TAIL (r31, r30, … r14) becomes reachable, and it is **byte-neutral on
+every emitted-byte test in the crate**: 471 of 475 pass, no
+`store_run_call`, no `leaf::store`, no encoder test moves — because
+MAX_MODELLED_PRODUCERS is 3 and three producers never exhaust the
+volatiles. Exactly three tests see it, and the refusal-domain grid
+(`the_selector_re_expression_is_exact_on_the_whole_grid`) is one of them.
+
+A required-zero BYTE delta would have passed C6. That is #3336's claim,
+demonstrated on this lane's own change rather than quoted.
