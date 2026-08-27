@@ -55,7 +55,7 @@
 //!
 //! | strength | this module's answer |
 //! |---|---|
-//! | **read** | a **containment**, never a ratio: `sites ⊇ read ⊇ ported`. `sites` is the subsystem's enumerable population (recomputed from `FUNCS.tsv` where it is a band), `read` is what the `P_*.md` page says it read, `ported` is a **named residue** on every row — see [`Cell::Residue`] |
+//! | **read** | a **containment**, never a ratio: `sites ⊇ read ⊇ ported`. `sites` is the subsystem's enumerable population (recomputed from `FUNCS.tsv` where it is a band), `read` is what the `P_*.md` page says it read, `ported` is **measured on `encode` and `section`** and a **named residue** on the other eight — see [`PortedRecount`] |
 //! | **agreement** | the page's own **evidence-mark census** — `[O]` (obj-confirmed) against `[R]`+`[O]`+`[I]` — plus, where a page carries a real differential, that differential quoted with its own denominator. **A mark is a page annotation, not a site**; the caveat prints beside the number |
 //! | **exercised** | a labelled **workload-output proxy** where one exists, from real-`c2` section census of the 878-TU workload; a named residue otherwise. **Per-SITE exercise is unmeasurable on this tree for all ten** — nothing traces `c2.dll`'s own addresses over the workload |
 //! | **byte-owned** | **CITED, never re-measured.** Board **#3534** measured it 2026-08-25 at port tree `a8593651b`. Re-funding that read is what this repo calls *"check the board before dispatching"* |
@@ -79,6 +79,33 @@ pub const ENCODE_ARMS_TXT: &str = "ENCODE_ARMS.txt";
 /// Committed (lane `w-bss`); regenerating it needs the `dc3` tree and ~102 MB
 /// of objs, which is why it is in the tree rather than rebuilt.
 pub const SECTIONS_JSONL: &str = "work/w-bss/census/sections.jsonl";
+
+/// The `.gl` **record dispatcher**'s arm enumeration, relative to the repo root
+/// — 27 tag rows over 16 jump-table slots, decoded from the pinned image by
+/// `work/w-secported/dump_glrec.py` (lane `w-secported`, board `#3661`).
+///
+/// Root-relative rather than inside [`REF_DIR`] for the same reason
+/// [`SECTIONS_JSONL`] is: it is a lane's committed data artifact, and this
+/// lane's fence does not include the reference index. One consequence is worth
+/// stating rather than discovering — **`scripts/subsys_metrics.sh --self-test`
+/// corrupts a copy of `REF_DIR` and therefore cannot reach this file**, so the
+/// control that binds it is the `cargo test` one
+/// (`control_a_fabricated_section_ported_is_caught`), not the shell self-test.
+pub const GLREC_ARMS_TSV: &str = "work/w-secported/GLREC_ARMS.tsv";
+
+/// The one subtree the [`PortedRecount::GlRecArms`] scan **must not read** — its
+/// own crate.
+///
+/// **An instrument that can move its own number is not an instrument.**
+/// `#3641` is the standing case: writing prose *about* mark letters on a
+/// `P_*.md` page moved that page's agreement census, because the counter could
+/// not tell a mark from a mention. The `ported` scan below has exactly that
+/// shape — it counts source files naming an arm address, and this file must
+/// name those addresses to explain itself. Excluding the metric crate is what
+/// keeps the numerator a statement about the **port** rather than about its
+/// own documentation, and
+/// `the_observer_crate_cannot_move_its_own_ported` holds it.
+pub const PORTED_SCAN_EXCLUDES_CRATE: &str = "c2-harness";
 
 /// **BYTE-OWNED IS CITED AND NOT RE-MEASURED** — board `#3534`, lane
 /// `w-permeasure`, 2026-08-25, port tree `a8593651b`, the 878-TU workload.
@@ -176,6 +203,12 @@ pub enum PortedRecount {
     /// that arm — see [`recount_encode_ported`] for the predicate, which is
     /// stated there rather than here because it is the load-bearing definition.
     EncodeArms,
+    /// **The section model.** For each **live** arm of the `.gl` record
+    /// dispatcher `0x10b9b8e9` in [`GLREC_ARMS_TSV`], ask whether any source
+    /// file under `crates/` outside the metric crate names that arm's address —
+    /// see [`recount_section_ported`], where the predicate and the reason it is
+    /// sound **on this unit and not on the entry unit** are both stated.
+    GlRecArms,
 }
 
 /// A measurable strength: a number with its denominator and where it came from,
@@ -278,9 +311,9 @@ pub struct Subsystem {
 
     /// Strength 1's third level.
     ///
-    /// **Nine of ten rows are still a named residue** — see [`Cell::Residue`]
-    /// and the module docs. The `encode` row is measured, and is measured by
-    /// [`PortedRecount`] rather than carried.
+    /// **Eight of ten rows are still a named residue** — see [`Cell::Residue`]
+    /// and the module docs. The `encode` and `section` rows are measured, and both
+    /// are measured by [`PortedRecount`] rather than carried.
     pub ported: Cell,
     /// When `Some`, [`verify`] **recomputes** `ported` from the tree and fails
     /// if the carried cell disagrees. When `None`, `ported` **must** be a
@@ -359,12 +392,49 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
         read_unit: "entries",
         read_doc: "P_SECTION.md:11",
         tu_population: Some(327),
-        ported: Cell::Residue(
-            "no port<->image site map for the section model; see the coff row. The \
-             27-arm .gl record dispatcher is the natural unit and the page says 24 \
-             of its arms are uncovered",
-        ),
-        ported_recount: None,
+        // RECOUNTED, never carried — `verify` recomputes this from
+        // GLREC_ARMS.tsv plus a scan of the port's own sources on every run and
+        // every `cargo test`. See `recount_section_ported` for the predicate and
+        // for the measurement that makes a citation reading sound on THIS unit.
+        ported: Cell::Measured {
+            num: 1,
+            den: 15,
+            unit: "live .gl record-dispatcher arms the port has a decoder for",
+            source: "lane w-secported, board #3661-#3666: work/w-secported/GLREC_ARMS.tsv \
+                     (decoded from the pinned image on this tree) x a scan of crates/ \
+                     outside c2-harness",
+            caveat: "THE DENOMINATOR IS THE 15 LIVE ARMS OF THE .gl RECORD DISPATCHER \
+                     0x10b9b8e9, AND `27 arms` -- which this row itself used to say and \
+                     decision 17 repeats -- IS NOT AN ARM COUNT. Re-measured from the \
+                     image: 27 TAG VALUES (0x01..0x1B) index a 27-entry byte table into \
+                     16 jump slots, and ONE slot is the fatal C1001 path 0x10b9c5ca \
+                     serving EIGHT tags (0x0C 0x0F 0x11 0x13 0x14 0x15 0x16 0x17). So \
+                     the population is 15 live arms over 19 live tags plus one refusal \
+                     over 8, and calling it 27 overstates the arm count by 1.8x. FOUR \
+                     RIVAL DENOMINATORS WERE MEASURED AND ARE PUBLISHED RATHER THAN ONE \
+                     CHOSEN SILENTLY: 16 arms counting the refusal as a site (a port \
+                     that also refuses agrees with c2 by doing nothing, so this is \
+                     rejected); 27 tags, on which the port names 5 (0x01 0x02 0x04 0x0E \
+                     0x10, all in c2_il::func::glalias, and three of them as pattern \
+                     LOCATORS rather than decoders); the page's 24/25 read ENTRIES, on \
+                     which an address grep gives 2 and is WRONG -- see \
+                     recount_section_ported for the two rules the port implements while \
+                     citing nothing; and the band's 137 / the TU-level 327, neither of \
+                     which the port maps onto at all. CONTAINMENT: the 15 arms all live \
+                     INSIDE 0x10b9b8e9, which is one of the 24 read entries, which is \
+                     one of the 137 sites -- so `sites superset-of read superset-of \
+                     ported` holds as a containment of SITE SETS, while the three counts \
+                     are in three granularities and their RATIOS must not be compared. \
+                     THE ONE ARM IS 0x10b9bdcf, the shared tag-0x04/0x0E/0x10 handler, \
+                     decoded by c2_il::func::glalias under DISCLOSURE W-ALIAS-1. The 14 \
+                     unported arms include 0x10b9c212 -- TAG 0x09, THE SECTION \
+                     DEFINITION RECORD, every field of which P_SECTION marks obj-checked \
+                     by .gl mutation. The port does not read it: it carries 17 \
+                     fully-resolved (name, Characteristics) constants where c2 has a \
+                     kind switch, a remapper, a base resolver and an alignment chooser. \
+                     See P_SECTION.md section 7",
+        },
+        ported_recount: Some(PortedRecount::GlRecArms),
         agreement_extra: None,
         exercised: Cell::Measured {
             num: 14,
@@ -376,7 +446,24 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
                      .drectve .debug$S .XBLD$W:C1 .XBLD$W:C2 .text .text$yc .text$yd \
                      .pdata .xdata$x .rdata .rdata$r .data .bss .CRT$XCU",
         },
-        subsys_cell_note: "",
+        subsys_cell_note: "THE PAGE'S OWN COVERAGE LINE DOES NOT REPRODUCE, AND NEVER \
+                           DID. `read 24` is carried verbatim from P_SECTION.md:11 \
+                           (`24 entries against a denominator of 137`) and recounting \
+                           the page's §1 table on this tree gives 25 ROWS, of which 22 \
+                           are Ghidra function entries (three -- 0x10b9bdcf, 0x10b9c212, \
+                           0x10b9c5ca -- are addresses INSIDE 0x10b9b8e9 and the page \
+                           says so), of which 20 are inside the two bands that give the \
+                           137 (0x10b805b3 is misc.c, 0x10c27b56 is smdmisc.c). 24 \
+                           reproduces under NONE of the three, and `git log -S` puts \
+                           the line at 25 rows in the file's FIRST commit -- wrong when \
+                           written, not rotted since, the same family as #3643. NOT \
+                           CORRECTED HERE: the line is this row's den_probe and the \
+                           standing convention is that an amendment stands beside the \
+                           original reading (P_SECTION §5's own retraction is the \
+                           model); it is flagged on the page at §7.5 instead. `ported` \
+                           is in a THIRD unit again -- 15 live dispatcher arms -- and \
+                           the containment holds as a nesting of SITE SETS, not as \
+                           comparable ratios",
     },
     Subsystem {
         key: "regalloc",
@@ -970,6 +1057,188 @@ fn port_reaches_form(f: u16) -> bool {
     plan(Form(f)).is_some() && OPCODES.iter().any(|r| r.form.0 == f)
 }
 
+// ---------------------------------------------------------------------------
+// `ported` for the `section` row — the `.gl` record dispatcher's arms
+// ---------------------------------------------------------------------------
+
+/// One row of [`GLREC_ARMS_TSV`]: a record tag, the jump-table slot its
+/// byte-index entry selects, and the arm that slot holds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GlRecArm {
+    pub tag: u8,
+    pub slot: u8,
+    pub arm: u32,
+}
+
+/// Everything [`parse_glrec_arms`] recovers, including the **fatal** arm, which
+/// the file names on its own `# fatal` line so a consumer never has to infer
+/// which of the sixteen slots is the refusal.
+#[derive(Clone, Debug, Default)]
+pub struct GlRecTables {
+    pub rows: Vec<GlRecArm>,
+    pub fatal: Option<u32>,
+}
+
+impl GlRecTables {
+    /// The **live** arm targets — distinct, fatal excluded, in first-tag order.
+    ///
+    /// This is the denominator, and excluding the fatal arm is a choice with a
+    /// reason: `0x10b9c5ca` is `mov edx,0x7ba; jmp` — a `C1001` on
+    /// `p2symtab.c:1978`, confirmed live by a one-byte desync. It is c2
+    /// **refusing** eight tag values, and a port that also refuses them agrees
+    /// with c2 by doing nothing. Counting a refusal as an implemented site is
+    /// how a `ported` number would drift upward without a line of work, and
+    /// this repo's scoring rule (`docs/PROGRESS_METRIC.md`) runs the other way.
+    /// The 16-slot reading is published beside the 15 rather than instead.
+    pub fn live_arms(&self) -> Vec<u32> {
+        let mut out: Vec<u32> = Vec::new();
+        for r in &self.rows {
+            if Some(r.arm) != self.fatal && !out.contains(&r.arm) {
+                out.push(r.arm);
+            }
+        }
+        out
+    }
+
+    /// The tag values that reach a live arm — 19 of the 27 on the pinned image.
+    pub fn live_tags(&self) -> Vec<u8> {
+        self.rows
+            .iter()
+            .filter(|r| Some(r.arm) != self.fatal)
+            .map(|r| r.tag)
+            .collect()
+    }
+}
+
+/// Parse [`GLREC_ARMS_TSV`]. `# fatal <hex>` names the refusal arm; every other
+/// `#` line is a comment; the body is `<tag>\t<slot>\t<arm>`, all hex but the
+/// slot.
+pub fn parse_glrec_arms(txt: &str) -> GlRecTables {
+    let mut t = GlRecTables::default();
+    for line in txt.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("# fatal ") {
+            t.fatal = parse_hex(rest.trim());
+            continue;
+        }
+        if line.is_empty() || line.starts_with('#') || line.starts_with("tag\t") {
+            continue;
+        }
+        let mut it = line.split('\t');
+        let (tag, slot, arm) = match (it.next(), it.next(), it.next()) {
+            (Some(a), Some(b), Some(c)) => (a, b, c),
+            _ => continue,
+        };
+        match (parse_hex(tag.trim()), slot.trim().parse::<u8>(), parse_hex(arm.trim())) {
+            (Some(tag), Ok(slot), Some(arm)) if tag <= 0xFF => {
+                t.rows.push(GlRecArm { tag: tag as u8, slot, arm })
+            }
+            // A malformed row is dropped rather than defaulted; the row-count
+            // check in `verify` then notices the shortfall, exactly as
+            // `parse_encode_arms` does.
+            _ => continue,
+        }
+    }
+    t
+}
+
+fn parse_hex(s: &str) -> Option<u32> {
+    u32::from_str_radix(s.trim_start_matches("0x"), 16).ok()
+}
+
+/// **`ported` for the `section` row: `(live `.gl` record arms the port has a
+/// decoder for, live arms enumerated)`.**
+///
+/// # The predicate, stated once, because the number means nothing without it
+///
+/// A live arm counts as **ported** iff its address appears in some `.rs` file
+/// under `<root>/crates/` that is neither in the metric crate
+/// ([`PORTED_SCAN_EXCLUDES_CRATE`]) nor a test file.
+///
+/// # This is a CITATION predicate, and here is the measurement that makes it
+/// sound
+///
+/// A citation predicate normally measures **documentation discipline**, not
+/// implementation — and on the section subsystem's *entry* unit it demonstrably
+/// does. Two of `P_SECTION.md`'s rules are implemented in the port and cite
+/// nothing, because they were derived **black-box** and only later found to
+/// agree with the read: the alignment-nibble ladder (`§2` step 3;
+/// `c2_core`'s `coff::container::align_nibble`, fitted from
+/// `OBJ_DYNINIT_SHAPE.md` §4.2) and the `.bss` reversal rule (`§5`; Rule Y1 in
+/// `coff::data`, which `§5` itself records as *"independently confirmed
+/// black-box by lane `w-bss` from the IL alone"*). An address grep scores both
+/// **0** where the honest answer is **1**. That is why the entry unit is
+/// **not** this row's denominator, and it is published as a rival reading
+/// rather than suppressed.
+///
+/// **On the ARM unit the divergence was measured and it is zero.** Lane
+/// `w-secported` checked all fifteen live arms by hand against the port on the
+/// tree that shipped this: the port has no `.gl` record-stream decoder at all —
+/// `c2_il::func::gl` scans name runs and TYPE tags without ever consuming a
+/// record tag, and `c2_il::func::glalias` is the single module that decodes a
+/// record grammar, on the shared tag-`0x04`/`0x0E`/`0x10` handler `0x10b9bdcf`
+/// (adopted under `DISCLOSURE.md` **W-ALIAS-1**). So the citing set and the
+/// implementing set coincide, 15 of 15 cells.
+///
+/// **The direction it will break is named**: a lane that decodes a `.gl` record
+/// without citing its arm moves the truth without moving this number, and the
+/// number is then LOW. It cannot break the other way — an address in live
+/// source with no decoder behind it would be a citation of a site the port does
+/// not implement, which is the thing `DISCLOSURE.md` exists to prevent.
+///
+/// # Why this is live rather than transcribed
+///
+/// Both inputs are files on the tree: the denominator is
+/// [`GLREC_ARMS_TSV`], re-derivable from the pinned image by
+/// `work/w-secported/dump_glrec.py`, and the numerator is a scan of the port's
+/// own sources. Nothing here transcribes a whitebox value into `crates/`
+/// beyond the addresses this function is given at run time. **A lane that ports
+/// a `.gl` record arm moves this number without touching this file**, which is
+/// the property `recount_encode_ported` has and the property that makes a
+/// `ported` cell worth printing.
+pub fn recount_section_ported(root: &Path, t: &GlRecTables) -> (u64, u64) {
+    let live = t.live_arms();
+    let cited = crates_cited(root, &live);
+    (cited.len() as u64, live.len() as u64)
+}
+
+/// Which of `addrs` appear in the port's own sources. Separate from
+/// [`recount_section_ported`] so a test can assert **which** arm was found,
+/// never only how many — a count that is right for the wrong reason is the
+/// failure `#3336` names.
+pub fn crates_cited(root: &Path, addrs: &[u32]) -> Vec<u32> {
+    let needles: Vec<(u32, String)> = addrs.iter().map(|&a| (a, format!("{a:08x}"))).collect();
+    let mut hit: Vec<u32> = Vec::new();
+    let mut stack = vec![root.join("crates")];
+    while let Some(dir) = stack.pop() {
+        let rd = match std::fs::read_dir(&dir) {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+        for e in rd.flatten() {
+            let p = e.path();
+            let name = p.file_name().and_then(|s| s.to_str()).unwrap_or("");
+            if p.is_dir() {
+                // `target/` is build output, `tests/` is the integration-test
+                // tree, and the metric crate is the observer.
+                if name == "target" || name == "tests" || name == PORTED_SCAN_EXCLUDES_CRATE {
+                    continue;
+                }
+                stack.push(p);
+            } else if name.ends_with(".rs") && name != "tests.rs" && name != "testutil.rs" {
+                let s = std::fs::read_to_string(&p).unwrap_or_default();
+                for (a, n) in &needles {
+                    if !hit.contains(a) && s.contains(n.as_str()) {
+                        hit.push(*a);
+                    }
+                }
+            }
+        }
+    }
+    hit.sort_unstable();
+    hit
+}
+
 /// Re-verify **every denominator in [`SUBSYSTEMS`] against the tree**, plus the
 /// structural invariants that make the table a scoreboard rather than prose.
 ///
@@ -988,7 +1257,15 @@ fn port_reaches_form(f: u16) -> bool {
 ///    strength is one of measured / residue / pending.
 /// 5. **Marks.** Every page yields a mark census (i.e. has the `---` the rule
 ///    depends on) and a non-zero total.
-pub fn verify(ref_dir: &Path, table: &[Subsystem]) -> Verified {
+///
+/// `root` is the repo root and `ref_dir` is the reference index, which the shell
+/// self-test points at a corrupted copy. **They are separate arguments on
+/// purpose**: [`PortedRecount::GlRecArms`] reads its denominator from
+/// [`GLREC_ARMS_TSV`] and its numerator from `root/crates`, neither of which
+/// lives under `ref_dir` — so a self-test that corrupts the index leaves the
+/// section recount reading the real tree, and says so rather than silently
+/// grading a copy.
+pub fn verify(root: &Path, ref_dir: &Path, table: &[Subsystem]) -> Verified {
     let mut v = Verified {
         marks: BTreeMap::new(),
         recounted: BTreeMap::new(),
@@ -1126,6 +1403,29 @@ pub fn verify(ref_dir: &Path, table: &[Subsystem]) -> Verified {
                             "{}: ported DOES NOT REPRODUCE — table says {num}/{den}, \
                              the tree gives {rn}/{rd} (ENCODE_ARMS.txt x \
                              c2_core::codegen::mop)",
+                            sub.key
+                        ));
+                    }
+                }
+            }
+            (Cell::Measured { num, den, .. }, Some(PortedRecount::GlRecArms)) => {
+                let txt = std::fs::read_to_string(root.join(GLREC_ARMS_TSV))
+                    .unwrap_or_default();
+                let t = parse_glrec_arms(&txt);
+                if t.rows.is_empty() || t.fatal.is_none() {
+                    v.failures.push(format!(
+                        "{}: {GLREC_ARMS_TSV} unreadable, empty, or missing its \
+                         `# fatal` line — ported is NO-RESULT, not 0",
+                        sub.key
+                    ));
+                } else {
+                    let (rn, rd) = recount_section_ported(root, &t);
+                    v.ported_recounted.insert(sub.key, (rn, rd));
+                    if (rn, rd) != (*num, *den) {
+                        v.failures.push(format!(
+                            "{}: ported DOES NOT REPRODUCE — table says {num}/{den}, \
+                             the tree gives {rn}/{rd} (GLREC_ARMS.tsv live arms x a \
+                             scan of crates/ outside {PORTED_SCAN_EXCLUDES_CRATE})",
                             sub.key
                         ));
                     }
@@ -1368,7 +1668,7 @@ pub struct Rendered {
 /// at a deliberately corrupted copy.
 pub fn render(root: &Path, ref_dir: Option<PathBuf>, table: &[Subsystem]) -> Rendered {
     let ref_dir = ref_dir.unwrap_or_else(|| root.join(REF_DIR));
-    let verified = verify(&ref_dir, table);
+    let verified = verify(root, &ref_dir, table);
     let census = section_census(root);
     let stamp = workload_stamp(root);
 
@@ -1752,8 +2052,11 @@ fn markdown(
          | **1 read** | a **containment, never a ratio**: `sites ⊇ read ⊇ ported`. \
          `sites` is the subsystem's enumerable population, **recomputed from \
          `FUNCS.tsv` on this tree** where it is a band; `read` is what the `P_*.md` \
-         page says it read, in the page's own unit; `ported` is a **named residue on \
-         all ten rows** — see §4 |\n\
+         page says it read, in the page's own unit; `ported` is **measured on two rows \
+         and a named residue on the other eight** — see §4, and note that each \
+         measured row's `ported` is in its OWN unit (encode arms, `.gl` arms), so \
+         the containment nests SITE SETS and the three counts' RATIOS must not be \
+         compared |\n\
          | **2 agreement** | the page's own **evidence-mark census** — `[O]` \
          obj-confirmed against `[R]`+`[O]`+`[I]` — plus, where a page carries a real \
          differential, that differential quoted with its own denominator. **A mark is \
@@ -1818,9 +2121,28 @@ fn markdown(
             Cell::Measured { .. } => format!("{}<br>*{}*", md_escape(&ex.render()), md_escape(ex.note())),
             _ => md_escape(&ex.render()),
         };
+        // **THIS CELL USED TO BE THE LITERAL STRING `ported RESIDUE`, ON ALL TEN
+        // ROWS, WHATEVER THE ROW SAID.** `w-submetric` hard-coded it when every
+        // row really was a residue; `w-encmap` then measured `encode` at 27/79
+        // and the tuple table went on printing RESIDUE beside a §4 that said
+        // *"encode is measured: 27 of 79 arms"* — the two sections of one
+        // generated file disagreeing, with the machine-readable keys siding
+        // with §4. No control could see it: every control here fabricates a
+        // NUMBER, and this fabricated a WORD. Repaired by lane `w-secported`
+        // (`#3665`) in the commit that added the second measured row, because
+        // shipping a second one under the same bug would have hidden it twice.
+        // A Residue keeps its one-word cell and its reason stays in §4's list —
+        // pasting the whole sentence into a table column is what §4 exists to
+        // avoid. A Measured cell prints its number AND its denominator, which
+        // is this file's first rule.
+        let ported_cell = match &sub.ported {
+            Cell::Measured { .. } => format!("**ported {}**", md_escape(&sub.ported.render())),
+            Cell::Residue(_) => "**ported RESIDUE**".to_string(),
+            Cell::Pending(_) => "**ported PENDING**".to_string(),
+        };
         let _ = writeln!(
             m,
-            "| **{}**<br>`{}` | [`{}`]({}) | **{} sites** ({})<br>⊇ **read {}** ({})<br>⊇ **ported RESIDUE**{} | {} | {} | CITED `#3534` |",
+            "| **{}**<br>`{}` | [`{}`]({}) | **{} sites** ({})<br>⊇ **read {}** ({})<br>⊇ {}{} | {} | {} | CITED `#3534` |",
             sub.title,
             sub.key,
             sub.page,
@@ -1829,6 +2151,7 @@ fn markdown(
             md_escape(sub.sites_unit),
             commas(sub.read),
             md_escape(sub.read_unit),
+            ported_cell,
             second,
             agree,
             ex_cell,
@@ -1837,11 +2160,12 @@ fn markdown(
 
     let _ = writeln!(
         m,
-        "\n## 4. `ported` — one row measured, nine still residue\n\n\
+        "\n## 4. `ported` — two rows measured, eight still residue\n\n\
          Decision 15 asks strength 1 for *\"how many the port implements\"*. Lane\n\
          `w-submetric` shipped it as a **named residue on all ten rows** (`#3617`),\n\
          because no port↔image site map existed. Lane `w-encmap` (`#3636`–`#3641`,\n\
-         decision 16) converted the cheapest one.\n\n\
+         decision 16) converted the cheapest one; lane `w-secported`\n\
+         (`#3661`–`#3666`, decision 17) converted the second.\n\n\
          **`encode` is measured: 27 of 79 arms.** The predicate is\n\
          `subsys::recount_encode_ported` and it is **recomputed on every run and\n\
          every `cargo test`** from `ENCODE_ARMS.txt` × `c2_core::codegen::mop`'s\n\
@@ -1850,17 +2174,34 @@ fn markdown(
          arms and the choice is published rather than silent** — see the caveat in\n\
          §3, which also carries the strict (25) and plan-only (28) readings and the\n\
          shape of the 52 unmapped.\n\n\
-         **The other nine stay residue and the reason is structural, not a gap**: the\n\
+         **`section` is measured: 1 of 15 live `.gl` record-dispatcher arms.** The\n\
+         predicate is `subsys::recount_section_ported`, recomputed from\n\
+         `work/w-secported/GLREC_ARMS.tsv` (decoded from the pinned image) × a scan\n\
+         of `crates/` outside this crate, and a fabrication is caught by\n\
+         `control_a_fabricated_section_ported_is_caught`. **Its denominator is\n\
+         published with four rivals**, and the first thing it corrects is a phrase\n\
+         this file itself used to print: **there are not 27 arms.** 27 is a count of\n\
+         TAG VALUES; they index 16 jump slots, one of which is the fatal `C1001`\n\
+         path serving eight tags. The population is **15 live handlers over 19 live\n\
+         tags plus one refusal over 8** — `P_SECTION.md` §7.\n\n\
+         **THE PROPERTY THAT MAKES A ROW CONVERTIBLE IS NOT \"ITS SITES ARE\n\
+         RULES\".** `#3636` named that property and `#3661` tested it on the only\n\
+         other row it predicted for. What both convertible rows actually share is a\n\
+         **key the port carries on its own side**: an encode-form number, adopted\n\
+         from c2's table under `DISCLOSURE.md` W-MOP-2, and a `.gl` arm address,\n\
+         adopted under W-ALIAS-1. Where no adoption exists there is nothing to join\n\
+         on, and `P_SECTION.md` §7.4 makes that concrete — the port implements the\n\
+         alignment-nibble ladder and the `.bss` reversal rule, **derived black-box\n\
+         and citing nothing**, so on a site unit an address grep scores them 0 where\n\
+         the honest answer is 1. **The two rules agree with c2 and are joinable to\n\
+         it by nothing.**\n\n\
+         **The other eight stay residue and the reason is structural, not a gap**: the\n\
          port is **I/O-behavioral by construction** (`CLAUDE.md`'s one correctness\n\
          rule — AVX, restructured CFGs, anything, so long as the *output obj*\n\
          matches), so *\"the port implements site `0x10b2e7f8`\"* has no truth value\n\
-         for most of these addresses. The encoder is the exception precisely because\n\
-         its sites are **rules** rather than code: an arm IS a field-placement rule,\n\
-         the port transcribed those rules into `mop::plan`, and \"does the port have\n\
-         this arm's rule\" is therefore a question with an answer. **A row where the\n\
-         question is not well formed keeps its residue rather than getting an\n\
-         invented number**, and `verify` refuses a `ported` number that nothing can\n\
-         recount.\n\n\
+         for most of these addresses. **A row where the question is not well formed\n\
+         keeps its residue rather than getting an invented number**, and `verify`\n\
+         refuses a `ported` number that nothing can recount.\n\n\
          Per residue row, with the reason rather than a blank:\n"
     );
     for sub in table.iter() {
@@ -1869,11 +2210,52 @@ fn markdown(
         }
     }
 
+    // **AND EVERY MEASURED ROW'S CAVEAT, VERBATIM, IN THE PUBLISHED DOC.**
+    // `#3665`'s sibling, found in the same pass: the `ported` caveat — which
+    // for both measured rows IS the published denominator choice and its
+    // rivals, the thing decision 16 and decision 17 each demanded be stated
+    // out loud rather than picked silently — reached the CONSOLE render and
+    // `subsys.rs`'s source and **nothing else**. `docs/SUBSYS_METRICS.md` has
+    // carried `encode`'s number since `w-encmap` without the paragraph that
+    // says what its 79 means or why it is not 14 or 111. A denominator
+    // published only in the source of the tool that prints it is not
+    // published.
+    let measured: Vec<&Subsystem> = table
+        .iter()
+        .filter(|s| matches!(s.ported, Cell::Measured { .. }))
+        .collect();
+    if !measured.is_empty() {
+        let _ = writeln!(
+            m,
+            "\nAnd for each **measured** row, the caveat that carries its \
+             denominator choice and the rivals it was chosen against — verbatim, \
+             because a denominator published only in the source of the tool that \
+             prints it is not published:\n"
+        );
+        for sub in measured {
+            if let Cell::Measured { num, den, unit, source, caveat } = &sub.ported {
+                let _ = writeln!(
+                    m,
+                    "* **`{}` — {} of {} {}**\n  * source: {}\n  * {}\n",
+                    sub.key,
+                    commas(*num),
+                    commas(*den),
+                    md_escape(unit),
+                    md_escape(source),
+                    md_escape(caveat)
+                );
+            }
+        }
+    }
+
     let _ = writeln!(m, "\n## 5. Where `SUBSYS.md` §1's own cell needs reading twice\n\n\
          Found by re-measuring every denominator on this tree rather than carrying it.\n\
-         **None of these is corrected here** — `SUBSYS.md` and the `P_*.md` pages are\n\
-         not this lane's to edit, and a disagreement recorded beside a page beats a\n\
-         silent rewrite of it (`#3538`'s rule).\n");
+         **None of these is corrected here, and that is a rule rather than a fence** —\n\
+         a disagreement recorded beside a page beats a silent rewrite of it\n\
+         (`#3538`). It held even where a lane DID own the page: `w-secported` owns\n\
+         `P_SECTION.md`, found its coverage line unreproducible under all three\n\
+         readings of its own table and wrong from the file's first commit, and left\n\
+         the line as written with the amendment beside it at §7.5.\n");
     let mut any = false;
     for sub in table.iter() {
         if !sub.subsys_cell_note.is_empty() {
@@ -1949,7 +2331,7 @@ fn markdown(
     let _ = writeln!(
         m,
         "\n### 8.1 The controls, and that they were watched failing\n\n\
-         `#3336`: **a control never seen failing is decoration.** Six fabrications\n\
+         `#3336`: **a control never seen failing is decoration.** Seven fabrications\n\
          run on every `cargo test -p c2-harness --lib subsys`, each asserting the\n\
          verifier *refuses*, and each pinned to the check that must own the refusal so\n\
          a case cannot pass by being caught for the wrong reason:\n\n\
@@ -1959,15 +2341,30 @@ fn markdown(
          | `control_an_empty_residue_is_caught` | `dag`'s `ported` residue set to `\"   \"` | the no-silence check |\n\
          | `control_a_moved_coverage_line_is_caught` | `P_COFF`'s probe pointed at a line that is not on the page | the verbatim probe |\n\
          | `control_a_fabricated_ported_is_caught` | `encode`'s `ported` `27` → `28` | the `ENCODE_ARMS.txt` × `mop` recount |\n\
-         | `control_a_ported_number_with_no_recount_is_caught` | a number typed into `coff`'s `ported`, which has no recount | the recount-or-residue rule |\n\n\
-         **The two `ported` controls were watched failing against the SHIPPED table,\n\
-         not only against a copy** (lane `w-encmap`): editing the real cell `27` →\n\
-         `28` reddens four tests with\n\
+         | `control_a_ported_number_with_no_recount_is_caught` | a number typed into `coff`'s `ported`, which has no recount | the recount-or-residue rule |\n\
+         | `control_a_fabricated_section_ported_is_caught` | `section`'s `ported` `1` → `2` | the `GLREC_ARMS.tsv` × `crates/` scan |\n\n\
+         **Every `ported` control was watched failing against the SHIPPED table,\n\
+         not only against a copy** (lanes `w-encmap`, `w-secported`): editing the real\n\
+         `encode` cell `27` → `28` reddens four tests with\n\
          `encode: ported DOES NOT REPRODUCE — table says 28/79, the tree gives 27/79`,\n\
          and deleting the `OPCODES` half of `port_reaches_form` reddens five,\n\
          including `the_three_ported_readings_are_distinct` (`published` collapses\n\
-         onto `planned` at 28). A recount that only ever grades a mutated copy is a\n\
+         onto `planned` at 28). Editing the real `section` cell `1` → `2` likewise\n\
+         reddens four with `section: ported DOES NOT REPRODUCE — table says 2/15, the\n\
+         tree gives 1/15`. A recount that only ever grades a mutated copy is a\n\
          recount that has never been shown to bind the number the doc prints.\n\n\
+         **Two further checks are not fabrications and are worth naming separately.**\n\
+         `the_section_ported_arm_is_the_one_the_port_actually_decodes` pins *which*\n\
+         arm the numerator found — a count that is right for the wrong reason is\n\
+         `#3336`'s other failure — and pins the dispatcher's shape (27 tags, 16\n\
+         slots, 15 live arms, 19 live tags, 8 fatal) so a re-dump that disagrees\n\
+         reddens instead of shipping a moved denominator quietly.\n\
+         `the_observer_crate_cannot_move_its_own_ported` is **`#3641`'s family, caught\n\
+         by construction rather than by review**: the `section` numerator is a scan of\n\
+         source text for arm addresses, and `subsys.rs` must name those addresses to\n\
+         explain itself — so the scan excludes its own crate. **The hazard was\n\
+         measured, not assumed**: disabling that one exclusion moves the shipped\n\
+         number from `1/15` to `2/15`.\n\n\
          And `scripts/subsys_metrics.sh --self-test` drives the **binary** against\n\
          three deliberately corrupted copies of the reference index — a function moved\n\
          out of the inliner band, `P_EH.md`'s coverage line edited, a subsystem\n\
@@ -1975,7 +2372,18 @@ fn markdown(
          each mutation applied first, because a `sed` that matched nothing leaves a\n\
          clean copy and the case then \"passes\" by testing the control twice\n\
          (`#3516`'s mutation-not-applied failure, named in the same words by\n\
-         `scripts/gate_identity_diff.sh --self-test`).\n"
+         `scripts/gate_identity_diff.sh --self-test`).\n\n\
+         **And one control is not a fabrication at all**, because the defect it\n\
+         guards is not a number.\n\
+         `control_a_measured_ported_must_reach_the_rendered_table` asserts that §3's\n\
+         own row carries each measured `ported`. That check did **not** exist while\n\
+         §3's cell was the hard-coded string `ported RESIDUE` on all ten rows — so\n\
+         for two waves this file printed `RESIDUE` in the table and *\"encode is\n\
+         measured: 27 of 79 arms\"* four paragraphs below it, with the\n\
+         machine-readable keys siding with the prose. **Every other control here\n\
+         fabricates a NUMBER; that defect fabricated a WORD**, which is the blind\n\
+         spot `#3641` and `#3643` also sit in. `#3665`, repaired and watched failing\n\
+         by restoring the literal.\n"
     );
 
     let _ = writeln!(
@@ -2016,8 +2424,12 @@ fn markdown(
 mod tests {
     use super::*;
 
+    fn root() -> PathBuf {
+        crate::provenance::repo_root()
+    }
+
     fn ref_dir() -> PathBuf {
-        crate::provenance::repo_root().join(REF_DIR)
+        root().join(REF_DIR)
     }
 
     /// THE CHECK. Every denominator in the shipped table still reproduces from
@@ -2025,7 +2437,7 @@ mod tests {
     /// runs under `cargo test`, never in `gate.sh`'s verdict.
     #[test]
     fn every_denominator_reproduces_on_this_tree() {
-        let v = verify(&ref_dir(), SUBSYSTEMS);
+        let v = verify(&root(), &ref_dir(), SUBSYSTEMS);
         assert!(
             v.ok(),
             "per-subsystem metric table no longer reproduces:\n  {}",
@@ -2046,7 +2458,7 @@ mod tests {
         let i = table.iter().position(|s| s.key == "inline").unwrap();
         assert_eq!(table[i].sites, 93);
         table[i].sites = 94; // off by one, the cheapest lie
-        let v = verify(&ref_dir(), &table);
+        let v = verify(&root(), &ref_dir(), &table);
         assert!(!v.ok(), "an off-by-one denominator was NOT caught");
         assert!(
             v.failures.iter().any(|f| f.contains("DOES NOT REPRODUCE")),
@@ -2066,7 +2478,7 @@ mod tests {
             .cloned()
             .collect();
         assert_eq!(table.len(), 9);
-        let v = verify(&ref_dir(), &table);
+        let v = verify(&root(), &ref_dir(), &table);
         assert!(!v.ok(), "a missing subsystem row was NOT caught");
         assert!(
             v.failures
@@ -2085,7 +2497,7 @@ mod tests {
         let mut table: Vec<Subsystem> = SUBSYSTEMS.to_vec();
         let i = table.iter().position(|s| s.key == "dag").unwrap();
         table[i].ported = Cell::Residue("   ");
-        let v = verify(&ref_dir(), &table);
+        let v = verify(&root(), &ref_dir(), &table);
         assert!(!v.ok(), "an empty residue was NOT caught");
         assert!(
             v.failures.iter().any(|f| f.contains("EMPTY residue")),
@@ -2102,7 +2514,7 @@ mod tests {
         let mut table: Vec<Subsystem> = SUBSYSTEMS.to_vec();
         let i = table.iter().position(|s| s.key == "coff").unwrap();
         table[i].den_probe = "21 of the 121 functions in the `coff.c`/`coffemit.c` band";
-        let v = verify(&ref_dir(), &table);
+        let v = verify(&root(), &ref_dir(), &table);
         assert!(!v.ok(), "a moved coverage line was NOT caught");
         assert!(
             v.failures.iter().any(|f| f.contains("den_probe not found")),
@@ -2130,7 +2542,7 @@ mod tests {
         assert_eq!((num, den), (27, 79), "the shipped ported cell moved");
         // The cheapest lie: one more arm than the port implements.
         table[i].ported = Cell::Measured { num: num + 1, den, unit, source, caveat };
-        let v = verify(&ref_dir(), &table);
+        let v = verify(&root(), &ref_dir(), &table);
         assert!(!v.ok(), "an inflated `ported` was NOT caught");
         assert!(
             v.failures
@@ -2157,13 +2569,156 @@ mod tests {
             source: "invented",
             caveat: "invented",
         };
-        let v = verify(&ref_dir(), &table);
+        let v = verify(&root(), &ref_dir(), &table);
         assert!(!v.ok(), "an unrecountable `ported` number was NOT caught");
         assert!(
             v.failures.iter().any(|f| f.contains("with no recount")),
             "caught, but not as unrecountable: {:?}",
             v.failures
         );
+    }
+
+    /// POSITIVE CONTROL 7 — **a fabricated `section` `ported` must go RED.**
+    /// Control 5's twin, on the row this lane converted, and pinned to the check
+    /// that must own the refusal so it cannot pass by being caught for the wrong
+    /// reason.
+    #[test]
+    fn control_a_fabricated_section_ported_is_caught() {
+        let mut table: Vec<Subsystem> = SUBSYSTEMS.to_vec();
+        let i = table.iter().position(|s| s.key == "section").unwrap();
+        let (num, den, unit, source, caveat) = match &table[i].ported {
+            Cell::Measured { num, den, unit, source, caveat } => {
+                (*num, *den, *unit, *source, *caveat)
+            }
+            other => panic!("the section row's ported is no longer measured: {other:?}"),
+        };
+        assert_eq!((num, den), (1, 15), "the shipped section ported cell moved");
+        table[i].ported = Cell::Measured { num: num + 1, den, unit, source, caveat };
+        let v = verify(&root(), &ref_dir(), &table);
+        assert!(!v.ok(), "an inflated section `ported` was NOT caught");
+        assert!(
+            v.failures
+                .iter()
+                .any(|f| f.contains("section: ported DOES NOT REPRODUCE")),
+            "caught, but not by the GLREC recount: {:?}",
+            v.failures
+        );
+    }
+
+    /// The section recount is **not** a count that is right for the wrong
+    /// reason: it must name the arm it found, and that arm must be the shared
+    /// tag-`0x04`/`0x0E`/`0x10` handler `0x10b9bdcf`, which
+    /// `c2_il::func::glalias` decodes under `DISCLOSURE.md` W-ALIAS-1.
+    ///
+    /// This is where the dispatcher's real shape is pinned too — a lane that
+    /// re-dumps the table and gets a different population reddens here rather
+    /// than shipping a moved denominator quietly.
+    #[test]
+    fn the_section_ported_arm_is_the_one_the_port_actually_decodes() {
+        let txt = std::fs::read_to_string(root().join(GLREC_ARMS_TSV))
+            .expect("GLREC_ARMS.tsv");
+        let t = parse_glrec_arms(&txt);
+        assert_eq!(t.rows.len(), 27, "the 27 tag values 0x01..0x1B moved");
+        assert_eq!(t.fatal, Some(0x10b9c5ca), "the fatal arm moved");
+        assert_eq!(t.live_arms().len(), 15, "15 live arms + 1 refusal = 16 slots");
+        assert_eq!(t.live_tags().len(), 19, "19 live tags, 8 fatal");
+        // The refusal really does serve eight tags -- the fact that makes `27
+        // arms` wrong.
+        assert_eq!(t.rows.iter().filter(|r| Some(r.arm) == t.fatal).count(), 8);
+        // Tag 0x09, the SECTION DEFINITION record, is live and is NOT the arm
+        // the port decodes. If a future lane ports it, this line moves and the
+        // number moves with it -- which is the whole point.
+        let tag9 = t.rows.iter().find(|r| r.tag == 0x09).expect("tag 0x09");
+        assert_eq!(tag9.arm, 0x10b9c212);
+        assert_eq!(crates_cited(&root(), &[0x10b9c212]), Vec::<u32>::new());
+
+        assert_eq!(crates_cited(&root(), &t.live_arms()), vec![0x10b9bdcf]);
+    }
+
+    /// **THE OBSERVER MUST NOT BE ABLE TO MOVE ITS OWN NUMBER.** `#3641`'s
+    /// family: an instrument whose input is source text, writing about the
+    /// addresses it counts. This file names every live arm in its own doc
+    /// comments and in the control above; if the scan read `c2-harness` those
+    /// mentions would score as implementations and the row would read 15 of 15.
+    ///
+    /// Asserted on the real tree rather than a fixture, because the mentions are
+    /// really here: `subsys.rs` contains `10b9c212` (three times) and the scan
+    /// must still report it uncited.
+    #[test]
+    fn the_observer_crate_cannot_move_its_own_ported() {
+        let me = std::fs::read_to_string(
+            root().join("crates/c2-harness/src/subsys.rs"),
+        )
+        .expect("this file");
+        assert!(
+            me.contains("10b9c212"),
+            "this control is vacuous unless this file really names the address"
+        );
+        assert_eq!(
+            crates_cited(&root(), &[0x10b9c212]),
+            Vec::<u32>::new(),
+            "the metric crate's own mention of an arm was counted as a port decoder"
+        );
+    }
+
+    /// **CONTROL 8 — THE RENDERED TABLE MUST CARRY EVERY MEASURED NUMBER.**
+    ///
+    /// `#3665`: §3's `ported` column was the hard-coded string `ported RESIDUE`
+    /// on all ten rows for two waves, so when `w-encmap` measured `encode` at
+    /// 27/79 the table went on printing RESIDUE beside a §4 that said the
+    /// opposite. **Every other control in this module fabricates a NUMBER; that
+    /// one fabricated a WORD**, and nothing here could see it — which is the
+    /// same blind spot `#3643` and `#3641` sit in.
+    ///
+    /// So this asserts the property rather than the string: for each measured
+    /// row, the rendered markdown carries its numerator, its denominator and
+    /// its key. Watched failing by reverting the cell to the literal.
+    #[test]
+    fn control_a_measured_ported_must_reach_the_rendered_table() {
+        let r = render(&root(), None, SUBSYSTEMS);
+        let measured: Vec<&Subsystem> = SUBSYSTEMS
+            .iter()
+            .filter(|s| matches!(s.ported, Cell::Measured { .. }))
+            .collect();
+        assert_eq!(measured.len(), 2, "encode and section are measured");
+        // §3's tuple table is everything between its heading and §4's.
+        let table = r
+            .markdown
+            .split("## 3. The tuple table")
+            .nth(1)
+            .and_then(|s| s.split("## 4. ").next())
+            .expect("§3 exists");
+        for sub in measured {
+            let (num, den) = match sub.ported {
+                Cell::Measured { num, den, .. } => (num, den),
+                _ => unreachable!(),
+            };
+            let row = table
+                .lines()
+                .find(|l| l.contains(&format!("`{}` |", sub.key)))
+                .unwrap_or_else(|| panic!("no §3 row for {}", sub.key));
+            assert!(
+                row.contains(&format!("ported {num} / {den}")),
+                "{}: §3 does not carry the measured ported {num}/{den} -- \
+                 the tuple table and §4 disagree, which is #3665: {row}",
+                sub.key
+            );
+            // ...and §4 must carry the caveat VERBATIM. A denominator
+            // published only in this file's source is not published, and
+            // `w-encmap`'s 79-arm justification lived exactly there for a
+            // whole wave.
+            let caveat = match sub.ported {
+                Cell::Measured { caveat, .. } => caveat,
+                _ => unreachable!(),
+            };
+            let head: String = caveat.split_whitespace().take(8).collect::<Vec<_>>().join(" ");
+            assert!(
+                r.markdown.contains(&head),
+                "{}: the measured ported caveat does not reach the published doc \
+                 -- looked for {head:?}",
+                sub.key
+            );
+        }
     }
 
     /// The `ported` predicate is **not** vacuous: the three readings it
@@ -2240,7 +2795,7 @@ mod tests {
     /// The mark census rule reproduces the numbers the shipped doc quotes.
     #[test]
     fn the_mark_census_reproduces() {
-        let v = verify(&ref_dir(), SUBSYSTEMS);
+        let v = verify(&root(), &ref_dir(), SUBSYSTEMS);
         assert_eq!(v.marks.len(), 10);
         let eh = v.marks["eh"];
         assert_eq!((eh.read, eh.obj, eh.inferred), (27, 14, 0));

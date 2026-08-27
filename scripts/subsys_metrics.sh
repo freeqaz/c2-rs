@@ -159,7 +159,8 @@ write_doc() {
         echo "> \`scripts/subsys_metrics.sh --write\`. Tree \`$tip\` ($dirty), generated"
         echo "> \`$now\`. Every number below is re-verified against this tree by"
         echo "> \`cargo test -p c2-harness --lib subsys\`, which \`scripts/gate.sh\`'s"
-        echo "> unit row runs; the four positive controls run beside it."
+        echo "> unit row runs; the seven positive controls run beside it, plus the two"
+        echo "> checks that are not fabrications (#3665, and the observer exclusion)."
         echo
         "$bin" subsys --markdown | tail -n +2
     } > "$tmp"
