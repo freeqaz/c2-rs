@@ -1,0 +1,111 @@
+lane gate: preflight on /tmp
+  keep    /tmp/c2rs-gate-1277561       LIVE — pid 1277561 is a running gate (a concurrent lane)
+  keep    /tmp/c2rs-gate-1755677       this run
+  keep    /tmp/c2rs-gate-1003105       recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-111764        recent — 2 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-4124916       recent — 3 of 3 finished runs kept for their logs
+  reaped  /tmp/c2rs-gate-57862         stale — no live gate owns it
+reap:   1 stale run tree(s) removed, 5 kept (1 live, 3 recent, 1 this run)
+strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+        freed 169.9 MiB and 441 inodes (df delta over a SHARED filesystem)
+disk:   /tmp — free 13.7 GiB / 984,741 inodes (floors: 2.0 GiB / 150,000 inodes)
+
+lane gate: 18 lanes from <repo>/scripts/lanes.txt
+  run dir: /tmp/c2rs-gate-1755677   (per-lane run dirs under /tmp/c2rs-gate-1755677/lanes/)
+  row history: <repo>/work/gate_row_history.tsv   (board #3339)
+  graded tree: 6e5f26b1e17d  (799 files under crates fixtures scripts, content-hashed)
+               0 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)
+
+hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refusals)
+  REFUSED  HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
+ladder-red:      work/w-ladders/ladder_red.py  (no toolchain; fires ladder.py's width-table refusal)
+  PASS  
+building the harness (no-op if current)
+   Compiling c2-il v0.1.0 (<repo>/crates/c2-il)
+   Compiling c2-core v0.1.0 (<repo>/crates/c2-core)
+   Compiling c2-reference v0.1.0 (<repo>/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (<repo>/crates/c2-harness)
+    Finished `release` profile [optimized] target(s) in 18.14s
+harness: /tmp/c2rs-gate-1755677/c2rs
+  pinned from <repo>/target/release/c2rs  built 2026-08-27 20:35:18
+  sha f80fe00c663d  tree 9657bd132-dirty
+
+wall clock: 113s for 18 lanes at --jobs 16 (C2RS_JOBS=8)
+
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-1755677/sweep 0  (jobs 16)
+  UNGRADED  <mainrepo>/work/corpus/gen-169fae960ed84b63/99-chain-tail-fp-load-0265.cpp  |  <mainrepo>/work/corpus/gen-169fae960ed84b63/99-chain-tail-fp-load-0265.cpp -> ReferenceError: capture_reference failed: capture_reference produced no obj at <cache>/c2rs/capture/5b08a0e525e0d5442909764c9fc9605c/out.obj  cache=miss
+  UNGRADED  <mainrepo>/work/corpus/gen-169fae960ed84b63/34-volatile-formal-0318.cpp  |  <mainrepo>/work/corpus/gen-169fae960ed84b63/34-volatile-formal-0318.cpp -> ReferenceError: capture_reference failed: capture_reference produced no obj at <cache>/c2rs/capture/791b79e5989bb00aa359a5f882161054/out.obj  cache=miss
+  UNGRADED  <mainrepo>/work/corpus/gen-169fae960ed84b63/93-virtual-byval-0036.cpp  |  <mainrepo>/work/corpus/gen-169fae960ed84b63/93-virtual-byval-0036.cpp -> ReferenceError: replay failed: replay produced no (or an empty) obj at <cache>/c2rs/capture/352f452abcda800293b2ec3bdfdb3746/out.obj  cache=miss
+  UNGRADED  <mainrepo>/work/corpus/gen-169fae960ed84b63/96-cmp-two-calls-0244.cpp  |  <mainrepo>/work/corpus/gen-169fae960ed84b63/96-cmp-two-calls-0244.cpp -> ReferenceError: capture_reference failed: capture_reference produced no obj at <cache>/c2rs/capture/ec01ac571d2410b675cdbf70f0fc7862/out.obj  cache=miss
+  corpus: SHARED <mainrepo>/work/corpus/gen-169fae960ed84b63
+  (377s)
+
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-1755677/cross 0  (jobs 16)
+  assigned 19556 cases over 18 lanes = 90812 cells (full cross would be 352008)
+  sweeping 90812 of 90812 case-lane cells (cross of 19556 cases x <repo>/scripts/lanes.txt; the full 12x product is 352008)
+  checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0
+  cache: hit=90424 miss=388 validated=894 cache-bad=0 (of 90812 cells)
+  corpus: SHARED <mainrepo>/work/corpus/gen-169fae960ed84b63
+  (213s)
+
+debug lane:      scripts/debug_lane.sh  (DEBUG profile — the only row that can
+                 execute a debug_assert or trap an arithmetic overflow)
+  debug lane: 18 lanes x 391 fixtures at 16 lane(s) at once, binary=/tmp/c2rs-gate-1755677/debuglane/c2rs
+  DEBUG-LANE-TOTAL lanes=18 ran=18 failed=0
+  (90s)
+
+disk:   /tmp low-water this run — 13.1 GiB and 944,312 inodes free (start: 13.7 GiB / 984,741)
+
+LANE                 VERDICT     graded/total  match  mismatch  flags
+-------------------- ---------- ------------- ------ --------- --------------------
+O1                   PASS          391/391       186         0  /O1
+O1-EHsc              PASS          391/391       187         0  /O1 /EHsc
+O1-Oi                PASS          391/391       188         0  /O1 /Oi
+O1-Oi-EHsc           PASS          391/391       189         0  /O1 /Oi /EHsc
+Ox                   PASS          391/391       157         0  /Ox
+Ox-EHsc              PASS          391/391       157         0  /Ox /EHsc
+Ox-Gy                PASS          391/391       157         0  /Ox /Gy
+Ox-Gy-EHsc           PASS          391/391       157         0  /Ox /Gy /EHsc
+O2                   PASS          391/391       163         0  /O2
+O2-EHsc              PASS          391/391       163         0  /O2 /EHsc
+Od                   PASS          391/391        21         0  /Od
+Od-EHsc              PASS          391/391        21         0  /Od /EHsc
+O1-Oi-GR             PASS          391/391       188         0  /O1 /Oi /GR
+O1-Oi-EHsc-GR        PASS          391/391       189         0  /O1 /Oi /EHsc /GR
+Ox-GR                PASS          391/391       157         0  /Ox /GR
+Ox-EHsc-GR           PASS          391/391       157         0  /Ox /EHsc /GR
+Od-GR                PASS          391/391        21         0  /Od /GR
+Od-EHsc-GR           PASS          391/391        21         0  /Od /EHsc /GR
+expr-sweep           FAIL        19556/19556   19456         0  generated cases (of 19556)   <- graded every case cleanly but exited 1
+mode-cross           PASS        90812/90812   90424         0  case-lane cells (of 90812)
+hatch-red            REFUSED         0/14          0       n/a  arms (0 green controls)   <- HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
+ladder-red           PASS            5/5           3       n/a  arms (2 green controls)
+debug-lane           PASS           18/18       2479         0  DEBUG-profile lanes (7038 graded, 0 panic)
+
+ROW LIVENESS — rows that did NOT execute (verdict was neither PASS nor FAIL):
+  hatch-red: REFUSED for 1 consecutive run(s) (first seen 2026-08-27)
+  A refusal may be right on the day; a row refusing for N runs is a row
+  nobody is reading (board #3219). This PRINTS and never fails the gate.
+  History: <repo>/work/gate_row_history.tsv — delete it to reset. It starts at the commit that
+  added this counter, so an N here is a FLOOR on the true age, never the age.
+
+lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+graded: 7038 fixture-verdicts across all lanes
+sweep:  FAIL — 19556 of 19556 selected cases reached, 19456 GRADED by the
+        oracle (100 ungraded: no reference obj), 0 mismatch (corpus 19556)
+cross:  PASS — 90424 of 90812 selected cells graded, 0 mismatch (product 90812)
+debug:  PASS — 18 of 18 lanes through a DEBUG-profile c2rs,
+        7038 fixture-verdicts, match 2479, 0 mismatch, 0 PANIC
+logs:   /tmp/c2rs-gate-1755677/<lane>.log, /tmp/c2rs-gate-1755677/sweep.log, /tmp/c2rs-gate-1755677/cross.log, /tmp/c2rs-gate-1755677/debuglane.log
+
+GATE: FAIL — expr-sweep failed: graded every case cleanly but exited 1
+
+graded tree: 6e5f26b1e17d  (799 files: crates fixtures scripts, content-hashed)
+  1 gitignored byproduct file(s) under those directories were NOT hashed
+  (board #3048; it was 0 at the start of this run). The subtraction is
+  printed at BOTH ends on purpose: a denominator nobody prints on both sides of a
+  change is a denominator that grows unwatched (#1002). A rise here is not a failure —
+  it is the gate saying which of its own byproducts it declined to grade itself on.
+  This is the identity of what was graded. It is a hash of file CONTENT, not
+  a commit — HEAD is what lied in #2907, and a commit id is silent about
+  uncommitted work, a half-restored tree and a concurrent writer alike.

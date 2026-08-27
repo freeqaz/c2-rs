@@ -141,6 +141,49 @@ never re-taken**, per decision 20 §2.
 
 ## 7. Gate
 
-`scripts/gate.sh` verdict line and `cargo test --workspace --release` at the
-lane tip: see §8 of `docs/whitebox/WB_REGCELLS_FINDINGS.md`'s artefact table and
-the transcript committed at `work/w-regcells/run/`.
+Read the `GATE:` **verdict line**, never the exit code. Two runs, both committed
+at the lane tip, and **the first one is reported first because it was RED**.
+
+| run | transcript | verdict line |
+|---|---|---|
+| **1**, with a peer lane's gate running concurrently (`gate.sh`'s own preflight names it: *"pid 1277561 is a running gate (a concurrent lane)"*) | `work/w-regcells/run/gate.txt` | **`GATE: FAIL — expr-sweep failed: graded every case cleanly but exited 1`** |
+| **2**, same tree, same commit, after that peer gate exited | `work/w-regcells/run/gate2.txt` | **`GATE: PASS (HATCH-RED REFUSED)`** |
+
+**Run 1's FAIL is the reference side losing captures, and it is diagnosed rather
+than waved away.** Its sweep read `19556/19556 reached, 19456 GRADED, 100
+ungraded: no reference obj, 0 mismatch`; every one of the failures is
+`capture_reference produced no obj … cache=miss` or `replay produced no obj` —
+an **oracle-side** capture failure under toolchain contention, not a port
+verdict. Three things settle it:
+
+* **Run 2 is the experiment**, not an appeal to precedent: identical tree
+  (`graded tree 6e5f26b1e17d` at both ends), peer gate gone, and the sweep
+  produced **zero** `UNGRADED` lines, finishing in **64 s** against run 1's
+  **377 s** — and landed on **19,460 graded / 96 ungraded**, which is the
+  repo's own recorded standing baseline (`rungs/2026-08-26-w-symbind.md:483-484`
+  measures 19,460 graded / 96 ungraded at *both* base and tip).
+* **`mismatch` is 0 in both runs**, in every one of the 18 lanes, the sweep, the
+  cross and the debug lane. A contended oracle can lose a capture; it cannot
+  turn a match into a mismatch.
+* **This lane cannot move a gate count at all** — see below.
+
+Run 2 in full: **18/18 lanes PASS**, 391/391 each, **0 mismatch**; `expr-sweep`
+**PASS** 19,556/19,556 reached, 19,460 graded, 0 mismatch; `mode-cross` **PASS**
+90,424 of 90,812 cells, 0 mismatch; `debug-lane` **PASS** 18/18, 7,038
+fixture-verdicts, **0 panic**; `ladder-red` **PASS** (2 green controls).
+
+`cargo test --workspace --release`: **950 passed, 0 failed**
+(`work/w-regcells/run/cargo_test.txt`).
+
+`hatch-red REFUSED — HATCH-STALE` is **pre-existing and standing** (board
+`#1389`), not this lane's; it is `REFUSED` on every recent lane's gate
+(`rungs/2026-08-25-w-permeasure.md`, `2026-08-26-w-secported.md`,
+`2026-08-26-w-submetric.md`).
+
+**Nothing in this lane can move a gate count.** It adds no gate row (`#3691`),
+touches no file under `crates/`, `fixtures/` or `scripts/` — the three
+directories the graded-tree hash covers — and its grader lives under
+`docs/whitebox/scripts/` beside `grade_regions.py` and `grade_reorder.py`,
+which is where whitebox instruments that grade **real c2's obj** live. `#1406`
+binds instruments that grade **the port**; this one grades the reference
+compiler and has its own `--selftest`.
