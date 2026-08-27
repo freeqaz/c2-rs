@@ -1,0 +1,5 @@
+rows: 24
+  state    : {'absent': 17, 'fitted': 2, 'R-derived': 2, 'unexercisable': 3}
+  exercised: {'yes': 9, 'not-separable': 6, 'no': 6, 'unexercisable': 3}
+
+CONFORMANCE-CHECK: GREEN  (0 failure(s) over 24 rows)

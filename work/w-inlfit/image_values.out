@@ -1,0 +1,8 @@
+ImageBase 0x10b00000
+  .text    VA 0x10b01000 vsz 0x12cc7c raw@0x000400 rsz 0x12ce00 -> raw ends VA 0x10c2de00
+  .data    VA 0x10c2e000 vsz 0x042750 raw@0x12d200 rsz 0x00ec00 -> raw ends VA 0x10c3cc00
+  .rsrc    VA 0x10c71000 vsz 0x0003e8 raw@0x13be00 rsz 0x000400 -> raw ends VA 0x10c71400
+  .reloc   VA 0x10c72000 vsz 0x00ca8a raw@0x13c200 rsz 0x00cc00 -> raw ends VA 0x10c7ec00
+0x10c2ea98  sec .data  RAW  file@0x12dc98  dword=0x00000003 (3)  bytes=03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+0x10c46318  sec .data  BSS(zero at load)
+0x10c2e310  sec .data  RAW  file@0x12d510  dword=0x00000001 (1)  bytes=01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
