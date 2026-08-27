@@ -115,8 +115,17 @@
 # absence (`#3470`, `#1002`) — an empty `git ls-files`, a wrong `-C`, or a
 # `--`-pathspec typo would otherwise report a clean audit over nothing at all,
 # which is this project's most-repeated failure and has now happened at least
-# nine times. The closing line is **positive** — *"examined N files across 4
+# nine times. The closing line is **positive** — *"examined N files across 5
 # classes, M violations"* — rather than an enumeration of ways to be empty.
+#
+# **Class 5 is a RATCHET, not a zero (#3689).** Its population is `docs/` files
+# quoting an absolute machine path; they are dated rung records, they stay as
+# written, and the enforced property is that the count MAY NOT GROW. It was an
+# ADVISORY printed on every run until 2026-08-27, and in that state it went
+# 16 -> 18 inside a single wave with nobody reading it — which is `#3679`'s own
+# sentence ("a rule with no enforcement is a paragraph") landing on this
+# script's own output. Raising `DOCS_ABS_CEILING` is a normal edit; doing it
+# silently is the thing that is now impossible.
 #
 #   exit 0  every class clean
 #   exit 1  at least one violation — the list is on stdout
@@ -183,6 +192,23 @@ class 4 and no other class" ;;
 ALLOW_C2="crates/c2-harness/src/provenance.rs"
 ALLOW_C3="work/w-bss2/prov.py"
 ALLOW_C4="docs/perf/perf_scale.png crates/c2-harness/tests/corpus_sample/"
+
+# ---- class 5's ceiling ------------------------------------------------------
+#
+# The count of tracked files under `docs/` that carry an absolute machine path.
+# NOT a target of zero and not an allowlist: the population is dated rung
+# records quoting the worktree a measurement ran in, and this repo's standing
+# rule is that dated records stay as written. What the ceiling forbids is
+# GROWTH — see the RATCHET block in `audit()` for why an advisory was not
+# enough.
+#
+# Measured on `f3f8d5eeb` (2026-08-27), the tree this ceiling was set on:
+# **18**. It read 16 at `41ca1ee9a` and grew by two during wave 15 while the
+# advisory printed the number on every run.
+#
+# Raising this is a normal, expected edit. Raise it in the same commit as the
+# file that needs it and name the file in the commit message.
+DOCS_ABS_CEILING=18
 ALLOWLIST="$ALLOW_C2 $ALLOW_C3 $ALLOW_C4"
 
 # NOTE THE UNDERSCORED LOOP VARIABLE, AND IT IS NOT STYLE EITHER. POSIX sh has
@@ -383,14 +409,38 @@ audit() {
     docs_denom="$(git -C "$root" ls-files -- docs | grep -c . || true)"
     dpaths="$(git -C "$root" grep -I -l -E -e "$ABS_FWD" -e "$ABS_BS" \
         -- docs 2>/dev/null | grep -c . || true)"
-    echo "ADVISORY — absolute machine paths under docs/: $dpaths of $docs_denom examined"
-    echo "  NOT gated: docs/ is outside the two carve-outs decision 18 names,"
-    echo "  and the files are dated rung records that quote the worktree a"
-    echo "  measurement ran in. Printed every run so the number cannot go"
-    echo "  quiet — it read 16 at 41ca1ee9a."
+    echo "RATCHET — absolute machine paths under docs/: $dpaths of $docs_denom examined (ceiling $DOCS_ABS_CEILING)"
+    echo "  NOT gated at ZERO: docs/ is outside the two carve-outs decision 18"
+    echo "  names, and the files are dated rung records that quote the worktree"
+    echo "  a measurement ran in. Those stay as written."
+    echo "  GATED AT A CEILING instead, board #3689. Printing a number every"
+    echo "  run was supposed to stop it going quiet and it did not: this read"
+    echo "  16 at 41ca1ee9a and 18 four commits later, inside one wave, with"
+    echo "  the advisory visible on every run and nobody reading it. An"
+    echo "  unenforced number is #3679's own sentence — a rule with no"
+    echo "  enforcement is a paragraph — aimed at this script's own output."
+    echo "  To ADD a file that quotes a machine path, raise DOCS_ABS_CEILING in"
+    echo "  this script in the same commit and say which file and why. That is"
+    echo "  one line, and it makes the growth a decision instead of a drift."
+    if [ "$dpaths" -gt "$DOCS_ABS_CEILING" ]; then
+        echo "VIOLATION class 5: docs/ absolute-path files rose to $dpaths, above the ceiling of $DOCS_ABS_CEILING." >&2
+        git -C "$root" grep -I -l -E -e "$ABS_FWD" -e "$ABS_BS" -- docs 2>/dev/null \
+            | sed 's/^/    /' >&2
+        viol=$((viol + 1))
+        rc=1
+    elif [ "$dpaths" -lt "$DOCS_ABS_CEILING" ]; then
+        echo "  NOTE: $dpaths is BELOW the ceiling. Lower DOCS_ABS_CEILING to"
+        echo "  $dpaths so the slack cannot be spent silently — a ceiling with"
+        echo "  headroom is an advisory again."
+    fi
 
     # ---- the positive summary ------------------------------------------------
-    echo "SUMMARY: examined $denom tracked files across 4 classes; $viol violation(s)."
+    # 5 classes since #3689, and the count is spelled out rather than left at
+    # "4" because the summary line is the one line most readers read: a class
+    # that is enforced but absent from the headline is enforcement nobody knows
+    # they have. Class 5's denominator is `docs/`, not `$denom`, and it is
+    # printed on its own RATCHET line above with its ceiling beside it.
+    echo "SUMMARY: examined $denom tracked files across 5 classes; $viol violation(s)."
     return "$rc"
 }
 
@@ -515,6 +565,51 @@ self_test() {
     git -C "$tmp" rm -q --cached work/w-bss2/prov.py work/lane/copy.py >/dev/null
     rm -f "$tmp/work/w-bss2/prov.py" "$tmp/work/lane/copy.py"
 
+    # ---- class 5: the RATCHET, watched in BOTH directions (#3689) ------------
+    #
+    # A ceiling has two ways to be useless and only one of them is the obvious
+    # one. It can fail to fire when the count EXCEEDS it — and it can fire on a
+    # count that is merely nonzero, which would make every dated rung record a
+    # violation and get the class switched off within a day. Both are checked,
+    # and the second is the one that decides whether this class can live in a
+    # repo that has 18 legitimate such files.
+    #
+    # `DOCS_ABS_CEILING` is lowered around the plant rather than the plant being
+    # sized to 18 files: the ceiling is the subject under test, so driving it
+    # directly is the honest probe, and 18 plants would test nothing extra.
+    _saved_ceiling="$DOCS_ABS_CEILING"
+    mkdir -p "$tmp/docs"
+    printf '%s\n' "$abs_plant" > "$tmp/docs/rung.md"
+    git -C "$tmp" add -f docs/rung.md >/dev/null
+
+    DOCS_ABS_CEILING=1
+    audit "$tmp" >/dev/null 2>&1 && st=0 || st=$?
+    if [ "$st" -eq 0 ]; then
+        echo "  docs/ abspath AT the ceiling (1 of 1) -> green (a ratchet is not a zero)"
+    else
+        echo "  RATCHET FIRED AT ITS OWN CEILING: exit $st, expected 0. A class" >&2
+        echo "    that reds on 18 legitimate dated records will be switched off." >&2
+        fails=$((fails + 1))
+    fi
+
+    DOCS_ABS_CEILING=0
+    audit "$tmp" >/dev/null 2>&1 && st=0 || st=$?
+    if [ "$st" -eq 1 ]; then
+        echo "  docs/ abspath ABOVE the ceiling (1 of 0) -> RED (growth is caught)"
+    else
+        echo "  RATCHET DID NOT FIRE ABOVE ITS CEILING: exit $st, expected 1" >&2
+        fails=$((fails + 1))
+    fi
+
+    git -C "$tmp" rm -q --cached docs/rung.md >/dev/null
+    rm -f "$tmp/docs/rung.md"
+    audit "$tmp" >/dev/null 2>&1 && st=0 || st=$?
+    if [ "$st" -ne 0 ]; then
+        echo "  RATCHET plant removed but audit STILL RED — not reversible" >&2
+        fails=$((fails + 1))
+    fi
+    DOCS_ABS_CEILING="$_saved_ceiling"
+
     # The denominator guards: an empty index must FAIL, and so must a repo with
     # nothing under work/ — class 3 grading zero files is not class 3 passing.
     empty="$tmp/empty"
@@ -548,7 +643,8 @@ self_test() {
     fi
     echo "SELF-TEST PASS: 11 planted violations red and each reversible,"
     echo "  allowlist suppresses its file and not its class, control green,"
-    echo "  empty index and empty shelf both refused."
+    echo "  empty index and empty shelf both refused, and the class-5 ratchet"
+    echo "  green AT its ceiling and red ABOVE it."
     return 0
 }
 
