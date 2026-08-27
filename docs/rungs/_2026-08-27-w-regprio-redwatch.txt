@@ -1,0 +1,107 @@
+=== D1  MUT-S44 := C2 -- the mutant is not a decision point ===
+test codegen::regalloc_worklist::tests::a_full_tie_reverses_the_accumulation_order_and_the_lt_mutant_preserves_it ... ok
+test codegen::regalloc_worklist::tests::m_free_reproduces_every_cell_under_c2_and_under_every_mutant ... ok
+test codegen::regalloc_worklist::tests::all_five_mutants_separate_from_c2_on_synthetic_input ... FAILED
+test codegen::regalloc_worklist::tests::no_cell_of_the_twenty_reaches_the_spill_reentry_path ... ok
+test codegen::regalloc_worklist::tests::population_power_over_the_twenty_cells ... ok
+test codegen::regalloc_worklist::tests::reentry_by_priority_differs_from_both_stack_and_queue ... ok
+test codegen::regalloc_worklist::tests::six_of_the_twenty_cells_disagree_across_profiles_and_all_six_are_exact_reversals ... ok
+test codegen::regalloc_worklist::tests::the_all_ties_model_is_refuted_on_six_of_the_eight_a_series_cells ... ok
+test codegen::regalloc_worklist::tests::the_grid_control_took_no_callee_saved_colour ... ok
+test codegen::regalloc_worklist::tests::the_predicate_reproduces_the_rule_as_read ... ok
+test codegen::regalloc_worklist::tests::the_primary_key_is_signed_and_a_negative_priority_ranks_last ... ok
+test codegen::regalloc_worklist::tests::the_tie_key_signedness_has_an_empty_observable_set ... FAILED
+
+=== D2  the tie tier baked as < instead of <= in C2 itself ===
+test codegen::regalloc_worklist::tests::m_free_reproduces_every_cell_under_c2_and_under_every_mutant ... ok
+test codegen::regalloc_worklist::tests::no_cell_of_the_twenty_reaches_the_spill_reentry_path ... ok
+test codegen::regalloc_worklist::tests::a_full_tie_reverses_the_accumulation_order_and_the_lt_mutant_preserves_it ... FAILED
+test codegen::regalloc_worklist::tests::all_five_mutants_separate_from_c2_on_synthetic_input ... FAILED
+test codegen::regalloc_worklist::tests::six_of_the_twenty_cells_disagree_across_profiles_and_all_six_are_exact_reversals ... ok
+test codegen::regalloc_worklist::tests::population_power_over_the_twenty_cells ... ok
+test codegen::regalloc_worklist::tests::reentry_by_priority_differs_from_both_stack_and_queue ... ok
+test codegen::regalloc_worklist::tests::the_all_ties_model_is_refuted_on_six_of_the_eight_a_series_cells ... FAILED
+test codegen::regalloc_worklist::tests::the_grid_control_took_no_callee_saved_colour ... ok
+test codegen::regalloc_worklist::tests::the_predicate_reproduces_the_rule_as_read ... FAILED
+test codegen::regalloc_worklist::tests::the_primary_key_is_signed_and_a_negative_priority_ranks_last ... ok
+test codegen::regalloc_worklist::tests::the_tie_key_signedness_has_an_empty_observable_set ... ok
+
+=== D3  cnd_a4's observed order falsified to reverse formal order ===
+test codegen::regalloc_worklist::tests::a_full_tie_reverses_the_accumulation_order_and_the_lt_mutant_preserves_it ... ok
+test codegen::regalloc_worklist::tests::m_free_reproduces_every_cell_under_c2_and_under_every_mutant ... ok
+test codegen::regalloc_worklist::tests::population_power_over_the_twenty_cells ... ok
+test codegen::regalloc_worklist::tests::six_of_the_twenty_cells_disagree_across_profiles_and_all_six_are_exact_reversals ... ok
+test codegen::regalloc_worklist::tests::no_cell_of_the_twenty_reaches_the_spill_reentry_path ... ok
+test codegen::regalloc_worklist::tests::the_predicate_reproduces_the_rule_as_read ... ok
+test codegen::regalloc_worklist::tests::the_primary_key_is_signed_and_a_negative_priority_ranks_last ... ok
+test codegen::regalloc_worklist::tests::the_all_ties_model_is_refuted_on_six_of_the_eight_a_series_cells ... FAILED
+test codegen::regalloc_worklist::tests::all_five_mutants_separate_from_c2_on_synthetic_input ... ok
+test codegen::regalloc_worklist::tests::the_grid_control_took_no_callee_saved_colour ... ok
+test codegen::regalloc_worklist::tests::reentry_by_priority_differs_from_both_stack_and_queue ... ok
+test codegen::regalloc_worklist::tests::the_tie_key_signedness_has_an_empty_observable_set ... ok
+
+=== D4  the grid control cnd_c0 reported as having framed ===
+test codegen::regalloc_worklist::tests::a_full_tie_reverses_the_accumulation_order_and_the_lt_mutant_preserves_it ... ok
+test codegen::regalloc_worklist::tests::all_five_mutants_separate_from_c2_on_synthetic_input ... ok
+test codegen::regalloc_worklist::tests::no_cell_of_the_twenty_reaches_the_spill_reentry_path ... ok
+test codegen::regalloc_worklist::tests::reentry_by_priority_differs_from_both_stack_and_queue ... ok
+test codegen::regalloc_worklist::tests::m_free_reproduces_every_cell_under_c2_and_under_every_mutant ... ok
+test codegen::regalloc_worklist::tests::six_of_the_twenty_cells_disagree_across_profiles_and_all_six_are_exact_reversals ... ok
+test codegen::regalloc_worklist::tests::population_power_over_the_twenty_cells ... ok
+test codegen::regalloc_worklist::tests::the_predicate_reproduces_the_rule_as_read ... ok
+test codegen::regalloc_worklist::tests::the_all_ties_model_is_refuted_on_six_of_the_eight_a_series_cells ... ok
+test codegen::regalloc_worklist::tests::the_primary_key_is_signed_and_a_negative_priority_ranks_last ... ok
+test codegen::regalloc_worklist::tests::the_tie_key_signedness_has_an_empty_observable_set ... ok
+test codegen::regalloc_worklist::tests::the_grid_control_took_no_callee_saved_colour ... FAILED
+
+=== D5  cnd_h3's /Ox order falsified -- breaks the exact-reversal relation ===
+test codegen::regalloc_worklist::tests::a_full_tie_reverses_the_accumulation_order_and_the_lt_mutant_preserves_it ... ok
+test codegen::regalloc_worklist::tests::all_five_mutants_separate_from_c2_on_synthetic_input ... ok
+test codegen::regalloc_worklist::tests::no_cell_of_the_twenty_reaches_the_spill_reentry_path ... ok
+test codegen::regalloc_worklist::tests::m_free_reproduces_every_cell_under_c2_and_under_every_mutant ... ok
+test codegen::regalloc_worklist::tests::reentry_by_priority_differs_from_both_stack_and_queue ... ok
+test codegen::regalloc_worklist::tests::the_all_ties_model_is_refuted_on_six_of_the_eight_a_series_cells ... ok
+test codegen::regalloc_worklist::tests::the_grid_control_took_no_callee_saved_colour ... ok
+test codegen::regalloc_worklist::tests::population_power_over_the_twenty_cells ... ok
+test codegen::regalloc_worklist::tests::six_of_the_twenty_cells_disagree_across_profiles_and_all_six_are_exact_reversals ... FAILED
+test codegen::regalloc_worklist::tests::the_predicate_reproduces_the_rule_as_read ... ok
+test codegen::regalloc_worklist::tests::the_primary_key_is_signed_and_a_negative_priority_ranks_last ... ok
+test codegen::regalloc_worklist::tests::the_tie_key_signedness_has_an_empty_observable_set ... ok
+
+=== D6  MUT-LT := C2 -- the power instrument must lose its nonzero ===
+test codegen::regalloc_worklist::tests::all_five_mutants_separate_from_c2_on_synthetic_input ... FAILED
+test codegen::regalloc_worklist::tests::the_all_ties_model_is_refuted_on_six_of_the_eight_a_series_cells ... FAILED
+test codegen::regalloc_worklist::tests::a_full_tie_reverses_the_accumulation_order_and_the_lt_mutant_preserves_it ... FAILED
+test codegen::regalloc_worklist::tests::the_power_instrument_reports_nonzero_under_m_tie_and_the_split_is_a_coin_flip ... FAILED
+thread 'codegen::regalloc_worklist::tests::all_five_mutants_separate_from_c2_on_synthetic_input' (730930) panicked at crates/c2-core/src/codegen/regalloc_worklist/tests.rs:322:9:
+  left: [1, 0]
+ right: [1, 0]
+thread 'codegen::regalloc_worklist::tests::the_all_ties_model_is_refuted_on_six_of_the_eight_a_series_cells' (730936) panicked at crates/c2-core/src/codegen/regalloc_worklist/tests.rs:466:5:
+  left: 2
+ right: 1
+thread 'codegen::regalloc_worklist::tests::a_full_tie_reverses_the_accumulation_order_and_the_lt_mutant_preserves_it' (730929) panicked at crates/c2-core/src/codegen/regalloc_worklist/tests.rs:188:5:
+  left: [4, 3, 2, 1, 0]
+
+=== SUMMARY — every control in the module has been watched failing ===
+
+D1  MUT-S44 := C2                     -> all_five_mutants_separate_from_c2_on_synthetic_input  FAILED
+                                         the_tie_key_signedness_has_an_empty_observable_set    FAILED
+D2  C2.tie_tier := NewLast            -> the_predicate_reproduces_the_rule_as_read             FAILED
+                                         a_full_tie_reverses_the_accumulation_order_...        FAILED
+                                         the_all_ties_model_is_refuted_on_six_of_eight_...     FAILED
+                                         all_five_mutants_separate_...                         FAILED
+D3  cnd_a4 order falsified to "dcba"  -> the_all_ties_model_is_refuted_on_six_of_eight_...     FAILED
+D4  CONTROL_C0_COLOURS := 1           -> the_grid_control_took_no_callee_saved_colour          FAILED
+D5  cnd_h3 /Ox falsified to "abc"     -> six_of_the_twenty_cells_disagree_..._exact_reversals  FAILED
+D6  MUT_LT := C2                      -> the_power_instrument_reports_nonzero_under_m_tie...   FAILED (20 -> 0)
+
+NOT WATCHABLE, and said so rather than left to inference:
+
+  m_free_reproduces_every_cell_under_c2_and_under_every_mutant
+  population_power_over_the_twenty_cells
+
+    Neither can be reddened by any LEGAL mutation of the comparator, because the
+    M-FREE witness construction adapts to whichever field and direction the
+    comparator uses as its primary key. That is not a defect of the tests — it
+    IS the lane's headline result, and D6 is the control that shows the same
+    machinery does report nonzero when a model gives the population power.
