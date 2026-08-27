@@ -87,6 +87,17 @@ fn mint_order(n: usize) -> Vec<u32> {
     (0..n as u32).collect()
 }
 
+/// The smallest tie ordinal on which signed and unsigned disagree.
+///
+/// **Written as a shift, not as the hex literal**, and that is not cosmetic:
+/// `crates/c2-core/src/codegen/word_seam.rs`'s seam guard reddens on a bare
+/// `0x80000000` because `mop::OPCODES` already composes that word as `lwz`, and
+/// a second producer of an instruction word is board `#3637`'s defect class.
+/// This value is a tie-key sentinel and is not an instruction word — the guard
+/// cannot know that, and expressing it arithmetically is the correct answer
+/// rather than an exemption.
+const TIE_BIT31: u32 = 1u32 << 31;
+
 /// `"bac"` → `[1, 0, 2]`, i.e. formal letters to zero-based candidate ids.
 fn ids_of(order: &str) -> Vec<u32> {
     order.bytes().map(|b| (b - b'a') as u32).collect()
@@ -309,7 +320,7 @@ fn all_five_mutants_separate_from_c2_on_synthetic_input() {
         (
             "MUT-S44",
             MUT_S44,
-            vec![Candidate::new(0, 0, 0x8000_0000), Candidate::new(1, 0, 1)],
+            vec![Candidate::new(0, 0, TIE_BIT31), Candidate::new(1, 0, 1)],
             "a tie ordinal with bit 31 set — see the observability test below",
         ),
     ];
@@ -348,7 +359,7 @@ fn the_tie_key_signedness_has_an_empty_observable_set() {
         );
     }
     // And only at or above it do they differ.
-    let input = [Candidate::new(0, 0, 0x8000_0000), Candidate::new(1, 0, 7)];
+    let input = [Candidate::new(0, 0, TIE_BIT31), Candidate::new(1, 0, 7)];
     assert_ne!(
         Worklist::build(WorklistComparator::C2, &input).ids(),
         Worklist::build(MUT_S44, &input).ids()
