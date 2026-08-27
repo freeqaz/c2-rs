@@ -1,0 +1,16 @@
+running 2 tests
+test prose_audit_self_test_passes ... FAILED
+test provenance_census_self_test_passes ... ok
+
+failures:
+
+---- prose_audit_self_test_passes stdout ----
+
+thread 'prose_audit_self_test_passes' (1907697) panicked at crates/c2-harness/tests/provenance.rs:170:5:
+scripts/prose_audit.py DOES NOT EXIST at <WORKTREE>/scripts/prose_audit.py — the instrument is gone. This is not a portability skip: `#1406` requires this script's self-test to run under `cargo test`, and it cannot run if it is not there.
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    prose_audit_self_test_passes
+

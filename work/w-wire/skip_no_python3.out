@@ -1,0 +1,9 @@
+
+running 2 tests
+test prose_audit_self_test_passes ... SKIP: python3 absent — cannot run scripts/prose_audit.py --self-test
+ok
+test provenance_census_self_test_passes ... SKIP: python3 absent — cannot run scripts/provenance_census.py --self-test
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
