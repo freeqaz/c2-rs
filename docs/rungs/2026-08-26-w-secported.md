@@ -253,3 +253,15 @@ cited-but-absent.
   no `DISCLOSURE.md` row.
 * **Did not price the `coff` row**, whose residue text points at the same
   missing map. §4's prediction says it will not convert without an adoption.
+* **Did not touch `count_marks`, and the reason is now a measurement rather
+  than a fence.** This lane mitigated `#3641` by **respelling** — §7 carries
+  zero counted tokens, so the census read 17/53 before and after every edit.
+  A general repair was considered and is **refuted for a delimiter rule**:
+  peer lane `w-provaudit` measured that **481 of the 488 marks across the ten
+  `ref/P_*.md` pages are already backticked**, so a "backticked = mention"
+  rule would zero nine rows' agreement census; and a position rule fails on
+  `P_ENCODE.md` itself (0 marks in table rows, 28 in prose). **The only
+  convention that works is a distinct token — 488 marks across ten pages.**
+  `w-provaudit` priced it and declined; so does this lane. It is a named
+  follow-up owned by nobody, and until it is taken **the manual
+  before/after check is the only guard that works.**

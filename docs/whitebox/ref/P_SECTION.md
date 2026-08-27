@@ -253,6 +253,16 @@ with the right diagnosis — it was fitting a **c2** hash to a **c1xx** artefact
 > tokens by construction and the section row's census is unmoved by it.
 > Measured across this edit: `section-marks-obj` **17 → 17**,
 > `section-marks-total` **53 → 53**.
+>
+> **Respelling is the mitigation because the general repair is refuted.** Lane
+> `w-provaudit` measured, this same wave, that **481 of the 488 marks across
+> the ten `ref/P_*.md` pages are already backticked** — so a delimiter rule
+> ("backticked means a mention") would zero nine rows' agreement census rather
+> than repair it — and that a position rule fails on `P_ENCODE.md` itself (**0**
+> marks in table rows, **28** in prose). The only convention that works is a
+> **distinct token**, i.e. migrating all 488 marks. Priced and declined by
+> `w-provaudit`, and by this lane. **Until it is taken, checking the row's
+> census before and after every edit is the only guard.**
 
 ### 7.1 The population — and there are not 27 arms
 
