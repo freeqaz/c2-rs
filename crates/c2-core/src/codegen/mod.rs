@@ -104,6 +104,18 @@ pub mod leaf;
 pub mod order;
 pub mod pool_ctor_chain;
 pub mod reach;
+/// **c2's register SELECTOR** (`0x10b2e7f8`) with the allocation order as a
+/// named, settable parameter — wave 16 lane `w-regsel`, decision 20.
+///
+/// **Deliberately NOT in the glob re-export list below**, and for a sharper
+/// reason than [`block_ir`] and [`cond`] have: this module's central function
+/// is named `select`, and [`select`](self::select) is already a *module* in
+/// this same namespace — the ordered dispatch. Callers spell
+/// `codegen::regalloc::select`.
+///
+/// **It is not a register allocator and must not become one** — see the module
+/// header and decision 20 §2.
+pub mod regalloc;
 pub mod pool_free_list;
 pub mod ptr_walk_chain_loop;
 pub mod ptr_walk_loop;
