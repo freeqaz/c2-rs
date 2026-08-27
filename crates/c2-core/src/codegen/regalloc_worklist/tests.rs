@@ -509,6 +509,46 @@ fn population_power_over_the_twenty_cells() {
     );
 }
 
+/// **THE SENSITIVITY CONTROL FOR THE ZEROS ABOVE — and it produced the sharper
+/// result.**
+///
+/// `#3336` asks for a control watched failing. The five planted defects this
+/// lane ran all left [`population_power_over_the_twenty_cells`] green, because
+/// its zeros are **structural**: under M-FREE the witness construction adapts to
+/// whatever comparator it is handed, so no legal mutation of the comparator can
+/// make it nonzero. A test that cannot go red is abstaining, not passing.
+///
+/// So the instrument is exercised on the one model where the population *does*
+/// have power — M-TIE, both keys 0 — and it reports nonzero, which is what
+/// makes the M-FREE zeros a measurement rather than a blind spot. Watched
+/// failing as defect **D6** (`work/w-regprio/RED_WATCH.txt`): setting `MUT_LT`
+/// to `WorklistComparator::C2` takes the 20 to 0 and reddens this test.
+///
+/// **And the number is the finding.** Under M-TIE the 40 cell-profiles decide
+/// between `<=` and `<` **20 times, and they split 11 for `<=` against 9 for
+/// `<`.** A near coin-flip. So even in the only regime where these cells can
+/// see the tie tier at all, they do not select it — which is exactly what an
+/// already-refuted key model should look like from the inside.
+#[test]
+fn the_power_instrument_reports_nonzero_under_m_tie_and_the_split_is_a_coin_flip() {
+    let mut deciding = 0usize;
+    let mut for_c2 = 0usize;
+    let mut for_lt = 0usize;
+    for (_cell, n, o1, ox) in CELLS {
+        for order in [o1, ox] {
+            let want = ids_of(order);
+            let c2_ok = m_tie_prediction(WorklistComparator::C2, *n) == want;
+            let lt_ok = m_tie_prediction(MUT_LT, *n) == want;
+            if c2_ok != lt_ok {
+                deciding += 1;
+                if c2_ok { for_c2 += 1 } else { for_lt += 1 }
+            }
+        }
+    }
+    assert_eq!(deciding, 20, "the instrument is NOT blind: under M-TIE it reports 20");
+    assert_eq!((for_c2, for_lt), (11, 9), "and the 20 split 11-9 — it selects nothing");
+}
+
 /// The 6-of-20 profile disagreement, reproduced independently — the cells that
 /// carry the signal, and the exact-reversal relation on all six.
 ///
