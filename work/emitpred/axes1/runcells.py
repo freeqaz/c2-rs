@@ -11,8 +11,8 @@ import json, os, shutil, subprocess, sys, time
 ROOT = os.path.dirname(os.path.abspath(__file__))
 CELLS = os.path.join(ROOT, 'cells')
 BUILD = os.path.join(ROOT, 'build')
-WIBO = '/home/free/code/milohax/wibo/build/wibo'
-CL = '/home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe'
+WIBO = '<home>/code/milohax/wibo/build/wibo'
+CL = '<repo>/compilers/X360/16.00.11886.00/cl.exe'
 BASE = ['/O1', '/Oi', '/EHsc', '/GS-', '/c']
 # /I. added uniformly to every cell: this toolchain's /Yu needs an explicit
 # include path (C1034) even for a quoted include that /Yc resolved fine.

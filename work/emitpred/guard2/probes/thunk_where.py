@@ -20,13 +20,13 @@ sections. Compiles its own copy of the cell source; touches no graded artifact.
 import os, struct, subprocess, sys, shutil
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-WIBO = '/home/free/code/milohax/wibo/build/wibo'
-CL = '/home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe'
+WIBO = '<home>/code/milohax/wibo/build/wibo'
+CL = '<repo>/compilers/X360/16.00.11886.00/cl.exe'
 FLAGS = ['/O1', '/Oi', '/EHsc', '/GS-', '/c']
-sys.path.insert(0, '/home/free/code/milohax/c2-rs/.claude/worktrees/w-phase7plan/work/probes')
+sys.path.insert(0, '<repo>/.claude/worktrees/w-phase7plan/work/probes')
 from coffsyms import read  # noqa: E402
 
-CELLS = ('/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/'
+CELLS = ('<repo>/.claude/worktrees/w-emitpred/'
          'work/emitpred/axes2/cells')
 SRCS = [('a3_01', os.path.join(CELLS, 'A3/a3_01_mi_override_second_base/cell.cpp')),
         ('a3_02', os.path.join(CELLS, 'A3/a3_02_mi_no_override_second_base/cell.cpp'))]

@@ -14,16 +14,16 @@ Writes work/emitpred/axes2/observed.json.
 import json, os, shutil, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
 
-BASE = '/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2'
+BASE = '<repo>/.claude/worktrees/w-emitpred/work/emitpred/axes2'
 CELLS = os.path.join(BASE, 'cells')
 OUT = os.path.join(BASE, 'out')
-WIBO = '/home/free/code/milohax/wibo/build/wibo'
-CL = '/home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe'
+WIBO = '<home>/code/milohax/wibo/build/wibo'
+CL = '<repo>/compilers/X360/16.00.11886.00/cl.exe'
 FLAGS = ['/O1', '/Oi', '/EHsc', '/GS-', '/c']
 
 IMAGE_SCN_CNT_CODE = 0x00000020
 
-sys.path.insert(0, '/home/free/code/milohax/c2-rs/.claude/worktrees/w-phase7plan/work/probes')
+sys.path.insert(0, '<repo>/.claude/worktrees/w-phase7plan/work/probes')
 from coffsyms import read  # noqa: E402
 
 

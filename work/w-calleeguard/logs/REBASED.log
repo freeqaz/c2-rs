@@ -40,7 +40,7 @@ warning: function `a_26_introduced_record_is_SEEN_by_the_scanner_and_REFUSED_by_
      = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
 
 warning: `c2-il` (lib test) generated 4 warnings (run `cargo fix --lib -p c2-il --tests` to apply 2 suggestions)
-   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-calleeguard/crates/c2-harness)
+   Compiling c2-harness v0.1.0 (<repo>/.claude/worktrees/w-calleeguard/crates/c2-harness)
     Finished `release` profile [optimized] target(s) in 4.50s
      Running unittests src/lib.rs (target/release/deps/c2_core-d11d0e0158155eff)
 

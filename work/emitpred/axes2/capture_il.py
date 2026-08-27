@@ -14,11 +14,11 @@ Writes work/emitpred/axes2/il_names.json.
 import json, os, re, shutil, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
 
-BASE = '/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2'
+BASE = '<repo>/.claude/worktrees/w-emitpred/work/emitpred/axes2'
 CELLS = os.path.join(BASE, 'cells')
 OUT = os.path.join(BASE, 'il')
-WIBO = '/home/free/code/milohax/wibo/build/wibo'
-CL = '/home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe'
+WIBO = '<home>/code/milohax/wibo/build/wibo'
+CL = '<repo>/compilers/X360/16.00.11886.00/cl.exe'
 FLAGS = ['/Bd', '/d2nop', '/O1', '/Oi', '/EHsc', '/GS-', '/c']
 
 

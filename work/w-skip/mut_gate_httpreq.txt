@@ -12,7 +12,7 @@ owner ??_7HttpReq@@6B@                           f20=0x5801
   [G5] f20 0x5c01  gained=2   lost=1     F_new APPEARS: True   F_old gone: True
   [G6] f20 0x1801  gained=2   lost=1     F_new APPEARS: True   F_old gone: True
   [S-min] f20 0x0001  gained=2   lost=1     F_new APPEARS: True   F_old gone: True
-  [S-max] REPLAY FAIL: t] InvokeCompilerPass @10BEBFFD argc=20 argv0=/home/free/code/milohax/c2-rs/.claude/worktrees/w-skip/compilers/X360/16.00.11886.00/c2.dll
+  [S-max] REPLAY FAIL: t] InvokeCompilerPass @10BEBFFD argc=20 argv0=<repo>/.claude/worktrees/w-skip/compilers/X360/16.00.11886.00/c2.dll
 
 wibo: caught SIGSEGV
 

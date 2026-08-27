@@ -1,4 +1,4 @@
-debug lane: 18 lanes x 381 fixtures, binary=/home/free/tmp/c2rs-debug-lane-2437188/c2rs
+debug lane: 18 lanes x 381 fixtures, binary=<home>/tmp/c2rs-debug-lane-2437188/c2rs
 DEBUG-LANE-RESULT PASS lane=O1 flags=[/O1] graded=381 total=381 match=179 mismatch=0 panics=0 rc=0
 DEBUG-LANE-RESULT PASS lane=O1-EHsc flags=[/O1 /EHsc] graded=381 total=381 match=180 mismatch=0 panics=0 rc=0
 DEBUG-LANE-RESULT PASS lane=O1-Oi flags=[/O1 /Oi] graded=381 total=381 match=181 mismatch=0 panics=0 rc=0

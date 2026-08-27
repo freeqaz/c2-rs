@@ -1,6 +1,6 @@
-   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-warranty/crates/c2-core)
-   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-warranty/crates/c2-reference)
-   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-warranty/crates/c2-harness)
+   Compiling c2-core v0.1.0 (<home>/code/milohax/c2-rs-wt-w-warranty/crates/c2-core)
+   Compiling c2-reference v0.1.0 (<home>/code/milohax/c2-rs-wt-w-warranty/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (<home>/code/milohax/c2-rs-wt-w-warranty/crates/c2-harness)
     Finished `release` profile [optimized] target(s) in 10.45s
      Running tests/cli_flags.rs (target/release/deps/cli_flags-3325071abf144b04)
 

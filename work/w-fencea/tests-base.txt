@@ -1,8 +1,8 @@
-   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-fencea/crates/c2-core)
-   Compiling c2-obj v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-fencea/crates/c2-obj)
-   Compiling c2-il v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-fencea/crates/c2-il)
-   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-fencea/crates/c2-reference)
-   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-fencea/crates/c2-harness)
+   Compiling c2-core v0.1.0 (<repo>/.claude/worktrees/w-fencea/crates/c2-core)
+   Compiling c2-obj v0.1.0 (<repo>/.claude/worktrees/w-fencea/crates/c2-obj)
+   Compiling c2-il v0.1.0 (<repo>/.claude/worktrees/w-fencea/crates/c2-il)
+   Compiling c2-reference v0.1.0 (<repo>/.claude/worktrees/w-fencea/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (<repo>/.claude/worktrees/w-fencea/crates/c2-harness)
 warning: unused import: `Mul`
    --> crates/c2-core/src/codegen/ptr_walk_chain_loop.rs:418:28
     |

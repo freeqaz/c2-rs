@@ -1,9 +1,9 @@
-lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/w-reach-base/scripts/lanes.txt
+lane gate: 18 lanes from <repo>/.claude/worktrees/w-reach-base/scripts/lanes.txt
   run dir: /tmp/c2rs-gate-484396   (per-lane run dirs under /tmp/c2rs-gate-484396/lanes/)
 building the harness (no-op if current)
     Finished `release` profile [optimized] target(s) in 0.00s
 harness: /tmp/c2rs-gate-484396/c2rs
-  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-reach-base/target/release/c2rs  built 2026-08-05 00:15:03
+  pinned from <repo>/.claude/worktrees/w-reach-base/target/release/c2rs  built 2026-08-05 00:15:03
   sha 6de650da585c  tree 9378b00
 
 wall clock: 13s for 18 lanes at --jobs 4 (C2RS_JOBS=8)
@@ -17,7 +17,7 @@ generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-484396/sweep 0  (jobs 4)
 
 mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-484396/cross 0  (jobs 4)
   assigned 16394 cases over 18 lanes = 76217 cells (full cross would be 295092)
-  sweeping 76217 of 76217 case-lane cells (cross of 16394 cases x /home/free/code/milohax/c2-rs/.claude/worktrees/w-reach-base/scripts/lanes.txt; the full 12x product is 295092)
+  sweeping 76217 of 76217 case-lane cells (cross of 16394 cases x <repo>/.claude/worktrees/w-reach-base/scripts/lanes.txt; the full 12x product is 295092)
   (331s)
 
 LANE                 VERDICT     graded/total  match  mismatch  flags

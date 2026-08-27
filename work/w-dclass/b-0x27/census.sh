@@ -2,10 +2,10 @@
 # census.sh — census one or more probe .cpp at the WORKLOAD's own flags.
 # Lane w-dclass / subagent B (0x27). Read-only wrt crates/.
 set -eu
-root=/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a90821e906953b0fd
-export C2RS_COMPILERS=/home/free/code/milohax/c2-rs/compilers
-export C2RS_WIBO=/home/free/code/milohax/wibo/build/wibo
-FL=/home/free/code/milohax/c2-rs/work/dc3-workload/flags.txt
+root=<repo>/.claude/worktrees/agent-a90821e906953b0fd
+export C2RS_COMPILERS=<repo>/compilers
+export C2RS_WIBO=<home>/code/milohax/wibo/build/wibo
+FL=<repo>/work/dc3-workload/flags.txt
 # A probe .cpp has no #include, so the workload's /I set is inert for it and the
 # cwd may be the probe dir. The CODEGEN flags (/O1 /Oi /EHsc /GR) are read from
 # flags.txt verbatim either way — boards #194/#195.

@@ -1,4 +1,4 @@
-   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-fencea/crates/c2-core)
+   Compiling c2-core v0.1.0 (<repo>/.claude/worktrees/w-fencea/crates/c2-core)
 warning: unused imports: `ChainForm` and `chain_form`
    --> crates/c2-il/src/func/body/chain.rs:751:17
     |
@@ -40,8 +40,8 @@ warning: unused import: `Mul`
     |
     = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
-   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-fencea/crates/c2-reference)
-   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-fencea/crates/c2-harness)
+   Compiling c2-reference v0.1.0 (<repo>/.claude/worktrees/w-fencea/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (<repo>/.claude/worktrees/w-fencea/crates/c2-harness)
 warning: `c2-core` (lib test) generated 1 warning (run `cargo fix --lib -p c2-core --tests` to apply 1 suggestion)
     Finished `release` profile [optimized] target(s) in 8.64s
      Running unittests src/lib.rs (target/release/deps/c2_core-d11d0e0158155eff)

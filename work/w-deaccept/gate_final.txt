@@ -10,7 +10,7 @@ reap:   0 stale run tree(s) removed, 7 kept (3 live, 3 recent, 1 this run)
 strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
 disk:   /tmp — free 24.5 GiB / 554,631 inodes (floors: 2.0 GiB / 150,000 inodes)
 
-lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/w-deaccept/scripts/lanes.txt
+lane gate: 18 lanes from <repo>/.claude/worktrees/w-deaccept/scripts/lanes.txt
   run dir: /tmp/c2rs-gate-875162   (per-lane run dirs under /tmp/c2rs-gate-875162/lanes/)
   graded tree: fd6f8e94078c  (728 files under crates fixtures scripts, content-hashed)
                0 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)
@@ -20,13 +20,13 @@ hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refu
 ladder-red:      work/w-ladders/ladder_red.py  (no toolchain; fires ladder.py's width-table refusal)
   PASS  
 building the harness (no-op if current)
-   Compiling c2-il v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-deaccept/crates/c2-il)
-   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-deaccept/crates/c2-core)
-   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-deaccept/crates/c2-reference)
-   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-deaccept/crates/c2-harness)
+   Compiling c2-il v0.1.0 (<repo>/.claude/worktrees/w-deaccept/crates/c2-il)
+   Compiling c2-core v0.1.0 (<repo>/.claude/worktrees/w-deaccept/crates/c2-core)
+   Compiling c2-reference v0.1.0 (<repo>/.claude/worktrees/w-deaccept/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (<repo>/.claude/worktrees/w-deaccept/crates/c2-harness)
     Finished `release` profile [optimized] target(s) in 10.79s
 harness: /tmp/c2rs-gate-875162/c2rs
-  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-deaccept/target/release/c2rs  built 2026-08-14 20:11:43
+  pinned from <repo>/.claude/worktrees/w-deaccept/target/release/c2rs  built 2026-08-14 20:11:43
   sha 587dd9e8977d  tree e3c1690f
 
 wall clock: 14s for 18 lanes at --job    62 fragments, 19556 cases total (19556 .cpp on disk)
@@ -34,7 +34,7 @@ wall clock: 14s for 18 lanes at --job    62 fragments, 19556 cases total (19556 
   sweeping 19556 of 19556 generated cases
     grading at 4 job(s)
   checked=19556 mismatches=0 graded=19460 ungraded=96 u  assigned 19556 cases over 18 lanes = 90812 cells (full cross would be 352008)
-  sweeping 90812 of 90812 case-lane cells (cross of 0 cases x /home/free/code/milohax/c2-rs/.claude/worktrees/w-deaccept/scripts/lanes.txt; the full 12x product is 352008)
+  sweeping 90812 of 90812 case-lane cells (cross of 0 cases x <repo>/.claude/worktrees/w-deaccept/scripts/lanes.txt; the full 12x product is 352008)
   checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0
   (1677s)
 

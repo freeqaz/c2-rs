@@ -9,7 +9,7 @@ strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE
         freed 152.4 MiB and 442 inodes (df delta over a SHARED filesystem)
 disk:   /tmp — free 45.8 GiB / 1,047,011 inodes (floors: 2.0 GiB / 150,000 inodes)
 
-lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/w-witness7/scripts/lanes.txt
+lane gate: 18 lanes from <repo>/.claude/worktrees/w-witness7/scripts/lanes.txt
   run dir: /tmp/c2rs-gate-1773751   (per-lane run dirs under /tmp/c2rs-gate-1773751/lanes/)
   graded tree: 4534de2cb9f9  (744 files under crates fixtures scripts, content-hashed)
                1 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)

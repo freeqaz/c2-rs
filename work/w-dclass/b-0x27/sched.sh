@@ -3,7 +3,7 @@
 # consulted and does not need to be, because the question is what c2 schedules,
 # not what we can already parse.
 set -eu
-root=/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a90821e906953b0fd
+root=<repo>/.claude/worktrees/agent-a90821e906953b0fd
 for f in "$@"; do
     printf '########## %s\n' "$f"
     sh "$root/work/w-dclass/b-0x27/refobj_probe.sh" "$f" >/dev/null

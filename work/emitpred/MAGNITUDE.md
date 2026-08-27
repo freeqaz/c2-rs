@@ -18,7 +18,7 @@
 | dc3-decomp rev **measured at** | **`9ad5c4c8`** (repo HEAD at measurement time) |
 | other revs in play (explicitly NOT measured at) | prereg froze `51fb5b73`; the plan session used `13b583df`; `glgraph.py`'s witness is `fbf097a5`; `scan-merged-20260731.jsonl`'s own provenance record says `605560e0`. **No number here is comparable to a cached figure from any of those without re-deriving it.** |
 | flags | the unmodified workload line, `work/dc3-workload/flags.txt`: `/nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src` |
-| compiler | X360 `16.00.11886.00` `cl.exe` / `c1xx.dll` / `c2.dll` under wibo (`/home/free/code/milohax/wibo/build/release/wibo`) |
+| compiler | X360 `16.00.11886.00` `cl.exe` / `c1xx.dll` / `c2.dll` under wibo (`<home>/code/milohax/wibo/build/release/wibo`) |
 | IL capture (detector input) | `cl /Bd /d2nop <flags>` — c2 aborts (`C1007 … in 'p2'`); **no c2 output is produced at all**, so this is quarantine-safe |
 | truth scanner | `magnitude/truth_all.py` — COMDAT leaders of every section carrying **`IMAGE_SCN_CNT_CODE` (0x20)**, *never* a `.text` name prefix. The harness's name-prefix rule was computed in parallel on all 850 objs and **agreed 850/850, zero disagreements** (the trap was checked, and did not bite at this rev) |
 | TU list | the 878 `src` values of `work/dc3-workload/scan-merged-20260731.jsonl` |

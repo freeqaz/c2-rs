@@ -1,0 +1,18 @@
+tracked files examined: 9754
+binary (NUL-bearing) files skipped: 11
+in-scope files under work/ carrying an absolute machine path: 513
+skipped — live peer / coordinator fence: 0 
+skipped — prose mention in an unamendable prereg: 1 ['work/w-shelf/PREREG.md']
+open descriptors scanned: 4119
+files held open by a live process: 0  (#1135 clear)
+files rewritten: 513
+substitutions by rule:
+        6932  the main checkout, forward-slash
+        5306  the main checkout, wibo/DOS backslash (drive letter preserved)
+         286  any other path under this box's home, forward-slash
+          31  any other path under this box's home, wibo/DOS backslash
+files carrying a GATE: verdict block, hashed both sides: 63
+aggregate canon sha256 pre : 074ce249f5c3a0f61e2e5eb7753bcdb7754da46526a5e79de56b802c777fd131
+aggregate canon sha256 post: 074ce249f5c3a0f61e2e5eb7753bcdb7754da46526a5e79de56b802c777fd131
+AGGREGATE CANON MATCH: yes
+invariants A-F: 513 files x 6 checks, 0 failures

@@ -23,9 +23,9 @@ import sys
 WORK = os.path.dirname(os.path.abspath(__file__))
 # The worktree is `<repo>/.claude/worktrees/<lane>`; the workload manifest is
 # gitignored, so it lives in the main repo only.
-REPO = os.environ.get("C2RS_REPO") or "/home/free/code/milohax/c2-rs"
+REPO = os.environ.get("C2RS_REPO") or "<repo>"
 WORKLOAD = os.environ.get("C2RS_WORKLOAD") or os.path.join(REPO, "work", "dc3-workload")
-WIBO = os.environ.get("C2RS_WIBO") or "/home/free/code/milohax/wibo/build/release/wibo"
+WIBO = os.environ.get("C2RS_WIBO") or "<home>/code/milohax/wibo/build/release/wibo"
 CL = os.path.join(
     os.environ.get("C2RS_COMPILERS") or os.path.join(REPO, "compilers"),
     "X360", "16.00.11886.00", "cl.exe",

@@ -1,9 +1,9 @@
-lane gate: 12 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/w-frame/scripts/lanes.txt
+lane gate: 12 lanes from <repo>/.claude/worktrees/w-frame/scripts/lanes.txt
   run dir: /tmp/c2rs-gate-4028746   (per-lane run dirs under /tmp/c2rs-gate-4028746/lanes/)
 building the harness (no-op if current)
     Finished `release` profile [optimized] target(s) in 0.00s
 harness: /tmp/c2rs-gate-4028746/c2rs
-  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-frame/target/release/c2rs  built 2026-08-04 11:54:40
+  pinned from <repo>/.claude/worktrees/w-frame/target/release/c2rs  built 2026-08-04 11:54:40
   sha 8207943de216  tree 9ff2c7c
 
 wall clock: 7s for 12 lanes at --jobs 6 (C2RS_JOBS=8)

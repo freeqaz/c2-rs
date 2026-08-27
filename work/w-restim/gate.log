@@ -10,9 +10,9 @@ strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE
         freed 162.8 MiB and 441 inodes (df delta over a SHARED filesystem)
 disk:   /tmp — free 21.4 GiB / 947,818 inodes (floors: 2.0 GiB / 150,000 inodes)
 
-lane gate: 18 lanes from /home/free/code/milohax/c2-rs-wt-w-restim/scripts/lanes.txt
+lane gate: 18 lanes from <home>/code/milohax/c2-rs-wt-w-restim/scripts/lanes.txt
   run dir: /tmp/c2rs-gate-2696008   (per-lane run dirs under /tmp/c2rs-gate-2696008/lanes/)
-  row history: /home/free/code/milohax/c2-rs-wt-w-restim/work/gate_row_history.tsv   (board #3339)
+  row history: <home>/code/milohax/c2-rs-wt-w-restim/work/gate_row_history.tsv   (board #3339)
   graded tree: 1693d409d62f  (760 files under crates fixtures scripts, content-hashed)
                0 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)
 
@@ -21,13 +21,13 @@ hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refu
 ladder-red:      work/w-ladders/ladder_red.py  (no toolchain; fires ladder.py's width-table refusal)
   PASS  
 building the harness (no-op if current)
-   Compiling c2-il v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-restim/crates/c2-il)
-   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-restim/crates/c2-core)
-   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-restim/crates/c2-reference)
-   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-restim/crates/c2-harness)
+   Compiling c2-il v0.1.0 (<home>/code/milohax/c2-rs-wt-w-restim/crates/c2-il)
+   Compiling c2-core v0.1.0 (<home>/code/milohax/c2-rs-wt-w-restim/crates/c2-core)
+   Compiling c2-reference v0.1.0 (<home>/code/milohax/c2-rs-wt-w-restim/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (<home>/code/milohax/c2-rs-wt-w-restim/crates/c2-harness)
     Finished `release` profile [optimized] target(s) in 10.76s
 harness: /tmp/c2rs-gate-2696008/c2rs
-  pinned from /home/free/code/milohax/c2-rs-wt-w-restim/target/release/c2rs  built 2026-08-21 10:25:30
+  pinned from <home>/code/milohax/c2-rs-wt-w-restim/target/release/c2rs  built 2026-08-21 10:25:30
   sha 8079cb7b6644  tree 194c1a6a6
 note: --jobs 12 is below this file's measured default of 16. On this
   32-core box a --jobs 4 run uses ~4 cores and takes ~1.7x as long for a
@@ -41,15 +41,15 @@ generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-2696008/sweep 0  (jobs 12)
     grading at 12 job(s)
   checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0
   cache: hit=19460 miss=96 validated=191 cache-bad=0 (of 19556 cases)
-  corpus: SHARED /home/free/code/milohax/c2-rs/work/corpus/gen-169fae960ed84b63
+  corpus: SHARED <repo>/work/corpus/gen-169fae960ed84b63
   (70s)
 
 mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-2696008/cross 0  (jobs 12)
   assigned 19556 cases over 18 lanes = 90812 cells (full cross would be 352008)
-  sweeping 90812 of 90812 case-lane cells (cross of 19556 cases x /home/free/code/milohax/c2-rs-wt-w-restim/scripts/lanes.txt; the full 12x product is 352008)
+  sweeping 90812 of 90812 case-lane cells (cross of 19556 cases x <home>/code/milohax/c2-rs-wt-w-restim/scripts/lanes.txt; the full 12x product is 352008)
   checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0
   cache: hit=90424 miss=388 validated=894 cache-bad=0 (of 90812 cells)
-  corpus: SHARED /home/free/code/milohax/c2-rs/work/corpus/gen-169fae960ed84b63
+  corpus: SHARED <repo>/work/corpus/gen-169fae960ed84b63
   (109s)
 
 debug lane:      scripts/debug_lane.sh  (DEBUG profile — the only row that can
@@ -90,7 +90,7 @@ ROW LIVENESS — rows that did NOT execute (verdict was neither PASS nor FAIL):
   hatch-red: REFUSED for 1 consecutive run(s) (first seen 2026-08-21)
   A refusal may be right on the day; a row refusing for N runs is a row
   nobody is reading (board #3219). This PRINTS and never fails the gate.
-  History: /home/free/code/milohax/c2-rs-wt-w-restim/work/gate_row_history.tsv — delete it to reset. It starts at the commit that
+  History: <home>/code/milohax/c2-rs-wt-w-restim/work/gate_row_history.tsv — delete it to reset. It starts at the commit that
   added this counter, so an N here is a FLOOR on the true age, never the age.
 
 lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT

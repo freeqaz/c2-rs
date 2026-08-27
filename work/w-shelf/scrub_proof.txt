@@ -1,0 +1,77 @@
+pre-scrub revision : 27137aa2a
+files differing under work/ : 513
+line count preserved      : 513 / 513
+still carrying /home/free : 0 
+
+THE GATE: VERDICT BLOCKS — sha256 of the GATE: lines, both sides
+file                                                       pre              post             equal
+work/oracle/fixround/gate_fixround.log                     ba9787ab48c83417 ba9787ab48c83417 yes
+work/oracle/gate_tip.log                                   ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-backedge/gate-tip.txt                               ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-calleeguard/gate_base.norm                          ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-calleeguard/gate_base.txt                           ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-calleeguard/gate_rebased.txt                        ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-calleeguard/gate_tip.norm                           ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-calleeguard/gate_tip.txt                            ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-cfgclass/gate_base.INVALID-untracked-file-present.l ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-cfgclass/gate_base.log                              ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-cfgclass/gate_final.log                             ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-cfgclass/gate_tip.log                               ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-coldcross/base/gate.log                             ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-coldcross/inject/gate.log                           c39bb353f1791323 c39bb353f1791323 yes
+work/w-coldcross/probe/gate.log                            ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-coldcross/rebased/gate.log                          ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-coldcross/tip2/gate.log                             ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-counted/gate-base-merged.txt                        ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-counted/gate-tip-merged.txt                         ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-dagorder/verify/gate-rebased.txt                    ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-dagorder/verify/gate-tip.txt                        ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-db/gate.log                                         640ee9cf8765fee5 640ee9cf8765fee5 yes
+work/w-dclass/b-0x27/gate.txt                              e6f0850c02f3e4ea e6f0850c02f3e4ea yes
+work/w-deaccept/gate_final.txt                             ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-deadsites/logs/N1.gate.log                          ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-depth/gate-1.log                                    e6f0850c02f3e4ea e6f0850c02f3e4ea yes
+work/w-depth/gate-2.log                                    e6f0850c02f3e4ea e6f0850c02f3e4ea yes
+work/w-fencea/gate-base.txt                                ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-fencea/gate-tip-merged.txt                          ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-fencea/gate-tip.txt                                 ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-fenceb/gate.txt                                     ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-frame/gate_evidence.txt                             640ee9cf8765fee5 640ee9cf8765fee5 yes
+work/w-glattrs/gate.log                                    ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-glattrs/gate_base.log                               ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-glattrs/gate_rebased.log                            ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-labeltable/gate_tip.txt                             ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-loo/gate.txt                                        ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-loop/gate.txt                                       e6f0850c02f3e4ea e6f0850c02f3e4ea yes
+work/w-mutcensus/endstate_gate.log                         ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-reach/gate-master.txt                               e54d2347e050e747 e54d2347e050e747 yes
+work/w-reach/gate.txt                                      e6f0850c02f3e4ea e6f0850c02f3e4ea yes
+work/w-readphase/gate_tip.txt                              ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-readphase/gate_tip_rebased.txt                      ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-refs/gate-gate.log                                  640ee9cf8765fee5 640ee9cf8765fee5 yes
+work/w-restim/gate.log                                     ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-sizebracket/gate.log                                ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-sizebracket/gate_rebased.log                        ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-skip/gate-lanes.log                                 640ee9cf8765fee5 640ee9cf8765fee5 yes
+work/w-slots/gate-base-merged.txt                          ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-slots/gate-base.txt                                 ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-slots/gate-tip.txt                                  ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-three/gate_tip.txt                                  ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-vocab/gate.txt                                      e6f0850c02f3e4ea e6f0850c02f3e4ea yes
+work/w-vocabgap/gate.log                                   ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-witness7/logs/M-CS4F.gate.log                       21d4d49e0637a275 21d4d49e0637a275 yes
+work/w-witness7/logs/M-CS4F.gate2.log                      18710731e6165159 18710731e6165159 yes
+work/w-witness7/logs/N1.gate.log                           ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-witness7/logs/N1r2.gate.log                         ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-witness7/logs/N3r2.gate.log                         ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-witness7/logs/T2.gate.log                           ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-witness7/logs/T2r2.gate.log                         ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-witness7/logs/T3.r2.gate.log                        ba9787ab48c83417 ba9787ab48c83417 yes
+work/w-xtea/gate/gate.txt                                  e6f0850c02f3e4ea e6f0850c02f3e4ea yes
+gate blocks compared: 63, identical: 63
+
+AGGREGATE, path tokens masked, over all 513 files:
+  pre  sha256 074ce249f5c3a0f61e2e5eb7753bcdb7754da46526a5e79de56b802c777fd131
+  post sha256 074ce249f5c3a0f61e2e5eb7753bcdb7754da46526a5e79de56b802c777fd131
+  EQUAL: yes
+VERIFY PASS: 513 files, 0 invariant failures

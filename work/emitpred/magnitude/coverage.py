@@ -16,8 +16,8 @@ sys.path.insert(0, os.path.join(HERE, "..", "pipeline"))
 import model   # noqa: E402
 import detect  # noqa: E402
 
-IL = "/home/free/code/milohax/c2-rs/work/emitpred-il"
-TR = "/home/free/code/milohax/c2-rs/work/emitpred-truth"
+IL = "<repo>/work/emitpred-il"
+TR = "<repo>/work/emitpred-truth"
 
 
 def f(src):

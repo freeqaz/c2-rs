@@ -18,7 +18,7 @@ assigned 16394 cases over 18 lanes = 76217 cells (full cross would be 295092)
   Ox-EHsc-GR        484 cases
   Od-GR             484 cases
   Od-EHsc-GR        484 cases
-sweeping 76217 of 76217 case-lane cells (cross of 16394 cases x /home/free/code/milohax/c2-rs/.claude/worktrees/w-reach-base/scripts/lanes.txt; the full 12x product is 295092)
+sweeping 76217 of 76217 case-lane cells (cross of 16394 cases x <repo>/.claude/worktrees/w-reach-base/scripts/lanes.txt; the full 12x product is 295092)
   grading at 8 job(s)
 checked=76217 mismatches=0 graded=75829 ungraded=388 unknown=0
 CROSS_EXIT=0

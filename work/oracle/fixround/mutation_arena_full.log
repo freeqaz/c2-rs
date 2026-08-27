@@ -22,7 +22,7 @@ ARENA bytes=8191 full=1
   gap-metric stage-color-pairs-differing 1
 
 --- AND THE STANDING TEST under the same mutation (the assertion that exists to catch it) ---
-   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-reference)
+   Compiling c2-reference v0.1.0 (<home>/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-reference)
     Finished `release` profile [optimized] target(s) in 0.54s
      Running tests/stage.rs (target/release/deps/stage-3481f785e5cd6992)
 

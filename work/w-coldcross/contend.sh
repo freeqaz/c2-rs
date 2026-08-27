@@ -18,7 +18,7 @@ rr="$(cd "$(dirname "$0")/../.." && pwd)"
 lab="$rr/work/w-coldcross/contend/$arm-$n-$cells"
 rm -rf "$lab"; mkdir -p "$lab"
 
-naive_cases="/home/free/code/milohax/c2-rs/work/mode-cross/cases"
+naive_cases="<repo>/work/mode-cross/cases"
 
 i=1
 while [ "$i" -le "$n" ]; do

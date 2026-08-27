@@ -11617,9 +11617,9 @@ ARENA bytes=4194303 full=1
   FINDING, not a green: the pre/post-COLOR snapshots are IDENTICAL on every
                    function here. The walk is reading fields COLOR does not write — it shows THAT
                    the allocator ran, not WHAT it did.
-ERR wmain_no_return.cpp armed replay: tapped replay produced no (or an empty) obj at /home/free/tmp/c2rs-cli-stage-1792225-1787306606976725993-284/cap/out.obj — c2 crashed or aborted mid-pass.
+ERR wmain_no_return.cpp armed replay: tapped replay produced no (or an empty) obj at <home>/tmp/c2rs-cli-stage-1792225-1787306606976725993-284/cap/out.obj — c2 crashed or aborted mid-pass.
 stderr:
-[c2host] InvokeCompilerPass @10BEBFFD argc=20 argv0=/home/free/code/milohax/c2-rs-wt-w-restim/crates/c2-reference/../../compilers/X360/16.00.11886.00/c2.dll
+[c2host] InvokeCompilerPass @10BEBFFD argc=20 argv0=<home>/code/milohax/c2-rs-wt-w-restim/crates/c2-reference/../../compilers/X360/16.00.11886.00/c2.dll
 [stagetap] hmodule=00000018 invoke=10bebffd slide=00000000 slide-virtualquery=00000000
 [stagetap] ARM sched1 site=10b7dc9f -> 10be6382 (scheduler run 1 (mode 1), P_DAG.md S1)
 [stagetap] ARM globregs site=10b7dcb7 -> 10b57633 (global register assignment)
@@ -11629,8 +11629,8 @@ stderr:
 [stagetap] ARM sched0 site=10b7e00c -> 10be6382 (scheduler run 4 (mode 0), LAST)
 [stagetap] ARM region site=10be643e -> 10be5d4b (the region finder — sole call site)
 [stagetap] armed=7 of 7 requested-list=sched1,globregs,sched2,color,sched3,sched0,region
-z:\home\free\code\milohax\c2-rs-wt-w-restim\fixtures\cpp\wmain_no_return.cpp(47) : error C4716: 'no_return_call' : must return a value
-z:\home\free\code\milohax\c2-rs-wt-w-restim\fixtures\cpp\wmain_no_return.cpp(50) : error C4716: 'no_return_tail' : must return a value
+z:\<home>\code\milohax\c2-rs-wt-w-restim\fixtures\cpp\wmain_no_return.cpp(47) : error C4716: 'no_return_call' : must return a value
+z:\<home>\code\milohax\c2-rs-wt-w-restim\fixtures\cpp\wmain_no_return.cpp(50) : error C4716: 'no_return_tail' : must return a value
 [stagetap] TAP 1 c80981c0 slide=0
 [stagetap] END sched1 hits=5
 [stagetap] END globregs hits=5
@@ -12138,9 +12138,9 @@ z:\home\free\code\milohax\c2-rs-wt-w-restim\fixtures\cpp\wmain_no_return.cpp(50)
 [stagetap] ARENA bytes=61565 full=0
 [c2host] returned 1
 
-ERR wmain_no_return_neg.cpp armed replay: tapped replay produced no (or an empty) obj at /home/free/tmp/c2rs-cli-stage-1792225-1787306607039231966-285/cap/out.obj — c2 crashed or aborted mid-pass.
+ERR wmain_no_return_neg.cpp armed replay: tapped replay produced no (or an empty) obj at <home>/tmp/c2rs-cli-stage-1792225-1787306607039231966-285/cap/out.obj — c2 crashed or aborted mid-pass.
 stderr:
-[c2host] InvokeCompilerPass @10BEBFFD argc=20 argv0=/home/free/code/milohax/c2-rs-wt-w-restim/crates/c2-reference/../../compilers/X360/16.00.11886.00/c2.dll
+[c2host] InvokeCompilerPass @10BEBFFD argc=20 argv0=<home>/code/milohax/c2-rs-wt-w-restim/crates/c2-reference/../../compilers/X360/16.00.11886.00/c2.dll
 [stagetap] hmodule=00000018 invoke=10bebffd slide=00000000 slide-virtualquery=00000000
 [stagetap] ARM sched1 site=10b7dc9f -> 10be6382 (scheduler run 1 (mode 1), P_DAG.md S1)
 [stagetap] ARM globregs site=10b7dcb7 -> 10b57633 (global register assignment)
@@ -12150,9 +12150,9 @@ stderr:
 [stagetap] ARM sched0 site=10b7e00c -> 10be6382 (scheduler run 4 (mode 0), LAST)
 [stagetap] ARM region site=10be643e -> 10be5d4b (the region finder — sole call site)
 [stagetap] armed=7 of 7 requested-list=sched1,globregs,sched2,color,sched3,sched0,region
-z:\home\free\code\milohax\c2-rs-wt-w-restim\fixtures\cpp\wmain_no_return_neg.cpp(45) : error C4716: 'neg_multi_reg' : must return a value
-z:\home\free\code\milohax\c2-rs-wt-w-restim\fixtures\cpp\wmain_no_return_neg.cpp(49) : error C4716: 'neg_empty' : must return a value
-z:\home\free\code\milohax\c2-rs-wt-w-restim\fixtures\cpp\wmain_no_return_neg.cpp(52) : error C4716: 'neg_call_stop' : must return a value
+z:\<home>\code\milohax\c2-rs-wt-w-restim\fixtures\cpp\wmain_no_return_neg.cpp(45) : error C4716: 'neg_multi_reg' : must return a value
+z:\<home>\code\milohax\c2-rs-wt-w-restim\fixtures\cpp\wmain_no_return_neg.cpp(49) : error C4716: 'neg_empty' : must return a value
+z:\<home>\code\milohax\c2-rs-wt-w-restim\fixtures\cpp\wmain_no_return_neg.cpp(52) : error C4716: 'neg_call_stop' : must return a value
 [stagetap] TAP 1 c80981c0 slide=0
 [stagetap] END sched1 hits=3
 [stagetap] END globregs hits=3

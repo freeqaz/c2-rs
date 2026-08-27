@@ -14,9 +14,9 @@
 #
 # `diff` IS still the right tool at its own flags, e.g. for the fixtures.
 set -eu
-root=/home/free/code/milohax/c2-rs/.claude/worktrees/agent-a90821e906953b0fd
-export C2RS_COMPILERS=/home/free/code/milohax/c2-rs/compilers
-export C2RS_WIBO=/home/free/code/milohax/wibo/build/wibo
+root=<repo>/.claude/worktrees/agent-a90821e906953b0fd
+export C2RS_COMPILERS=<repo>/compilers
+export C2RS_WIBO=<home>/code/milohax/wibo/build/wibo
 DIR="$root/work/w-dclass/b-0x27/p"
 echo "NOTE: c2rs diff has no --flags-file and hardcodes /Ox (#194/#195)." >&2
 echo "      For the WORKLOAD profile use judge.sh / judge_sink.sh." >&2
