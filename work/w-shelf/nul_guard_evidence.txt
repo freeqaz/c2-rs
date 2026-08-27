@@ -1,0 +1,19 @@
+=== work/w-gen2/scrub.sh --self-test, 2026-08-27T00:17:48Z ===
+  NUL probe  -> RED   (correct)
+  text probe -> green (correct)
+  control: grep -qP hex-NUL WITHOUT -a -> silent on the NUL probe
+           (this is the broken reflex, watched not firing)
+  control: grep -q -a -P hex-NUL -> RED (the -a form works)
+NUL SELF-TEST PASS: fires on NUL, silent on text.
+EXIT=0
+
+=== the detector matrix, re-derived at lane time (0 = fired/RED, 1 = silent) ===
+detector                           NUL file   text file 
+ugrep 7.5.0  grep -qP hexNUL       1          1         
+ugrep 7.5.0  grep -q -a -P hexNUL  0          1         
+GNU 3.12     grep -qP hexNUL       1          1         
+GNU 3.12     grep -q -a -P hexNUL  0          1         
+tr -d + wc -c byte count           0          1         
+
+grep -c dollar-NUL, which is ANTI-CORRELATED, not merely silent:
+  GNU   nul file -> [2] exit 0 ; text file -> [1] exit 0
