@@ -29,6 +29,46 @@ conflicts git flags loudly**.
 
 Start from `_TEMPLATE.md`.
 
+## `W-<NAME>-<N>` is claimed by two registries — a bare one is a RUNG TAG
+
+*Added 2026-08-27 by lane `w-wire` (owner decision 19,
+[`../DECISIONS_2026-08-22.md`](../DECISIONS_2026-08-22.md) § Decision 19).
+Board **#3681**. The mirror of this block lives in
+[`../whitebox/DISCLOSURE.md`](../whitebox/DISCLOSURE.md) § "`W-<NAME>-<N>` is
+claimed by two registries"; each end names the other's claim.*
+
+The `W` sequence above is not only `W22`/`W25`/`W26`/`W30`. It has also issued
+**hyphenated** tags, and `INDEX.md` line 16 carries one:
+
+> `| 2026-07-30 | W-UNW-1 | [unwind-pdata](2026-07-30-unwind-pdata.md) | 5 |`
+
+That spelling — `W-<NAME>-<N>` — is **also** the row-id grammar of the
+whitebox provenance ledger, `docs/whitebox/DISCLOSURE.md`, which at
+`bce2bfc68` holds 22 rows (`W-MOP-1`, `W-ALIAS-2`, `W-GLATTRS-1`, …). So a
+reader who greps a bare `W-UNW-1` expecting to re-check a *provenance* claim
+lands on fixtures and a codegen rung instead, and a reader who greps a bare
+`W-MOP-1` cannot tell from the token alone which registry answers.
+
+**Neither registry renames, and the fix is at the citation:**
+
+- **A provenance citation must be qualified — `DISCLOSURE W-MOP-1`.** A bare
+  `W-*-N` is a **rung tag** by default. `scripts/prose_audit.py`'s C1 check is
+  built on exactly this reading: it fires only on a token *attributed* to the
+  ledger and missing from it, so an unqualified rung tag is correctly silent.
+- **Rung tags stay bare and stay as they are.** `W-UNW-1` has 37 citations in
+  18 files at `bce2bfc68`, every one correct as written; renaming would touch
+  all of them to fix a collision that only bites an unqualified grep. Decision
+  19 rules that out in those words.
+- **Tag uniqueness is enforced only *within* this registry.**
+  `crates/c2-harness/tests/rung_registry.rs` asserts no two rung docs declare
+  the same `Tag:`. It knows nothing about `DISCLOSURE.md`, and nothing
+  cross-checks the two — which is why the rule above is a convention about
+  *citations* and not an assertion about *names*.
+
+When allocating a new tag, prefer the plain `W<N>` form. A hyphenated one is
+legal and `W-UNW-1` keeps its own, but every new hyphenated tag is one more
+token a provenance grep cannot disambiguate.
+
 ## Lane kinds
 
 Adopted 2026-08-13 from `docs/STRATEGY_REVIEW_2026-08-13.md` §4 lever 1: the

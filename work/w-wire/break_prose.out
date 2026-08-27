@@ -1,0 +1,20 @@
+running 2 tests
+test prose_audit_self_test_passes ... FAILED
+test provenance_census_self_test_passes ... ok
+
+failures:
+
+---- prose_audit_self_test_passes stdout ----
+
+thread 'prose_audit_self_test_passes' (1897886) panicked at crates/c2-harness/tests/provenance.rs:182:5:
+scripts/prose_audit.py --self-test FAILED (exit-0 = false). Full report:
+[1] THE GREEN — every planted claim is TRUE, the audit must exit 0
+  PASS  exit code: got 0, want 0
+  FAIL  the fixture ledger parsed to three rows: got 3, want 7777
+  PASS  and its three addresses were collected: got 3, want 3
+
+[2] THE RED — C1, a citation to a row that does not exist
+  PASS  one C1 finding: got 1, want 1
+  PASS  and it names the fake row: got True, want True
+  PASS  the honest pre-draft line is SUPPRESSED, not reported: got 1, want 1
+  PASS  and the suppression is counted, never silent: got True, want True

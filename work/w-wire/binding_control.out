@@ -1,0 +1,3 @@
+  [C4] crates/c2-core/src/codegen/mop.rs:115: binding `COUNT[rs-consts:crates/c2-core/src/codegen/mop.rs]` claims 93, recount says 92
+  [C4] crates/c2-core/src/codegen/mop.rs:390: binding `COUNT[rs-array:crates/c2-core/src/codegen/mop.rs:OPCODE_ROWS]` claims 86, recount says 85
+VERDICT: FINDINGS 2 over 594 checked claims (133 in dated records, 54 unattributed, 0 mention-risks)

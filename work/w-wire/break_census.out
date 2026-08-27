@@ -1,0 +1,40 @@
+running 2 tests
+test prose_audit_self_test_passes ... ok
+test provenance_census_self_test_passes ... FAILED
+
+failures:
+
+---- provenance_census_self_test_passes stdout ----
+
+thread 'provenance_census_self_test_passes' (1897504) panicked at crates/c2-harness/tests/provenance.rs:182:5:
+scripts/provenance_census.py --self-test FAILED (exit-0 = false). Full report:
+[1] planted fixture, exact counts
+  PASS  pop: got 13, want 13
+  PASS  R: got 3, want 3
+  PASS  O: got 1, want 1
+  PASS  F: got 2, want 2
+  PASS  S: got 1, want 1
+  PASS  N: got 1, want 1
+  PASS  untagged: got 5, want 5
+  PASS  rules: got 1, want 1
+  PASS  citation defects: got 0, want 0
+
+[2] THE RED — remove one marker; the count MUST move
+  before: [R]=3 untagged=5
+  after:  [R]=2 untagged=6
+  PASS  [R] fell by one: got 1, want 1
+  PASS  untagged rose by one: got 1, want 1
+  PASS  population unchanged: got 13, want 13
+
+[3] THE OTHER RED — an uncited marker is a reported defect
+  PASS  one citation defect found: got 1, want 1
+
+[4] THE THIRD RED — remove the BLOCK marker; two tags MUST move
+  before: [R]=3 untagged=5
+  after:  [R]=1 untagged=7
+  PASS  [R] fell by two: got 2, want 2
+  PASS  untagged rose by two: got 2, want 2
+
+[10] #3649 — a glob in a doc comment must not open a block comment,
+     and must not disable `#[cfg(test)]` exclusion below it
+  PASS  population is the TWO production consts, not four: got 2, want 2
