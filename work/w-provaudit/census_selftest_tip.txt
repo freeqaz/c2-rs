@@ -1,0 +1,86 @@
+--since: unknown revision or bad root: 0000000000000000000000000000000000000000 -- src
+[1] planted fixture, exact counts
+  PASS  pop: got 13, want 13
+  PASS  R: got 3, want 3
+  PASS  O: got 1, want 1
+  PASS  F: got 2, want 2
+  PASS  S: got 1, want 1
+  PASS  N: got 1, want 1
+  PASS  untagged: got 5, want 5
+  PASS  rules: got 1, want 1
+  PASS  citation defects: got 0, want 0
+
+[2] THE RED — remove one marker; the count MUST move
+  before: [R]=3 untagged=5
+  after:  [R]=2 untagged=6
+  PASS  [R] fell by one: got 1, want 1
+  PASS  untagged rose by one: got 1, want 1
+  PASS  population unchanged: got 13, want 13
+
+[3] THE OTHER RED — an uncited marker is a reported defect
+  PASS  one citation defect found: got 1, want 1
+
+[4] THE THIRD RED — remove the BLOCK marker; two tags MUST move
+  before: [R]=3 untagged=5
+  after:  [R]=1 untagged=7
+  PASS  [R] fell by two: got 2, want 2
+  PASS  untagged rose by two: got 2, want 2
+
+[10] #3649 — a glob in a doc comment must not open a block comment,
+     and must not disable `#[cfg(test)]` exclusion below it
+  PASS  population is the TWO production consts, not four: got 2, want 2
+  PASS  untagged residue: got 2, want 2
+  PASS  removing the glob moves NOTHING (it never should have): got (2, 2), want (2, 2)
+
+[11] #3669 — THE MENTION RULE, watched in BOTH directions. A
+     backticked marker is a MENTION and must not be counted; the
+     bare one beside it must.
+  PASS  population is two: got 2, want 2
+  PASS  exactly ONE is tagged [R]: got 1, want 1
+  PASS  and the mention is in the residue: got 1, want 1
+  PASS  un-backticking the mention MOVES the count: got 2, want 2
+  PASS  and empties the residue: got 0, want 0
+
+[5] --since, planted two-tree fixture: SIX events, and the LEVEL
+    is silent — pop 6→6, tagged 4→4, coverage 66.7%→66.7%
+  PASS  no citation defects at tip: got 0, want 0
+  PASS  no missing roots: got 0, want 0
+  PASS  base carries markers: got True, want True
+  PASS  LEVEL: population base: got 6, want 6
+  PASS  LEVEL: population tip: got 6, want 6
+  PASS  LEVEL: tagged base: got 4, want 4
+  PASS  LEVEL: tagged tip: got 4, want 4
+  PASS  LEVEL: Δtagged (the silence this mode exists for): got 0, want 0
+    …and the DIFF is not:
+  PASS  untagged→tagged: got 1, want 1
+  PASS  tagged→untagged (a marker LOST): got 1, want 1
+  PASS  reclassified: got 1, want 1
+  PASS  appeared: got 2, want 2
+  PASS  appeared already tagged: got 1, want 1
+  PASS  vanished: got 2, want 2
+  PASS  vanished while tagged: got 1, want 1
+  PASS  decomposition identity holds: got [], want []
+
+[6] the ORDINAL key: two `DUP` in one file, every line shifted
+  PASS  population unchanged: got 0, want 0
+  PASS  nothing APPEARED (a line shift is not churn): got 0, want 0
+  PASS  nothing VANISHED: got 0, want 0
+  PASS  exactly one of the two `DUP` got tagged: got 1, want 1
+  PASS  decomposition identity holds: got [], want []
+
+[7] a base that PREDATES the convention is a labelled outcome
+  PASS  base_marked is False (the banner fires): got False, want False
+  PASS  no crash: the module row exists: got True, want True
+  PASS  existing constants that gained a marker: got 3, want 3
+  PASS  new surface is still reported separately: got 2, want 2
+  PASS  decomposition still holds: got [], want []
+
+[8] THE RED — a differ that CONFLATES 'appeared' with 'retagged'
+    must be refused by the decomposition identity, not printed OK
+  PASS  the conflation is DETECTED: got True, want True
+  PASS  and it is detected on the untagged residue: got True, want True
+
+[9] a bogus sha is a labelled failure (exit 2), never a crash
+  PASS  exit code: got 2, want 2
+
+SELF-TEST: PASS

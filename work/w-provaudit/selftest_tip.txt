@@ -1,0 +1,96 @@
+prose_audit: cannot read docs/whitebox/DISCLOSURE.md under <TMP>
+[1] THE GREEN — every planted claim is TRUE, the audit must exit 0
+  PASS  exit code: got 0, want 0
+  PASS  the fixture ledger parsed to three rows: got 3, want 3
+  PASS  and its three addresses were collected: got 3, want 3
+
+[2] THE RED — C1, a citation to a row that does not exist
+  PASS  one C1 finding: got 1, want 1
+  PASS  and it names the fake row: got True, want True
+  PASS  the honest pre-draft line is SUPPRESSED, not reported: got 1, want 1
+  PASS  and the suppression is counted, never silent: got True, want True
+
+[3] THE RED — C2, an absence claim the ledger falsifies
+  PASS  one C2 finding: got 1, want 1
+  PASS  and it names the row that falsifies it: got True, want True
+
+[4] THE RED — C4, a binding whose recount disagrees
+  PASS  one C4 finding: got 1, want 1
+  PASS  recount is reported, not just the disagreement: got True, want True
+
+[5] the whole audit exits 1 on this tree
+  PASS  exit code: got 1, want 1
+
+[6] THE RED — C3, a document that miscounts its OWN table
+  PASS  one C3 finding: got 1, want 1
+  PASS  it says what the table actually has: got True, want True
+  PASS  candidates were considered, so a miss is visible: got True, want True
+
+[7] THE RED — C4b, a binding that is arithmetically RIGHT and
+    attached to no prose. This is the hole a count-checker has:
+    a machine-readable claim floating free of the human one.
+  PASS  one C4 finding: got 1, want 1
+  PASS  and it is the DETACHED kind, not an arithmetic one: got True, want True
+
+[8] THE RED — C6, a ledger row adopting into a path that is gone
+  PASS  three paths were checked: got 3, want 3
+  PASS  one C6 finding: got 1, want 1
+  PASS  and it names the row: got True, want True
+
+[9] THE ESCAPED PIPE — the ledger's own cells contain `\|`, and a
+    naive split shears the `Adopted into` column. C6 would then
+    check half a path and pass.
+  PASS  W-PLANT-1's path survived the escaped pipe in its own cell: got crates/planted/real.rs, want crates/planted/real.rs
+  PASS  and a naive split really would have got it wrong: got False, want False
+
+[10] NOTHING TO CHECK is exit 3, not exit 0 — absence is not success
+  PASS  exit code: got 3, want 3
+
+[11] A MISSING LEDGER is exit 2, never a crash and never a green
+  PASS  exit code: got 2, want 2
+
+[12] THE MARKER GRAMMAR IS THE CENSUS'S — proved by BEHAVIOUR on a
+     planted string, not by comparing two regex sources
+  PASS  this tool sees exactly the two markers: got ['O', 'R'], want ['O', 'R']
+  PASS  and the census sees the same two: got ['O', 'R'], want ['O', 'R']
+
+[13] EVERY SUPPRESSION CLASS GETS A CONTROL — a suppression is a
+     hole by construction, and the only question is whether it is
+     the hole you meant. Each must fire on its neighbour.
+  PASS  the pre-draft index found W-OTHER-1: got ['OTHER_FINDINGS.md'], want ['OTHER_FINDINGS.md']
+  PASS  the home-document citation is suppressed: got 1, want 1
+  PASS  W-NAMESPACE-7 lands in UNATTRIBUTED, not findings: got ['W-NAMESPACE-7'], want ['W-NAMESPACE-7']
+  PASS  the DISCLOSURE-attributed pre-draft still FIRES: got 1, want 1
+  PASS  and the finding says where the pre-draft actually lives: got True, want True
+  PASS  the QUOTED absence claim is suppressed: got 1, want 1
+  PASS  the unquoted one beside it still FIRES: got 1, want 1
+  PASS  and it names the row that falsifies it: got True, want True
+
+[14] THE SUPPRESSION MUST NOT SWALLOW THE FILE — take the two
+     suppressing devices away and the SAME file goes red twice as
+     often. A suppression that survives this is over-wide.
+  PASS  the home-document suppression is now empty: got 0, want 0
+  PASS  and both attributed citations fire: got 2, want 2
+  PASS  nothing is suppressed as quoted any more: got 0, want 0
+  PASS  and both absence claims fire: got 2, want 2
+
+[15] ATTRIBUTION OUTRANKS SUPPRESSION — the exact shape of #3645.
+     One line names the home document AND falsely attributes the
+     token to the ledger. Suppression-first loses the finding.
+  PASS  the false attribution FIRES despite the home-doc mention: got 1, want 1
+  PASS  and nothing was suppressed as home-qualified: got 0, want 0
+  PASS  a DISCLOSURE far from the token does not attribute: got False, want False
+  PASS  and an adjacent one does: got True, want True
+
+[16] A BINDING INSIDE BACKTICKS IS A MENTION — and the control is
+     the counter-control too: un-backtick it and the same file
+     goes red. Found by this tool going red on its OWN rung doc,
+     which recommends two bindings to a peer by quoting them.
+  PASS  the quoted recommendation is a MENTION: got 1, want 1
+  PASS  nothing was checked: got 0, want 0
+  PASS  and nothing fired: got 0, want 0
+  PASS  un-backticked, it is a real binding: got 1, want 1
+  PASS  nothing is a mention now: got 0, want 0
+  PASS  and it FIRES — 999 is not 3: got 1, want 1
+
+SELF-TEST: PASS

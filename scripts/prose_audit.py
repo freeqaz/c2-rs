@@ -96,7 +96,7 @@ USAGE
   scripts/prose_audit.py                 audit the tree, print findings
   scripts/prose_audit.py --verbose       also print every candidate considered
   scripts/prose_audit.py --strict        DATED unresolved refs count as findings
-  scripts/prose_audit.py --self-test     planted fixtures; RED on a false claim
+  scripts/prose_audit.py --self-test     16 sections; RED on a false claim
                                          and GREEN on a true one, both directions
 
 EXIT CODES
@@ -190,7 +190,21 @@ PROV_RE = re.compile(r"PROV(?:-BLOCK)?\[([RSOFN])\]")
 SUBSYS_MARK_RE = re.compile(r"\[([ROI])\]")
 
 # The BINDING. `COUNT[<recipe>] = <N>` written beside a prose number.
+#
+# **A BINDING INSIDE BACKTICKS IS A MENTION OF A BINDING, not a binding** — the
+# same rule `provenance_census.py`'s `MARK_RE` carries for markers (`#3669`),
+# and it is here for the same reason, found the same way. This lane's own rung
+# doc §7.1 *recommends* two bindings to a peer by quoting them, and the audit
+# went red on its own recommendation: `COUNT[rs-consts:…mop.rs] = 91` DETACHED,
+# because a suggestion has no prose number to attach to. A tool that cannot be
+# written about is a tool nobody can hand over.
 BIND_RE = re.compile(r"COUNT\[([^\]]+)\]\s*=\s*(\d+)")
+
+
+def _is_mention(line, m):
+    """Is this match wrapped in backticks — i.e. quoted rather than asserted?"""
+    return (m.start() > 0 and line[m.start() - 1] == "`"
+            and m.end() < len(line) and line[m.end()] == "`")
 
 NUMBER_WORDS = {
     "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
@@ -801,6 +815,7 @@ def check_bindings(root, files):
     prose it annotates."""
     findings = []
     checked = 0
+    mentions = 0
     oks = []
     for rel in files:
         if rel.startswith("work/") or rel in SELF_FIXTURE_FILES:
@@ -811,6 +826,9 @@ def check_bindings(root, files):
         lines = text.split("\n")
         for i, line in enumerate(lines, 1):
             for m in BIND_RE.finditer(line):
+                if _is_mention(line, m):
+                    mentions += 1
+                    continue
                 recipe, claimed = m.group(1), int(m.group(2))
                 checked += 1
                 got, err = run_recipe(root, recipe)
@@ -841,7 +859,7 @@ def check_bindings(root, files):
                         f"lines of prose above it"))
                     continue
                 oks.append((rel, i, recipe, claimed))
-    return findings, checked, oks
+    return findings, checked, oks, mentions
 
 
 def check_mentions(root, files):
@@ -1054,7 +1072,7 @@ def audit(root, verbose=False, strict=False, quiet=False):
         root, files, ledger, strict, predrafts)
     f2, dated2, quoted2, n2 = check_absence(root, files, ledger, strict)
     f3, n3, cands = check_selfcount(root, verbose)
-    f4, n4, oks = check_bindings(root, files)
+    f4, n4, oks, m4 = check_bindings(root, files)
     f5, n5, pages5 = check_mentions(root, files)
     f6, n6 = check_adopted_paths(root, ledger)
 
@@ -1166,6 +1184,7 @@ def audit(root, verbose=False, strict=False, quiet=False):
     say(f"  C1  qualified by the document that defines it        {sh:>6}")
     say(f"  C1  `W-FAKE-*`, the reserved planted-fixture space    {sf:>6}")
     say(f"  C2  the absence phrase is inside QUOTES (a mention)  {quoted2:>6}")
+    say(f"  C4  the binding is inside BACKTICKS (a mention)     {m4:>6}")
     say(f"  all self-fixture files excluded whole: "
         f"{', '.join(SELF_FIXTURE_FILES)}")
     if oks:
@@ -1198,6 +1217,15 @@ def audit(root, verbose=False, strict=False, quiet=False):
     say(f"  {'checkable (C1+C2+C3+C4+C6 above)':<52} {checked:>6}")
     if checked:
         say(f"  {'ratio unbound : checkable':<52} {unbound / checked:>5.1f}:1")
+    say("")
+    say("  **THE TWO NUMBERS ABOVE DO NOT SHARE A DENOMINATOR, and the ratio")
+    say("  is therefore NOT a coverage figure.** `checkable` is dominated by")
+    say("  C1's row-id tokens, counted over the WHOLE tree; `unbound` is")
+    say("  counted over three provenance surfaces only. Read the ratio as")
+    say("  'the residue is of the same order as the checked population on the")
+    say("  surfaces where both are measured', never as '1 in 3 claims is")
+    say("  checked'. This lane's own prereg compared them as if they shared a")
+    say("  scope and registered a wrong prediction off it (P6, MISS).")
     say("")
     say("  Also outside scope, by kind rather than by count:")
     say("   * any claim of fact about c2's behaviour — the image and the byte")
@@ -1399,7 +1427,7 @@ def self_test():
 
         print()
         print("[4] THE RED — C4, a binding whose recount disagrees")
-        f4, n4, oks = check_bindings(td, files)
+        f4, n4, oks, _m = check_bindings(td, files)
         check("one C4 finding", len(f4), 1)
         check("recount is reported, not just the disagreement",
               "recount says" in (f4[0].msg if f4 else ""), True)
@@ -1427,7 +1455,7 @@ def self_test():
     with tempfile.TemporaryDirectory() as td:
         _plant(td, TRUE_LEDGER, DETACHED_SRC)
         files = walk_scan(td)
-        f4, n4, oks = check_bindings(td, files)
+        f4, n4, oks, _m = check_bindings(td, files)
         check("one C4 finding", len(f4), 1)
         check("and it is the DETACHED kind, not an arithmetic one",
               "DETACHED" in (f4[0].msg if f4 else ""), True)
@@ -1574,6 +1602,28 @@ def self_test():
         check("and an adjacent one does",
               _attributes_to_ledger("see DISCLOSURE W-OTHER-1 for this",
                                     "W-OTHER-1"), True)
+
+    print()
+    print("[16] A BINDING INSIDE BACKTICKS IS A MENTION — and the control is")
+    print("     the counter-control too: un-backtick it and the same file")
+    print("     goes red. Found by this tool going red on its OWN rung doc,")
+    print("     which recommends two bindings to a peer by quoting them.")
+    with tempfile.TemporaryDirectory() as td:
+        quoted = ("//! Recommend to the owning lane, one line beside the prose:\n"
+                  "//! `COUNT[ledger-rows] = 999`\n"
+                  "pub const A: u32 = 1;\n")
+        _plant(td, TRUE_LEDGER, quoted)
+        files = walk_scan(td)
+        f4, n4, oks, m4 = check_bindings(td, files)
+        check("the quoted recommendation is a MENTION", m4, 1)
+        check("nothing was checked", n4, 0)
+        check("and nothing fired", len(f4), 0)
+        _plant(td, TRUE_LEDGER, quoted.replace("`COUNT", "COUNT")
+               .replace("= 999`", "= 999"))
+        f4b, n4b, _o, m4b = check_bindings(td, walk_scan(td))
+        check("un-backticked, it is a real binding", n4b, 1)
+        check("nothing is a mention now", m4b, 0)
+        check("and it FIRES — 999 is not 3", len(f4b), 1)
 
     print()
     print("SELF-TEST:", "PASS" if ok else "FAIL")

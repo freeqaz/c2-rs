@@ -582,7 +582,7 @@ adoption decision and this lane annotates provenance rather than changing it.
     scripts/prose_audit.py                            audit the tree; 0 = no findings
     scripts/prose_audit.py --verbose                  also print every candidate considered
     scripts/prose_audit.py --strict                   dated records count as findings too
-    scripts/prose_audit.py --self-test                15 sections, planted fixtures, both directions
+    scripts/prose_audit.py --self-test                16 sections, planted fixtures, both directions
 
 **The census can say whether a constant is TAGGED. It cannot say whether the
 tag is TRUE**, and those are different questions. Board `#3643`: a `PROV[R]`
