@@ -95,9 +95,9 @@ front.
 | **R1** | ≥ 15 of 25 §1 entries unimplemented under every reading | **not decided** — same cause as N2 |
 | **R2** | at least one rule implemented behaviourally while citing nothing; candidate the `.bss` reversal | **HIT**, and the named candidate was one of the two |
 | **S1** | the encoder was a special case and the property is an adopted key, not "rules vs addresses" | **HIT** — §4 |
-| **H1** | identity diff 0 lines over 21 rows | see §6 |
-| **H2** | `GATE:` verdict unchanged | see §6 |
-| **H3** | target count unchanged, test count up | see §6 |
+| **H1** | identity diff 0 lines over 21 rows | **HIT** — 0 lines over 21 rows, `--self-test` PASS (§6) |
+| **H2** | `GATE:` verdict unchanged | **HIT** — `GATE: PASS (HATCH-RED REFUSED)` at both ends (§6) |
+| **H3** | target count unchanged, test count up | **HIT** — targets 59 → 59, tests 1,928 → 1,932 (§6) |
 | **H4** | **#3641 will bite; at least one draft moves the census** | **MISS**, in the good direction: the respelling was applied in the **first** draft, so the census read 17/53 before and after every edit and never moved. A prediction that the hazard would fire is not vindicated by preventing it, and it is graded a miss |
 | **H5** | no second provenance reader, no `DISCLOSURE` row minted, nothing outside the fence | **HIT** |
 | **H6** | a control planted, watched red, reverted | **HIT**, three times — §5 |
@@ -216,8 +216,13 @@ identity diff.
 
 | | targets | passed | failed | ignored |
 |---|---:|---:|---:|---:|
-| base `0dcfca959` | *see final report* | | | |
-| tip `7169b14b3` | *see final report* | | | |
+| base `0dcfca959` | **59** | **1,928** | **0** | 1 |
+| tip | **59** | **1,932** | **0** | 1 |
+
+**Targets unchanged, tests `+4`** — exactly the four checks this lane added.
+**H3 HIT.** The base figure reproduces `docs/STATUS.md`'s wave-14 close
+(`tests 1928/0/59`) independently, which is a control on the measurement
+rather than a coincidence worth ignoring.
 
 `cargo test -p c2-harness --lib subsys`: **13 → 17** (four checks added).
 
