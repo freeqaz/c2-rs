@@ -57,9 +57,20 @@
 #   WIDE-2  ELF binaries outside `target/`, `.git/`, `compilers/` and outside
 #           any NESTED worktree — **28** in the primary, **1** in every one of
 #           the six live worktrees. Still not the guard: the per-worktree 1 is
-#           `work/w-biquad/c2rs.base`, which `scripts/setup_worktree.sh`
-#           reflinks into every tree it creates. **Removing that worktree
-#           destroys nothing** — the primary's copy survives.
+#           `work/w-biquad/c2rs.base`, which every tree got because the file was
+#           **TRACKED**, so `git worktree add` checked it out. **Removing that
+#           worktree destroys nothing** — the primary's copy survives.
+#
+#           CORRECTED 2026-08-27 (board **#3688**). This comment said
+#           `setup_worktree.sh` *reflinks* that file, and `#3687` repeated it as
+#           the open root cause of the reap-guard failure. **It is false.**
+#           `scripts/configure_existing_worktree.sh` copies exactly two things —
+#           `target/` and `work/dc3-workload/` (`grep -n 'work/'` yields one
+#           hit) — and `c2rs.base` is in neither. The mechanism was a plain
+#           checkout of a tracked path, which is why `w-shelf`'s `git rm
+#           --cached` **closed it**: measured by creating a worktree with the
+#           real script on this tree, at which point the file does not appear
+#           and this audit reports nothing for it.
 #
 # The predicate that survives is therefore about **uniqueness, not shape**:
 #
@@ -157,8 +168,10 @@ candidates() {
 # ---- class P1: an ELF that exists ONLY in this tree --------------------------
 #
 # `same_in_primary` is a path+size comparison rather than a content hash on
-# purpose: `setup_worktree.sh` reflinks, so an inherited copy is byte-identical
-# AND at the same relative path, and hashing 6 MB binaries per worktree per run
+# purpose: an inherited copy is byte-identical AND at the same relative path —
+# `target/` because `configure_existing_worktree.sh` reflinks it, anything under
+# version control because `git worktree add` checks it out — and hashing 6 MB
+# binaries per worktree per run
 # would cost seconds to separate cases that cannot arise. A same-path
 # same-size file that is NOT the same bytes is a false NEGATIVE this accepts,
 # and it is named here rather than left for someone to find: use --pin for
@@ -236,9 +249,11 @@ audit() {
     echo "WIDE-1 executables outside target/compilers: $wide1"
     echo "WIDE-2 ELF binaries among them: $wide2"
     echo "  Both printed every run (#3545): WIDE-1 is compilers/ plus every"
-    echo "  tracked script, WIDE-2 still counts the inherited work/w-biquad"
-    echo "  copy that setup_worktree.sh reflinks into every tree. Neither is"
-    echo "  the guard; uniqueness against the primary is."
+    echo "  tracked script, WIDE-2 still counts every inherited work/w-biquad"
+    echo "  copy left in a LOCKED tree. Neither is the guard; uniqueness"
+    echo "  against the primary is. Those copies arrived by CHECKOUT, not by"
+    echo "  reflink (#3688) — the file was tracked until 011bb6d1d, and a tree"
+    echo "  created after that does not get one."
 
     if [ "$rc" -ne 0 ] && [ "$do_lock" = "1" ]; then
         for wt in $viol_trees; do
