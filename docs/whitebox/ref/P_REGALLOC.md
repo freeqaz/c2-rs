@@ -338,6 +338,43 @@ source-level use counts is fitting the wrong variable.
   wrong in kind: F5's input is `cand+0x0c`, accumulated over the code **the
   scheduler produced**, and F0 — priced at 8 — is what produces it. **F5 is not
   separable from F0.**
+
+  > ## ⛔ AMENDED 2026-08-27 by lane `w-f0price` — **THE `8` IS A STALE QUOTE, AND THE NUMBER THAT REPLACED IT IS ALSO A FLOOR**
+  >
+  > *Read + price: [`../WB_F0PRICE_FINDINGS.md`](../WB_F0PRICE_FINDINGS.md);
+  > prereg [`../WB_F0PRICE_PREREG.md`](../WB_F0PRICE_PREREG.md); instrument
+  > [`../scripts/f0_pipeline.py`](../scripts/f0_pipeline.py); board
+  > **#3712**–**#3716**. Amended beside, never rewritten
+  > ([`README.md`](README.md) §2.1). **The sentence above stands: F5 is not
+  > separable from F0, and that dependency is untouched.** Only the number is
+  > wrong.*
+  >
+  > * **The `8` was superseded six days before this page's own §7 was last
+  >   edited.** `WB_ITEMF_FINDINGS.md` published it 2026-08-15;
+  >   `STEP5_PRICING_2026-08-21.md` §3 re-priced F0 **8 → 4 lanes raw** on
+  >   2026-08-21; `READ_PLAN` §3 row R7 quotes that re-price. The commit that
+  >   edited this section on 2026-08-23 (`2577daaac`, R4's corrections) struck
+  >   the **F1** bullet below and left this figure standing. **`P_REGALLOC` §7
+  >   vs `READ_PLAN` R7 is a staleness defect, not a disagreement.** Board
+  >   **#3712**.
+  > * **Neither figure is a price; both are floors.** Priced sub-item by
+  >   sub-item against `WB_ITEMF_FINDINGS.md` §6.1's own eight-item
+  >   enumeration: **F0 ≥ 10 raw sub-lanes, plus two UNPRICED terms.** The
+  >   lowering band (sub-item 7, priced at 1 for *"three passes"*) is **425 B
+  >   of pass DRIVER with no transformation logic**, driving **15 depth-1
+  >   passes across 11 TUs** — 11 of them live at the workload's `/O1 /EHsc`.
+  >   Board **#3713**.
+  > * **The scope is the larger error.** The pipeline downstream of
+  >   `0x10b31c9a` is **7 stage drivers, 34 depth-1 passes, 10,714 B, 17 TUs**,
+  >   of which **27 are `cover=none`**. F0's eight sub-items name **1** of the
+  >   34, and stage **S7 (`0x10b7e032`)** — which holds a live mode-0 run of the
+  >   merger driver, the direct tuple-splicer `0x10b35c78`, and the emit walk —
+  >   **has no sub-item at all**. Board **#3714**, **#3715**.
+  > * **Quote the pair with care.** The `8` is published *"ceiling, NO discount
+  >   factor"*; the `4` is a lower bound with `CEILING` §5's ×5 applied in the
+  >   same sentence (*"×5 = 20"*). **The two figures a reader can find in this
+  >   tree are 8 and 20**, so read as published the re-price is a 2.5×
+  >   *increase*. Board **#3716**.
 * ~~**F1**, `globregs.c`'s promotion policy at `0x10b55732`: unread.~~
   ⛔ **READ 2026-08-23 by R4, and it is at a different address**:
   `FUN_10b550e5` @ `0x10b550e5`. Two gates — a **kind** switch (every arm
