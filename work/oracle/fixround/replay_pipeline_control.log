@@ -288,25 +288,25 @@ fixtures/cpp/wmain2_eh_scope.cpp -> ref=1163B replay=1163B  raw_identical=true  
 fixtures/cpp/wlr_lit_run.cpp -> ref=2213B replay=2213B  raw_identical=true  normalized_identical=true
 fixtures/cpp/wlr_lit_run_neg.cpp -> ref=1527B replay=1527B  raw_identical=true  normalized_identical=true
 fixtures/cpp/wmain2_eh_scope_neg.cpp -> ref=1163B replay=1163B  raw_identical=true  normalized_identical=true
-replay failed: replay produced no (or an empty) obj at /home/free/tmp/c2rs-cli-replay-4093552-1787265945148204980-0/cap/out.obj
+replay failed: replay produced no (or an empty) obj at <home>/tmp/c2rs-cli-replay-4093552-1787265945148204980-0/cap/out.obj
   status: exit status: 1
   stdout:
 
   stderr:
-    [c2host] InvokeCompilerPass @10BEBFFD argc=18 argv0=/home/free/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-reference/../../compilers/X360/16.00.11886.00/c2.dll
-    z:\home\free\code\milohax\c2-rs-wt-w-stageoracle\fixtures\cpp\wmain_no_return.cpp(47) : error C4716: 'no_return_call' : must return a value
-    z:\home\free\code\milohax\c2-rs-wt-w-stageoracle\fixtures\cpp\wmain_no_return.cpp(50) : error C4716: 'no_return_tail' : must return a value
+    [c2host] InvokeCompilerPass @10BEBFFD argc=18 argv0=<home>/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-reference/../../compilers/X360/16.00.11886.00/c2.dll
+    z:\<home>\code\milohax\c2-rs-wt-w-stageoracle\fixtures\cpp\wmain_no_return.cpp(47) : error C4716: 'no_return_call' : must return a value
+    z:\<home>\code\milohax\c2-rs-wt-w-stageoracle\fixtures\cpp\wmain_no_return.cpp(50) : error C4716: 'no_return_tail' : must return a value
     [c2host] returned 1
 fixtures/cpp/wmmio3_close_call_chain.cpp -> ref=1270B replay=1270B  raw_identical=true  normalized_identical=true
-replay failed: replay produced no (or an empty) obj at /home/free/tmp/c2rs-cli-replay-4093576-1787265945163104154-0/cap/out.obj
+replay failed: replay produced no (or an empty) obj at <home>/tmp/c2rs-cli-replay-4093576-1787265945163104154-0/cap/out.obj
   status: exit status: 1
   stdout:
 
   stderr:
-    [c2host] InvokeCompilerPass @10BEBFFD argc=18 argv0=/home/free/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-reference/../../compilers/X360/16.00.11886.00/c2.dll
-    z:\home\free\code\milohax\c2-rs-wt-w-stageoracle\fixtures\cpp\wmain_no_return_neg.cpp(45) : error C4716: 'neg_multi_reg' : must return a value
-    z:\home\free\code\milohax\c2-rs-wt-w-stageoracle\fixtures\cpp\wmain_no_return_neg.cpp(49) : error C4716: 'neg_empty' : must return a value
-    z:\home\free\code\milohax\c2-rs-wt-w-stageoracle\fixtures\cpp\wmain_no_return_neg.cpp(52) : error C4716: 'neg_call_stop' : must return a value
+    [c2host] InvokeCompilerPass @10BEBFFD argc=18 argv0=<home>/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-reference/../../compilers/X360/16.00.11886.00/c2.dll
+    z:\<home>\code\milohax\c2-rs-wt-w-stageoracle\fixtures\cpp\wmain_no_return_neg.cpp(45) : error C4716: 'neg_multi_reg' : must return a value
+    z:\<home>\code\milohax\c2-rs-wt-w-stageoracle\fixtures\cpp\wmain_no_return_neg.cpp(49) : error C4716: 'neg_empty' : must return a value
+    z:\<home>\code\milohax\c2-rs-wt-w-stageoracle\fixtures\cpp\wmain_no_return_neg.cpp(52) : error C4716: 'neg_call_stop' : must return a value
     [c2host] returned 1
 fixtures/cpp/wmcall_seq_neg.cpp -> ref=2453B replay=2453B  raw_identical=true  normalized_identical=true
 fixtures/cpp/wmcall_seq.cpp -> ref=2544B replay=2544B  raw_identical=true  normalized_identical=true

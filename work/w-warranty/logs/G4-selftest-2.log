@@ -127,7 +127,7 @@ gate.sh --selftest: driving the real collect+decide with fabricated lane logs
   ok    preflight-says-not-a-mismatch    the refusal names itself as a resource fault
   ok    preflight-refuses-on-inodes      GATE: FAIL (DISK) — out of INODES on /tmp/c2rs-gate-1864925/selftest, before anything was graded.
   ok    preflight-names-the-resource     on /tmp/c2rs-gate-1864925/selftest — space and inodes are separate; INODES bind ~7x sooner, and w-alias's red had 19 GB free
-  ok    preflight-inodeless-fs-is-not-full /home/free/code/milohax/c2-rs-wt-w-warranty reports no inode table; the floor is skipped, not failed
+  ok    preflight-inodeless-fs-is-not-full <home>/code/milohax/c2-rs-wt-w-warranty reports no inode table; the floor is skipped, not failed
   ok    preflight-says-the-floor-was-skipped and it SAYS so — unreported is not unlimited
   ok    preflight-passes-when-clear      disk:   /tmp/c2rs-gate-1864925/selftest — free 22.5 GiB / 953,068 inodes (floors: 1.0 MiB / 1 inodes)
   ok    preflight-prints-both-counts     the clear path prints both numbers, not a status

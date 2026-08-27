@@ -1,4 +1,4 @@
-mode: /O1 /GS- /c   workdir: /home/free/tmp/wrot31rbxg_s
+mode: /O1 /GS- /c   workdir: <home>/tmp/wrot31rbxg_s
 
 == GRID A -- the entry form (L4) ==
 cell                bucket   pred    P2    P3  peel   words  note

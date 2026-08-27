@@ -8,7 +8,7 @@ reap:   0 stale run tree(s) removed, 5 kept (1 live, 3 recent, 1 this run)
 strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
 disk:   /tmp — free 24.8 GiB / 613,424 inodes (floors: 2.0 GiB / 150,000 inodes)
 
-lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/w-vocabgap/scripts/lanes.txt
+lane gate: 18 lanes from <repo>/.claude/worktrees/w-vocabgap/scripts/lanes.txt
   run dir: /tmp/c2rs-gate-3413925   (per-lane run dirs under /tmp/c2rs-gate-3413925/lanes/)
   graded tree: 75864f22df31  (731 files under crates fixtures scripts, content-hashed)
                0 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)
@@ -18,13 +18,13 @@ hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refu
 ladder-red:      work/w-ladders/ladder_red.py  (no toolchain; fires ladder.py's width-table refusal)
   PASS  
 building the harness (no-op if current)
-   Compiling c2-il v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-vocabgap/crates/c2-il)
-   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-vocabgap/crates/c2-core)
-   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-vocabgap/crates/c2-reference)
-   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-vocabgap/crates/c2-harness)
+   Compiling c2-il v0.1.0 (<repo>/.claude/worktrees/w-vocabgap/crates/c2-il)
+   Compiling c2-core v0.1.0 (<repo>/.claude/worktrees/w-vocabgap/crates/c2-core)
+   Compiling c2-reference v0.1.0 (<repo>/.claude/worktrees/w-vocabgap/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (<repo>/.claude/worktrees/w-vocabgap/crates/c2-harness)
     Finished `release` profile [optimized] target(s) in 8.42s
 harness: /tmp/c2rs-gate-3413925/c2rs
-  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-vocabgap/target/release/c2rs  built 2026-08-15 07:24:31
+  pinned from <repo>/.claude/worktrees/w-vocabgap/target/release/c2rs  built 2026-08-15 07:24:31
   sha b9855b72c13c  tree b28e5610
 
 wall clock: 33s for 18 lanes at --jobs 4 (C2RS_JOBS=8)
@@ -38,7 +38,7 @@ generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-3413925/sweep 0  (jobs 4)
 
 mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-3413925/cross 0  (jobs 4)
   assigned 19556 cases over 18 lanes = 90812 cells (full cross would be 352008)
-  sweeping 90812 of 90812 case-lane cells (cross of 0 cases x /home/free/code/milohax/c2-rs/.claude/worktrees/w-vocabgap/scripts/lanes.txt; the full 12x product is 352008)
+  sweeping 90812 of 90812 case-lane cells (cross of 0 cases x <repo>/.claude/worktrees/w-vocabgap/scripts/lanes.txt; the full 12x product is 352008)
   checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0
   (1311s)
 

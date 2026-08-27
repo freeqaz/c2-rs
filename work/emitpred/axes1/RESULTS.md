@@ -384,7 +384,7 @@ pass), every invocation under a 120 s bound, longest observed 0.05 s.
 
 ## 9. Artifacts
 
-All under `/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes1/`:
+All under `<repo>/.claude/worktrees/w-emitpred/work/emitpred/axes1/`:
 
 | path | what |
 |---|---|

@@ -4,7 +4,7 @@
   [P4] REPLAY FAIL: cations listed above.
 Please choose the Technical Support command on the Visual C++ 
  Help menu, or open the Technical Support help file for more information
-[c2host] InvokeCompilerPass @10BEBFFD argc=20 argv0=/home/free/code/milohax/c2-rs/.claude/worktrees/w-db/compilers/X360/16.00.11886.00/c2.dll
+[c2host] InvokeCompilerPass @10BEBFFD argc=20 argv0=<repo>/.claude/worktrees/w-db/compilers/X360/16.00.11886.00/c2.dll
 
 
 ---- src/system/rndobj/EventTrigger.cpp
@@ -19,7 +19,7 @@ Please choose the Technical Support command on the Visual C++
   [P4] REPLAY FAIL: cations listed above.
 Please choose the Technical Support command on the Visual C++ 
  Help menu, or open the Technical Support help file for more information
-[c2host] InvokeCompilerPass @10BEBFFD argc=20 argv0=/home/free/code/milohax/c2-rs/.claude/worktrees/w-db/compilers/X360/16.00.11886.00/c2.dll
+[c2host] InvokeCompilerPass @10BEBFFD argc=20 argv0=<repo>/.claude/worktrees/w-db/compilers/X360/16.00.11886.00/c2.dll
 
 
 ---- src/system/synth/StreamNull.cpp

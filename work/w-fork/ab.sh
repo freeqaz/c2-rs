@@ -12,7 +12,7 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 LANE=$ROOT/work/w-fork
 CORPUS=$1
 ROUNDS=${2:-3}
-WIBO_FS=/home/free/code/milohax/wibo-forkserver/build/release/wibo
+WIBO_FS=<home>/code/milohax/wibo-forkserver/build/release/wibo
 C2DLL=$ROOT/compilers/X360/16.00.11886.00/c2.dll
 export WIBO_FS_CACHE=1
 

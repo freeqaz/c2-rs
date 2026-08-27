@@ -64,10 +64,10 @@ worktree, and none is carried from the dispatching brief.
 | `sha256sum compilers/X360/16.00.11886.00/c2.dll` | `c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258` |
 | expected c2.dll sha (whitebox record's image, `C2_MAP_METHOD.md` §0) | `c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258` |
 | c2.dll sha ASSERTION | **EQUAL** — the whitebox record is written against this exact image |
-| `c2rs gap` workload stamp line, verbatim | `workload   3df8fd5412c2 (clean)  /home/free/code/milohax/dc3-decomp` |
+| `c2rs gap` workload stamp line, verbatim | `workload   3df8fd5412c2 (clean)  <home>/code/milohax/dc3-decomp` |
 | `grep -cE '^ *gap-metric \S+ \S+$'` at this base | **395**, derived twice (line count 395, distinct key names 395 — equal) |
 | `match` / `mismatch` at this base | `match 26 · mismatch 0 · codegen-gap 0 · vocab-gap 844 · capture-fail 8` |
-| wibo | `/home/free/code/milohax/wibo/build/wibo` (not on `PATH`) |
+| wibo | `<home>/code/milohax/wibo/build/wibo` (not on `PATH`) |
 | mingw | `/usr/bin/i686-w64-mingw32-gcc` |
 | box load at lane start (`uptime`) | 32.3 at lane start, 150.4 twenty minutes later (32 cores, unrelated external jobs) — wall-clock seconds are NOT published by this lane |
 
@@ -234,7 +234,7 @@ relocated branches, and **calls, which end scheduling regions** (`P_DAG.md`
   ≥ 9 of 10 runs — **0.93**. The slide is *computed and printed* regardless, so
   a miss is not a failure.
 * **P2** `VirtualProtect(.text page, PAGE_EXECUTE_READWRITE)` returns TRUE
-  under `/home/free/code/milohax/wibo/build/wibo` — **0.85** [0.7, 0.95].
+  under `<home>/code/milohax/wibo/build/wibo` — **0.85** [0.7, 0.95].
 * **P3** A call-site detour at `0x10b7dc9f` fires ≥ 1 time on
   `il_call_perm.cpp` at `/O1` — **0.88**.
 * **P4** **G1 NEUTRALITY: obj byte-identical armed vs disarmed on the fixture

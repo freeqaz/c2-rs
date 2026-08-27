@@ -1,4 +1,4 @@
-mode: /O1 /GS- /c   workdir: /home/free/tmp/wloopomm_i_5z
+mode: /O1 /GS- /c   workdir: <home>/tmp/wloopomm_i_5z
 
 == Q1  the LEAF-loop stride, seed-free, /O1 anchors ==
    construction: gt_label_stride.py (a0 . P . a1 . a2), P a LEAF so `extra` is undefined

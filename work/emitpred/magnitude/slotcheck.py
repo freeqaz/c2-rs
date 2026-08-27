@@ -28,7 +28,7 @@ import il      # noqa: E402
 import model   # noqa: E402
 import detect  # noqa: E402
 
-IL = "/home/free/code/milohax/c2-rs/work/emitpred-il"
+IL = "<repo>/work/emitpred-il"
 
 
 def one(src):

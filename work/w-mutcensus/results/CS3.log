@@ -1,4 +1,4 @@
-   Compiling c2-il v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-mutcensus-b/crates/c2-il)
+   Compiling c2-il v0.1.0 (<repo>/.claude/worktrees/w-mutcensus-b/crates/c2-il)
 warning: unused import: `STATIC_SCAN_LOOP_OBJECT`
  --> crates/c2-il/src/func/census.rs:5:5
   |
@@ -37,7 +37,7 @@ warning: unused variable: `link`
      |
      = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
 
-   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-mutcensus-b/crates/c2-core)
+   Compiling c2-core v0.1.0 (<repo>/.claude/worktrees/w-mutcensus-b/crates/c2-core)
 warning: constant `WILD_CHAIN_AS_RECV_LOAD` is never used
     --> crates/c2-il/src/func/body/mcall.rs:4014:11
      |
@@ -52,8 +52,8 @@ warning: function `a_26_introduced_record_is_SEEN_by_the_scanner_and_REFUSED_by_
      |
      = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
 
-   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-mutcensus-b/crates/c2-reference)
-   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-mutcensus-b/crates/c2-harness)
+   Compiling c2-reference v0.1.0 (<repo>/.claude/worktrees/w-mutcensus-b/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (<repo>/.claude/worktrees/w-mutcensus-b/crates/c2-harness)
 warning: `c2-il` (lib) generated 2 warnings (run `cargo fix --lib -p c2-il` to apply 1 suggestion)
 warning: unused import: `Mul`
    --> crates/c2-core/src/codegen/ptr_walk_chain_loop.rs:465:28

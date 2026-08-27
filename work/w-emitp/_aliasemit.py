@@ -1,5 +1,5 @@
 import os,sys,concurrent.futures as cf
-MAIN='/home/free/code/milohax/c2-rs'
+MAIN='<repo>'
 sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)))
 for p in (MAIN+'/work/emitpred/pipeline',MAIN+'/work/w-roots',MAIN+'/work/w-refs',MAIN+'/work/w-skip',MAIN+'/work/w-db'):
     sys.path.insert(0,p)

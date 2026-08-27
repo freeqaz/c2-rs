@@ -1,6 +1,6 @@
-   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-loop/crates/c2-harness)
-   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-loop/crates/c2-reference)
-   Compiling c2-il v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-loop/crates/c2-il)
+   Compiling c2-harness v0.1.0 (<repo>/.claude/worktrees/w-loop/crates/c2-harness)
+   Compiling c2-reference v0.1.0 (<repo>/.claude/worktrees/w-loop/crates/c2-reference)
+   Compiling c2-il v0.1.0 (<repo>/.claude/worktrees/w-loop/crates/c2-il)
 warning: unused imports: `ChainForm` and `chain_form`
    --> crates/c2-il/src/func/body/chain.rs:751:17
     |

@@ -12,7 +12,7 @@ captured IL and the REFERENCE OBJ (`out.obj`), and a COFF obj records its own
 `-Fo` output path:
 
   fresh compile   1169 B   Z:\tmp\c2rs-cli-compile-1604264-...\out.obj
-  cached entry    1209 B   Z:\home\free\...\work\w-4c\cache\<hash>\out.obj
+  cached entry    1209 B   Z:\<home>\...\work\w-4c\cache\<hash>\out.obj
   diff            the path string, and nothing else (strings diff is one line)
 
 So on a HIT the two sides bake different `-Fo` paths and the differential grades

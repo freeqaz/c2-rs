@@ -1,0 +1,70 @@
+==================================================================
+CONTROL — clean tree (the control that must be GREEN)
+------------------------------------------------------------------
+tracked files examined: 5
+class 1  forbidden artifact NAMES      — examined 5, violations 0
+class 2  absolute paths, CODE surfaces — examined 2, violations 0
+class 3  absolute paths, work/ SHELF   — examined 1, violations 0
+class 4  BINARY content (a NUL byte)   — examined 5, violations 0
+         read 28168 bytes; 0 NUL byte(s) total, 0 of them in 0 allowlisted file(s)
+allowlisted (printed every run, never a silent filter):
+    crates/c2-harness/src/provenance.rs — grants class 2 only — matches 0 tracked file(s) this run
+SUMMARY: examined 5 tracked files across 4 classes; 0 violation(s).
+EXIT=0   (read from $? directly — never through a pipe)
+
+==================================================================
+CONTROL — CARVE-OUT 1, BINARIES: a nameless ELF-shaped file planted at work/lane/c2rs.base
+------------------------------------------------------------------
+tracked files examined: 6
+class 1  forbidden artifact NAMES      — examined 6, violations 0
+class 2  absolute paths, CODE surfaces — examined 2, violations 0
+class 3  absolute paths, work/ SHELF   — examined 2, violations 0
+class 4  BINARY content (a NUL byte)   — examined 6, violations 1
+         read 28213 bytes; 3 NUL byte(s) total, 0 of them in 0 allowlisted file(s)
+    VIOLATION work/lane/c2rs.base
+allowlisted (printed every run, never a silent filter):
+SUMMARY: examined 6 tracked files across 4 classes; 1 violation(s).
+EXIT=1   (read from $? directly — never through a pipe)
+
+==================================================================
+CONTROL — CARVE-OUT 2a, ABSOLUTE PATHS: forward-slash form planted at work/lane/run.log
+------------------------------------------------------------------
+tracked files examined: 6
+class 1  forbidden artifact NAMES      — examined 6, violations 0
+class 2  absolute paths, CODE surfaces — examined 2, violations 0
+class 3  absolute paths, work/ SHELF   — examined 2, violations 1
+    VIOLATION work/lane/run.log
+class 4  BINARY content (a NUL byte)   — examined 6, violations 0
+         read 28207 bytes; 0 NUL byte(s) total, 0 of them in 0 allowlisted file(s)
+allowlisted (printed every run, never a silent filter):
+SUMMARY: examined 6 tracked files across 4 classes; 1 violation(s).
+EXIT=1   (read from $? directly — never through a pipe)
+
+==================================================================
+CONTROL — CARVE-OUT 2b, ABSOLUTE PATHS: wibo/DOS backslash form at work/lane/listing.cod
+------------------------------------------------------------------
+tracked files examined: 6
+class 1  forbidden artifact NAMES      — examined 6, violations 0
+class 2  absolute paths, CODE surfaces — examined 2, violations 0
+class 3  absolute paths, work/ SHELF   — examined 2, violations 1
+    VIOLATION work/lane/listing.cod
+class 4  BINARY content (a NUL byte)   — examined 6, violations 0
+         read 28216 bytes; 0 NUL byte(s) total, 0 of them in 0 allowlisted file(s)
+allowlisted (printed every run, never a silent filter):
+SUMMARY: examined 6 tracked files across 4 classes; 1 violation(s).
+EXIT=1   (read from $? directly — never through a pipe)
+
+==================================================================
+CONTROL — clean again — every plant reversible
+------------------------------------------------------------------
+tracked files examined: 5
+class 1  forbidden artifact NAMES      — examined 5, violations 0
+class 2  absolute paths, CODE surfaces — examined 2, violations 0
+class 3  absolute paths, work/ SHELF   — examined 1, violations 0
+class 4  BINARY content (a NUL byte)   — examined 5, violations 0
+         read 28168 bytes; 0 NUL byte(s) total, 0 of them in 0 allowlisted file(s)
+allowlisted (printed every run, never a silent filter):
+    crates/c2-harness/src/provenance.rs — grants class 2 only — matches 0 tracked file(s) this run
+SUMMARY: examined 5 tracked files across 4 classes; 0 violation(s).
+EXIT=0   (read from $? directly — never through a pipe)
+

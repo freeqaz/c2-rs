@@ -1,3 +1,3 @@
 TUs base 323  tip 323
   only-in-base 0   only-in-tip 0   changed 1
-    CHANGED  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-aa15355019ad3aceb\fixtures\cpp\wifn_guard_ret_chain.cpp  ('vocab-gap', 1, 3) -> ('match', 3, 3)
+    CHANGED  z:<repo>\.claude\worktrees\agent-aa15355019ad3aceb\fixtures\cpp\wifn_guard_ret_chain.cpp  ('vocab-gap', 1, 3) -> ('match', 3, 3)

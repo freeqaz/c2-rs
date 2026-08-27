@@ -16,12 +16,12 @@ import subprocess
 import sys
 import concurrent.futures as cf
 
-WIBO = os.environ.get("C2RS_WIBO", "/home/free/code/milohax/wibo/build/release/wibo")
+WIBO = os.environ.get("C2RS_WIBO", "<home>/code/milohax/wibo/build/release/wibo")
 CL = os.environ.get(
     "C2RS_CL_EXE",
-    "/home/free/code/milohax/c2-rs/compilers/X360/16.00.11886.00/cl.exe",
+    "<repo>/compilers/X360/16.00.11886.00/cl.exe",
 )
-DC3 = os.environ.get("C2RS_DC3", "/home/free/code/milohax/dc3-decomp")
+DC3 = os.environ.get("C2RS_DC3", "<home>/code/milohax/dc3-decomp")
 HERE = os.path.dirname(os.path.abspath(__file__))
 FLAGS = open(os.path.join(HERE, "..", "..", "dc3-workload", "flags.txt")).read().split()
 

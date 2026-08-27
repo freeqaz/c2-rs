@@ -17,7 +17,7 @@ import subprocess
 import sys
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-WIBO = os.environ.get("C2RS_WIBO") or "/home/free/code/milohax/wibo/build/release/wibo"
+WIBO = os.environ.get("C2RS_WIBO") or "<home>/code/milohax/wibo/build/release/wibo"
 CL = os.path.join(
     os.environ.get("C2RS_COMPILERS") or os.path.join(REPO, "compilers"),
     "X360", "16.00.11886.00", "cl.exe",

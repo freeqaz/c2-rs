@@ -3,7 +3,7 @@
  crates/c2-il/src/codec.rs | 1 -
  1 file changed, 1 deletion(-)
 -- workload scan under the mutation --
-  capture cache: /home/free/code/milohax/c2-rs/work/capture-cache
+  capture cache: <repo>/work/capture-cache
   match             8    0.9%
   mismatch          0    0.0%
   codegen-gap       0    0.0%

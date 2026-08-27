@@ -66,7 +66,7 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
   wunw_mixed_order.cpp               PASS   obj=1306B ex=3078B
   wunw_two_leaves_framed.cpp         PASS   obj=1124B ex=2967B
 === gate.sh ===
-  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-db/target/release/c2rs  built 2026-08-04 14:10:53
+  pinned from <repo>/.claude/worktrees/w-db/target/release/c2rs  built 2026-08-04 14:10:53
   sha 742e395a5010  tree a7b7e15-dirty
 
 wall clock: 6s for 12 lanes at --jobs 6 (C2RS_JOBS=8)

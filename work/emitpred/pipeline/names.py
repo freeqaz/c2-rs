@@ -137,7 +137,15 @@ def parse_removals(text):
         if not m:
             continue
         f = m.group("file").replace("\\", "/").lower()
-        f = re.sub(r"^z:/home/free/code/milohax/dc3-decomp/", "", f)
+        # Strip wibo's DOS drive mapping down to the dc3 source root. This
+        # used to name THIS BOX's home directory literally, which CLAUDE.md
+        # forbids and which made the strip a no-op anywhere else — silently,
+        # since a regex that does not match just leaves the path alone and the
+        # keys come out absolute. Anchored on `/dc3-decomp/` instead, which is
+        # an INTENTIONAL project string (CLAUDE.md § "Project context") and is
+        # the thing actually being stripped to. Same result on this box, and
+        # the same result on any other. (w-shelf, 2026-08-27, board #3676.)
+        f = re.sub(r"^[a-z]:/.*?/dc3-decomp/", "", f)
         out.append({
             "file": f,
             "line": int(m.group("line")),

@@ -1,5 +1,5 @@
-  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from /home/free/code/milohax/c2-rs/.claude/worktrees/agent-afbb2a590581a5442/work/dc3-workload/flags.txt)
-  cwd:     /home/free/code/milohax/dc3-decomp
+  profile: /nologo /wd4355 /wd4164 /c /GR /O1 /Oi /EHsc /I src/system/stlport /I src/xdk/LIBCMT /I src/system /I src/lazer /I src/system/oggvorbis /I src/system/synth/tomcrypt /I src/system/net/curl/include /I src (from <repo>/.claude/worktrees/agent-afbb2a590581a5442/work/dc3-workload/flags.txt)
+  cwd:     <home>/code/milohax/dc3-decomp
 src/system/utl/EncryptXTEA.cpp -> 1/5 functions in class
   [  0] ok  store-run                cflow-straight             eh-none     (eh-none     )    184 B  (unnamed)
   [  1] GAP expr-intrinsic-memcpy    cflow-straight             eh-none     (eh-none     )    191 B  (unnamed)

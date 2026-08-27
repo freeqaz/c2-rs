@@ -327,6 +327,7 @@ the header block this table is read from.
 | 2026-08-26 | w-provenance | [w-provenance](2026-08-26-w-provenance.md) | 9 | +0 |
 | 2026-08-26 | w-provext | [w-provext](2026-08-26-w-provext.md) | 8 | +0 |
 | 2026-08-26 | w-secported | [w-secported](2026-08-26-w-secported.md) | 6 | +0 (no acceptance predicate moved, no emit widened, no |
+| 2026-08-26 | w-shelf | [w-shelf](2026-08-26-w-shelf.md) | 10 | +0 — no census key moves; the identity diff is the grade |
 | 2026-08-26 | w-submetric | [w-submetric](2026-08-26-w-submetric.md) | 5 | +0 — no acceptance predicate moved, no emit widened, the admitted |
 | 2026-08-26 | w-symbind | [w-symbind](2026-08-26-w-symbind.md) | 7 | +0 — no acceptance predicate moved; `crates/c2-il` is READ, never written |
 | 2026-08-27 | w-wire-1406 | [w-wire-1406](2026-08-27-w-wire-1406.md) | 12 | +0 (unchanged; `provenance_census.py` TOTAL identical at both ends) |

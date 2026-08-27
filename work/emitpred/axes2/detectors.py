@@ -19,7 +19,7 @@ emission; every detector is a REFUSAL trigger.
 """
 import json, os, re
 
-B = '/home/free/code/milohax/c2-rs/.claude/worktrees/w-emitpred/work/emitpred/axes2/'
+B = '<repo>/.claude/worktrees/w-emitpred/work/emitpred/axes2/'
 il = {r['cell']: r for r in json.load(open(B + 'il_names.json'))}
 ob = {r['cell']: r for r in json.load(open(B + 'observed.json'))}
 CELLS = os.path.join(B, 'cells')

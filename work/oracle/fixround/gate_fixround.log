@@ -11,9 +11,9 @@ strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE
         freed 153.3 MiB and 442 inodes (df delta over a SHARED filesystem)
 disk:   /tmp — free 21.6 GiB / 949,599 inodes (floors: 2.0 GiB / 150,000 inodes)
 
-lane gate: 18 lanes from /home/free/code/milohax/c2-rs-wt-w-stageoracle/scripts/lanes.txt
+lane gate: 18 lanes from <home>/code/milohax/c2-rs-wt-w-stageoracle/scripts/lanes.txt
   run dir: /tmp/c2rs-gate-1373088   (per-lane run dirs under /tmp/c2rs-gate-1373088/lanes/)
-  row history: /home/free/code/milohax/c2-rs-wt-w-stageoracle/work/gate_row_history.tsv   (board #3339)
+  row history: <home>/code/milohax/c2-rs-wt-w-stageoracle/work/gate_row_history.tsv   (board #3339)
   graded tree: b41e1158e6d7  (752 files under crates fixtures scripts, content-hashed)
                2 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)
 
@@ -22,13 +22,13 @@ hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refu
 ladder-red:      work/w-ladders/ladder_red.py  (no toolchain; fires ladder.py's width-table refusal)
   PASS  
 building the harness (no-op if current)
-   Compiling c2-il v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-il)
-   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-core)
-   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-reference)
-   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-harness)
+   Compiling c2-il v0.1.0 (<home>/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-il)
+   Compiling c2-core v0.1.0 (<home>/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-core)
+   Compiling c2-reference v0.1.0 (<home>/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (<home>/code/milohax/c2-rs-wt-w-stageoracle/crates/c2-harness)
     Finished `release` profile [optimized] target(s) in 11.88s
 harness: /tmp/c2rs-gate-1373088/c2rs
-  pinned from /home/free/code/milohax/c2-rs-wt-w-stageoracle/target/release/c2rs  built 2026-08-20 23:02:53
+  pinned from <home>/code/milohax/c2-rs-wt-w-stageoracle/target/release/c2rs  built 2026-08-20 23:02:53
   sha 4ee59703633c  tree 9e41a4637-dirty
 
 wall clock: 14s for 18 lanes at --jobs 16 (C2RS_JOBS=8)
@@ -38,15 +38,15 @@ generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-1373088/sweep 0  (jobs 16)
     grading at 16 job(s)
   checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0
   cache: hit=19460 miss=96 validated=190 cache-bad=0 (of 19556 cases)
-  corpus: SHARED /home/free/code/milohax/c2-rs/work/corpus/gen-169fae960ed84b63
+  corpus: SHARED <repo>/work/corpus/gen-169fae960ed84b63
   (294s)
 
 mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-1373088/cross 0  (jobs 16)
   assigned 19556 cases over 18 lanes = 90812 cells (full cross would be 352008)
-  sweeping 90812 of 90812 case-lane cells (cross of 19556 cases x /home/free/code/milohax/c2-rs-wt-w-stageoracle/scripts/lanes.txt; the full 12x product is 352008)
+  sweeping 90812 of 90812 case-lane cells (cross of 19556 cases x <home>/code/milohax/c2-rs-wt-w-stageoracle/scripts/lanes.txt; the full 12x product is 352008)
   checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0
   cache: hit=90424 miss=388 validated=894 cache-bad=0 (of 90812 cells)
-  corpus: SHARED /home/free/code/milohax/c2-rs/work/corpus/gen-169fae960ed84b63
+  corpus: SHARED <repo>/work/corpus/gen-169fae960ed84b63
   (186s)
 
 debug lane:      scripts/debug_lane.sh  (DEBUG profile — the only row that can
@@ -87,7 +87,7 @@ ROW LIVENESS — rows that did NOT execute (verdict was neither PASS nor FAIL):
   hatch-red: REFUSED for 3 consecutive run(s) (first seen 2026-08-20)
   A refusal may be right on the day; a row refusing for N runs is a row
   nobody is reading (board #3219). This PRINTS and never fails the gate.
-  History: /home/free/code/milohax/c2-rs-wt-w-stageoracle/work/gate_row_history.tsv — delete it to reset. It starts at the commit that
+  History: <home>/code/milohax/c2-rs-wt-w-stageoracle/work/gate_row_history.tsv — delete it to reset. It starts at the commit that
   added this counter, so an N here is a FLOOR on the true age, never the age.
 
 lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT

@@ -3,40 +3,40 @@
 == C1a: site count for the anchor in crates/c2-il/src/func/body/shapes/calls.rs = 1
  crates/c2-il/src/func/body/shapes/calls.rs | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
-== C1a reverted clean, rc=101, wall=225s -> /home/free/code/milohax/c2-rs/.claude/worktrees/w-calleeguard/work/w-calleeguard/logs/C1a.log
+== C1a reverted clean, rc=101, wall=225s -> <repo>/.claude/worktrees/w-calleeguard/work/w-calleeguard/logs/C1a.log
 
 ######## N1
 == N1: site count for the anchor in crates/c2-harness/src/gap/tests.rs = 1
  crates/c2-harness/src/gap/tests.rs | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
-== N1 reverted clean, rc=101, wall=220s -> /home/free/code/milohax/c2-rs/.claude/worktrees/w-calleeguard/work/w-calleeguard/logs/N1.log
+== N1 reverted clean, rc=101, wall=220s -> <repo>/.claude/worktrees/w-calleeguard/work/w-calleeguard/logs/N1.log
 
 ######## G5
 == G5: site count for the anchor in crates/c2-il/src/func/census.rs = 1
  crates/c2-il/src/func/census.rs | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
-== G5 reverted clean, rc=101, wall=251s -> /home/free/code/milohax/c2-rs/.claude/worktrees/w-calleeguard/work/w-calleeguard/logs/G5.log
+== G5 reverted clean, rc=101, wall=251s -> <repo>/.claude/worktrees/w-calleeguard/work/w-calleeguard/logs/G5.log
 
 ######## G6
 == G6: site count for the anchor in crates/c2-il/src/func/census.rs = 1
  crates/c2-il/src/func/census.rs | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
-== G6 reverted clean, rc=101, wall=209s -> /home/free/code/milohax/c2-rs/.claude/worktrees/w-calleeguard/work/w-calleeguard/logs/G6.log
+== G6 reverted clean, rc=101, wall=209s -> <repo>/.claude/worktrees/w-calleeguard/work/w-calleeguard/logs/G6.log
 
 ######## G7
 == G7: site count for the anchor in crates/c2-il/src/func/census.rs = 1
  crates/c2-il/src/func/census.rs | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
-== G7 reverted clean, rc=101, wall=202s -> /home/free/code/milohax/c2-rs/.claude/worktrees/w-calleeguard/work/w-calleeguard/logs/G7.log
+== G7 reverted clean, rc=101, wall=202s -> <repo>/.claude/worktrees/w-calleeguard/work/w-calleeguard/logs/G7.log
 
 ######## G8
 == G8: site count for the anchor in crates/c2-il/src/func/census.rs = 1
  crates/c2-il/src/func/census.rs | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
-== G8 reverted clean, rc=101, wall=196s -> /home/free/code/milohax/c2-rs/.claude/worktrees/w-calleeguard/work/w-calleeguard/logs/G8.log
+== G8 reverted clean, rc=101, wall=196s -> <repo>/.claude/worktrees/w-calleeguard/work/w-calleeguard/logs/G8.log
 
 ######## C1b
 == C1b: site count for the anchor in crates/c2-il/src/func/body/shapes/calls.rs = 1
  crates/c2-il/src/func/body/shapes/calls.rs | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
-== C1b reverted clean, rc=101, wall=218s -> /home/free/code/milohax/c2-rs/.claude/worktrees/w-calleeguard/work/w-calleeguard/logs/C1b.log
+== C1b reverted clean, rc=101, wall=218s -> <repo>/.claude/worktrees/w-calleeguard/work/w-calleeguard/logs/C1b.log

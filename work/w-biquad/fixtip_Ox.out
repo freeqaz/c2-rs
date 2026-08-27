@@ -10,339 +10,339 @@ provenance:
   c1xx.dll   <home>/code/milohax/c2-rs/compilers/X360/16.00.11886.00/c1xx.dll
   strace     /usr/bin/strace
   mingw      /usr/bin/i686-w64-mingw32-gcc
-  [1/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\add3.cpp  (il function decode failed)
-  [2/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_base_member.cpp
-  [3/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_args1.cpp  (il function decode failed)
-  [4/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_accum4.cpp
-  [5/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_bool_materialization.cpp
-  [6/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_bound_neg.cpp  (il function decode failed)
-  [7/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_value.cpp
-  [8/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_perm.cpp
-  [9/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_convert_scalar.cpp  (il function decode failed)
-  [10/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_args2.cpp
-  [11/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_dllexport_neg.cpp  (il function decode failed)
-  [12/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_multi.cpp  (il function decode failed)
-  [13/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_cast.cpp  (il function decode failed)
-  [14/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_deref.cpp
-  [15/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_drectve_pragma.cpp  (il function decode failed)
-  [16/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_dyninit_static.cpp  (a `??__E` dynamic-initializer TU outside the measured class: the literal's COMDA…)
-  [17/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_return.cpp  (il function decode failed)
-  [18/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_ternary.cpp  (il function decode failed)
-  [19/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_extern_c_name.cpp  (il function decode failed)
-  [20/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_gl_data_symbol.cpp  (il function decode failed)
-  [21/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_deep_chain.cpp  (il function decode failed)
-  [22/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_gl_sep26.cpp  (il function decode failed)
-  [23/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_gl_record_order.cpp  (il function decode failed)
-  [24/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intrinsic_bits.cpp  (il function decode failed)
-  [25/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_load_neg.cpp  (il function decode failed)
-  [26/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_member.cpp
-  [27/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intrinsic_byval.cpp  (il function decode failed)
-  [28/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intrinsic_layout.cpp  (il function decode failed)
-  [29/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intrinsic_call.cpp  (il function decode failed)
-  [30/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_call_value.cpp  (il function decode failed)
-  [31/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intrinsic_nullary.cpp  (il function decode failed)
-  [32/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_index.cpp  (il function decode failed)
-  [33/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_param_poly.cpp
-  [34/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_temp.cpp  (il function decode failed)
-  [35/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_reassoc.cpp
-  [36/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_bare_block.cpp  (il function decode failed)
-  [37/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intra_tu_call.cpp  (il function decode failed)
-  [38/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intrinsic_fold.cpp  (il function decode failed)
-  [39/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_param_aggr_neg.cpp  (il function decode failed)
-  [40/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_if_else.cpp  (il function decode failed)
-  [41/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_param_aggr.cpp
-  [42/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_repeated_leaf.cpp  (il function decode failed)
-  [43/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_early_return.cpp  (il function decode failed)
-  [44/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_compound_assign.cpp  (il function decode failed)
-  [45/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_line_marker.cpp
-  [46/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_scope.cpp
-  [47/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_global.cpp  (il function decode failed)
-  [48/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_while.cpp  (il function decode failed)
-  [49/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_if.cpp  (il function decode failed)
-  [50/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_multi.cpp  (il function decode failed)
-  [51/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_seq.cpp
-  [52/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_sy_locals_clean.cpp
-  [53/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_for.cpp  (il function decode failed)
-  [54/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_static.cpp  (il function decode failed)
-  [55/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_sy_size_extent.cpp
-  [56/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_sy_locals.cpp  (il function decode failed)
-  [57/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_local_decl.cpp
-  [58/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_this_line70.cpp
-  [59/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_add3.cpp
-  [60/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_varargs_neg.cpp  (il function decode failed)
-  [61/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_type_intlike.cpp
-  [62/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_param_assign.cpp
-  [63/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_argframed_plusk.cpp  (il function decode failed)
-  [64/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_mulmod.cpp  (il function decode failed)
-  [65/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_type_pack_neg.cpp  (il function decode failed)
-  [66/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_type_narrow.cpp  (il function decode failed)
-  [67/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_type_scalars.cpp  (il function decode failed)
-  [68/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_seq_neg.cpp  (il function decode failed)
-  [69/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_submod.cpp
-  [70/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_seq_b_neg.cpp  (il function decode failed)
-  [71/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_argtail.cpp
-  [72/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call.cpp
-  [73/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_this_straightline.cpp
-  [74/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_plus1plus2.cpp  (il function decode failed)
-  [75/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_then_stmt.cpp  (il function decode failed)
-  [76/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_seq_b.cpp
-  [77/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_fmul3.cpp
-  [78/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_two_framed.cpp  (il function decode failed)
-  [79/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_ab.cpp
-  [80/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_lit.cpp
-  [81/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_plus0.cpp
-  [82/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_addk.cpp
-  [83/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_empty.cpp
-  [84/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_framed.cpp
-  [85/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_two.cpp
-  [86/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_addk2.cpp
-  [87/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_widemod.cpp  (il function decode failed)
-  [88/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_seq.cpp
-  [89/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w10_guarded_seq_neg.cpp  (il function decode failed)
-  [90/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1199_bind_run_neg.cpp  (il function decode failed)
-  [91/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w10_guarded_seq.cpp
-  [92/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_twice.cpp
-  [93/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w11_early_return_neg.cpp  (il function decode failed)
-  [94/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1274_addr_producer.cpp
-  [95/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1199_bind_run.cpp
-  [96/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_aggr_type.cpp  (il function decode failed)
-  [97/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w10_empty_fn.cpp
-  [98/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w11_early_return.cpp
-  [99/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_sub.cpp
-  [100/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13_fabi.cpp  (il function decode failed)
-  [101/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_ptr_leaf_neg.cpp  (il function decode failed)
-  [102/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1212_bind_run_call.cpp
-  [103/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_tailret.cpp
-  [104/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_narrow_neg.cpp  (il function decode failed)
-  [105/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_narrow_getters.cpp
-  [106/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13_freassoc.cpp  (il function decode failed)
-  [107/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13_fscratch.cpp  (il function decode failed)
-  [108/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_wide.cpp
-  [109/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13b_fdedup.cpp
-  [110/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_ptr_leaf.cpp
-  [111/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13_fops.cpp  (il function decode failed)
-  [112/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13_fparam_neg.cpp  (il function decode failed)
-  [113/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w14_dtor_delegate.cpp
-  [114/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13b_fconst.cpp
-  [115/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13_fneg.cpp  (il function decode failed)
-  [116/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13b_ffold.cpp  (il function decode failed)
-  [117/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13b_fpool.cpp  (il function decode failed)
-  [118/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w15_dtor_member.cpp
-  [119/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w16_addr_leaf.cpp
-  [120/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w18_reg_move_neg.cpp  (il function decode failed)
-  [121/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w19_ctor_this_neg.cpp  (il function decode failed)
-  [122/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w14_dtor_delegate_neg.cpp  (il function decode failed)
-  [123/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w19_ctor_this.cpp
-  [124/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w16_addr_leaf_neg.cpp  (il function decode failed)
-  [125/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w21_census_gate.cpp  (il function decode failed)
-  [126/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w18_reg_move.cpp
-  [127/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w20_convert_neg.cpp  (il function decode failed)
-  [128/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w17_ptr_operand.cpp
-  [129/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w22_int_spelling_neg.cpp  (il function decode failed)
-  [130/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w232_gl_sep26_implicit.cpp  (il function decode failed)
-  [131/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w17_ptr_operand_neg.cpp  (il function decode failed)
-  [132/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w21_census_gate_neg.cpp  (il function decode failed)
-  [133/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w26_bool_value_neg.cpp  (il function decode failed)
-  [134/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w20_convert.cpp
-  [135/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w23_gl_callee_bind_neg.cpp  (il function decode failed)
-  [136/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w22_int_spelling.cpp
-  [137/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w28_fltused_order.cpp
-  [138/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w23_gl_callee_bind.cpp
-  [139/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w28_fp_store.cpp
-  [140/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w25_store_leaf_neg.cpp  (il function decode failed)
-  [141/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w28_fp_store_framed_neg.cpp  (il function decode failed)
-  [142/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w25_store_leaf.cpp
-  [143/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w26_bool_value.cpp
-  [144/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w29_fp_contract.cpp
-  [145/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w27_fp_reg_qual.cpp
-  [146/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w30_callseq_tail_intlike_neg.cpp  (il function decode failed)
-  [147/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w31_fp_tail_neg.cpp  (il function decode failed)
-  [148/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w31_fp_tail.cpp
-  [149/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w27_fp_reg.cpp
-  [150/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w28_fp_store_framed.cpp
-  [151/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w275_entry_park.cpp
-  [152/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w35_offset_run_neg.cpp  (il function decode failed)
-  [153/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w28_fp_store_neg.cpp  (il function decode failed)
-  [154/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w35_offset_run.cpp
-  [155/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w34_fp_multi.cpp
-  [156/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w37_bit_and_neg.cpp  (il function decode failed)
-  [157/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w36_member_call_neg.cpp  (il function decode failed)
-  [158/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w36_member_call.cpp
-  [159/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w30_callseq_tail_intlike.cpp
-  [160/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w32_volatile_formal_neg.cpp  (il function decode failed)
-  [161/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w41_framed_member_call_neg.cpp  (il function decode failed)
-  [162/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w32_volatile_free.cpp
-  [163/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w38_store_run.cpp
-  [164/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w42_shift_mask_neg.cpp  (il function decode failed)
-  [165/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w34_fp_multi_neg.cpp  (il function decode failed)
-  [166/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w5_chain.cpp
-  [167/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w43_cmp_shift_or_neg.cpp  (il function decode failed)
-  [168/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w38_store_run_neg.cpp  (il function decode failed)
-  [169/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w45_store_run_scheduled.cpp
-  [170/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w43_cmp_shift_or.cpp
-  [171/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w45_store_run_scheduled_neg.cpp  (il function decode failed)
-  [172/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w5_tree2.cpp  (il function decode failed)
-  [173/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w6_unsigned_wide.cpp  (il function decode failed)
-  [174/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w42_shift_mask.cpp
-  [175/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w5_tree3.cpp  (il function decode failed)
-  [176/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w41_framed_member_call.cpp
-  [177/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w71_alloc_undetermined_neg.cpp  (il function decode failed)
-  [178/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w70_bitwise_neg.cpp  (il function decode failed)
-  [179/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w70_bitwise.cpp
-  [180/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w8_cond_tail.cpp
-  [181/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w8_cond_tail_neg.cpp  (il function decode failed)
-  [182/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w5_tree_neg.cpp  (il function decode failed)
-  [183/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w844_store_run_call.cpp
-  [184/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w8_cond_tail_value.cpp
-  [185/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w6_k_boundary.cpp  (il function decode failed)
-  [186/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w9_rel_unsigned.cpp
-  [187/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wa16_bss_two_align16.cpp
-  [188/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wa16_data_align16.cpp
-  [189/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w6_rel_k.cpp
-  [190/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wa16_data_align32.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
-  [191/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w71_alloc_undetermined.cpp
-  [192/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w9_cmp_zero_le.cpp
-  [193/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w9_rel_signed.cpp
-  [194/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w844_store_run_call_neg.cpp  (il function decode failed)
-  [195/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wa16_dyninit_plain_align16.cpp  (a `??__E` dynamic-initializer TU outside the measured class: the literal's COMDA…)
-  [196/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wadjust_obj_recv.cpp
-  [197/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wadjust_obj_recv_neg.cpp  (il function decode failed)
-  [198/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wae_assign_dst.cpp
-  [199/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wa16_bss_static_reloc.cpp
-  [200/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wa16_data_scalar_align16.cpp
-  [201/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\walign_dyninit_poly_double.cpp  (a `??__E` dynamic-initializer TU outside the measured class: the literal's COMDA…)
-  [202/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wbdnz_ctr_then_framed_neg.cpp  (il function decode failed)
-  [203/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wbdnz_ctr.cpp
-  [204/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\walign_data_declalign8.cpp
-  [205/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wae_assign_dst_neg.cpp  (il function decode failed)
-  [206/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wblockir_float_walk_then_framed_neg.cpp  (il function decode failed)
-  [207/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wbdnz_ctr_neg.cpp  (il function decode failed)
-  [208/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcf_neighbours.cpp  (il function decode failed)
-  [209/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\walign_dyninit_align16.cpp  (a `??__E` dynamic-initializer TU outside the measured class: the literal's COMDA…)
-  [210/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wblockir_float_walk_neg.cpp  (il function decode failed)
-  [211/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wbiquad_fp_store_diamond_neg.cpp  (il function decode failed)
-  [212/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\walign_data_poly_object.cpp  (il function decode failed)
-  [213/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcfg1_if_call_join_neg.cpp  (il function decode failed)
-  [214/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\walign_dyninit_poly.cpp  (a `??__E` dynamic-initializer TU outside the measured class: the literal's COMDA…)
-  [215/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wbiquad_fp_store_diamond.cpp  (il function decode failed)
-  [216/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcb_cmp_two_calls_neg.cpp  (il function decode failed)
-  [217/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wblockir_float_walk.cpp  (il function decode failed)
-  [218/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wch_chained_call_neg.cpp  (il function decode failed)
-  [219/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcl_chain_link_arg_neg.cpp  (il function decode failed)
-  [220/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcfg1_if_call_join.cpp  (il function decode failed)
-  [221/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wco_chain_tail_load_neg.cpp  (il function decode failed)
-  [222/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wco_explicit_return.cpp
-  [223/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wch_chained_call.cpp
-  [224/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcb_cmp_two_calls.cpp
-  [225/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcf_shapes.cpp  (il function decode failed)
-  [226/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcv_reinterpret_neg.cpp  (il function decode failed)
-  [227/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcr_cmp_order_neg.cpp  (il function decode failed)
-  [228/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wco_chain_tail_load.cpp
-  [229/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wdata_static_scan_neg.cpp  (il function decode failed)
-  [230/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wdata_static_scan.cpp  (il function decode failed)
-  [231/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wda_neighbours.cpp
-  [232/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcv_reinterpret.cpp
-  [233/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wec_ctor_base.cpp
-  [234/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wdivmod_leaf.cpp
-  [235/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wdr_neighbours.cpp  (il function decode failed)
-  [236/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcl_chain_link_arg.cpp
-  [237/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfence2_forceinline_callee_neg.cpp  (il function decode failed)
-  [238/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcr_cmp_order.cpp
-  [239/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wda_dataaddr_neg.cpp  (il function decode failed)
-  [240/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wextdata_guard_chain_shared_tail.cpp  (il function decode failed)
-  [241/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wec_ctor_base_neg.cpp  (il function decode failed)
-  [242/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfl_chain_tail_fp_load_neg.cpp  (il function decode failed)
-  [243/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfence2_kept_local_callee.cpp  (il function decode failed)
-  [244/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wextdata_guard_chain_shared_tail_neg.cpp  (il function decode failed)
-  [245/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfence2_small_callee_neg.cpp  (il function decode failed)
-  [246/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfltret_value_tail_neg.cpp  (il function decode failed)
-  [247/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfl_chain_tail_fp_load.cpp
-  [248/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wdr_virtual_byval.cpp  (il function decode failed)
-  [249/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfr_argreg_types.cpp
-  [250/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfr_cmp_stride.cpp
-  [251/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfr_argreg.cpp
-  [252/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wifn_guard_ret_chain.cpp  (il function decode failed)
-  [253/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wifn_guard_ret_chain_neg.cpp  (il function decode failed)
-  [254/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfence2_static_callee_neg.cpp  (il function decode failed)
-  [255/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfr_cmp_stride_neg.cpp  (il function decode failed)
-  [256/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfltret_value_tail.cpp
-  [257/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfr_argreg_member.cpp
-  [258/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfr_argreg_neg.cpp  (il function decode failed)
-  [259/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wjson_utf8_copy_neg.cpp  (il function decode failed)
-  [260/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\whash_loop_then_framed.cpp  (il function decode failed)
-  [261/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wjson_utf8_copy.cpp  (il function decode failed)
-  [262/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlin_mixed_bind_neg.cpp  (il function decode failed)
-  [263/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlo_dyninit_mixed.cpp  (il function decode failed)
-  [264/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlb_moved_formal.cpp
-  [265/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wla_lit_call_arg.cpp
-  [266/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlo_dyninit_pair.cpp  (il function decode failed)
-  [267/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\winlfence_local_callee_neg.cpp  (il function decode failed)
-  [268/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\winlfence_opaque_callee.cpp
-  [269/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\whash_ptr_walk_loop.cpp  (ptr-walk loop outside /O1: /Ox and /O2 emit a different 84-byte body (strength-r…)
-  [270/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wla_lit_call_arg_neg.cpp  (il function decode failed)
-  [271/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wmain_no_return.cpp  (il function decode failed)
-  [272/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlr_lit_run_neg.cpp  (il function decode failed)
-  [273/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wmain_no_return_neg.cpp  (il function decode failed)
-  [274/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlin_mixed_bind.cpp
-  [275/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wor_emit_order_neg.cpp  (il function decode failed)
-  [276/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlb_moved_formal_neg.cpp  (il function decode failed)
-  [277/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\worder3_bss_slot_mixed.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
-  [278/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\worder3_bss_slot_y3.cpp
-  [279/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wmcall_seq_neg.cpp  (il function decode failed)
-  [280/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wmcall_seq.cpp
-  [281/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\worder3_bss_slot_extern.cpp
-  [282/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wor_emit_order_led.cpp
-  [283/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlr_lit_run.cpp
-  [284/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wpark_lit_permuted.cpp
-  [285/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wosf_handle_guard.cpp  (il function decode failed)
-  [286/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wor_emit_order.cpp
-  [287/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1c_dyninit_two_objects.cpp  (il function decode failed)
-  [288/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wosf_handle_guard_neg.cpp  (il function decode failed)
-  [289/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1_sym_addr.cpp
-  [290/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_bss_big.cpp
-  [291/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_bss_one.cpp
-  [292/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\worder3_bss_slot_after_text.cpp  (il function decode failed)
-  [293/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wrr_arg_vocab.cpp
-  [294/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wpark_lit_permuted_neg.cpp  (il function decode failed)
-  [295/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wrr_arg_vocab_neg.cpp  (il function decode failed)
-  [296/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_both.cpp
-  [297/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_bss_pad.cpp
-  [298/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_data_one.cpp
-  [299/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_data_two.cpp
-  [300/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_refuse_float.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
-  [301/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1c_dyninit_extern.cpp  (a `??__E` dynamic-initializer TU outside the measured class: the literal's COMDA…)
-  [302/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_refuse_selectany.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
-  [303/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_drop_static.cpp
-  [304/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1_sym_addr_neg.cpp  (il function decode failed)
-  [305/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_bss_two.cpp
-  [306/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_data_linkage.cpp
-  [307/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsl_store_load_neg.cpp  (il function decode failed)
-  [308/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wundname_alloc_init_or_fail.cpp  (il function decode failed)
-  [309/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wtu3_framed_leaves_framed.cpp
-  [310/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_refuse_const.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
-  [311/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wunw_float_neg.cpp  (il function decode failed)
-  [312/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wunw_leaf_then_framed.cpp
-  [313/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wunw_framed_pair.cpp
-  [314/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_refuse_ptr.cpp
-  [315/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wundname_alloc_init_or_fail_neg.cpp  (il function decode failed)
-  [316/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_refuse_tls.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
-  [317/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvalue_call_value_neg.cpp  (il function decode failed)
-  [318/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wunw_mixed_order.cpp
-  [319/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_refuse_three.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
-  [320/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wunw_two_leaves_framed.cpp
-  [321/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvl_chain_two_lengths.cpp  (ptr-walk chain loop outside /O1: every cell behind the schedule, the allocation …)
-  [322/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvalue_call_value.cpp  (il function decode failed)
-  [323/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvl_chain6_same.cpp  (ptr-walk chain loop outside /O1: every cell behind the schedule, the allocation …)
-  [324/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsl_store_load.cpp
-  [325/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvl_chain_neg.cpp  (il function decode failed)
-  [326/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wunw_float_beside_framed.cpp
-  [327/333] codegen-gap  z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvl_chain3.cpp  (ptr-walk chain loop outside /O1: every cell behind the schedule, the allocation …)
-  [328/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvsnprnc_lit_insert_tail_neg.cpp  (il function decode failed)
-  [329/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvsnprnc_guard_chain_arity_store.cpp  (il function decode failed)
-  [330/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wxlr_create_guard.cpp  (il function decode failed)
-  [331/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvsnprnc_guard_chain_arity_store_neg.cpp  (il function decode failed)
-  [332/333] match        z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvsnprnc_lit_insert_tail.cpp
-  [333/333] vocab-gap    z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wxlr_create_guard_neg.cpp  (il function decode failed)
+  [1/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\add3.cpp  (il function decode failed)
+  [2/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_base_member.cpp
+  [3/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_args1.cpp  (il function decode failed)
+  [4/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_accum4.cpp
+  [5/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_bool_materialization.cpp
+  [6/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_bound_neg.cpp  (il function decode failed)
+  [7/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_value.cpp
+  [8/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_perm.cpp
+  [9/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_convert_scalar.cpp  (il function decode failed)
+  [10/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_args2.cpp
+  [11/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_dllexport_neg.cpp  (il function decode failed)
+  [12/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_multi.cpp  (il function decode failed)
+  [13/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_cast.cpp  (il function decode failed)
+  [14/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_deref.cpp
+  [15/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_drectve_pragma.cpp  (il function decode failed)
+  [16/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_dyninit_static.cpp  (a `??__E` dynamic-initializer TU outside the measured class: the literal's COMDA…)
+  [17/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_return.cpp  (il function decode failed)
+  [18/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_ternary.cpp  (il function decode failed)
+  [19/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_extern_c_name.cpp  (il function decode failed)
+  [20/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_gl_data_symbol.cpp  (il function decode failed)
+  [21/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_deep_chain.cpp  (il function decode failed)
+  [22/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_gl_sep26.cpp  (il function decode failed)
+  [23/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_gl_record_order.cpp  (il function decode failed)
+  [24/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intrinsic_bits.cpp  (il function decode failed)
+  [25/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_load_neg.cpp  (il function decode failed)
+  [26/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_member.cpp
+  [27/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intrinsic_byval.cpp  (il function decode failed)
+  [28/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intrinsic_layout.cpp  (il function decode failed)
+  [29/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intrinsic_call.cpp  (il function decode failed)
+  [30/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_call_value.cpp  (il function decode failed)
+  [31/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intrinsic_nullary.cpp  (il function decode failed)
+  [32/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_index.cpp  (il function decode failed)
+  [33/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_param_poly.cpp
+  [34/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_temp.cpp  (il function decode failed)
+  [35/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_reassoc.cpp
+  [36/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_bare_block.cpp  (il function decode failed)
+  [37/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intra_tu_call.cpp  (il function decode failed)
+  [38/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intrinsic_fold.cpp  (il function decode failed)
+  [39/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_param_aggr_neg.cpp  (il function decode failed)
+  [40/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_if_else.cpp  (il function decode failed)
+  [41/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_param_aggr.cpp
+  [42/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_repeated_leaf.cpp  (il function decode failed)
+  [43/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_early_return.cpp  (il function decode failed)
+  [44/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_compound_assign.cpp  (il function decode failed)
+  [45/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_line_marker.cpp
+  [46/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_scope.cpp
+  [47/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_global.cpp  (il function decode failed)
+  [48/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_while.cpp  (il function decode failed)
+  [49/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_if.cpp  (il function decode failed)
+  [50/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_multi.cpp  (il function decode failed)
+  [51/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_seq.cpp
+  [52/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_sy_locals_clean.cpp
+  [53/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_for.cpp  (il function decode failed)
+  [54/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_static.cpp  (il function decode failed)
+  [55/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_sy_size_extent.cpp
+  [56/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_sy_locals.cpp  (il function decode failed)
+  [57/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_local_decl.cpp
+  [58/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_this_line70.cpp
+  [59/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_add3.cpp
+  [60/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_varargs_neg.cpp  (il function decode failed)
+  [61/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_type_intlike.cpp
+  [62/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_param_assign.cpp
+  [63/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_argframed_plusk.cpp  (il function decode failed)
+  [64/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_mulmod.cpp  (il function decode failed)
+  [65/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_type_pack_neg.cpp  (il function decode failed)
+  [66/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_type_narrow.cpp  (il function decode failed)
+  [67/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_type_scalars.cpp  (il function decode failed)
+  [68/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_seq_neg.cpp  (il function decode failed)
+  [69/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_submod.cpp
+  [70/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_seq_b_neg.cpp  (il function decode failed)
+  [71/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_argtail.cpp
+  [72/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call.cpp
+  [73/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_this_straightline.cpp
+  [74/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_plus1plus2.cpp  (il function decode failed)
+  [75/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_then_stmt.cpp  (il function decode failed)
+  [76/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_seq_b.cpp
+  [77/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_fmul3.cpp
+  [78/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_two_framed.cpp  (il function decode failed)
+  [79/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_ab.cpp
+  [80/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_lit.cpp
+  [81/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_plus0.cpp
+  [82/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_addk.cpp
+  [83/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_empty.cpp
+  [84/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_framed.cpp
+  [85/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_two.cpp
+  [86/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_addk2.cpp
+  [87/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_widemod.cpp  (il function decode failed)
+  [88/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_seq.cpp
+  [89/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w10_guarded_seq_neg.cpp  (il function decode failed)
+  [90/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1199_bind_run_neg.cpp  (il function decode failed)
+  [91/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w10_guarded_seq.cpp
+  [92/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_twice.cpp
+  [93/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w11_early_return_neg.cpp  (il function decode failed)
+  [94/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1274_addr_producer.cpp
+  [95/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1199_bind_run.cpp
+  [96/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_aggr_type.cpp  (il function decode failed)
+  [97/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w10_empty_fn.cpp
+  [98/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w11_early_return.cpp
+  [99/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_sub.cpp
+  [100/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13_fabi.cpp  (il function decode failed)
+  [101/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_ptr_leaf_neg.cpp  (il function decode failed)
+  [102/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1212_bind_run_call.cpp
+  [103/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_tailret.cpp
+  [104/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_narrow_neg.cpp  (il function decode failed)
+  [105/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_narrow_getters.cpp
+  [106/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13_freassoc.cpp  (il function decode failed)
+  [107/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13_fscratch.cpp  (il function decode failed)
+  [108/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_wide.cpp
+  [109/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13b_fdedup.cpp
+  [110/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_ptr_leaf.cpp
+  [111/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13_fops.cpp  (il function decode failed)
+  [112/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13_fparam_neg.cpp  (il function decode failed)
+  [113/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w14_dtor_delegate.cpp
+  [114/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13b_fconst.cpp
+  [115/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13_fneg.cpp  (il function decode failed)
+  [116/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13b_ffold.cpp  (il function decode failed)
+  [117/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13b_fpool.cpp  (il function decode failed)
+  [118/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w15_dtor_member.cpp
+  [119/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w16_addr_leaf.cpp
+  [120/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w18_reg_move_neg.cpp  (il function decode failed)
+  [121/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w19_ctor_this_neg.cpp  (il function decode failed)
+  [122/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w14_dtor_delegate_neg.cpp  (il function decode failed)
+  [123/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w19_ctor_this.cpp
+  [124/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w16_addr_leaf_neg.cpp  (il function decode failed)
+  [125/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w21_census_gate.cpp  (il function decode failed)
+  [126/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w18_reg_move.cpp
+  [127/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w20_convert_neg.cpp  (il function decode failed)
+  [128/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w17_ptr_operand.cpp
+  [129/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w22_int_spelling_neg.cpp  (il function decode failed)
+  [130/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w232_gl_sep26_implicit.cpp  (il function decode failed)
+  [131/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w17_ptr_operand_neg.cpp  (il function decode failed)
+  [132/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w21_census_gate_neg.cpp  (il function decode failed)
+  [133/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w26_bool_value_neg.cpp  (il function decode failed)
+  [134/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w20_convert.cpp
+  [135/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w23_gl_callee_bind_neg.cpp  (il function decode failed)
+  [136/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w22_int_spelling.cpp
+  [137/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w28_fltused_order.cpp
+  [138/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w23_gl_callee_bind.cpp
+  [139/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w28_fp_store.cpp
+  [140/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w25_store_leaf_neg.cpp  (il function decode failed)
+  [141/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w28_fp_store_framed_neg.cpp  (il function decode failed)
+  [142/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w25_store_leaf.cpp
+  [143/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w26_bool_value.cpp
+  [144/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w29_fp_contract.cpp
+  [145/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w27_fp_reg_qual.cpp
+  [146/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w30_callseq_tail_intlike_neg.cpp  (il function decode failed)
+  [147/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w31_fp_tail_neg.cpp  (il function decode failed)
+  [148/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w31_fp_tail.cpp
+  [149/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w27_fp_reg.cpp
+  [150/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w28_fp_store_framed.cpp
+  [151/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w275_entry_park.cpp
+  [152/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w35_offset_run_neg.cpp  (il function decode failed)
+  [153/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w28_fp_store_neg.cpp  (il function decode failed)
+  [154/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w35_offset_run.cpp
+  [155/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w34_fp_multi.cpp
+  [156/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w37_bit_and_neg.cpp  (il function decode failed)
+  [157/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w36_member_call_neg.cpp  (il function decode failed)
+  [158/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w36_member_call.cpp
+  [159/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w30_callseq_tail_intlike.cpp
+  [160/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w32_volatile_formal_neg.cpp  (il function decode failed)
+  [161/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w41_framed_member_call_neg.cpp  (il function decode failed)
+  [162/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w32_volatile_free.cpp
+  [163/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w38_store_run.cpp
+  [164/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w42_shift_mask_neg.cpp  (il function decode failed)
+  [165/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w34_fp_multi_neg.cpp  (il function decode failed)
+  [166/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w5_chain.cpp
+  [167/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w43_cmp_shift_or_neg.cpp  (il function decode failed)
+  [168/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w38_store_run_neg.cpp  (il function decode failed)
+  [169/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w45_store_run_scheduled.cpp
+  [170/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w43_cmp_shift_or.cpp
+  [171/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w45_store_run_scheduled_neg.cpp  (il function decode failed)
+  [172/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w5_tree2.cpp  (il function decode failed)
+  [173/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w6_unsigned_wide.cpp  (il function decode failed)
+  [174/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w42_shift_mask.cpp
+  [175/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w5_tree3.cpp  (il function decode failed)
+  [176/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w41_framed_member_call.cpp
+  [177/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w71_alloc_undetermined_neg.cpp  (il function decode failed)
+  [178/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w70_bitwise_neg.cpp  (il function decode failed)
+  [179/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w70_bitwise.cpp
+  [180/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w8_cond_tail.cpp
+  [181/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w8_cond_tail_neg.cpp  (il function decode failed)
+  [182/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w5_tree_neg.cpp  (il function decode failed)
+  [183/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w844_store_run_call.cpp
+  [184/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w8_cond_tail_value.cpp
+  [185/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w6_k_boundary.cpp  (il function decode failed)
+  [186/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w9_rel_unsigned.cpp
+  [187/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wa16_bss_two_align16.cpp
+  [188/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wa16_data_align16.cpp
+  [189/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w6_rel_k.cpp
+  [190/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wa16_data_align32.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [191/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w71_alloc_undetermined.cpp
+  [192/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w9_cmp_zero_le.cpp
+  [193/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w9_rel_signed.cpp
+  [194/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w844_store_run_call_neg.cpp  (il function decode failed)
+  [195/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wa16_dyninit_plain_align16.cpp  (a `??__E` dynamic-initializer TU outside the measured class: the literal's COMDA…)
+  [196/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wadjust_obj_recv.cpp
+  [197/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wadjust_obj_recv_neg.cpp  (il function decode failed)
+  [198/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wae_assign_dst.cpp
+  [199/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wa16_bss_static_reloc.cpp
+  [200/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wa16_data_scalar_align16.cpp
+  [201/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\walign_dyninit_poly_double.cpp  (a `??__E` dynamic-initializer TU outside the measured class: the literal's COMDA…)
+  [202/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wbdnz_ctr_then_framed_neg.cpp  (il function decode failed)
+  [203/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wbdnz_ctr.cpp
+  [204/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\walign_data_declalign8.cpp
+  [205/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wae_assign_dst_neg.cpp  (il function decode failed)
+  [206/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wblockir_float_walk_then_framed_neg.cpp  (il function decode failed)
+  [207/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wbdnz_ctr_neg.cpp  (il function decode failed)
+  [208/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcf_neighbours.cpp  (il function decode failed)
+  [209/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\walign_dyninit_align16.cpp  (a `??__E` dynamic-initializer TU outside the measured class: the literal's COMDA…)
+  [210/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wblockir_float_walk_neg.cpp  (il function decode failed)
+  [211/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wbiquad_fp_store_diamond_neg.cpp  (il function decode failed)
+  [212/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\walign_data_poly_object.cpp  (il function decode failed)
+  [213/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcfg1_if_call_join_neg.cpp  (il function decode failed)
+  [214/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\walign_dyninit_poly.cpp  (a `??__E` dynamic-initializer TU outside the measured class: the literal's COMDA…)
+  [215/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wbiquad_fp_store_diamond.cpp  (il function decode failed)
+  [216/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcb_cmp_two_calls_neg.cpp  (il function decode failed)
+  [217/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wblockir_float_walk.cpp  (il function decode failed)
+  [218/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wch_chained_call_neg.cpp  (il function decode failed)
+  [219/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcl_chain_link_arg_neg.cpp  (il function decode failed)
+  [220/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcfg1_if_call_join.cpp  (il function decode failed)
+  [221/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wco_chain_tail_load_neg.cpp  (il function decode failed)
+  [222/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wco_explicit_return.cpp
+  [223/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wch_chained_call.cpp
+  [224/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcb_cmp_two_calls.cpp
+  [225/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcf_shapes.cpp  (il function decode failed)
+  [226/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcv_reinterpret_neg.cpp  (il function decode failed)
+  [227/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcr_cmp_order_neg.cpp  (il function decode failed)
+  [228/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wco_chain_tail_load.cpp
+  [229/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wdata_static_scan_neg.cpp  (il function decode failed)
+  [230/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wdata_static_scan.cpp  (il function decode failed)
+  [231/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wda_neighbours.cpp
+  [232/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcv_reinterpret.cpp
+  [233/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wec_ctor_base.cpp
+  [234/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wdivmod_leaf.cpp
+  [235/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wdr_neighbours.cpp  (il function decode failed)
+  [236/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcl_chain_link_arg.cpp
+  [237/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfence2_forceinline_callee_neg.cpp  (il function decode failed)
+  [238/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wcr_cmp_order.cpp
+  [239/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wda_dataaddr_neg.cpp  (il function decode failed)
+  [240/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wextdata_guard_chain_shared_tail.cpp  (il function decode failed)
+  [241/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wec_ctor_base_neg.cpp  (il function decode failed)
+  [242/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfl_chain_tail_fp_load_neg.cpp  (il function decode failed)
+  [243/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfence2_kept_local_callee.cpp  (il function decode failed)
+  [244/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wextdata_guard_chain_shared_tail_neg.cpp  (il function decode failed)
+  [245/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfence2_small_callee_neg.cpp  (il function decode failed)
+  [246/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfltret_value_tail_neg.cpp  (il function decode failed)
+  [247/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfl_chain_tail_fp_load.cpp
+  [248/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wdr_virtual_byval.cpp  (il function decode failed)
+  [249/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfr_argreg_types.cpp
+  [250/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfr_cmp_stride.cpp
+  [251/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfr_argreg.cpp
+  [252/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wifn_guard_ret_chain.cpp  (il function decode failed)
+  [253/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wifn_guard_ret_chain_neg.cpp  (il function decode failed)
+  [254/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfence2_static_callee_neg.cpp  (il function decode failed)
+  [255/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfr_cmp_stride_neg.cpp  (il function decode failed)
+  [256/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfltret_value_tail.cpp
+  [257/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfr_argreg_member.cpp
+  [258/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wfr_argreg_neg.cpp  (il function decode failed)
+  [259/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wjson_utf8_copy_neg.cpp  (il function decode failed)
+  [260/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\whash_loop_then_framed.cpp  (il function decode failed)
+  [261/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wjson_utf8_copy.cpp  (il function decode failed)
+  [262/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlin_mixed_bind_neg.cpp  (il function decode failed)
+  [263/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlo_dyninit_mixed.cpp  (il function decode failed)
+  [264/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlb_moved_formal.cpp
+  [265/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wla_lit_call_arg.cpp
+  [266/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlo_dyninit_pair.cpp  (il function decode failed)
+  [267/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\winlfence_local_callee_neg.cpp  (il function decode failed)
+  [268/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\winlfence_opaque_callee.cpp
+  [269/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\whash_ptr_walk_loop.cpp  (ptr-walk loop outside /O1: /Ox and /O2 emit a different 84-byte body (strength-r…)
+  [270/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wla_lit_call_arg_neg.cpp  (il function decode failed)
+  [271/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wmain_no_return.cpp  (il function decode failed)
+  [272/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlr_lit_run_neg.cpp  (il function decode failed)
+  [273/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wmain_no_return_neg.cpp  (il function decode failed)
+  [274/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlin_mixed_bind.cpp
+  [275/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wor_emit_order_neg.cpp  (il function decode failed)
+  [276/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlb_moved_formal_neg.cpp  (il function decode failed)
+  [277/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\worder3_bss_slot_mixed.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [278/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\worder3_bss_slot_y3.cpp
+  [279/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wmcall_seq_neg.cpp  (il function decode failed)
+  [280/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wmcall_seq.cpp
+  [281/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\worder3_bss_slot_extern.cpp
+  [282/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wor_emit_order_led.cpp
+  [283/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wlr_lit_run.cpp
+  [284/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wpark_lit_permuted.cpp
+  [285/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wosf_handle_guard.cpp  (il function decode failed)
+  [286/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wor_emit_order.cpp
+  [287/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1c_dyninit_two_objects.cpp  (il function decode failed)
+  [288/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wosf_handle_guard_neg.cpp  (il function decode failed)
+  [289/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1_sym_addr.cpp
+  [290/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_bss_big.cpp
+  [291/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_bss_one.cpp
+  [292/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\worder3_bss_slot_after_text.cpp  (il function decode failed)
+  [293/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wrr_arg_vocab.cpp
+  [294/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wpark_lit_permuted_neg.cpp  (il function decode failed)
+  [295/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wrr_arg_vocab_neg.cpp  (il function decode failed)
+  [296/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_both.cpp
+  [297/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_bss_pad.cpp
+  [298/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_data_one.cpp
+  [299/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_data_two.cpp
+  [300/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_refuse_float.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [301/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1c_dyninit_extern.cpp  (a `??__E` dynamic-initializer TU outside the measured class: the literal's COMDA…)
+  [302/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_refuse_selectany.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [303/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_drop_static.cpp
+  [304/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1_sym_addr_neg.cpp  (il function decode failed)
+  [305/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_bss_two.cpp
+  [306/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_data_linkage.cpp
+  [307/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsl_store_load_neg.cpp  (il function decode failed)
+  [308/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wundname_alloc_init_or_fail.cpp  (il function decode failed)
+  [309/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wtu3_framed_leaves_framed.cpp
+  [310/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_refuse_const.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [311/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wunw_float_neg.cpp  (il function decode failed)
+  [312/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wunw_leaf_then_framed.cpp
+  [313/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wunw_framed_pair.cpp
+  [314/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_refuse_ptr.cpp
+  [315/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wundname_alloc_init_or_fail_neg.cpp  (il function decode failed)
+  [316/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_refuse_tls.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [317/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvalue_call_value_neg.cpp  (il function decode failed)
+  [318/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wunw_mixed_order.cpp
+  [319/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsect_refuse_three.cpp  (a TU that defines no functions but whose `.gl` names storage the bare four-secti…)
+  [320/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wunw_two_leaves_framed.cpp
+  [321/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvl_chain_two_lengths.cpp  (ptr-walk chain loop outside /O1: every cell behind the schedule, the allocation …)
+  [322/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvalue_call_value.cpp  (il function decode failed)
+  [323/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvl_chain6_same.cpp  (ptr-walk chain loop outside /O1: every cell behind the schedule, the allocation …)
+  [324/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wsl_store_load.cpp
+  [325/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvl_chain_neg.cpp  (il function decode failed)
+  [326/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wunw_float_beside_framed.cpp
+  [327/333] codegen-gap  z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvl_chain3.cpp  (ptr-walk chain loop outside /O1: every cell behind the schedule, the allocation …)
+  [328/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvsnprnc_lit_insert_tail_neg.cpp  (il function decode failed)
+  [329/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvsnprnc_guard_chain_arity_store.cpp  (il function decode failed)
+  [330/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wxlr_create_guard.cpp  (il function decode failed)
+  [331/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvsnprnc_guard_chain_arity_store_neg.cpp  (il function decode failed)
+  [332/333] match        z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wvsnprnc_lit_insert_tail.cpp
+  [333/333] vocab-gap    z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wxlr_create_guard_neg.cpp  (il function decode failed)
 
 SPLITTER ANCHORS (ROADMAP §10.11/§10.12) — the census splits `.ex` on `4C 4F 11`, the port on `4F 1F`
   gate-side segment count KNOWN for 333 of 333 captured TUs; UNKNOWN for 0 (no `.ex` at all). Read through `IlBundle::ex_segment_count`, a PURE reader of the `4F 1F` split — not `functions()`, which is an acceptance decision and returns None for every vocab-gap TU, leaving this knowable for only the 6 that already match.
@@ -381,14 +381,14 @@ PHASE 7 FACTORS (ROADMAP §10.19/§10.21, boards #160/#179) — the model is A a
         1 objs  [  ---]  .text$yd
         1 objs  [  ---]  .tls$
   FRONTIER — 1 graded TUs satisfy A and B and C, are NOT a match, and are outside BOTH acceptance paths (not D, not E), so per-function codegen breadth is the whole remaining distance (blocked emitted | emitted | src):
-       1 |    1 | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1c_dyninit_two_objects.cpp
+       1 |    1 | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1c_dyninit_two_objects.cpp
   FRONTIER BY `.text` BYTE FRACTION (board #500) — how much of each TU's `.text` the port already produces a body for, BY BYTE. Board #465 counted FUNCTIONS and was refuted by the TU registered to confirm it (mmio: 72.7% by function, 16.8% by byte, DECLINED; xboxmem: 50.0% by function, 54.5% by byte, CONVERTED). n = 2 outcomes — this ranks, it does not license. `exact` is the oracle-graded floor under `accepted`; a TU with no `.text` bytes prints n/a, NEVER 100%. 0 of 1 frontier TUs have NO denominator, and 1 are at EXACTLY 0% — TUs where codegen breadth has not begun:
      accepted/total bytes    frac   exact  remain | src   (REMAIN = total - accepted = the PowerPC still to write. A FOURTH unit, printed and NOT chosen between: it agrees with `frac` on both outcome cells and DISAGREES with it at this frontier's head.)
-           0/24       bytes    0.0%      0      24 | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1c_dyninit_two_objects.cpp
+           0/24       bytes    0.0%      0      24 | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1c_dyninit_two_objects.cpp
   BYTE-FRACTION CONTROL (board #501) — a `match` TU is byte-identical to c2's obj, so the port produced a body for every `.text` byte in it and its fraction MUST read 100%. 0 of 144 matched TUs do; 0 fall short; 144 have no `.text` denominator (a TU that defines data and no functions — board #276's shape — which is a 100%-free zero, not a failure).
     no shortfall. (A count, not a status: the 0 is the evidence.)
   FRONTIER BY CFG REACHABILITY (board #720) — CAN THE EMITTER EXPRESS THIS TU AT ALL? `Selected` covers FOUR control-flow shapes: straight-line, ONE two-arm conditional, — since lane `w-hash`, board #761 — ONE loop, the pointer-walk accumulate of `codegen::ptr_walk_loop`, and — since lane `w-cfgclass`, board #1630 — ONE `if`/`else` with a join whose arms are calls, `codegen::if_call_join`. **The last two are each a transcription of a single function class, not a lowering of its CFG class**: twenty words, two immediate fields, `/O1` only. Every other loop shape and every other `cflow-if-n` shape still has no representation at all — the `if`/`else` class takes 2 of the frontier's 11 `cflow-if-n` functions and the loop 1 of its 21 `cflow-loop` ones. This line read `no variant encodes a backward branch, so NO loop of any kind has a representation` until `Sort.cpp` converted, and `THREE ... shapes` until `negate_test.cpp` did; each correction is here rather than beside the old claim. **A shape being in this list does NOT put its class in `PORT_CFG_CLASSES`** — the two converted TUs left the frontier by MATCHING, so neither appears in the count below, which is why that count can stand still while this sentence grows. This is not a quantity of progress like #269/#465/#500 — a TU can be one 8-byte function from matching and be unreachable because those 8 bytes are a loop. INSTRUMENT, never a gate. 0 of 1 frontier TUs are reachable:
-      1 blocked | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1c_dyninit_two_objects.cpp | label-free | 1 blocked fn with NO CFG class (census bailed first)
+      1 blocked | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1c_dyninit_two_objects.cpp | label-free | 1 blocked fn with NO CFG class (census bailed first)
     LABEL CHANNEL (board #742) — `$M`/`$T` are the ONLY way the value of c2's compiler-label counter reaches an obj, and `coff::plan_labels` mints them for a FRAMED function and nothing else. A leaf loop charges that counter +1..+4 while `plan_labels` charges 0 (17 seed-free cells, docs/LABEL_COUNTER.md §4.2), which is the whole stated justification for `codegen::labels` invariant 4 refusing every BACKWARD branch. On a `label-free` obj that error has nowhere to land — and that is now SHIPPED rather than observed: `IlFunction::label_slots` returns `None` for the one loop shape the port emits, so a TU pairing it with a framed function refuses and a TU without one converts (boards #746/#747, `fixtures/cpp/whash_loop_then_framed.cpp` and its control). 1 of 1 frontier TUs are label-free; of the 0 blocked on `cflow-loop`, 0 are. NOT a licence — every one is still gated on codegen that does not exist, and the counter is only the FIRST of that TU's refusals.
     CONTROL src/xdk/nuispeech/xboxmem.cpp: absent from this scan's list — NOT a pass, not evaluated.
     SUB-CLASS NARROWING (board #778) — the screen can now hold a PARTIAL claim (`CfgClass{class, Whole | Keys(&[..])}`), and this is the bracket that keeps a restriction NARROWER OR EQUAL rather than wider. `admits` is `class == class && <sub>`, so `Keys` only ever CONJOINS: a restriction can remove an admitted (class,key) pair and never add one. That is algebra; these four numbers are the measurement, re-derived from this scan's own frontier. BOTTOM 0 ⊆ ENUMERATED 0 == SHIPPED 0 ⊆ TOP 0, of 1 frontier TUs (0 classes in TOP, 0 (class,key) pairs enumerated).
@@ -403,7 +403,7 @@ PHASE 7 FACTORS (ROADMAP §10.19/§10.21, boards #160/#179) — the model is A a
       NOT A LICENCE, and #778 is closed as a MECHANISM only: `cflow-loop` did NOT enter the list in the lane that built this. The list is still a hand-maintained mirror of a `c2-core` enum; what changed is that a lane which has measured part of a class can now write down which part, and the reachability figure it produces is bracketed above.
   FRONTIER BY CODEGEN (board #1474) — THE COLUMN #1463 PRINTED AS `NO COLUMN`, read off the judge's own per-function predicate (FBM) instead of off a reader ladder. `wrong` is the reader accepting a body, the emitter LOWERING it, and the bytes or relocations DIFFERING: the only positive codegen price this project can measure per function. `cg-ref` is the reader accepting and the emitter DECLINING — read `fnbytes::Decline`'s doc before sizing anything off it, because three of its four stages are ZERO BY CONSTRUCTION while acceptance lives in the IL parser. **`reader` is the hole**: the IL parser refused, so no codegen question was asked and none CAN be — there is no IlFunction to hand to `select_function`. A TU's true codegen distance is `wrong + cg-ref` PLUS an unknown amount hiding in `reader`, so every positive number below is a LOWER BOUND OF UNKNOWN TIGHTNESS and never a price. 1 frontier TUs, 1 emitted functions: 1 behind the reader (100%), 0 measurable, 0 already byte-exact.
      den exact wrong cg-ref reader ungrade | src
-       1     0     0      0      1       0 | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1c_dyninit_two_objects.cpp
+       1     0     0      0      1       0 | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1c_dyninit_two_objects.cpp
     TOTAL 1 = exact 0 + wrong 0 + cg-ref 0 + reader 1 + ungraded 0;  partition-broken 0 (target 0).
     **THE MEASURABLE CODEGEN PRICE OF THIS FRONTIER IS ZERO, AND THAT IS NOT `THE CODEGEN WORK IS DONE`.** Every frontier function the reader accepts, the port already emits correctly; all of the remaining distance is behind a reader refusal, where this instrument cannot follow. Board #1464's finding, in the affirmative: the codegen column exists and on this population it is EMPTY.
   A PERFECT EMIT PREDICATE (board #213) — reachability, NOT conversions: every TU below is still gated on codegen that does not exist.
@@ -608,7 +608,7 @@ PHASE 7 FACTORS (ROADMAP §10.19/§10.21, boards #160/#179) — the model is A a
     gap-metric fnbyte-refused-codegen 0
     gap-metric fnbyte-refused-split-broken 0
     gap-metric fnbyte-differs-witnesses 0
-    gap-metric frontier-bytefrac-top-tu z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1c_dyninit_two_objects.cpp
+    gap-metric frontier-bytefrac-top-tu z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\wr1c_dyninit_two_objects.cpp
     gap-metric frontier-bytefrac-top-accepted 0
     gap-metric frontier-bytefrac-top-denominator 24
     gap-metric frontier-bytefrac-zero 1
@@ -720,66 +720,66 @@ GAP REPORT (333 TUs in 0.1s)
             1 (  7.7%)  expr-cmp-eq
             1 (  7.7%)  expr-op-0x27
     TUs within 100 blocked functions of matching: 308 (blocked | emitted in-class/emitted | src)
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_accum4.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_base_member.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_bool_materialization.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_args2.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_perm.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_value.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_dllexport_neg.cpp [vocab-gap]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_drectve_pragma.cpp [vocab-gap]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_deref.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_member.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_extern_c_name.cpp [vocab-gap]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_gl_data_symbol.cpp [vocab-gap]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intra_tu_call.cpp [vocab-gap]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_line_marker.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_param_aggr.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_param_poly.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_reassoc.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_local_decl.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_param_assign.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_scope.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_seq.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_sy_locals_clean.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_sy_size_extent.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_this_line70.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_this_straightline.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_type_intlike.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_add3.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_argtail.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_seq.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_seq_b.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_submod.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_twice.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_ab.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_addk.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_addk2.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_fmul3.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_framed.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_lit.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_plus0.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_sub.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_tailret.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_two.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_wide.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w10_empty_fn.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w10_guarded_seq.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1199_bind_run.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w11_early_return.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1212_bind_run_call.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1274_addr_producer.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_narrow_getters.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_ptr_leaf.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13b_fconst.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13b_fdedup.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w14_dtor_delegate.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w15_dtor_member.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w16_addr_leaf.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w17_ptr_operand.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w18_reg_move.cpp [match]
-          0 |    0/0    | z:\home\free\code\milohax\c2-rs\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w19_ctor_this.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_accum4.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_base_member.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_bool_materialization.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_args2.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_perm.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_call_value.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_dllexport_neg.cpp [vocab-gap]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_drectve_pragma.cpp [vocab-gap]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_deref.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_expr_member.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_extern_c_name.cpp [vocab-gap]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_gl_data_symbol.cpp [vocab-gap]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_intra_tu_call.cpp [vocab-gap]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_line_marker.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_param_aggr.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_param_poly.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_reassoc.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_local_decl.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_param_assign.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_scope.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_stmt_seq.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_sy_locals_clean.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_sy_size_extent.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_this_line70.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_this_straightline.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\il_type_intlike.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_add3.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_argtail.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_seq.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_seq_b.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_submod.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_call_twice.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_ab.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_addk.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_edit_addk2.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_fmul3.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_framed.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_lit.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_plus0.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_sub.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_tailret.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_two.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\mvp_wide.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w10_empty_fn.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w10_guarded_seq.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1199_bind_run.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w11_early_return.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1212_bind_run_call.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w1274_addr_producer.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_narrow_getters.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w12_ptr_leaf.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13b_fconst.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w13b_fdedup.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w14_dtor_delegate.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w15_dtor_member.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w16_addr_leaf.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w17_ptr_operand.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w18_reg_move.cpp [match]
+          0 |    0/0    | z:<repo>\.claude\worktrees\agent-a183e8a527984c88a\fixtures\cpp\w19_ctor_this.cpp [match]
       … and 248 more
   blocking features (the widening order):
         102 (  9.5%)  expr-op-0x27

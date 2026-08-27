@@ -18,10 +18,10 @@ that straddle it are deliberately kept as the robustness control described in
 docs/PROGRESS_METRIC.md §5.
 
 == gap-68bdbf8 ==
-  c2-rs      68bdbf835e4b (clean)  /home/free/code/milohax/c2-rs/.claude/worktrees/wt-w-metric-backfill
-  binary     4289a8d25daedb58  /home/free/code/milohax/c2-rs/.claude/worktrees/wt-w-metric-backfill/target/release/c2rs
-  workload   fe1b5b393411 (clean)  /home/free/code/milohax/dc3-decomp
-  wibo       wibo 1.2.0-27-geab90f0 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
+  c2-rs      68bdbf835e4b (clean)  <repo>/.claude/worktrees/wt-w-metric-backfill
+  binary     4289a8d25daedb58  <repo>/.claude/worktrees/wt-w-metric-backfill/target/release/c2rs
+  workload   fe1b5b393411 (clean)  <home>/code/milohax/dc3-decomp
+  wibo       wibo 1.2.0-27-geab90f0 (Linux x86_64)  <home>/code/milohax/wibo/build/release/wibo
 GAP REPORT (878 TUs in 110.1s)
   match             6    0.7%
   mismatch          0    0.0%
@@ -32,10 +32,10 @@ GAP REPORT (878 TUs in 110.1s)
   C  section shape        obj sections subset of the writer's 6      84
 
 == gap-3b00093 ==
-  c2-rs      3b000936a6ad (clean)  /home/free/code/milohax/c2-rs/.claude/worktrees/wt-w-metric-backfill
-  binary     3c2293639e2f6f08  /home/free/code/milohax/c2-rs/.claude/worktrees/wt-w-metric-backfill/target/release/c2rs
-  workload   fe1b5b393411 (clean)  /home/free/code/milohax/dc3-decomp
-  wibo       wibo 1.2.0-27-geab90f0 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
+  c2-rs      3b000936a6ad (clean)  <repo>/.claude/worktrees/wt-w-metric-backfill
+  binary     3c2293639e2f6f08  <repo>/.claude/worktrees/wt-w-metric-backfill/target/release/c2rs
+  workload   fe1b5b393411 (clean)  <home>/code/milohax/dc3-decomp
+  wibo       wibo 1.2.0-27-geab90f0 (Linux x86_64)  <home>/code/milohax/wibo/build/release/wibo
 GAP REPORT (878 TUs in 5.0s)
   match             8    0.9%
   mismatch          0    0.0%
@@ -46,10 +46,10 @@ GAP REPORT (878 TUs in 5.0s)
   C  section shape        obj sections subset of the writer's 9     114
 
 == gap-a4a6ad8 ==
-  c2-rs      a4a6ad8737b4 (clean)  /home/free/code/milohax/c2-rs/.claude/worktrees/wt-w-metric-backfill
-  binary     a45a1b11515e4265  /home/free/code/milohax/c2-rs/.claude/worktrees/wt-w-metric-backfill/target/release/c2rs
-  workload   fe1b5b393411 (clean)  /home/free/code/milohax/dc3-decomp
-  wibo       wibo 1.2.0-27-geab90f0 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
+  c2-rs      a4a6ad8737b4 (clean)  <repo>/.claude/worktrees/wt-w-metric-backfill
+  binary     a45a1b11515e4265  <repo>/.claude/worktrees/wt-w-metric-backfill/target/release/c2rs
+  workload   fe1b5b393411 (clean)  <home>/code/milohax/dc3-decomp
+  wibo       wibo 1.2.0-27-geab90f0 (Linux x86_64)  <home>/code/milohax/wibo/build/release/wibo
 GAP REPORT (878 TUs in 115.2s)
   match             8    0.9%
   mismatch          0    0.0%
@@ -60,10 +60,10 @@ GAP REPORT (878 TUs in 115.2s)
   C  section shape        obj sections subset of the writer's 10     169
 
 == gap-tip ==
-  c2-rs      ae692fa839c5 (clean)  /home/free/code/milohax/c2-rs/.claude/worktrees/wt-w-metric
-  binary     650b092b2559ba17  /home/free/code/milohax/c2-rs/.claude/worktrees/wt-w-metric/target/release/c2rs
-  workload   fe1b5b393411 (clean)  /home/free/code/milohax/dc3-decomp
-  wibo       wibo 1.0.1-23-g4a9dd6f (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
+  c2-rs      ae692fa839c5 (clean)  <repo>/.claude/worktrees/wt-w-metric
+  binary     650b092b2559ba17  <repo>/.claude/worktrees/wt-w-metric/target/release/c2rs
+  workload   fe1b5b393411 (clean)  <home>/code/milohax/dc3-decomp
+  wibo       wibo 1.0.1-23-g4a9dd6f (Linux x86_64)  <home>/code/milohax/wibo/build/release/wibo
 GAP REPORT (878 TUs in 5.2s)
   match             8    0.9%
   mismatch          0    0.0%
@@ -74,10 +74,10 @@ GAP REPORT (878 TUs in 5.2s)
   C  section shape        obj sections subset of the writer's 10     169
 
 == gap-tip2 ==
-  c2-rs      ae692fa839c5 (DIRTY)  /home/free/code/milohax/c2-rs/.claude/worktrees/wt-w-metric
-  binary     ebc3d1d557ba5ee8  /home/free/code/milohax/c2-rs/.claude/worktrees/wt-w-metric/target/release/c2rs
-  workload   fe1b5b393411 (clean)  /home/free/code/milohax/dc3-decomp
-  wibo       wibo 1.2.0-27-geab90f0 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
+  c2-rs      ae692fa839c5 (DIRTY)  <repo>/.claude/worktrees/wt-w-metric
+  binary     ebc3d1d557ba5ee8  <repo>/.claude/worktrees/wt-w-metric/target/release/c2rs
+  workload   fe1b5b393411 (clean)  <home>/code/milohax/dc3-decomp
+  wibo       wibo 1.2.0-27-geab90f0 (Linux x86_64)  <home>/code/milohax/wibo/build/release/wibo
 GAP REPORT (878 TUs in 4.3s)
   match             8    0.9%
   mismatch          0    0.0%
@@ -89,10 +89,10 @@ GAP REPORT (878 TUs in 4.3s)
     gap-metric progress-mass 0.20728
 
 == gap-rebased ==
-  c2-rs      85ede65eefc4 (clean)  /home/free/code/milohax/c2-rs/.claude/worktrees/wt-w-metric
-  binary     c6e8642ae95b3486  /home/free/code/milohax/c2-rs/.claude/worktrees/wt-w-metric/target/release/c2rs
-  workload   fe1b5b393411 (clean)  /home/free/code/milohax/dc3-decomp
-  wibo       wibo 1.2.0-27-geab90f0 (Linux x86_64)  /home/free/code/milohax/wibo/build/release/wibo
+  c2-rs      85ede65eefc4 (clean)  <repo>/.claude/worktrees/wt-w-metric
+  binary     c6e8642ae95b3486  <repo>/.claude/worktrees/wt-w-metric/target/release/c2rs
+  workload   fe1b5b393411 (clean)  <home>/code/milohax/dc3-decomp
+  wibo       wibo 1.2.0-27-geab90f0 (Linux x86_64)  <home>/code/milohax/wibo/build/release/wibo
 GAP REPORT (878 TUs in 6.2s)
   match             8    0.9%
   mismatch          0    0.0%
