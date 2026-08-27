@@ -243,7 +243,7 @@ names.
 `0x10b3c2cc` (1,033 B) dispatches to **27 callees, 6,468 B**. Sub-items 5 and 6
 name **3 of the 27** (K1 `0x10b3b167`, K2 `0x10b3b41b`, M4 `0x10b3baa8`); with
 K3 `0x10b3b5fd` — which `#3170` itself lists as *unpriceable* — that is 4 of 27.
-Ten of the 27 are `cover=none`.
+**Fourteen** of the 27 are `cover=none` (`--merger` counts them).
 
 ---
 
