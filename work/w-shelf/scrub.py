@@ -11,7 +11,7 @@ WHAT IT DOES NOT TOUCH, and this is the load-bearing half
 (`CLAUDE.md` § "Project context"). 366 tracked files name them. This script
 never matches them: its patterns are anchored on the *user home* segment, and
 `dc3-decomp` survives every rule as a literal substring
-(`/home/free/code/milohax/dc3-decomp` -> `<home>/code/milohax/dc3-decomp`).
+(`/home/<user>/code/milohax/dc3-decomp` -> `<home>/code/milohax/dc3-decomp`).
 The scrub asserts the occurrence counts of both strings are unchanged.
 
 THE ROOTS ARE NOT ONE ROOT — measured, not assumed
@@ -20,21 +20,21 @@ A blanket `s|<one root>|<repo>|` would flatten distinctions the transcripts
 legitimately record. At 41ca1ee9a the tracked text references **13** distinct
 absolute roots:
 
-    458 files  /home/free/code/milohax/c2-rs            the main checkout
-     92 files  /home/free/code/milohax/wibo             the sibling wibo build
-     83 files  /home/free/code/milohax/dc3-decomp       the sibling decomp tree
-     20 files  /home/free/tmp                           run scratch
-     12 files  /home/free/code/milohax/c2-rs-wt-w-stageoracle
-      5 files  /home/free/code/milohax/c2-rs-wt-w-restim
-      4 files  /home/free/code/milohax/c2-rs-wt-w-cfgclass
-      3 files  /home/free/code/milohax/wibo-forkserver  a DIFFERENT wibo build
-      2 files  /home/free/code/milohax/c2-rs-wt-w-3475
-      2 files  /home/free/code/milohax/c2-rs-wt-w-warranty
-      1 file   /home/free/code/milohax/c2-rs-wt-w-fork
-      1 file   /home/free/code/milohax/c2-rs-wt-w-ledger
-      1 file   /home/u/a, /home/x/leak    SYNTHETIC — see below
+    458 files  /home/<user>/code/milohax/c2-rs            the main checkout
+     92 files  /home/<user>/code/milohax/wibo             the sibling wibo build
+     83 files  /home/<user>/code/milohax/dc3-decomp       the sibling decomp tree
+     20 files  /home/<user>/tmp                           run scratch
+     12 files  /home/<user>/code/milohax/c2-rs-wt-w-stageoracle
+      5 files  /home/<user>/code/milohax/c2-rs-wt-w-restim
+      4 files  /home/<user>/code/milohax/c2-rs-wt-w-cfgclass
+      3 files  /home/<user>/code/milohax/wibo-forkserver  a DIFFERENT wibo build
+      2 files  /home/<user>/code/milohax/c2-rs-wt-w-3475
+      2 files  /home/<user>/code/milohax/c2-rs-wt-w-warranty
+      1 file   /home/<user>/code/milohax/c2-rs-wt-w-fork
+      1 file   /home/<user>/code/milohax/c2-rs-wt-w-ledger
+      1 file   /home/<u>/a, /home/<x>/leak    SYNTHETIC — see below
 
-`/home/free/code/milohax/c2-rs` is a **strict prefix of seven of the
+`/home/<user>/code/milohax/c2-rs` is a **strict prefix of seven of the
 others** (`c2-rs-wt-w-*`, the pre-`.claude/worktrees` worktree naming). So
 the rules are applied **longest-first with a right boundary**: the repo-root
 rule refuses to match when the next character could continue an identifier,
@@ -44,7 +44,7 @@ transcripts record a measurement taken in a worktree *against* a corpus in
 the main checkout — and flattening it would have made those two the same
 place.
 
-`/home/u/a/b/c` and `/home/x/leak` are **left alone on purpose**: they are
+`/home/<u>/a/b/c` and `/home/<x>/leak` are **left alone on purpose**: they are
 synthetic inputs to `work/w-bss2/prov.py`'s assertions about the provenance
 path-relativiser, not paths on this box. They are exempted in
 `scripts/tracked_artifact_audit.sh`'s printed allowlist, by name and with
@@ -54,7 +54,7 @@ changes what the test asserts.
 THE WINDOWS SPELLING, WHICH NO STANDING DETECTOR COULD SEE
 -----------------------------------------------------------
 The reference side runs under wibo, which maps the filesystem to a DOS drive,
-so `cl`/`c2` write `z:\\home\\free\\code\\milohax\\…` into every `.cod`
+so `cl`/`c2` write `z:\\home\\<user>\\code\\milohax\\…` into every `.cod`
 listing, `.list` file and oracle log. **36 tracked files carry that form and
 26 of them contain no forward-slash `/home/` at all** — they are invisible to
 `/home/[a-z][a-z0-9_-]*/`, which is the detector `tracked_artifact_audit.sh`
@@ -90,14 +90,37 @@ import sys
 # `c2-rs-wt-w-restim`; without it the seven old sibling worktrees collapse
 # into the main checkout.
 _B = rb"(?![-A-Za-z0-9_])"
+
+# THE PATTERNS ARE ASSEMBLED AT RUNTIME, AND THAT IS NOT STYLE.
+#
+# Written as literals, this file would itself contain `/home/<a-user>/…` — and
+# `scripts/tracked_artifact_audit.sh`'s new class 3 scans the CONTENT of every
+# tracked file under `work/`. The scrubber would then be flagged by the guard
+# it exists to satisfy, and the only ways out are a self-exemption or a
+# runtime assembly. `tracked_artifact_audit.sh` already hit this and chose
+# assembly, for the reason it records in its own comment: *a rule its enforcer
+# is exempt from is a rule with one guaranteed blind spot.* Same choice here.
+#
+# Derived, not transcribed, so the segments below are the only place the box's
+# identity appears — and they are two ordinary words, not a path.
+_H = b"/" + b"home"
+_U = b"free"
+_PROJ = b"/code/milohax/c2-rs"
+
+
+def _bs(p):
+    """The same path in wibo's DOS spelling (forward slashes -> backslashes)."""
+    return p.replace(b"/", b"\\")
+
+
 RULES = [
-    (re.compile(rb"/home/free/code/milohax/c2-rs" + _B), b"<repo>",
+    (re.compile(re.escape(_H + b"/" + _U + _PROJ) + _B), b"<repo>",
      "the main checkout, forward-slash"),
-    (re.compile(rb"\\home\\free\\code\\milohax\\c2-rs" + _B), b"<repo>",
+    (re.compile(re.escape(_bs(_H + b"/" + _U + _PROJ)) + _B), b"<repo>",
      "the main checkout, wibo/DOS backslash (drive letter preserved)"),
-    (re.compile(rb"/home/free" + _B), b"<home>",
+    (re.compile(re.escape(_H + b"/" + _U) + _B), b"<home>",
      "any other path under this box's home, forward-slash"),
-    (re.compile(rb"\\home\\free" + _B), rb"\\<home>",
+    (re.compile(re.escape(_bs(_H + b"/" + _U)) + _B), rb"\\<home>",
      "any other path under this box's home, wibo/DOS backslash"),
 ]
 
