@@ -1,0 +1,164 @@
+prose audit — is the CLAIM inside a marker or a provenance doc TRUE?
+root: <REPO>
+ledger: docs/whitebox/DISCLOSURE.md — 22 adopted rows, 162 distinct addresses cited
+scope: 1077 files under crates, docs, scripts, c2host + README.md, CLAUDE.md
+
+CHECKS THAT CAN GO RED
+id   shape           checked  findings
+--------------------------------------
+C1   ROW-REF             518         0
+C2   ABSENCE               3         0
+C3   SELF-COUNT            1         0
+C4   BOUND-COUNT           1         0
+C6   ADOPTED-PATH         28         0
+--------------------------------------
+     TOTAL               551         0
+
+C5   MENTION-RISK      1137         0   (RISK, never red — this tool owns neither counter)
+
+IN A DATED RECORD — 133, reported and NOT red
+  A rung, a board row, a `WB_*_FINDINGS.md` grade page, or one of
+  the ledger's own `>` amend-beside boxes is a record of the day it
+  was written. This repo's standing rule is that they stay as
+  written and corrections live in rows that CITE them
+  (`ref/README.md` §2.1). `--strict` counts these as findings.
+  [C1] docs/BOARD.md:1720: attributes `W-MEMCPY-2` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_MEMCPY_FINDINGS.md)
+  [C1] docs/BOARD.md:1723: attributes `W-MEMCPY-3` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_MEMCPY_FINDINGS.md)
+  [C1] docs/BOARD.md:1724: attributes `W-INLINE-1` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_INLINE_FINDINGS.md)
+  [C1] docs/BOARD.md:1729: attributes `W-INLINE-3` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_INLINE_FINDINGS.md)
+  [C1] docs/BOARD.md:1730: attributes `W-INLINE-4` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_INLINE_FINDINGS.md)
+  [C1] docs/BOARD.md:1731: attributes `W-INLINE-2` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_INLINE_FINDINGS.md)
+  [C1] docs/BOARD.md:1915: cites `W-LOOP-2` bare; it is a PRE-DRAFT in WB_LOOP_FINDINGS.md and not a ledger row, and this line does not say so
+  [C1] docs/BOARD.md:1973: cites `W-SELECT-2` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/BOARD.md:1976: cites `W-SELECT-5` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/BOARD.md:2002: cites `W-SELECT-5` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/BOARD.md:3373: cites `W-REGALLOC-1` bare; it is a PRE-DRAFT in WB_REGALLOC_FINDINGS.md and not a ledger row, and this line does not say so
+  [C1] docs/BOARD.md:391: attributes `W-EH-1` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_EH_FINDINGS.md)
+  [C1] docs/BOARD.md:392: attributes `W-EH-2` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_EH_FINDINGS.md)
+  [C1] docs/BOARD.md:398: attributes `W-EH-4` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_EH_FINDINGS.md)
+  [C1] docs/BOARD.md:399: attributes `W-EH-3` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_EH_FINDINGS.md)
+  [C1] docs/BOARD.md:405: attributes `W-REGALLOC-1` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_REGALLOC_FINDINGS.md)
+  [C1] docs/BOARD.md:406: attributes `W-REGALLOC-2` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_REGALLOC_FINDINGS.md)
+  [C2] docs/BOARD.md:4476: claims "has no row" but the ledger cites 0x10b7dcb7, 0x10b7f022 in row(s) W-OBJPLAN-1, W-STAGETAP-1
+  [C1] docs/BOARD.md:4871: cites `W-SELECT-3` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C2] docs/BOARD.md:5149: claims "has no row" but the ledger cites 0x10b1b260, 0x10b25e48, 0x10c39b18, 0x10c3a578 in row(s) W-EXCLASS-1, W-MID-1, W-MID-2, W-MOP-1, W-MOP-2
+  [C1] docs/ROADMAP.md:10848: cites `W-SELECT-2` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/ROADMAP.md:10848: cites `W-SELECT-5` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/ROADMAP.md:10850: cites `W-SELECT-3` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/ROADMAP.md:10904: cites `W-SELECT-2` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/ROADMAP.md:10987: cites `W-SELECT-5` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/ROADMAP.md:10990: cites `W-SELECT-3` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/ROADMAP.md:10992: cites `W-SELECT-3` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-08-wb-eh.md:65: attributes `W-EH-1` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_EH_FINDINGS.md)
+  [C1] docs/rungs/2026-08-08-wb-eh.md:67: cites `W-EH-4` bare; it is a PRE-DRAFT in WB_EH_FINDINGS.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-08-wb-loop.md:175: attributes `W-LOOP-1` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_LOOP_FINDINGS.md)
+  … and 103 more
+
+UNATTRIBUTED `W-*-N` TOKENS — 38 citation(s), 4 distinct token(s), reported and NOT red
+  **The ledger's row-id grammar is not a reserved namespace.**
+  These tokens match `W-<NAME>-<N>`, are defined as a row in no
+  document, and are attributed to no ledger. They are a DIFFERENT
+  namespace wearing the same spelling — and a grep-based reader
+  cannot tell them apart, which is #3641's shape one level up.
+  W-BOGUS-9: 2 citation(s) in 2 file(s) — e.g. docs/rungs/2026-08-26-w-disclose.md
+  W-EX-1: 2 citation(s) in 2 file(s) — e.g. docs/rungs/2026-08-26-w-provaudit.md
+  W-MID-5: 2 citation(s) in 2 file(s) — e.g. docs/rungs/2026-08-26-w-disclose.md
+  W-UNW-1: 32 citation(s) in 17 file(s) — e.g. crates/c2-core/src/codegen/select.rs
+
+C5 MENTION-RISK — #3641's class: a counter cannot tell an evidence
+mark from a mention of one, and writing prose ABOUT mark letters moved
+a subsystem's own agreement census 9/28 -> 13/34.
+
+  SURFACE 1 — `PROV[X]` in `crates/`, counted by provenance_census.py
+    no site reads as a mention. The delimiter convention (backticked = mention)
+    is therefore adoptable here at ZERO cost, and it is: see MARK_RE.
+
+  SURFACE 2 — `[R]`/`[O]`/`[I]` on the ten `P_*.md` pages, counted by
+  `subsys.rs::count_marks`. **NOT a finding list — a measurement, and
+  the measurement is the result.**
+    page                                marks  `btk`  table  prose
+    --------------------------------------------------------------
+    P_COFF.md                              57     57     42     15
+    P_SECTION.md                           53     53     31     22
+    P_REGALLOC.md                          49     49     41      8
+    P_GLOBREGS.md                          48     48     30     18
+    P_DAG.md                               47     47     38      9
+    P_INLINE.md                            40     38     19     21
+    P_ENCODE.md                            28     28      0     28
+    P_EH.md                                41     36     24     17
+    P_LABEL.md                             73     73     50     23
+    P_SYMBOL.md                            52     52     43      9
+    --------------------------------------------------------------
+    TOTAL                                 488    481    318    170
+
+    NEITHER CANDIDATE RULE SEPARATES A MARK FROM A MENTION HERE.
+    * Backticks cannot: these pages write EVERY evidence mark in
+      backticks, so 'backticked = mention' would zero the census.
+    * Position cannot: `P_ENCODE.md` — the page #3641 was found on —
+      carries 0 marks in table rows and 28 in prose.
+    So on this surface the census cell of any `P_*.md` page still
+    moves when a lane amends its prose, and nothing can see it. The
+    only convention that would work is a DISTINCT TOKEN rather than a
+    delimiter, which is a migration of every mark on ten pages and is
+    a peer's fence. Reported, not taken.
+
+SUPPRESSION CLASSES — printed, never silent (doc_cite_audit.sh's rule)
+  C1  declared a pre-draft on or beside its own line       46
+  C1  qualified by the document that defines it            16
+  C1  `W-FAKE-*`, the reserved planted-fixture space         1
+  C2  the absence phrase is inside QUOTES (a mention)       8
+  C4  the binding is inside BACKTICKS (a mention)          4
+  all self-fixture files excluded whole: scripts/prose_audit.py, scripts/provenance_census.py
+C4 BINDINGS THAT AGREE: 1
+  docs/whitebox/DISCLOSURE.md:302: COUNT[ledger-rows] = 22  OK
+
+========================================================================
+I7 — WHAT THIS AUDIT CANNOT SEE, AS A NUMBER
+========================================================================
+Numeric claims on provenance surfaces that NO check above can reach.
+This is not a footnote. An audit whose coverage is unstated will be
+read as total, and the default state of a prose number in this tree is
+UNREACHABLE — it becomes checkable only when a human binds it with a
+COUNT[...] recipe or it happens to fall into C1/C2/C3/C6's shapes.
+
+  crates/** PROV marker lines (649)                       345
+  docs/whitebox/DISCLOSURE.md                             464
+  docs/whitebox/ref/README.md                             195
+  TOTAL UNBOUND                                          1004
+  checkable (C1+C2+C3+C4+C6 above)                        551
+  ratio unbound : checkable                              1.8:1
+
+  **THE TWO NUMBERS ABOVE DO NOT SHARE A DENOMINATOR, and the ratio
+  is therefore NOT a coverage figure.** `checkable` is dominated by
+  C1's row-id tokens, counted over the WHOLE tree; `unbound` is
+  counted over three provenance surfaces only. Read the ratio as
+  'the residue is of the same order as the checked population on the
+  surfaces where both are measured', never as '1 in 3 claims is
+  checked'. This lane's own prereg compared them as if they shared a
+  scope and registered a wrong prediction off it (P6, MISS).
+
+  Also outside scope, by kind rather than by count:
+   * any claim of fact about c2's behaviour — the image and the byte
+     judge grade that, never this tool;
+   * whether a cited ADDRESS holds the instruction claimed (that is
+     addrcheck.py's question, deliberately not folded in);
+   * whether a bound count is bound to the RIGHT population — C4
+     checks the arithmetic of a binding a human wrote;
+   * `file.md:NNN` line-citation staleness — doc_cite_audit.sh's own
+     stated LIMIT, not duplicated here.
+
+  A sample of the unbound residue, so it is not an abstraction:
+    docs/whitebox/DISCLOSURE.md:29: 53 — | **TIER 1** | **the list of 53 file names** (`coff.c`, `coffemit.c`, … — [`C2_MAP.md`](C2_MAP.m
+    docs/whitebox/DISCLOSURE.md:30: 2 — | **TIER 2** | **every address**: the ICE-site xrefs, the derived per-file ranges, and all funct
+    docs/whitebox/DISCLOSURE.md:45: 2 — What tier 2 buys on top is *where* — the ranges that turn the name list into a
+    docs/whitebox/DISCLOSURE.md:48: 7 — validation** in §3.2 (7 ascending runs against 26.5 expected,
+    docs/whitebox/DISCLOSURE.md:49: 10 — P = 1.5 × 10⁻²⁵; every run directory-pure) is a joint fact about tier 1 and
+    docs/whitebox/DISCLOSURE.md:50: 2 — tier 2 and needs both. The **file inventory** needs only tier 1.
+    docs/whitebox/DISCLOSURE.md:74: 17 — | **W-OBJPLAN-1** | **adoption** | **The emit-SEED bit: `0x20` at symbol offset `0x4c`.** c2's w
+    docs/whitebox/DISCLOSURE.md:74: 20 — | **W-OBJPLAN-1** | **adoption** | **The emit-SEED bit: `0x20` at symbol offset `0x4c`.** c2's w
+    docs/whitebox/DISCLOSURE.md:74: 6 — | **W-OBJPLAN-1** | **adoption** | **The emit-SEED bit: `0x20` at symbol offset `0x4c`.** c2's w
+    docs/whitebox/DISCLOSURE.md:74: 870 — | **W-OBJPLAN-1** | **adoption** | **The emit-SEED bit: `0x20` at symbol offset `0x4c`.** c2's w
+    docs/whitebox/DISCLOSURE.md:74: 28 — | **W-OBJPLAN-1** | **adoption** | **The emit-SEED bit: `0x20` at symbol offset `0x4c`.** c2's w
+    docs/whitebox/DISCLOSURE.md:74: 107 — | **W-OBJPLAN-1** | **adoption** | **The emit-SEED bit: `0x20` at symbol offset `0x4c`.** c2's w
+
+VERDICT: CLEAN over 551 checked claims (133 in dated records, 38 unattributed, 0 mention-risks)

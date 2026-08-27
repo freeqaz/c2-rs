@@ -1,0 +1,165 @@
+prose audit — is the CLAIM inside a marker or a provenance doc TRUE?
+root: <REPO>
+ledger: docs/whitebox/DISCLOSURE.md — 21 adopted rows, 156 distinct addresses cited
+scope: 1076 files under crates, docs, scripts, c2host + README.md, CLAUDE.md
+
+CHECKS THAT CAN GO RED
+id   shape           checked  findings
+--------------------------------------
+C1   ROW-REF             488         0
+C2   ABSENCE               4         1
+C3   SELF-COUNT            1         1
+C4   BOUND-COUNT           0         0
+C6   ADOPTED-PATH         27         0
+--------------------------------------
+     TOTAL               520         2
+
+C5   MENTION-RISK      1137       481   (RISK, never red — this tool owns neither counter)
+
+FINDINGS — a claim that is FALSE, not a number that moved
+  [C2] crates/c2-reference/tests/middle_interfaces.rs:624: claims "no disclosure row exists" but the ledger cites 0x10b25e48 in row(s) W-EXCLASS-1
+  [C3] docs/whitebox/DISCLOSURE.md:300: says "seventeen rows" about its own table, which has 21
+
+IN A DATED RECORD — 123, reported and NOT red
+  A rung, a board row, a `WB_*_FINDINGS.md` grade page, or one of
+  the ledger's own `>` amend-beside boxes is a record of the day it
+  was written. This repo's standing rule is that they stay as
+  written and corrections live in rows that CITE them
+  (`ref/README.md` §2.1). `--strict` counts these as findings.
+  [C1] docs/BOARD.md:1915: cites `W-LOOP-2` bare; it is a PRE-DRAFT in WB_LOOP_FINDINGS.md and not a ledger row, and this line does not say so
+  [C1] docs/BOARD.md:1973: cites `W-SELECT-2` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/BOARD.md:1976: cites `W-SELECT-5` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/BOARD.md:2002: cites `W-SELECT-5` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/BOARD.md:3373: cites `W-REGALLOC-1` bare; it is a PRE-DRAFT in WB_REGALLOC_FINDINGS.md and not a ledger row, and this line does not say so
+  [C2] docs/BOARD.md:4476: claims "has no row" but the ledger cites 0x10b7dcb7, 0x10b7f022 in row(s) W-OBJPLAN-1, W-STAGETAP-1
+  [C1] docs/BOARD.md:4871: cites `W-SELECT-3` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C2] docs/BOARD.md:5149: claims "has no row" but the ledger cites 0x10b1b260, 0x10b25e48, 0x10c39b18, 0x10c3a578 in row(s) W-EXCLASS-1, W-MID-1, W-MID-2, W-MOP-1, W-MOP-2
+  [C1] docs/ROADMAP.md:10115: cites `W-EXT-1` bare; it is a PRE-DRAFT in WB_READER_FINDINGS.md and not a ledger row, and this line does not say so
+  [C1] docs/ROADMAP.md:10848: cites `W-SELECT-2` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/ROADMAP.md:10848: cites `W-SELECT-5` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/ROADMAP.md:10850: cites `W-SELECT-3` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/ROADMAP.md:10904: cites `W-SELECT-2` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/ROADMAP.md:10987: cites `W-SELECT-5` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/ROADMAP.md:10990: cites `W-SELECT-3` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/ROADMAP.md:10992: cites `W-SELECT-3` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-08-wb-eh.md:67: cites `W-EH-4` bare; it is a PRE-DRAFT in WB_EH_FINDINGS.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-08-wb-reader.md:143: attributes `W-EXT-1` to docs/whitebox/DISCLOSURE.md, which has no such row (it is a pre-draft in WB_READER_FINDINGS.md)
+  [C1] docs/rungs/2026-08-08-wb-reader.md:145: cites `W-EXT-2` bare; it is a PRE-DRAFT in WB_READER_FINDINGS.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-08-wb-regalloc.md:92: cites `W-REGALLOC-3` bare; it is a PRE-DRAFT in WB_REGALLOC_FINDINGS.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-09-w-bdnz.md:459: cites `W-LOOP-1` bare; it is a PRE-DRAFT in WB_LOOP_FINDINGS.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-09-w-bdnz.md:466: cites `W-LOOP-3` bare; it is a PRE-DRAFT in WB_LOOP_FINDINGS.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-09-w-bdnz.md:469: cites `W-LOOP-2` bare; it is a PRE-DRAFT in WB_LOOP_FINDINGS.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-09-w-bdnz.md:477: cites `W-LOOP-4` bare; it is a PRE-DRAFT in WB_LOOP_FINDINGS.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-09-wb-selfit.md:221: cites `W-SELECT-5` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-09-wb-selfit.md:249: cites `W-SELECT-5` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-09-wb-selfit.md:340: cites `W-SELECT-5` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-09-wb-selfit.md:359: cites `W-SELECT-5` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-09-wb-selfit.md:388: cites `W-SELECT-4` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  [C1] docs/rungs/2026-08-09-wb-selfit.md:431: cites `W-SELECT-5` bare; it is a PRE-DRAFT in WB_SELECT_FINDINGS.md, WB_SELECT_FINDINGS_R2.md and not a ledger row, and this line does not say so
+  … and 93 more
+
+UNATTRIBUTED `W-*-N` TOKENS — 30 citation(s), 4 distinct token(s), reported and NOT red
+  **The ledger's row-id grammar is not a reserved namespace.**
+  These tokens match `W-<NAME>-<N>`, are defined as a row in no
+  document, and are attributed to no ledger. They are a DIFFERENT
+  namespace wearing the same spelling — and a grep-based reader
+  cannot tell them apart, which is #3641's shape one level up.
+  W-BOGUS-9: 1 citation(s) in 1 file(s) — e.g. docs/rungs/2026-08-26-w-disclose.md
+  W-EX-1: 1 citation(s) in 1 file(s) — e.g. docs/whitebox/WB_READER_FINDINGS.md
+  W-MID-5: 1 citation(s) in 1 file(s) — e.g. docs/rungs/2026-08-26-w-disclose.md
+  W-UNW-1: 27 citation(s) in 16 file(s) — e.g. crates/c2-core/src/codegen/select.rs
+
+C5 MENTION-RISK — 481 site(s)
+  #3641: a counter cannot tell an evidence mark from a mention of
+  one, and writing prose ABOUT mark letters moved a subsystem's own
+  agreement census 9/28 -> 13/34.
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[I]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[O]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[O]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[O]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[O]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[O]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[O]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[O]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[O]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[O]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  [C5] docs/whitebox/ref/P_COFF.md:?: `[R]` is backticked — a MENTION by the convention this tool proposes, and counted as an evidence mark by subsys.rs::count_marks today
+  … and 441 more
+
+SUPPRESSION CLASSES — printed, never silent (doc_cite_audit.sh's rule)
+  C1  declared a pre-draft on or beside its own line       51
+  C1  qualified by the document that defines it            29
+  C1  `W-FAKE-*`, the reserved planted-fixture space         0
+  C2  the absence phrase is inside QUOTES (a mention)       6
+  all self-fixture files excluded whole: scripts/prose_audit.py, scripts/provenance_census.py
+
+========================================================================
+I7 — WHAT THIS AUDIT CANNOT SEE, AS A NUMBER
+========================================================================
+Numeric claims on provenance surfaces that NO check above can reach.
+This is not a footnote. An audit whose coverage is unstated will be
+read as total, and the default state of a prose number in this tree is
+UNREACHABLE — it becomes checkable only when a human binds it with a
+COUNT[...] recipe or it happens to fall into C1/C2/C3/C6's shapes.
+
+  crates/** PROV marker lines (649)                       345
+  docs/whitebox/DISCLOSURE.md                             398
+  docs/whitebox/ref/README.md                             195
+  TOTAL UNBOUND                                           938
+  checkable (C1+C2+C3+C4+C6 above)                        520
+  ratio unbound : checkable                              1.8:1
+
+  Also outside scope, by kind rather than by count:
+   * any claim of fact about c2's behaviour — the image and the byte
+     judge grade that, never this tool;
+   * whether a cited ADDRESS holds the instruction claimed (that is
+     addrcheck.py's question, deliberately not folded in);
+   * whether a bound count is bound to the RIGHT population — C4
+     checks the arithmetic of a binding a human wrote;
+   * `file.md:NNN` line-citation staleness — doc_cite_audit.sh's own
+     stated LIMIT, not duplicated here.
+
+  A sample of the unbound residue, so it is not an abstraction:
+    docs/whitebox/DISCLOSURE.md:29: 53 — | **TIER 1** | **the list of 53 file names** (`coff.c`, `coffemit.c`, … — [`C2_MAP.md`](C2_MAP.m
+    docs/whitebox/DISCLOSURE.md:30: 2 — | **TIER 2** | **every address**: the ICE-site xrefs, the derived per-file ranges, and all funct
+    docs/whitebox/DISCLOSURE.md:45: 2 — What tier 2 buys on top is *where* — the ranges that turn the name list into a
+    docs/whitebox/DISCLOSURE.md:48: 7 — validation** in §3.2 (7 ascending runs against 26.5 expected,
+    docs/whitebox/DISCLOSURE.md:49: 10 — P = 1.5 × 10⁻²⁵; every run directory-pure) is a joint fact about tier 1 and
+    docs/whitebox/DISCLOSURE.md:50: 2 — tier 2 and needs both. The **file inventory** needs only tier 1.
+    docs/whitebox/DISCLOSURE.md:74: 17 — | **W-OBJPLAN-1** | **adoption** | **The emit-SEED bit: `0x20` at symbol offset `0x4c`.** c2's w
+    docs/whitebox/DISCLOSURE.md:74: 20 — | **W-OBJPLAN-1** | **adoption** | **The emit-SEED bit: `0x20` at symbol offset `0x4c`.** c2's w
+    docs/whitebox/DISCLOSURE.md:74: 6 — | **W-OBJPLAN-1** | **adoption** | **The emit-SEED bit: `0x20` at symbol offset `0x4c`.** c2's w
+    docs/whitebox/DISCLOSURE.md:74: 870 — | **W-OBJPLAN-1** | **adoption** | **The emit-SEED bit: `0x20` at symbol offset `0x4c`.** c2's w
+    docs/whitebox/DISCLOSURE.md:74: 28 — | **W-OBJPLAN-1** | **adoption** | **The emit-SEED bit: `0x20` at symbol offset `0x4c`.** c2's w
+    docs/whitebox/DISCLOSURE.md:74: 107 — | **W-OBJPLAN-1** | **adoption** | **The emit-SEED bit: `0x20` at symbol offset `0x4c`.** c2's w
+
+VERDICT: FINDINGS 2 over 520 checked claims (123 in dated records, 30 unattributed, 481 mention-risks)

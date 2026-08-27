@@ -71,14 +71,23 @@ kinds: `adoption`, where a value, bit position or field layout is copied, and
 `route:`, where the disassembly said *where to look* and the fact was then
 established from the oracle's own output. Several rows are additionally
 **instrument-only** — the stage tap's site addresses and record layouts, and
-the opcode/encoding tables read by
+the `.ex` reader and opcode/encoding tables read by
 `crates/c2-reference/tests/middle_interfaces.rs` — and touch no emit path and
-no refusal predicate. The real `c2.dll` stays resident under wibo as the judge,
-and the port never grades itself.
+no refusal predicate. **Some rows are not, and the ledger says which.**
+`W-MOP-1`/`-2`/`-3` register c2's opcode numbers, base words, encode forms and
+operand field placements as adopted **into `crates/c2-core/src/codegen/mop.rs`,
+which is on the emit path** — `mop::base_word` is the port's only source of a
+primary opcode for instructions that go through `MachineOp`. Read the row, not
+this paragraph, for which is which. The real `c2.dll` stays resident under wibo
+as the judge, and the port never grades itself.
 
 *(This paragraph used to enumerate "one adoption and two routes" by name. The
 enumeration went stale as the ledger grew, which is exactly the failure mode a
-count-in-prose invites; the ledger is the count.)*
+count-in-prose invites; the ledger is the count. It then said the
+opcode/encoding tables were instrument-only **full stop** — true of the file it
+named and false one crate over from the day `W-MOP-*` were filed, which is the
+same failure one layer up. Board **#3644**, repaired 2026-08-26; the sentence
+now points at the ledger for the discrimination instead of restating it.)*
 
 Honest caveat: verification is differential testing, so a green run is only
 as strong as the corpus it ran against. That's why corpus breadth gets its

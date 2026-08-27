@@ -621,7 +621,16 @@ fn the_opcode_space_is_c2s_own_mnemonic_table() {
 ///
 /// Read from the image, never transcribed — the class byte for each opcode is
 /// `image[0x10b25e48 + opcode]`.
-/// PROV[R] `WB_READER_FINDINGS.md` §3.1 — `DAT_10b25e48`, the `.ex` operand-class table. NO DISCLOSURE ROW EXISTS FOR THIS ADDRESS, and this marker is the first thing in the tree to say so; the decoder reads the class byte out of the image rather than transcribing it, and refuses every opcode outside the traced subset.
+/// PROV[R] `DISCLOSURE.md` `W-EXCLASS-1` — `DAT_10b25e48`, the `.ex` operand-class table; also `WB_READER_FINDINGS.md` §3.1. The decoder reads the class byte out of the image rather than transcribing it, and refuses every opcode outside the traced subset, which is why the debt here is one address and not a table.
+///
+/// **This marker used to read "NO DISCLOSURE ROW EXISTS FOR THIS ADDRESS",
+/// and that sentence stopped being true when `W-EXCLASS-1` was filed**
+/// (`w-disclose`, board `#3642`). The stale text survived because the census
+/// counts *whether* a constant is tagged and never whether the tag's own
+/// prose is true — board `#3645`, repaired here by `w-provaudit` together
+/// with the `W-EXT-1` citation below, per `#3645`'s "both repairs land
+/// together or not at all". `scripts/prose_audit.py` check C2 is the
+/// program that now refuses an absence claim the ledger falsifies.
 const EX_CLASS_TABLE: u32 = 0x10b2_5e48;
 
 /// Width of one `.ex` token, for the closed subset, using c2's own class byte.
@@ -631,9 +640,25 @@ const EX_CLASS_TABLE: u32 = 0x10b2_5e48;
 fn ex_token_width(img: &Image, body: &[u8], p: usize) -> Option<usize> {
     let op = *body.get(p)?;
     let class = *img.blob.get(img.off(EX_CLASS_TABLE + op as u32)?)?;
-    // TYPE word: 1/2/3 bytes (WB_READER_FINDINGS.md §3.2 / DISCLOSURE W-EXT-1),
-    // followed by the globally gated LEB skip, which IS present in these
-    // captures (every `86 41 74` in the corpus is word + one skip byte).
+    // TYPE word: 1/2/3 bytes (DISCLOSURE `W-EXT-1`; WB_READER_FINDINGS.md
+    // §3.2), followed by the globally gated LEB skip, which IS present in
+    // these captures (every `86 41 74` in the corpus is word + one skip byte).
+    //
+    // **The citation was DEAD for as long as this line has existed** — board
+    // `#3645`: `W-EXT-1` was a pre-draft in `WB_READER_FINDINGS.md` §5.3 and
+    // no lane ever carried it, so this comment named a ledger row that was not
+    // in the ledger. `w-provaudit` promoted the row rather than deleting the
+    // citation, and only after re-verifying its addresses against the pinned
+    // image — `#3626`'s precedent is a pre-draft carried on sight that held
+    // two wrong addresses in bold for eight days. Evidence:
+    // `work/w-provaudit/wext1_verify.txt`.
+    //
+    // What the row licenses, and what it does not: the WIDTH RULE below is
+    // adopted (a bit layout read at `0x10c1fe40`). The size index
+    // `(v >> 9) & 7` and the gate on `[DAT_10c472e8 + 0xcac]` are read and are
+    // NOT transcribed anywhere in `crates/`, and the port's own `.ex` width
+    // vocabulary in `crates/c2-il` remains a separate, black-box derivation
+    // from captures.
     let type_len = |q: usize| -> Option<usize> {
         let b1 = *body.get(q)?;
         let word = if b1 & 0x80 == 0 {

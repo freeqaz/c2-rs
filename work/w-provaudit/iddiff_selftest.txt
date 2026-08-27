@@ -1,0 +1,7 @@
+  enumeration: 21 count-bearing rows (hatch-red/ladder-red dropped)
+  control: a table against itself                      -> 0 lines, exit 0
+  #3515's one-TU-refused signature                    -> 14 lines, 7 rows
+  the signature case exits NONZERO
+  a TRUNCATED table -> exit 2 (a short extraction is not 'no differences')
+SELF-TEST PASS: enumeration 21, control silent, #3515's signature found
+  exactly (14 lines / 7 rows) and nonzero, truncation refused.

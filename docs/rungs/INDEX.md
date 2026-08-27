@@ -323,6 +323,7 @@ the header block this table is read from.
 | 2026-08-26 | w-opclass | [w-opclass](2026-08-26-w-opclass.md) | 10 | +0 (no `crates/` byte changed) |
 | 2026-08-26 | w-perfstep | [w-perfstep](2026-08-26-w-perfstep.md) | 16 | 707728/2417794 → 707728/2417794 (29.27% → 29.27%), +0 |
 | 2026-08-26 | w-price4a | [w-price4a](2026-08-26-w-price4a.md) | 10 | +0 — no `crates/`, `scripts/` or `fixtures/` file is written; |
+| 2026-08-26 | w-provaudit | [w-provaudit](2026-08-26-w-provaudit.md) | 13 | +0 (unchanged, and proved by `provenance_census.py --since 0dcfca959`) |
 | 2026-08-26 | w-provenance | [w-provenance](2026-08-26-w-provenance.md) | 9 | +0 |
 | 2026-08-26 | w-provext | [w-provext](2026-08-26-w-provext.md) | 8 | +0 |
 | 2026-08-26 | w-submetric | [w-submetric](2026-08-26-w-submetric.md) | 5 | +0 — no acceptance predicate moved, no emit widened, the admitted |
