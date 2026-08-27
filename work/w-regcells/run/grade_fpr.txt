@@ -1,0 +1,37 @@
+READ  0x10c385c4 -> class0 27 entries, class1 32 entries; classes 2..7 all NULL
+READ  class 0 (GPR) 0x10c37de0 : r11,r10,r9,r8,r7,r6,r5,r4,r3,r31,r30,r29,r28,r27,r26,r25,r24,r23,r22,r21,r20,r19,r18,r17,r16,r15,r14
+READ  class 1 (FPR) 0x10c37f20 : f0,f13,f12,f11,f10,f9,f8,f7,f6,f5,f4,f3,f2,f1,f31,f30,f29,f28,f27,f26,f25,f24,f23,f22,f21,f20,f19,f18,f17,f16,f15,f14
+
+== work/w-regcells/run/fpr_W.txt  (10 text cells)
+  fpc_a1    FREE[f0] SPAN[] dst{f0,f1} FR0=OK FR1=X FR2=OK FR3=X FR4=OK FR6*=X
+  fpc_a2    FREE[f0,f13] SPAN[] dst{f0,f1,f13} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_g1    FREE[f0,f13] SPAN[] dst{f0,f1,f13} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_g2    FREE[f0,f13,f12] SPAN[] dst{f0,f1,f12,f13} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_g3    FREE[f0,f13,f11,f12] SPAN[] dst{f0,f1,f11,f12,f13} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_g4    FREE[f0,f13,f11,f12,f10] SPAN[] dst{f0,f1,f10,f11,f12,f13} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_l3    FREE[f0] SPAN[f31,f30,f29] dst{f0,f1,f29,f30,f31} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_p1    FREE[f0,f13,f10,f12,f11,f9,f8,f7] SPAN[] dst{f0,f1,f7,f8,f9,f10,f11,f12,f13} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_p2    FREE[f0,f13,f12,f11] SPAN[f31,f30,f29,f28,f27,f26,f25,f24,f23,f22,f21,f20,f19,f18,f17,f16] dst{f0,f1,f11,f12,f13,f16,f17,f18,f19,f20,f21,f22,f23,f24,f25,f26,f27,f28,f29,f30,f31} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_w1    FREE[f0,f13,f12] SPAN[] dst{f0,f1,f12,f13} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+
+== work/w-regcells/run/fpr_Xg.txt  (10 text cells)
+  fpc_a1    FREE[f0] SPAN[] dst{f0,f1} FR0=OK FR1=X FR2=OK FR3=X FR4=OK FR6*=X
+  fpc_a2    FREE[f0,f13] SPAN[] dst{f0,f1,f13} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_g1    FREE[f0,f13] SPAN[] dst{f0,f1,f13} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_g2    FREE[f0,f13,f12] SPAN[] dst{f0,f1,f12,f13} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_g3    FREE[f0,f13,f11,f12,f10,f9] SPAN[] dst{f0,f1,f9,f10,f11,f12,f13} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_g4    FREE[f0,f13,f11,f12,f10,f9,f8,f7] SPAN[] dst{f0,f1,f7,f8,f9,f10,f11,f12,f13} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_l3    FREE[f0] SPAN[f31,f30,f29] dst{f0,f1,f29,f30,f31} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_p1    FREE[f0,f13,f10,f12,f11,f9,f8,f7,f6,f5,f4,f3,f2] SPAN[] dst{f0,f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_p2    FREE[f0,f13,f12,f11,f10,f9,f8,f7,f6,f5] SPAN[f31,f30,f29,f28,f27,f26,f25,f24,f23,f22,f21,f20,f19,f18,f17,f16] dst{f0,f1,f5,f6,f7,f8,f9,f10,f11,f12,f13,f16,f17,f18,f19,f20,f21,f22,f23,f24,f25,f26,f27,f28,f29,f30,f31} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+  fpc_w1    FREE[f0,f13,f12] SPAN[] dst{f0,f1,f12,f13} FR0=OK FR1=X FR2=X FR3=X FR4=X FR6*=X
+
+== rival scoreboard (graded cells only; U cells excluded)
+  FR0   the read: 0x10c37f20 as decoded                SURVIVES  20/20 cells
+  FR1   ascending from f1                              REFUTED  0/20 cells  refuted by: fpr_W.txt:fpc_a1, fpr_W.txt:fpc_a2, fpr_W.txt:fpc_g1, fpr_W.txt:fpc_g2, fpr_W.txt:fpc_g3, fpr_W.txt:fpc_g4, fpr_W.txt:fpc_l3, fpr_W.txt:fpc_p1, fpr_W.txt:fpc_p2, fpr_W.txt:fpc_w1, fpr_Xg.txt:fpc_a1, fpr_Xg.txt:fpc_a2, fpr_Xg.txt:fpc_g1, fpr_Xg.txt:fpc_g2, fpr_Xg.txt:fpc_g3, fpr_Xg.txt:fpc_g4, fpr_Xg.txt:fpc_l3, fpr_Xg.txt:fpc_p1, fpr_Xg.txt:fpc_p2, fpr_Xg.txt:fpc_w1
+  FR2   ascending from f0                              REFUTED  2/20 cells  refuted by: fpr_W.txt:fpc_a2, fpr_W.txt:fpc_g1, fpr_W.txt:fpc_g2, fpr_W.txt:fpc_g3, fpr_W.txt:fpc_g4, fpr_W.txt:fpc_l3, fpr_W.txt:fpc_p1, fpr_W.txt:fpc_p2, fpr_W.txt:fpc_w1, fpr_Xg.txt:fpc_a2, fpr_Xg.txt:fpc_g1, fpr_Xg.txt:fpc_g2, fpr_Xg.txt:fpc_g3, fpr_Xg.txt:fpc_g4, fpr_Xg.txt:fpc_l3, fpr_Xg.txt:fpc_p1, fpr_Xg.txt:fpc_p2, fpr_Xg.txt:fpc_w1
+  FR3   descending from f31                            REFUTED  0/20 cells  refuted by: fpr_W.txt:fpc_a1, fpr_W.txt:fpc_a2, fpr_W.txt:fpc_g1, fpr_W.txt:fpc_g2, fpr_W.txt:fpc_g3, fpr_W.txt:fpc_g4, fpr_W.txt:fpc_l3, fpr_W.txt:fpc_p1, fpr_W.txt:fpc_p2, fpr_W.txt:fpc_w1, fpr_Xg.txt:fpc_a1, fpr_Xg.txt:fpc_a2, fpr_Xg.txt:fpc_g1, fpr_Xg.txt:fpc_g2, fpr_Xg.txt:fpc_g3, fpr_Xg.txt:fpc_g4, fpr_Xg.txt:fpc_l3, fpr_Xg.txt:fpc_p1, fpr_Xg.txt:fpc_p2, fpr_Xg.txt:fpc_w1
+  FR4   read direction-confused (f0,f1..f13,f14..f31)  REFUTED  2/20 cells  refuted by: fpr_W.txt:fpc_a2, fpr_W.txt:fpc_g1, fpr_W.txt:fpc_g2, fpr_W.txt:fpc_g3, fpr_W.txt:fpc_g4, fpr_W.txt:fpc_l3, fpr_W.txt:fpc_p1, fpr_W.txt:fpc_p2, fpr_W.txt:fpc_w1, fpr_Xg.txt:fpc_a2, fpr_Xg.txt:fpc_g1, fpr_Xg.txt:fpc_g2, fpr_Xg.txt:fpc_g3, fpr_Xg.txt:fpc_g4, fpr_Xg.txt:fpc_l3, fpr_Xg.txt:fpc_p1, fpr_Xg.txt:fpc_p2, fpr_Xg.txt:fpc_w1
+  FR6*  POST-HOC, unscored: FR0 fully reversed         UNSCORED (post-hoc)
+
+FR5 (the GPR list is reused for both classes) is refuted by construction: no cell's FPR set intersects class 0's names, which are GPRs.
