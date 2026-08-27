@@ -405,8 +405,8 @@ pipeline measured in §4:
 
 **So: F0 is more expensive than both published numbers, and the number is not
 the deliverable.** Anyone re-pricing F0 should re-run
-`scripts/f0_pipeline.py --stages --splice` and price against **34**, not
-against **8**.
+`scripts/f0_pipeline.py --verify`, then `--stages`, then `--splice` (one
+subcommand per invocation), and price against **34**, not against **8**.
 
 ### 6.3 What this does NOT re-price
 
