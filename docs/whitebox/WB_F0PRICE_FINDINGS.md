@@ -198,19 +198,31 @@ tuple in any of the three.**
 > instance of `#3505`'s family in a new dress: **the instrument (byte size)
 > measured itself (driver framing), not the quantity.**
 
-### 3.2 "Unread by any lane" is false for one of the three
+### 3.2 "Unread by any lane" was already false SIX DAYS BEFORE it was written
 
-`0x10b7dd2c` carries a **hand label at `medium` confidence** in `ADDR.tsv`,
-filed by `w-select`:
+`0x10b7dd2c` carries a **hand label at `medium` confidence**, filed by lane
+**`wb-tables`** in [`labels/W-TABLES.tsv`](labels/W-TABLES.tsv) line 21 at
+commit **`84330cae7`, 2026-08-09**:
 
 > `emit.pass.pipeline: A pass-pipeline driver: FUN_10bc6487, then the peephole
 > 0x10c182b4 (gated), then 0x10bd1068, 0x10c113f3, 0x10c2764e, 0x10c2226b. The
 > pass ORDER around register allocation was not established by this lane`
 
-`ADDR.tsv` also shows it cited in `WB_SELECT_FINDINGS_R2.md` (3×) and
-`WB_SELECT_RECONCILED.md` (2×), **both of which predate the price**. The label
-even names the shape — *"a pass-pipeline driver"* — that this lane had to
-re-derive. Registered as **P5**, **HIT**.
+`WB_ITEMF_FINDINGS.md` §6.1 was written **2026-08-15** (`c9ead721b`), **six days
+later**. So *"unread by any lane"* was **already false when it was written** —
+and the label it contradicts **names the exact shape this lane had to
+re-derive** (*"a pass-pipeline driver"*) and lists six of its nine callees.
+
+> ⛔ **This paragraph is itself a correction, filed against this lane's own first
+> draft.** The draft attributed the label to `w-select`, reading `ADDR.tsv`'s
+> **citation** column (which lists `WB_SELECT_FINDINGS_R2.md`, `WB_SELECT_RECONCILED.md`)
+> as if it named the label's **author**. It does not — `ADDR.tsv` cites every
+> document that *mentions the address*; the author is in `labels/*.tsv`. Caught
+> before the lane reported, corrected here rather than silently, and it makes
+> the finding **stronger**, not weaker: a citation postdating the price would
+> have excused it, and the label predating it by six days does not.
+
+Registered as **P5**, **HIT**.
 
 ### 3.3 The band contains a merger run nobody prices
 
