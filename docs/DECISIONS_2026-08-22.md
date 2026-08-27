@@ -1221,3 +1221,42 @@ worktrees are **off limits** — three peers are live.
 
 **Board:** `#3673` this decision · `#3674`–`#3679` `w-shelf`.
 `#3647` remains reserved-and-unspent in the pool. Next free `#3680`.
+
+## Decision 19 — the `W-*-N` namespace collision is resolved by ATTRIBUTION, not by renaming; and `#1406` gets the fence it has been denied three times (2026-08-26)
+
+**Two items `w-provaudit` routed out of its own fence, both correctly.**
+
+### 1. `W-<NAME>-<N>` is claimed by TWO registries and neither is wrong
+
+`W-UNW-1` has **27 citations across 16 files** and is a **rung tag**
+(`docs/rungs/INDEX.md`: `2026-07-30 | W-UNW-1 | unwind-pdata`, allocated
+from the same sequence as `W22`/`W25`/`W26`/`W30`, uniqueness enforced by
+`crates/c2-harness/tests/rung_registry.rs`). It is a `DISCLOSURE.md` row
+**nowhere**. So a reader grepping `W-UNW-1` to re-check a provenance claim
+finds fixtures and no row.
+
+**Resolved by attribution, not renaming.** Renaming touches 27 citations in
+16 files to fix a collision that only bites an unqualified grep, and every
+one of those citations is correct as written. The rule:
+
+- **A provenance citation MUST be qualified** — `DISCLOSURE W-MOP-1`, never
+  bare `W-MOP-1`. This is already the practice at
+  `middle_interfaces.rs:634` and is what `prose_audit.py`'s **C1** check
+  keys on: it fires on a token *attributed* to the ledger and absent from
+  it, so an unqualified rung tag is correctly not a finding.
+- **Both registries keep their spelling.** Each documents the other's
+  claim on it, so the next reader learns it from either end.
+- **The 30 unattributed `W-*-N` citations across 4 tokens** that
+  `w-provaudit` reported as "not findings" are the population this rule
+  converts into either a qualification or a knowingly-bare rung tag.
+
+### 2. `#1406` — the blocker was never capability, it was the fence
+
+Three lanes have been comment-only-fenced out of wiring the provenance and
+prose audits under `cargo test`: `w-provenance`, `w-provext`, `w-provaudit`.
+The last owned the script and **still could not do it**, because *a new
+`tests/` file is not a comment* and `gate.sh` was in no lane's fence either.
+Priced at **~1 hour**. **This decision grants exactly that fence.**
+
+**Board:** `#3680` this decision · `#3681`–`#3686` `w-wire`.
+`#3647` remains reserved-and-unspent. Next free `#3687`.
