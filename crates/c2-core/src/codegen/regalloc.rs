@@ -41,7 +41,8 @@
 //!   (`WB_REGALLOC_FINDINGS.md` §7.1, 6/6, with three rival rules refuted by
 //!   cell count), and it is what this module makes executable and testable.
 //! * **The port supplies exactly one cost array and it is [`Costs::ZERO`]**
-//!   (pinned by `every_production_call_passes_the_zero_cost_array`). A lane
+//!   (pinned by `the_only_cost_array_the_port_constructs_is_zero_and_the_call_
+//!   sites_are_enumerated`). A lane
 //!   that reports "the cost model is confirmed" on the strength of this file
 //!   has confirmed nothing.
 //!
@@ -137,6 +138,11 @@ pub const C2_GPR_POGO: [u8; 25] = [
     32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
 ];
 
+/// PROV-BLOCK[N] `DISCLOSURE W-REGSEL-1` — not load-bearing on their own:
+/// each is [`map_gpr`] applied to the marked raw array one screen up, so the
+/// value is derived from another marked constant and carries no independent
+/// claim. Decoding here rather than transcribing a second list is what keeps
+/// them that way.
 const GPR_DEFAULT_REGS: [Reg; 27] = map_gpr(C2_GPR_DEFAULT);
 const GPR_QGPRRESERVE_REGS: [Reg; 24] = map_gpr(C2_GPR_QGPRRESERVE);
 const GPR_POGO_REGS: [Reg; 25] = map_gpr(C2_GPR_POGO);
@@ -148,8 +154,8 @@ const GPR_POGO_REGS: [Reg; 25] = map_gpr(C2_GPR_POGO);
 /// no cell in any grid uses floating point"*. Closing that cell is lane
 /// `w-regcells`' deliverable (decision 20 §1), not this one's. Held here so
 /// that lane has an executable order to grade against; **no production path
-/// reaches it**, pinned by
-/// `only_the_default_gpr_order_is_reachable_from_production`.
+/// reaches it**, pinned by the call-site enumeration in
+/// `the_only_cost_array_the_port_constructs_is_zero_and_the_call_sites_are_enumerated`.
 ///
 /// Kept in **fp numbering directly**, not c2 indices: the FPR block starts at
 /// c2 index `34` (`fp0`), so the mapping is `fp = c2_index - 34` and re-deriving
@@ -195,19 +201,37 @@ impl RegOrder {
 
 /// **THE DEFAULT, and the only order any production path uses.** `r11, r10, …,
 /// r3` then `r31, r30, …, r14`.
+///
+/// PROV[O] `DISCLOSURE W-REGSEL-1` — the ORDER is obj-confirmed on cells
+/// G1–G4 and P1 with no disassembly (`WB_REGALLOC_FINDINGS.md` §7.1, 6/6),
+/// with three rival rules refuted by cell count: first-free ascending from
+/// `r3` (6 cells), first-free descending from `r12` (9 cells), and
+/// no-preference (4 cells). **This is the mark that separates this module
+/// from its cost arithmetic**, which is `[R]` and stays `[R]`.
 pub const GPR_DEFAULT: RegOrder = RegOrder { name: "gpr-default", regs: &GPR_DEFAULT_REGS };
 
 /// `-QGPRReserve`. Instrument only.
+///
+/// PROV[R] `DISCLOSURE W-REGSEL-1` — `0x10c37e50`. **No obj cell exercises
+/// it**, so it is `[R]` and not `[O]`: the workload does not pass the flag.
 pub const GPR_QGPRRESERVE: RegOrder =
     RegOrder { name: "gpr-qgprreserve", regs: &GPR_QGPRRESERVE_REGS };
 
 /// POGO-instrumented. Instrument only.
+///
+/// PROV[R] `DISCLOSURE W-REGSEL-1` — `0x10c37eb8`. **No obj cell exercises it.**
 pub const GPR_POGO: RegOrder = RegOrder { name: "gpr-pogo", regs: &GPR_POGO_REGS };
 
-/// The FPR order. Instrument only, and `[R]` with no obj cell — see
-/// [`FPR_DEFAULT_REGS`].
+/// The FPR order. Instrument only.
+///
+/// PROV[R] `DISCLOSURE W-REGSEL-1` — `0x10c37f20`, and this one has **no obj
+/// cell in existence at all**; closing it is lane `w-regcells`' deliverable.
+/// See [`FPR_DEFAULT_REGS`].
 pub const FPR_DEFAULT: RegOrder = RegOrder { name: "fpr-default", regs: &FPR_DEFAULT_REGS };
 
+/// PROV[N] `DISCLOSURE W-REGSEL-1` — not load-bearing: a list of the four
+/// marked orders above, carrying no value of its own.
+///
 /// **The enumerable parameter space** — decision 15's *"named, enumerable
 /// parameters whose DEFAULT reproduces c2 byte-exactly"*. Index 0 is the
 /// default.
@@ -228,6 +252,8 @@ pub struct RegSet(u64);
 
 impl RegSet {
     /// The empty set — c2's "spill".
+    ///
+    /// PROV[N] not load-bearing — the identity of a bitset this crate defines.
     pub const EMPTY: RegSet = RegSet(0);
 
     /// `lo..=hi`, empty when `hi < lo`.
@@ -283,6 +309,12 @@ pub struct Costs {
 impl Costs {
     /// What `memset(&DAT_10c435e8, 0, 0x594)` leaves, and the only array any
     /// production path in this port constructs.
+    ///
+    /// PROV[R] `DISCLOSURE W-REGSEL-1` — the `memset` at the head of
+    /// `0x10b2e7f8`. It is `[R]` and not `[O]` on purpose: what 25 measured
+    /// cells establish is that every array they saw was *uniform over its
+    /// allowed set*, which is consistent with zero and does not pin it, since
+    /// a uniform non-zero array selects identically.
     pub const ZERO: Costs = Costs { c: [0; 64] };
 
     pub const fn get(&self, r: Reg) -> Cost {
@@ -626,6 +658,88 @@ mod tests {
     }
 
     // ---- the sets ---------------------------------------------------------
+
+    // ---- the seam control ---------------------------------------------------
+
+    /// Every `.rs` under `crates/c2-core/src`, EXCEPT this file. The scanner
+    /// cannot scan itself: a control that greps for a token it must contain to
+    /// do the grepping cannot pass, and pretending otherwise is how a control
+    /// becomes decoration.
+    fn crate_sources_excluding_this_module() -> Vec<(String, String)> {
+        fn walk(dir: &std::path::Path, out: &mut Vec<(String, String)>) {
+            let Ok(rd) = std::fs::read_dir(dir) else { return };
+            for e in rd.flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    walk(&p, out);
+                } else if p.extension().and_then(|x| x.to_str()) == Some("rs")
+                    && p.file_name().and_then(|x| x.to_str()) != Some("regalloc.rs")
+                {
+                    if let Ok(s) = std::fs::read_to_string(&p) {
+                        out.push((p.display().to_string(), s));
+                    }
+                }
+            }
+        }
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut out = Vec::new();
+        walk(&root, &mut out);
+        assert!(out.len() > 40, "the walk found only {} files", out.len());
+        out
+    }
+
+    /// **P5 of `work/w-regsel/PREREG.md`, and it is the pin that keeps
+    /// `P_REGALLOC.md` §3's correction box TRUE OF `crates/`.**
+    ///
+    /// Every cost array the port constructs is [`Costs::ZERO`]. Nothing in
+    /// this repo has ever observed c2 break a tie on a cost, so nothing in the
+    /// port may ship one — a non-zero array would be a **fitted** value
+    /// wearing a read's provenance, which is the exact failure
+    /// `WHITEBOX_LEVERAGE`'s doctrine exists to prevent.
+    ///
+    /// It also enumerates the call sites, so a second consumer of the selector
+    /// cannot appear without this test naming it.
+    #[test]
+    fn the_only_cost_array_the_port_constructs_is_zero_and_the_call_sites_are_enumerated() {
+        let mut call_sites: Vec<String> = Vec::new();
+        let mut non_default: Vec<String> = Vec::new();
+        for (path, src) in crate_sources_excluding_this_module() {
+            for (n, line) in src.lines().enumerate() {
+                let t = line.trim();
+                if t.starts_with("//") || t.starts_with("///") {
+                    continue;
+                }
+                if t.contains("regalloc::select") {
+                    call_sites.push(format!("{path}:{}", n + 1));
+                }
+                for instrument in ["GPR_QGPRRESERVE", "GPR_POGO", "FPR_DEFAULT"] {
+                    if t.contains(instrument) {
+                        non_default.push(format!("{path}:{}: {t}", n + 1));
+                    }
+                }
+                if let Some(i) = t.find("Costs") {
+                    assert!(
+                        t[i..].starts_with("Costs::ZERO"),
+                        "{path}:{}: every cost array outside this module must \
+                         be the ZERO constant — found `{t}`",
+                        n + 1
+                    );
+                }
+            }
+        }
+        // Two: `alloc::allocate`'s production call, and `alloc`'s own
+        // supply-divergence probe. A third means a new consumer arrived and
+        // this test is the thing that has to be re-read.
+        assert_eq!(call_sites.len(), 2, "call sites moved: {call_sites:?}");
+        assert!(
+            call_sites.iter().all(|s| s.contains("alloc.rs")),
+            "the only consumer is codegen::alloc: {call_sites:?}"
+        );
+        assert!(
+            non_default.is_empty(),
+            "a NON-DEFAULT order reached a production path — every non-default              entry of ORDERS is an instrument state and licenses no emit              (rungs/README.md's decision-surface clause): {non_default:?}"
+        );
+    }
 
     #[test]
     fn regset_ranges_are_exact_including_the_degenerate_ones() {

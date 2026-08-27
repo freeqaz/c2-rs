@@ -1126,8 +1126,35 @@ pub struct Producer {
     pub roots: Option<ProducerRoots>,
 }
 
-/// The top of the pool. `r12` is never allocated (board #543).
-pub const POOL_TOP: u8 = 11;
+/// The top of the pool — and it is **DERIVED**, not fitted, as of lane
+/// `w-regsel` (decision 20, wave 16).
+///
+/// This constant used to read `= 11` under the comment *"`r12` is never
+/// allocated (board #543)"*, which recorded the fact and explained nothing.
+/// It is now the **first entry of c2's own allocation order**, and #543 is
+/// explained by that order rather than by this cap: c2 index `13` — `r12` —
+/// appears in **none** of the three GPR ordered arrays (`0x10c37de0`,
+/// `0x10c37e50`, `0x10c37eb8`), and neither do `r13`, `r0`, `sp` or `toc`.
+/// So `r12` is not "reserved"; it was never in the list.
+///
+/// PROV[O] `DISCLOSURE W-REGSEL-1` — the decoded order is obj-confirmed on
+/// cells G1–G4 and P1 (`WB_REGALLOC_FINDINGS.md` §7.1) with no disassembly;
+/// the array it is decoded from is marked `PROV[R]` at its own site.
+///
+/// [`allocate`] no longer reads this constant — it walks the order. It stays
+/// public because the emitters and their tests name "the register a
+/// one-producer run lands in" and this is that register's name.
+pub const POOL_TOP: u8 = super::regalloc::GPR_DEFAULT.regs[0];
+
+/// The highest **volatile** GPR, and therefore the top of the range a store
+/// run's producers may be allocated out of.
+///
+/// PROV[S] PowerPC EABI — `r3…r12` are volatile. **Not from c2**, and that is
+/// the point: the allowed set the port hands the selector runs up to `r12`,
+/// and `r12` is excluded by c2's ORDER rather than by anything the port
+/// decides. Before `w-regsel` the exclusion was this module's own `POOL_TOP`
+/// cap, which is board #543's *"recorded, not explained"*.
+pub const VOLATILE_GPR_TOP: u8 = 12;
 
 /// Past three producers c2 begins reusing freed registers and the probed cells
 /// disagree. Board #541.
@@ -1255,12 +1282,37 @@ pub fn allocate(producers: &[Producer], pool_floor: u8) -> Option<Vec<(u32, u8)>
     if mixed && !mixed_run_is_served(producers) {
         return None;
     }
-    if pool_floor > POOL_TOP {
-        return None;
-    }
-    if ((POOL_TOP - pool_floor + 1) as usize) < producers.len() {
-        return None;
-    }
+    // **THE RE-EXPRESSION — lane `w-regsel`, decision 20 wave 16.**
+    //
+    // These four lines replace two hand-rolled guards and two hand-rolled
+    // subtractions:
+    //
+    // ```text
+    //   if pool_floor > POOL_TOP { return None }                    // the cap
+    //   if (POOL_TOP - pool_floor + 1) < len { return None }        // the pool
+    //   …
+    //   .map(|(i, p)| (p.id, POOL_TOP - i as u8))                   // the walk
+    // ```
+    //
+    // All three are the **zero-cost case** of c2's selector at `0x10b2e7f8`
+    // over the order at `0x10c37de0`: the producers of a store run are
+    // mutually live, so each colouring removes the register it took, and with
+    // a uniformly-zero cost array the answer is decided entirely by list
+    // order (`P_REGALLOC.md` §3's correction box — every array measured on
+    // all 25 cells of `wb-live`'s and `wb-regalloc`'s grids is zero over its
+    // allowed set). Equality with the old arithmetic is proved exhaustively
+    // over the whole reachable `(n, pool_floor)` grid by
+    // `the_selector_re_expression_is_exact_on_the_whole_grid`.
+    //
+    // The allowed set runs to `VOLATILE_GPR_TOP` = `r12`, **not** to
+    // `POOL_TOP`: `r12`'s exclusion is now c2's order's, which is board #543's
+    // missing explanation.
+    let assign = super::regalloc::select_sequence(
+        &super::regalloc::GPR_DEFAULT,
+        super::regalloc::RegSet::range_inclusive(pool_floor, VOLATILE_GPR_TOP),
+        &super::regalloc::Costs::ZERO,
+        producers.len(),
+    )?;
 
     let mut order: Vec<&Producer> = producers.iter().collect();
     if mixed {
@@ -1292,7 +1344,7 @@ pub fn allocate(producers: &[Producer], pool_floor: u8) -> Option<Vec<(u32, u8)>
             order
                 .iter()
                 .enumerate()
-                .map(|(i, p)| (p.id, POOL_TOP - i as u8))
+                .map(|(i, p)| (p.id, assign[i]))
                 .collect(),
         );
     }
@@ -1314,7 +1366,7 @@ pub fn allocate(producers: &[Producer], pool_floor: u8) -> Option<Vec<(u32, u8)>
         order
             .iter()
             .enumerate()
-            .map(|(i, p)| (p.id, POOL_TOP - i as u8))
+            .map(|(i, p)| (p.id, assign[i]))
             .collect(),
     )
 }
@@ -1337,6 +1389,161 @@ pub fn all_in(producers: &[Producer], pool_floor: u8, reg: u8) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ======================================================================
+    // `w-regsel` — the construct rung's own grading instrument.
+    //
+    // `work/w-regsel/PREREG.md` §4 names the fail axis: **the refusal
+    // domain**. A required-zero BYTE delta is silent about it — today's
+    // fixtures reach a narrow band of `pool_floor`, so a re-expression could
+    // widen or narrow the refusal outside that band and no gate row, no
+    // census count and no emitted byte would move (`#3336`). It is
+    // enumerable, so it is enumerated.
+    // ======================================================================
+
+    /// The pool walk **exactly as it was written before lane `w-regsel`**:
+    /// two hand-rolled guards and one subtraction, `POOL_TOP` baked in.
+    ///
+    /// Kept as the oracle for the equivalence test below and used nowhere
+    /// else. If this ever needs changing to make the test pass, the
+    /// re-expression is not an identity and the rung has failed.
+    fn pre_regsel_pool_walk(n: usize, pool_floor: u8) -> Option<Vec<u8>> {
+        if pool_floor > 11 {
+            return None;
+        }
+        if ((11 - pool_floor + 1) as usize) < n {
+            return None;
+        }
+        Some((0..n).map(|i| 11 - i as u8).collect())
+    }
+
+    /// **P1, and it is the whole construct-rung claim.** `alloc::allocate`'s
+    /// descending pool walk is exactly the zero-cost case of c2's selector
+    /// (`0x10b2e7f8`) over the read GPR order (`0x10c37de0`) restricted to the
+    /// volatile GPRs at or above the pool floor — **same registers, same
+    /// refusals**, on every reachable cell of the grid.
+    ///
+    /// Controls **C1** (reverse the order), **C2** (`r12` at the head) and
+    /// **C5** (drop the allowed-set check) all land here.
+    #[test]
+    fn the_selector_re_expression_is_exact_on_the_whole_grid() {
+        let mut cells = 0usize;
+        let mut refusals = 0usize;
+        for pool_floor in 0..=20u8 {
+            for n in 1..=MAX_MODELLED_PRODUCERS {
+                // Uniform kind and uses == 1 for every producer, so clause 1
+                // is a flat tie and clauses 3/4 run FORWARD on `first`: the
+                // sorted order is the producer order, and the assignment
+                // vector is the pool walk itself with nothing else mixed in.
+                let producers: Vec<Producer> = (0..n)
+                    .map(|i| Producer {
+                        id: 100 + i as u32,
+                        kind: ProducerKind::Constant,
+                        uses: 1,
+                        first: i,
+                        roots: None,
+                    })
+                    .collect();
+                let got = allocate(&producers, pool_floor).map(|a| {
+                    let mut v: Vec<u8> = Vec::new();
+                    for (id, r) in &a {
+                        assert_eq!(*id, 100 + v.len() as u32, "assignment order moved");
+                        v.push(*r);
+                    }
+                    v
+                });
+                let want = pre_regsel_pool_walk(n, pool_floor);
+                assert_eq!(
+                    got, want,
+                    "cell (n={n}, pool_floor={pool_floor}): the selector \
+                     re-expression is not an identity"
+                );
+                cells += 1;
+                if want.is_none() {
+                    refusals += 1;
+                }
+            }
+        }
+        // A denominator, because only a denominator catches an absence
+        // (`#3470`, `#1002`). 21 floors x 3 sizes.
+        assert_eq!(cells, 63, "the grid must be 63 cells");
+        assert_eq!(
+            refusals, 30,
+            "and 27 of them must be REFUSALS — a grid that refused nothing, \
+             or refused everything, would pass an equality test vacuously"
+        );
+    }
+
+    /// **AND THE RE-EXPRESSION IS NOT MERELY EQUAL — IT CORRECTS A LATENT
+    /// ARITHMETIC BUG THAT `MAX_MODELLED_PRODUCERS` IS CURRENTLY HIDING.**
+    ///
+    /// The old guard's supply count was `POOL_TOP - pool_floor + 1`, which at
+    /// `pool_floor < 3` counts `r2`, `r1` and `r0` — `toc`, `sp` and `r0`,
+    /// which appear in **no** c2 allocation order and are never allocatable
+    /// (`P_REGALLOC.md` §2.1). It says twelve registers are available at
+    /// `pool_floor = 0` where the read says nine.
+    ///
+    /// It is unreachable today only because [`MAX_MODELLED_PRODUCERS`] is 3,
+    /// and board **#541** — *"past three producers c2 starts REUSING a freed
+    /// register"* — is the open item that would raise it. The divergence is
+    /// **invisible to the byte judge** and is exactly the class of thing the
+    /// prereg's fail axis exists to see.
+    #[test]
+    fn the_old_pool_arithmetic_counted_three_registers_c2_never_allocates() {
+        let mut diverging = Vec::new();
+        for pool_floor in 0..=12u8 {
+            let old_supply = if pool_floor > 11 { 0 } else { (11 - pool_floor + 1) as usize };
+            let new_supply = (0..=20u8)
+                .filter(|n| {
+                    super::super::regalloc::select_sequence(
+                        &super::super::regalloc::GPR_DEFAULT,
+                        super::super::regalloc::RegSet::range_inclusive(
+                            pool_floor,
+                            VOLATILE_GPR_TOP,
+                        ),
+                        &super::super::regalloc::Costs::ZERO,
+                        *n as usize,
+                    )
+                    .is_some()
+                })
+                .count()
+                - 1; // n = 0 always succeeds
+            if old_supply != new_supply {
+                diverging.push((pool_floor, old_supply, new_supply));
+            }
+        }
+        assert_eq!(
+            diverging,
+            vec![(0, 12, 9), (1, 11, 9), (2, 10, 9)],
+            "the old arithmetic over-counts by exactly r0, sp and toc, and \
+             nowhere else"
+        );
+        // …and every divergence needs MORE producers than the module admits,
+        // which is why no byte moves and why this test is the only thing that
+        // can see it.
+        for (floor, old, _new) in diverging {
+            assert!(
+                old > MAX_MODELLED_PRODUCERS,
+                "pool_floor {floor}: the divergence would be REACHABLE, and \
+                 the rung's required-zero byte delta is then not safe"
+            );
+        }
+    }
+
+    /// `POOL_TOP` is derived from the order rather than fitted — the link that
+    /// makes control **C1**/**C2** propagate out of `regalloc` and into this
+    /// module.
+    #[test]
+    fn pool_top_is_the_head_of_c2s_own_order() {
+        assert_eq!(POOL_TOP, super::super::regalloc::GPR_DEFAULT.regs[0]);
+        assert_eq!(POOL_TOP, 11);
+        assert!(
+            !super::super::regalloc::GPR_DEFAULT.allocatable(VOLATILE_GPR_TOP),
+            "board #543: r12 is in the allowed set the port builds and is \
+             excluded by c2's ORDER — that is the explanation the constant \
+             used to lack"
+        );
+    }
 
     /// Compact spelling: one char per statement, the char naming the value.
     /// `k` picks the kind for every producer in the run.
