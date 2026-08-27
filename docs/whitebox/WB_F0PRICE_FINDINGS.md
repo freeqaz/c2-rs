@@ -66,6 +66,16 @@ passes". It is not three passes.
 > it"* over-reads it: the tree already contains the settlement, dated, and the
 > defect is that one page did not receive it.
 
+**And the contrast makes the defect precise rather than general.**
+`CEILING.md` §6.1 carries the *same* `8` in its table and is **not** defective,
+because the re-price is annotated **beside** it (`:925` — *"F0's scheduler half
+— re-priced 8 → 4 raw on the live trace"*), which is this repo's amend-beside
+convention working exactly as designed; `w-readdocs`' 2026-08-22 annotation
+even states why the table's numbers stay: they are a correct **black-box**
+price and quotable as one. **`P_REGALLOC` §7 quoted the figure with no such
+box.** The fix is therefore an amendment, not a retraction, and it is applied
+in the same commit as this document.
+
 ### 1.1 There IS a units problem beside it, and it is the damaging one
 
 The secondary question the brief raised is real, but it is not the 8-vs-4 pair:
