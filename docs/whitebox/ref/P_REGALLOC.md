@@ -96,8 +96,8 @@ also runs the instruction scheduler three times around it `[R]`.
 | `0x10c37de0` | **the default GPR allocation order**, zero-terminated: `12,11,10,9,8,7,6,5,4, 32,31,…,15` = **`r11,r10,…,r3` then `r31,r30,…,r14`** `[R]` · **`[O]` on cells G1–G4 and P1 with no disassembly** |
 | `0x10c37e50` | the `-QGPRReserve` variant — drops `r14`,`r15`,`r16` `[R]` |
 | `0x10c37eb8` | the POGO-instrumented variant `[R]` |
-| `0x10c37f20` | the FPR order: `fp0, fp13, fp12, …, fp1, fp31, fp30, …, fp14` — **read, never obj-checked**, no cell uses floating point `[R]` |
-| `0x10c385c4` | the 8-entry per-class ordered-list array. **Only class 0 (GPR) and class 1 (FPR) are image-initialised**; class 5 (VMX) is filled at run time; classes 2,3,4,6,7 are NULL — **there is no CR register class** `[R]` |
+| `0x10c37f20` | the FPR order: `fp0, fp13, fp12, …, fp1, fp31, fp30, …, fp14` — ~~**read, never obj-checked**, no cell uses floating point~~ ⭑ **OBJ-CHECKED 2026-08-27 by `w-regcells`: `[O]` on 20 of 20 graded cells at two profiles, 29 of the 32 entries witnessed in position, four rivals refuted (three by ≥18 cells). `fp1`, `fp15`, `fp14` remain `[R]` — no cell reached them.** [`../WB_REGCELLS_FINDINGS.md`](../WB_REGCELLS_FINDINGS.md) §2 |
+| `0x10c385c4` | the 8-entry per-class ordered-list array. **Only class 0 (GPR) and class 1 (FPR) are image-initialised**; class 5 (VMX) is filled at run time; classes 2,3,4,6,7 are NULL — **there is no CR register class** `[R]` · ⭑ **`[O]` 2026-08-27**: `ctr` (register 84) and `r12` (register 13) are in **no** list, and neither displaces a value with nine candidates live across it (`pd_ctr_p`, `pd_lr`) — **a physical def only narrows if the register is in the class's list** |
 | `0x10b022cc` | operand-type nibble → register class: nibbles `1..4`,`6` → 0 (GPR), `5` → 1 (FPR), `12` → 5 (VMX), everything else `-1` `[R]` |
 | `0x10c435e8` | the selector's cost array, `0x594` bytes = **357 ints, one per register number** (`0…356`) — an independent confirmation of the register table's size `[R]` |
 | `0x10c43b7c` | **the priority worklist head** `[R]` |
@@ -347,8 +347,54 @@ source-level use counts is fitting the wrong variable.
   The *candidate set* is still not buildable, but for a different reason: a
   candidate is a **(symbol, live-range version)** pair, and the versions need
   the backward walk over the **lowered** tuple list.
-* **F4**'s non-call physical def: **still no obj cell in existence.**
+* ~~**F4**'s non-call physical def: **still no obj cell in existence.**~~
+  ⛔ **REFUTED 2026-08-27 by `w-regcells`, and it was wrong when it was
+  written.** [`../WB_REGCELLS_FINDINGS.md`](../WB_REGCELLS_FINDINGS.md) §4.
+  `scripts/gt_argperm.py --pure` has been compiling the shape since 2026-07 —
+  **213 cells** ([`../../CODEGEN_ARG_PERM.md`](../../CODEGEN_ARG_PERM.md) §2,
+  §5), each a **tail call** whose body is *"no frame, no saved registers,
+  nothing but the moves"*: no `bl` anywhere, a bare physical def of every
+  argument register, candidates live across it. **Two documents eleven
+  directories apart, neither citing the other** — the same failure shape as
+  `#1823`, a claim about the *index* read as a claim about the corpus.
+  The state now, decomposed:
+  * **(a)** a non-call physical def of an allocatable GPR and **(b)** a
+    candidate live across it: **`[O]` on 216 cells** (213 + `pd_tail`,
+    `pd_perm6`, `pd_perm8`).
+  * **(c)** the narrowing separated from ordinary pressure: **`[R]`, and
+    unreachable by construction** — on every shape this front end can express,
+    a register a bare def makes unavailable is *simultaneously held by a live
+    candidate*. Registered as the ceiling **before** the deciding cell was
+    compiled.
+  * **New and separable**: `pd_perm8` (σ = four 2-cycles, eight formals, one
+    free volatile) hands its four scratches out **`r11`, `r31`, `r30`, `r29`**
+    — this list, continuing into the callee-saved tail, **framing a function
+    with no call tuple ahead of it**. So the permutation scratch is an
+    **allocated candidate**, not a hardwired temp, and
+    `CODEGEN_FRAMED_CALLS.md` §3.2's *"broken with `r11`"* is a consequence of
+    `r11` being **entry 0**. Board **#3708**.
+  * **Price**: `WB_ITEMF_FINDINGS.md` §6.1's *"1 grid lane to obtain the first
+    obj cell"* is **spent and was already paid**; F4's remaining price is
+    **1, not 2**. And F4's fail-closed boundary *"refuse on any bare physical
+    def"* was priced free and **is not** — it withdraws every permuted call,
+    a class `crates/c2-core/src/codegen/calls.rs` emits today. Board **#3710**.
 * **The cost model itself**: this record has the comparator, not the cost
   function's derivation.
-* The FPR order at `0x10c37f20` is **read and never obj-checked** — no cell in
-  any grid uses floating point.
+* ~~The FPR order at `0x10c37f20` is **read and never obj-checked** — no cell in
+  any grid uses floating point.~~ ⭑ **CLOSED 2026-08-27 by `w-regcells`:
+  `[O]`, 20 of 20 graded cells, 0 unscoreable, at both `/O1` and `/Ox`.** The
+  selector's *"ties go to the earliest entry of the per-class ordered list"*
+  (§3) is now confirmed on a **second class**. Residue: `fp1`, `fp15`, `fp14`
+  unwitnessed, and the **cost arithmetic is untouched and stays `[R]`** — every
+  cost array in this grid is uniformly zero over its allowed set, exactly as
+  §3's correction box says of the earlier grids. Board **#3706**, **#3707**.
+
+> ### ⭑ 2026-08-27 — the two class lists are ONE rule, and it is now `[O]` on both
+>
+> Predicted in `work/w-regcells/PREREG.md` §0 **before the grid was compiled**:
+> each class's list is **the class's scratch register, then the class's
+> ARGUMENT registers descending, then the class's non-volatiles descending.**
+> Class 0: `r11`, `r10…r3`, `r31…r14`. Class 1: `fp0`, `fp13…fp1`, `fp31…fp14`.
+> **A port needs one list generator, not two tables**, and this is the shape to
+> check class 5 (VMX) against when `FUN_10bfb00d`'s run-time fill is read.
+> Board **#3709**.
