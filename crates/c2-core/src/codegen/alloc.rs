@@ -1139,7 +1139,10 @@ pub struct Producer {
 ///
 /// PROV[O] `DISCLOSURE W-REGSEL-1` — the decoded order is obj-confirmed on
 /// cells G1–G4 and P1 (`WB_REGALLOC_FINDINGS.md` §7.1) with no disassembly;
-/// the array it is decoded from is marked `PROV[R]` at its own site.
+/// the array it is decoded from carries a read-tier marker at its own site
+/// (spelled out, not written as the literal token: `provenance_census.py`
+/// scans `crates/` for it and cannot tell a mark from a mention of one —
+/// `#3641`, and `prose_audit.py`'s C5 flagged this very line).
 ///
 /// [`allocate`] no longer reads this constant — it walks the order. It stays
 /// public because the emitters and their tests name "the register a
