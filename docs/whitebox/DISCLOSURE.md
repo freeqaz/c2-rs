@@ -349,8 +349,8 @@ above this line changes. Board **#3629**–**#3634**.*
 
 **This ledger is the register of adoptions. It is not a measure of the port.**
 It answers *"which disassembly-derived facts entered `crates/`, and from what
-address"* — **24 rows**, exhaustively.
-<!-- COUNT[ledger-rows] = 24 — checked by scripts/prose_audit.py C3 on every
+address"* — **25 rows**, exhaustively.
+<!-- COUNT[ledger-rows] = 25 — checked by scripts/prose_audit.py C3 on every
      run. This sentence read "seventeen rows" while the table held 21, which is
      #3643's defect class turned on the ledger itself: a false count inside a
      provenance document, well-formed and uncounted. Found by prose_audit's
