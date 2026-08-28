@@ -337,3 +337,4 @@ the header block this table is read from.
 | 2026-08-27 | w-regsel | [w-regsel](2026-08-27-w-regsel.md) | 5 | +0 (no acceptance predicate moved, no emit widened, no `.text` |
 | 2026-08-27 | w-wire-1406 | [w-wire-1406](2026-08-27-w-wire-1406.md) | 12 | +0 (unchanged; `provenance_census.py` TOTAL identical at both ends) |
 | 2026-08-28 | w-floor | [w-floor](2026-08-28-w-floor.md) | 11 | +0 — zero `crates/` bytes, zero `scripts/` bytes, zero gate rows |
+| 2026-08-28 | w-sched-r7 | [w-sched-r7](2026-08-28-w-sched-r7.md) | 9 | +0 — no `crates/` or `fixtures/` file is touched |

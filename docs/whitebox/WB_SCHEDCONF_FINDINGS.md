@@ -234,6 +234,32 @@ Data deliverable: [`ref/SCHED_LATENCY.tsv`](ref/SCHED_LATENCY.tsv), 121 cells.
 
 ---
 
+> ### ⛔ THIS SECTION IS AMENDED, 2026-08-28, BY LANE `w-sched` (board **#3725**–**#3727**)
+>
+> Amended beside, never rewritten. **§3.1's 1,461/1,461 stands, reproduced
+> figure-for-figure on another tree**, as do all three of §3.4's corrections to
+> `P_DAG` §2. What is corrected is what the 100.00 % is evidence *for*, and one
+> number is attributed to the wrong clause:
+>
+> * **§3.4 bullet 2's *"This clause fires on 1,121 of the 1,461 graded pairs —
+>   the single most common path"* is WRONG.** The 1,121 is §3.3's
+>   `excl-0x17/0x30f` **exit** count — the terminator at `0x10be5d8b`, a
+>   different clause. The head case at `0x10be5d55` is not an exit, has no row
+>   in that histogram, and fires on **1,428 of 2,889 walks and 0 of the 1,461
+>   graded pairs**. `1,428 − 60 last-of-fixture = 1,368 = the UNGRADED count`,
+>   exactly: the clause's firing set and the graded set are disjoint, because
+>   the instrument check that makes the rest of §3 trustworthy discards every
+>   walk it fires on.
+> * **§3.3's qualification is right in spirit and wrong in its list.** By
+>   single-clause mutation, **four** clauses are pinned and **five** are not,
+>   and the unconfirmable set is *not* the never-fired set — it contains the
+>   most-fired clause in the rule and omits nothing that a mutation kills.
+> * **§3.2's cap result is a RAY.** A cap of 13 scores 1,461/1,461; 12 goes
+>   red. The tap pins `cap ≥ 13` against a read `0x50` = 80 — **6.2× slack**.
+>
+> Instrument: [`scripts/mutate_regions.py`](scripts/mutate_regions.py). Full
+> grade: [`WB_SCHEDCHK_FINDINGS.md`](WB_SCHEDCHK_FINDINGS.md) §3.
+
 ## 3. The region rule (P3)
 
 Instrument: [`scripts/grade_regions.py`](scripts/grade_regions.py), over
@@ -612,6 +638,37 @@ on the correct answer** and drove a correction — and §3's instrument check,
 which rejected 1,368 of 2,829 candidate pairs.
 
 ---
+
+> ### ⛔ ITEM 2's PRICE IS AMENDED, 2026-08-28, BY LANE `w-sched` (board **#3730**)
+>
+> ***"Expose `node+0x26` and `node+0x38` in the tap (≈0.5 day). Three fields in
+> `tap_walk_tuples`"*** — **wrong about the record and wrong about the time**,
+> and this matters beyond the estimate because `#3716` carries item **1** into
+> F0 as an UNPRICED term.
+>
+> * `+0x26`/`+0x38` are **DAG node** fields; `tap_walk_tuples` walks **tuple**
+>   records. The join is one-way, `node+0x1c` → tuple (written `0x10b327de`,
+>   read `0x10c1c1ea`). `FUN_10b327cd` stores **nothing** into the tuple in its
+>   158 bytes, so **no tuple→node back-pointer exists**.
+> * `tap_walk_tuples` has **one** caller, the `region` site at region-finder
+>   **entry** (`0x10be643e`), and `build_dag` calls the DAG reset `0x10b32008`
+>   at `0x10b328e8`. At the hook, region *k*'s DAG **does not exist yet**.
+> * **A cheaper mechanism than the one this item describes does exist**, and it
+>   is not a back-pointer: the DAG object at `DAT_10c435e0` carries head/tail at
+>   `[+0]`/`[+4]` and a node count at `[+0x24]`, nodes chain on `+0x4`, and each
+>   node names its tuple at `+0x1c`. Because the reset runs *inside*
+>   `build_dag`, the **existing** region hook can read region *k−1*'s finished
+>   DAG with no new site. `[R]`, with two named caveats.
+> * Corrected shape, published as a shape and not a wall clock
+>   (`WHITEBOX_LEVERAGE` §3.1, and `#3716`'s own refusal): a new walker over a
+>   second record type reached through a global, a join field, a per-node
+>   plausibility fence and cap, a canonical-stream schema extension in
+>   `crates/c2-reference/src/stage.rs`, a determinism/neutrality re-run, and a
+>   confirmation probe on the join. **Strictly more than 0.5 d.**
+>
+> **F0 is not re-priced by that lane and is not re-priced here.** The figure
+> stays `#3716`'s: *≥ 10 raw sub-lanes + 2 UNPRICED*.
+> [`WB_SCHEDCHK_FINDINGS.md`](WB_SCHEDCHK_FINDINGS.md) §7.
 
 ## 8. What a follow-up lane should do, priced
 
