@@ -154,6 +154,22 @@ Ranked, sized, with what stopped each. Full list at
    `optmap.py`'s remaining `(reg)` rows are still unresolved. This lane
    resolved four of them (`-pgi#`, `-pgo#`, `-pi#`, `-po#`) because the mode
    chain needed them, and found **two alias pairs on one word each**.
+7. **`hatch-red` cannot run for ANY lane in this wave, and the cause is on
+   `master`.** Not this lane's to fix and **not filed as a board row** — all six
+   of `#3768`–`#3773` are spent and a lane writes rows only inside its own
+   block — so it is recorded here and in the report instead.
+   `work/w-front3/hatch.py apply` refuses `HATCH-DRIFT` on
+   `crates/c2-il/src/func/body/shapes/calls.rs`: the `call-arg-lit-permuted`
+   edit's needle is `if !in_place && !one_moved_at_two &&
+   !permutation_decided_downstream {` and `master`'s line 596 reads
+   `… && !permutation_decided_downstream && !lit_inserted {`. **It predates
+   this lane by construction** — `git diff master..HEAD -- crates/` is empty
+   and the worktree copy is clean, so the drift is `master`'s. Until the needle
+   is re-anchored, every lane's gate line will read
+   `GATE: PASS (HATCH-RED REFUSED)` and `#1406`'s point stands: that run does
+   not establish what a full run establishes. `#3219`'s liveness counter reports
+   *"1 consecutive run"*, which its own text says is a **floor**, not the age —
+   this worktree's `gate_row_history.tsv` starts empty.
 
 ## What this lane did not reach
 
