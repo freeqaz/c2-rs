@@ -421,7 +421,7 @@ has ever compiled and measured"*. The cheap way to break it is one
 > where the lane's own transcript already contained the refutation.
 
 Three cells, all through the existing `c2rs stage counts` tap at **`/O1 /Oi
-/EHsc /GS- /c` — the workload's own profile** (`work/w-s7/probe/`). The
+/EHsc /GS- /c` — the workload's own profile** (`docs/whitebox/grids/w-s7/`, tracked). The
 discriminator is registered by the mechanism and not chosen after the fact:
 `after0` is S7's unconditional call site, `sched0` sits inside the range
 `0x10b7dfea` skips when the bit is **set**, so **`after0 − sched0` is the count
@@ -671,10 +671,10 @@ python3 docs/whitebox/scripts/dump_tuple_splice.py \
         compilers/X360/16.00.11886.00/c2.dll             # section 3.1, section 3.2
 
 # section 4.3 — the cell, at the workload's own profile
-./target/release/c2rs stage counts --fixtures work/w-s7/probe/s7_ctl.cpp   # sched0=3 after0=3
-./target/release/c2rs stage counts --fixtures work/w-s7/probe/s7_seh.cpp   # sched0=1 after0=3
-./target/release/c2rs stage counts --fixtures work/w-s7/probe/s7_cxx.cpp   # sched0=2 after0=2
-./target/release/c2rs compile work/w-s7/probe/s7_seh.cpp --keep-obj /tmp/seh.obj
+./target/release/c2rs stage counts --fixtures docs/whitebox/grids/w-s7/s7_ctl.cpp   # sched0=3 after0=3
+./target/release/c2rs stage counts --fixtures docs/whitebox/grids/w-s7/s7_seh.cpp   # sched0=1 after0=3
+./target/release/c2rs stage counts --fixtures docs/whitebox/grids/w-s7/s7_cxx.cpp   # sched0=2 after0=2
+./target/release/c2rs compile docs/whitebox/grids/w-s7/s7_seh.cpp --keep-obj /tmp/seh.obj
 strings -a /tmp/seh.obj | grep -E '__C_specific_handler|[.]pdata|[.]xdata'
 
 # the toolchain resolution, since this lane got it wrong once
