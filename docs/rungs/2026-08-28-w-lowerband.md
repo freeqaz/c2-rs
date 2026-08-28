@@ -117,11 +117,18 @@ enumerated; the converter is not opened, not modelled and not priced.
    by any instruction"* is exact about direct-addressed stores while `k`'s
    address sits in the `-vol#` descriptor — so `k = 3` is the **load-time**
    value and the run-time one is not settled by that enumeration.
-5. **A datum nobody had read** (`#3735`): the favour-speed bit `DAT_10c2e310` is
-   **`1` in the image**, so C8's size test **defaults off** and `/O1` must be
-   clearing the bit for it to bind. The same read reconciles §2.1's *"`ebx = 0`"*
-   with §6.5's *"`ebx` holds `[sym+0x4c]`"* — both true, `ebx` is re-zeroed at
-   `0x10b5fc42`/`0x10b5fc67`.
+5. **The favour-speed bit has THREE homes** (`#3735`), and this row **replaces
+   a claim this lane nearly shipped.** `DAT_10c2e310`'s image value is `1` —
+   non-zero means C8's size test is *skipped* — but `FUN_10b82338` writes it
+   from bit 23 of a **per-function option word**, so *"the default is on,
+   therefore `/O1` clears it"* does **not** follow and is not claimed. What does
+   follow: on the branch where `DAT_10c3de20 == 2` the same bit goes to a
+   **different global** and `DAT_10c2e310` is **never written**; and
+   `0x10b82352` stores that option word into `[[…]+0x80]+0x76`, **the exact
+   field S3 reads with mask `0x800000`** — so S3 restores the favour-speed bit
+   to the **callee's own `/Ot`-vs-`/Os` setting** for its expansion. The same
+   read also reconciles §2.1's *"`ebx = 0`"* with §6.5's *"`ebx` holds
+   `[sym+0x4c]`"* — both true; `ebx` is re-zeroed at `0x10b5fc42`/`0x10b5fc67`.
 6. **A trap closed before anyone walks into it** (`#3732`): §2.1b's one-sided
    `SIZE < T ⇒ inlined` holds at `T = 98` and **must not be raised to the
    image's 128**. Re-reading `w-sizebracket`'s already-committed 168 cells — no

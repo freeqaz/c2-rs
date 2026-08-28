@@ -50,6 +50,11 @@ the reference set is enumerated — this repo's most repeated defect
 | id | instrument | population | result |
 |---|---|---|---|
 | **E1/E2** | [`work/w-lowerband/f50.py`](../../work/w-lowerband/f50.py) | the **independent objdump boundary set** — `objdump -d -M intel`, **424,232** decoded instructions | **125** instructions with a memory operand at `+0x50`, split by width and direction |
+| **E3** | Ghidra's decompiler, `decomp_all.c` (control-flow-driven, not linear) | the whole export | **0** `ushort` assignments at `+0x50` image-wide; **11** `ushort` read expressions |
+| **E5** | [`work/w-lowerband/bytescan.py`](../../work/w-lowerband/bytescan.py) | **all 1,232,384 raw bytes of `.text`**, decode-independent, **2,136** encoding patterns | **exactly one** 16-bit-store encoding present |
+| **E4** | [`work/w-lowerband/fieldmap.py`](../../work/w-lowerband/fieldmap.py) | 67 functions referencing `+0x50`, 207 referencing `+0x4c` | **29** touch both; the struct filter in §1.3 |
+| **E4b** | [`work/w-lowerband/dwordwrites.py`](../../work/w-lowerband/dwordwrites.py) | all **17** dword stores/RMWs at `+0x50` | **0** are on this record; **0** left needing a hand read |
+
 
 > **The 424,232 and `#3721`'s 425,871 are the same set counted two ways, and
 > the difference is reconciled rather than left to look like a discrepancy.**
@@ -59,10 +64,6 @@ the reference set is enumerated — this repo's most repeated defect
 > instructions. `#3721` counts addressed lines, which is the right denominator
 > for an *alignment* question; this lane counts decoded instructions, which is
 > the right one for an *operand* question. Neither is wrong.
-| **E3** | Ghidra's decompiler, `decomp_all.c` (control-flow-driven, not linear) | the whole export | **0** `ushort` assignments at `+0x50` image-wide; **11** `ushort` read expressions |
-| **E5** | [`work/w-lowerband/bytescan.py`](../../work/w-lowerband/bytescan.py) | **all 1,232,384 raw bytes of `.text`**, decode-independent, **2,136** encoding patterns | **exactly one** 16-bit-store encoding present |
-| **E4** | [`work/w-lowerband/fieldmap.py`](../../work/w-lowerband/fieldmap.py) | 67 functions referencing `+0x50`, 207 referencing `+0x4c` | **29** touch both; the struct filter in §1.3 |
-| **E4b** | [`work/w-lowerband/dwordwrites.py`](../../work/w-lowerband/dwordwrites.py) | all **17** dword stores/RMWs at `+0x50` | **0** are on this record; **0** left needing a hand read |
 
 **E4b is P1 form (b) taken to the end**, because a 32-bit store writes `SIZE`
 without appearing in any 16-bit enumeration. **Its control went RED on the
@@ -339,12 +340,52 @@ The split is clean in the *emitted* size and absent in `SIZE`. This reproduces
    the ceiling's run-time value is settled only when `k`'s is.
 
 **And a datum nobody has recorded: the favour-speed bit's IMAGE value is 1.**
-`DAT_10c2e310`, raw `.data`, file offset `0x12d510`, dword `0x00000001`. So c2's
-**default is favour-speed ON, i.e. C8's size test defaults OFF**, and `/O1` must
-be *clearing* it for the test to bind — the opposite polarity from the way a
-default is usually assumed. Its neighbours, for the same reason:
-`DAT_10c2e2fc = 0`, `DAT_10c2e308 = 0`, `DAT_10c2eab0 = 0` (all raw `.data`);
-`DAT_10c3de20` and `DAT_10c46318` are **BSS, zero at load**.
+`DAT_10c2e310`, raw `.data`, file offset `0x12d510`, dword `0x00000001` — and
+non-zero means C8's size test is **skipped**. Its neighbours, for the same
+reason: `DAT_10c2e2fc = 0`, `DAT_10c2e308 = 0`, `DAT_10c2eab0 = 0`,
+`DAT_10c2eaac = 0` (all raw `.data`); `DAT_10c3de20`, `DAT_10c3dddc`,
+`DAT_10c6f1c8` and `DAT_10c46318` are **BSS, zero at load**.
+
+**But the image value is only half the story, and the other half corrects a
+claim this lane nearly shipped.** `FUN_10b82338` (`0x10b82338`, 374 B) loads a
+**per-function option word** `eax = [ctx+0x1c]` and writes
+`DAT_10c2e310 = (eax >> 23) & 1` at `0x10b8238d`–`0x10b82392` — §2.1's
+*"option-word bit 23, written at `0x10b8238d`"*, confirmed. On that branch the
+image default is overwritten unconditionally, so *"the default is ON, therefore
+`/O1` must be clearing it"* **does not follow** and is not claimed.
+
+> #### What DOES follow: the bit has THREE homes, and one branch never writes the global at all `[R]`
+>
+> ```
+> 10b82352:  89 41 76               mov    DWORD PTR [ecx+0x76],eax   ; ecx = [[ctx]+0x80]
+> 10b8236b:  83 3d 20 de c3 10 02   cmp    DWORD PTR ds:0x10c3de20,0x2
+> 10b82378:  74 20                  je     0x10b8239a                 ; -> the OTHER global
+> 10b8237a:  39 3d ac ea c2 10      cmp    DWORD PTR ds:0x10c2eaac,edi
+> 10b82380:  74 09                  je     0x10b8238b
+> 10b82382:  83 3d c8 f1 c6 10 02   cmp    DWORD PTR ds:0x10c6f1c8,0x2
+> 10b82389:  74 0f                  je     0x10b8239a
+> 10b8238b:  8b c8 / c1 e9 17 / 23 ce
+> 10b82392:  89 0d 10 e3 c2 10      mov    DWORD PTR ds:0x10c2e310,ecx  ; the global
+> 10b8239a:  8b c8 / c1 e9 17 / 23 ce
+> 10b823a1:  89 0d dc dd c3 10      mov    DWORD PTR ds:0x10c3dddc,ecx  ; a DIFFERENT global
+> ```
+>
+> When `DAT_10c3de20 == 2`, or when `DAT_10c2eaac != 0 && DAT_10c6f1c8 == 2`,
+> the same bit goes to **`DAT_10c3dddc`** and **`DAT_10c2e310` is never written,
+> keeping its image value of `1` — i.e. C8's size test off.**
+>
+> And `0x10b82352` stores the whole option word into `[[…]+0x80]+0x76`, which is
+> **exactly the field §2's S3 reads at `0x10b624d4` with mask `0x800000` — bit
+> 23 again**. So S3 is not a profile-weight mechanism: **the charge restores the
+> favour-speed bit to the CALLEE's own recorded `/Ot`-vs-`/Os` setting for the
+> duration of that callee's expansion**, and puts the caller's back afterwards.
+> §1 names `[sym+0x80]` as the POGO profile record; it is also where a
+> function's option word is kept.
+>
+> **Liveness, stated rather than assumed.** S3 needs `[sym+0x80] != 0` **and**
+> bit 10 of `[[sym+0x80]+0xb1]`; the `+0x76` fill at `0x10b82352` needs
+> `DAT_10c2eaac != 0`, whose image value is `0`. **Read, and not exercised
+> here.**
 
 ---
 

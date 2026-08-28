@@ -971,9 +971,24 @@ read** and **whether the test runs at all**.
    enumeration, and since `DAT_10c46318` is BSS the ceiling's run-time value is
    settled only when `k`'s is.
 
-**And a datum nobody had recorded: the favour-speed bit's IMAGE value is `1`** —
-`DAT_10c2e310`, raw `.data`, file offset `0x12d510`. c2's **default is
-favour-speed ON, i.e. C8's size test defaults OFF**, and `/O1` must be
-*clearing* it for the test to bind. Neighbours: `DAT_10c2e2fc`, `DAT_10c2e308`,
-`DAT_10c2eab0` are all `0` in raw `.data`; `DAT_10c3de20` and `DAT_10c46318` are
-**BSS, zero at load**.
+**And a datum nobody had read: the favour-speed bit's IMAGE value is `1`** —
+`DAT_10c2e310`, raw `.data`, file offset `0x12d510` — and non-zero means C8's
+size test is **skipped**. `FUN_10b82338` writes it from **bit 23 of a
+per-function option word** (`0x10b8238d`–`0x10b82392`), confirming §2.1's
+attribution; **so the default being ON does NOT license "therefore `/O1` clears
+it"**, and this page does not claim it.
+
+**What does follow is that the bit has THREE homes.** When `DAT_10c3de20 == 2`,
+or `DAT_10c2eaac != 0 && DAT_10c6f1c8 == 2`, the same bit is written to a
+**different global `DAT_10c3dddc`** at `0x10b823a1` and **`DAT_10c2e310` is
+never written, keeping `1`** — C8's size test off. And `0x10b82352` stores the
+option word into `[[…]+0x80]+0x76`, **exactly the field §6.7.2's S3 reads at
+`0x10b624d4` with mask `0x800000` — bit 23 again**. So **S3 restores the
+favour-speed bit to the CALLEE's own `/Ot`-vs-`/Os` setting for the duration of
+its expansion**, rather than being a profile-weight mechanism. S3 needs
+`[sym+0x80] != 0` and bit 10 of `[[sym+0x80]+0xb1]`, and the `+0x76` fill needs
+`DAT_10c2eaac != 0` (image `0`): **read, not exercised here**.
+
+Neighbours, same read: `DAT_10c2e2fc`, `DAT_10c2e308`, `DAT_10c2eab0`,
+`DAT_10c2eaac` are all `0` in raw `.data`; `DAT_10c3de20`, `DAT_10c3dddc`,
+`DAT_10c6f1c8` and `DAT_10c46318` are **BSS, zero at load**.
