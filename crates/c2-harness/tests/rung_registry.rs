@@ -332,6 +332,8 @@ fn rung_index_is_generated_and_current() {
 /// Construct rungs dated on or after this must name a fail axis. Dated records
 /// before it stay exactly as written (`docs/rungs/README.md`; the same
 /// grandfathering `#3689`'s ceiling uses, and for the same reason).
+///
+/// PROV[N] a policy cutoff date; reaches no emitted byte.
 const FAIL_AXIS_CUTOFF: &str = "2026-08-28";
 
 /// The indented `Key: value` header block at the top of a rung doc, as raw

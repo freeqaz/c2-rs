@@ -427,6 +427,8 @@ pub fn select_sequence(order: &RegOrder, allowed: RegSet, cost: &Costs, n: usize
 /// [`RegSet::range_inclusive`], chosen so that each order's head, its
 /// volatile/callee-saved seam, and its exhaustion are all inside the
 /// enumeration.
+///
+/// PROV[N] an instrument domain; reaches no emitted byte.
 const SURFACE_WINDOWS: [(u8, u8); 14] = [
     (0, 31),
     (3, 31),

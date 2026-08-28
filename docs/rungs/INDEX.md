@@ -336,3 +336,4 @@ the header block this table is read from.
 | 2026-08-27 | w-regprio | [w-regprio](2026-08-27-w-regprio.md) | 8 | +0 — additive by instruction (decision 20 §2); required-zero byte delta |
 | 2026-08-27 | w-regsel | [w-regsel](2026-08-27-w-regsel.md) | 5 | +0 (no acceptance predicate moved, no emit widened, no `.text` |
 | 2026-08-27 | w-wire-1406 | [w-wire-1406](2026-08-27-w-wire-1406.md) | 12 | +0 (unchanged; `provenance_census.py` TOTAL identical at both ends) |
+| 2026-08-28 | w-doctrine | [w-doctrine](2026-08-28-w-doctrine.md) | 6 | +0 (no acceptance predicate moved, no emit widened, no `.text` |

@@ -141,6 +141,51 @@ test already admits all three: kinds 2 and 3 use the `Fixtures: none — <reason
    becomes a tautology over a purely additive tree with no production caller.
    A rung in that state says so and names the criterion that CAN fail (`ir0`
    used four executed mutations of the framer with distinct signatures).
+
+   > **THE REFUSAL-DOMAIN CLAUSE (added 2026-08-28, board #3723/#3743, lane
+   > `w-doctrine`) — AND IT IS ENFORCED, NOT ADVISED.** The cost clause above
+   > says a byte delta is silent about cost. `#3723` measured something worse:
+   > **the byte delta is silent about a real widening of the EMIT itself.**
+   > `w-regsel`'s control C6 opened the caller's allowed register set from the
+   > volatiles to `r0..r31`, so c2's callee-saved tail became reachable from a
+   > production path — and **471 of 475 crate tests still passed, no encoder
+   > row moved, `GATE: PASS` at both ends, and the identity diff read 0 lines
+   > over 21 rows.** The widening would have shipped.
+   >
+   > The reason is not fixable inside the criterion. **The gate can only see
+   > emissions the corpus EXERCISES**, and a widening whose new emissions are
+   > unexercised is invisible to it — `#1236`'s shape, a guard green precisely
+   > because the offender is out of scope. **The required-zero byte delta stays
+   > necessary and is now known not to be sufficient**, and `#290`'s pattern is
+   > not wrong so much as under-specified for this class.
+   >
+   > So, for a construct rung over an **allowed set, a candidate set, or any
+   > refusal boundary**:
+   >
+   > * **The surface goes in `c2_core::surface::SURFACES`**, with a domain that
+   >   runs **past what any fixture reaches** — that is the whole mechanism, and
+   >   a domain that stops where the corpus stops reproduces the defect. The
+   >   rendered whole is committed as `crates/c2-core/src/surface/DOMAIN.txt`
+   >   and four `cargo test` assertions grade it: the live domain equals the
+   >   baseline; the source markers and the registry are a bijection; every
+   >   surface meets a cell and a refusal floor; and every boundary-named
+   >   `const` in the crate is either covered by a surface or listed in
+   >   `UNCOVERED` under a ratchet. **A widening then has exactly one way
+   >   forward — re-bless the baseline — which puts it in the diff as text
+   >   somebody can read.** It is not stopped, it is made impossible to make by
+   >   accident.
+   > * **The rung header carries `Fail axis:`**, non-empty, and
+   >   `rung_registry.rs` asserts it for every construct rung dated 2026-08-28
+   >   or later. Earlier records stay exactly as written.
+   >
+   > **What this does NOT do, said here so it is not discovered later.** The
+   > registry covers what somebody registered; `UNCOVERED` is a hole with a
+   > ratchet on it, not a closed hole, and its own list carries two false
+   > positives of the name screen that finds it. The header field checks
+   > **presence, not measurement** — it cannot tell a named axis from a
+   > measured one. And none of it is in `gate.sh`'s verdict or licenses any
+   > emit (`docs/FUNCTION_BYTE_MATCH.md` §0): the sole judge stays real
+   > `c2.dll` under wibo plus a byte-exact obj compare.
 3. **Characterization lane** (precedent: `2026-08-13-wb-live.md`): reads real
    c2's behavior — whitebox addresses plus obj-grid confirmation — and lands
    findings, not code. `Fixtures: none — characterization: <the question>`;

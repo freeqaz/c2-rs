@@ -90,6 +90,8 @@ impl Row {
 
 /// The refusal marker. A surface that never emits this is not a refusal
 /// boundary and [`Surface::min_refusals`] is what says so.
+///
+/// PROV[N] an instrument token; reaches no emitted byte.
 pub const REFUSE: &str = "REFUSE";
 
 /// A registered decision surface.
@@ -121,6 +123,8 @@ pub struct Surface {
 /// allocation, frame layout and branch reach — because a registry that only
 /// covered `w-regsel`'s own grid would be that lane's test moved to a shared
 /// file rather than a general instrument.
+///
+/// PROV[N] an instrument registry; reaches no emitted byte.
 pub const SURFACES: &[Surface] = &[
     Surface {
         name: "alloc.allocate",
@@ -176,6 +180,8 @@ pub const SURFACES: &[Surface] = &[
 /// domain yet, and saying so is the point. [`UNCOVERED_RATCHET`] is what stops
 /// the list growing without anyone noticing (`#3689`: a number printed on every
 /// run drifted 16 to 18 inside one wave because printing is not gating).
+///
+/// PROV[N] an instrument's own coverage table; reaches no emitted byte.
 pub const UNCOVERED: &[(&str, &str)] = &[
     ("DS_MAX", "the `ds`-form displacement field; a real boundary, no enumerated domain yet"),
     ("HEAD_SLOTS_MAX", "a shape-recogniser cap, not an emit boundary"),
@@ -194,6 +200,8 @@ pub const UNCOVERED: &[(&str, &str)] = &[
 /// The ceiling on [`UNCOVERED`]. Raising it is a one-line edit and that is
 /// fine; what is now impossible is raising it **silently**, which is the only
 /// thing that ever actually happens (`#3689`).
+///
+/// PROV[N] an instrument ceiling; reaches no emitted byte.
 pub const UNCOVERED_RATCHET: usize = 12;
 
 /// Render the whole registry to the canonical text that `surface/DOMAIN.txt`
