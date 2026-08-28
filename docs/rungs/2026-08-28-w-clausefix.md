@@ -267,6 +267,21 @@ fourteen remaining rows were correct — and they were, on a check
 one place this lane could have been embarrassed by its own new instrument and
 was not.
 
+> **AND SIX FOR SIX IS NOT A CLEAN SWEEP — THE PREREG WAS WRONG SOMEWHERE IT
+> HAD NOT WRITTEN A FALSIFIER.** `PREREG` §4 predicted that the ABSENCE check's
+> blast radius would fire when a **peer** adopted the budget model. It fired at
+> the first full suite run, from **this lane's own test file**, by a mechanism
+> the prereg did not consider — a *mention* in a doc comment, not a
+> counterpart — and none of this lane's controls could see it, because
+> `git grep` is blind to untracked files and the file was unstaged when they
+> ran. §10.
+>
+> **This is the lane's most useful result and it is not on the falsifier
+> table**, which is itself the finding: F1–F6 all covered *the addresses*,
+> because that is what the lane thought it was doing. The half it was also
+> doing — building something that runs in every peer's suite — got a paragraph
+> of prose and no falsifier, and that is exactly the half that broke.
+
 ## Gate evidence
 
 | lane | result |
