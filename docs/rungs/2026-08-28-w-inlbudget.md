@@ -256,14 +256,15 @@ this lane refuted are its own.**
 
 | lane | result |
 |---|---|
-| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **see §5.2** |
-| `scripts/gate.sh --jobs 16 --require-graded` | **see §5.1** |
-| `scripts/gate_identity_diff.sh base tip` | **see §5.1** |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **60 targets, 1991 passed, 0 failed** at the tip — §5.2 |
+| `scripts/gate.sh --jobs 16 --require-graded` | **18/18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, 7038 fixture-verdicts** — §5.1 |
+| `scripts/gate_identity_diff.sh base tip` | **0 lines over 21 rows** — §5.1 |
 | fixtures, `c2rs census` | none claimed — construct rung, `Census: +0` |
 
 Transcripts: `work/w-inlbudget/gate_base.out` (taken on the clean tree at
 `4b79bf46a` **before** any `crates/` edit), `work/w-inlbudget/gate_tip.out`,
-`work/w-inlbudget/cargo_test_tip.out`.
+`work/w-inlbudget/cargo_test_tip.out` (the first run, with its two failures
+left in) and `work/w-inlbudget/cargo_test_tip2.out` (the final tip, clean).
 
 ### 5.1 The gate and the identity diff
 
@@ -315,10 +316,19 @@ same pair one wave ago and it is worth two lines rather than a footnote:
 | `rung_registry::rung_index_is_generated_and_current` | this rung doc landed without `docs/rungs/INDEX.md` being regenerated | `scripts/gen_rung_index.sh` — the index is **generated**, and running the generator is not the hand-edit the seam table forbids |
 | `provenance::prose_audit_tree_run_finds_no_false_count_binding` | `DISCLOSURE.md`'s own `COUNT[ledger-rows] = 24` and the sentence beside it, against a table that `W-INLBUDGET-1` made **25** rows long | both updated to 25 |
 
-Re-run on the fixed tree: **`provenance` 4 passed / 0 failed, `rung_registry`
-4 passed / 0 failed.** No other target moved, and nothing in the 1,989 is a
-`crates/` regression: the port's own suite is `c2-core` 680 passed / 0 failed at
-this tip, with 31 of them in `splice::tests` including the nine this lane added.
+**The whole suite was then re-run at the final tip `36c2c42ff`:**
+
+```
+C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast
+  60 targets, 1991 passed, 0 failed   (work/w-inlbudget/cargo_test_tip2.out)
+```
+
+**60 / 1991 / 0.** Both transcripts are committed, the failing one included:
+a rung that shows only its clean re-run has hidden the two failures that were
+real. `+2` over the first run's 1,989 is the two targets that had aborted
+before finishing their cases, not new tests. The port's own suite is `c2-core`
+680 passed / 0 failed, 31 of them in `splice::tests` including the nine this
+lane added.
 
 > **The doc-sensitive targets are the ones a zero-`crates/`-byte change can
 > actually break**, which is the opposite of where attention goes on an adoption
