@@ -1,10 +1,11 @@
-# WB_S7 — stage S7 read whole: the splicer nobody priced is **unreached**, and the partition that found it counted 4 of 11 order authors
+# WB_S7 — stage S7 read whole: the splicer nobody priced is **unreached on this workload and one `__try` from live**, and the partition that found it counted 4 of 11 order authors
 
 **Lane `w-s7`, 2026-08-28.** Characterization lane under
 [`DECISIONS_2026-08-22.md`](../DECISIONS_2026-08-22.md) § Decision 21 §2.
 Prereg frozen at `92e199e7f` in [`WB_S7_PREREG.md`](WB_S7_PREREG.md), **before
-the image was opened**; graded in §7 (3 HIT · 3 MISS · 1 PARTIAL · 1 NOT
-ESTABLISHED, and **the misses are the lane's two best results**).
+the image was opened**; graded in §7 (**4 HIT · 2 MISS · 1 PARTIAL · 1 NOT ESTABLISHED**, after §4.3
+corrected this document's own P3; the misses are still two of the lane's best
+results, and the **corrected** prediction is the best one).
 
 Instrument: [`scripts/f0_pipeline.py`](scripts/f0_pipeline.py) — reused, with
 two subcommands added to it rather than a second enumerator built beside it —
@@ -26,20 +27,34 @@ record reached through `func+0`, and that one bit selects between two complete
 unwind-lowering routes. **Four of S7's ten passes — 1,462 B of 2,489, 59 % —
 are behind it, including BOTH of the stage's tuple splicers.**
 
-**The splicer `0x10b35c78` is code this project has never executed.** Its only
-two callers are `0x10b7e032` and `0x10c21b03`, and `0x10c21b03`'s only caller is
-`0x10b7e032` — *both inside the gate*. And the bit is measured **clear on
-2,946 of 2,946 functions across 384 fixtures** at the workload's own mode, by a
-measurement this repo already owns: `w-restim`'s `sched0` site `0x10b7e00c`
-sits inside the block that `0x10b7dfea` skips when the bit is **set**, and
-`sched0` fired on every function.
+**The splicer `0x10b35c78` is code this project has never executed — and it is
+one `__try` away from executing.** Its only two callers are `0x10b7e032` and
+`0x10c21b03`, and `0x10c21b03`'s only caller is `0x10b7e032` — *both inside the
+gate*. The bit is measured **clear on 2,946 of 2,946 functions across 384
+fixtures** at the workload's own mode, by a measurement this repo already owns:
+`w-restim`'s `sched0` site `0x10b7e00c` sits inside the block that `0x10b7dfea`
+skips when the bit is **set**, and `sched0` fired on every function.
+
+> ⛔ **§4.3 IS A CORRECTION TO THIS DOCUMENT'S FIRST DRAFT AND YOU SHOULD READ IT
+> BEFORE QUOTING ANY NUMBER IN THIS SECTION.** The draft said the settling cell
+> could not be compiled *"because no `wibo` is present on this box"*. **That was
+> false — `command -v` is a probe over `PATH`, not over the toolchain, and the
+> sibling build `../wibo/build/release/wibo` is what `Toolchain::locate()`
+> actually resolves and what this lane's own gate run used.** The cell was
+> compiled: **the bit is set by `__try`, it is per-function, and C++ `try/catch`
+> at `/EHsc` does not set it.** So *"unreached by the measured corpus"* stands
+> and *"unreachable in the configurations this project compiles"* is **refuted**
+> — by this lane, against itself. §4.4 states exactly which claims survive.
 
 > **So `w-f0price`'s *"2 of the 4 confirmed splicers sit in stages F0 prices at
-> 1 lane and 0 lanes"* is right about the counting and wrong about the
-> conclusion for one of the two: `0x10b35c78` is not an unpriced cost, it is an
-> unreached branch.** Which raises the harder question the enumeration could not
-> ask — *which passes does this project's corpus actually run* — and this lane
-> answers it for S7: **five of ten, 1,027 B of 2,489.**
+> 1 lane and 0 lanes"* is right about the counting and INCOMPLETE about the
+> conclusion for one of the two: on the dc3 workload as written today
+> `0x10b35c78` is an unreached branch, and on the first TU that uses the
+> `SEH_TRY` macro dc3 already ships it is an unpriced cost.** Which raises the
+> harder question the enumeration could not ask — *which passes does this
+> project's corpus actually run, and what turns the rest on* — and this lane
+> answers both for S7: **five of ten, 1,027 B of 2,489, and the switch is
+> `__try`.**
 
 **And the partition that produced "4 confirmed splicers" is the larger error.**
 Read whole from the image, the splice band is `0x10bd3815`..`0x10bd3901` and
@@ -371,12 +386,106 @@ the measurement is one this repository already owned:
 | unreached (4 behind the bit, 1 behind POGO) | 5 | 1,462 | 59 % |
 
 **This is a statement about the corpus, not a proof about the image.** 384
-fixtures is a large but bounded population, and no fixture in it is known to use
+fixtures is a large but bounded population, and no fixture in it uses
 `__try`/`__except`. The honest claim is *"unreached by everything this project
-has ever compiled and measured"*, and the cheap way to break it is one
-`__try`-bearing cell — **which this lane did not compile, because no `wibo` is
-present on this box** (`command -v wibo` → not found; the compilers are). Named
-as open item 2.
+has ever compiled and measured"*. The cheap way to break it is one
+`__try`-bearing cell — **and §4.3 compiles it.**
+
+### 4.3 THE CELL — the bit IS settable at the workload's own profile, and it is `__try`
+
+> ⛔ **THIS SECTION CORRECTS THIS LANE'S OWN FIRST DRAFT.** That draft said
+> *"which this lane did not compile, because no `wibo` is present on this box
+> (`command -v wibo` → not found; the compilers are)"*. **The premise was
+> false and the conclusion drawn from it was the wrong kind of claim.**
+> `CLAUDE.md` § "Project context" states the resolution order — *"wibo from
+> `PATH` or a sibling `../wibo` build"* — and `Toolchain::locate()`
+> (`crates/c2-reference/src/lib.rs`:303) implements exactly that: `C2RS_WIBO`,
+> else `<root>/../wibo/build/release/wibo`, else `PATH`. Measured in this
+> worktree:
+>
+> ```
+> command -v wibo            -> (not on PATH)
+> readlink -f ../wibo        -> /home/free/code/milohax/wibo
+> ls -la ../wibo/build/release/wibo  -> -rwxr-xr-x 5204048 Aug  5 01:18
+> ```
+>
+> `.claude/worktrees/wibo` is a **symlink to the sibling checkout**, placed so
+> every worktree's `../wibo` resolves. **`command -v` is a probe over `PATH`;
+> it is not a probe over "is the toolchain available", and this lane
+> substituted the first for the second while writing §6, which corrects
+> `w-f0price` for the identical substitution.** Two further signals were in
+> this lane's own output and were printed without being read: the gate reported
+> **7,038 fixture-verdicts, sweep 19,460/19,556, cross 90,424/90,812**, none of
+> which exists without the seam; and `grep -c "SKIP: toolchain absent"` over
+> the test log returned **0**. Seventh instance of the family, and the only one
+> where the lane's own transcript already contained the refutation.
+
+Three cells, all through the existing `c2rs stage counts` tap at **`/O1 /Oi
+/EHsc /GS- /c` — the workload's own profile** (`work/w-s7/probe/`). The
+discriminator is registered by the mechanism and not chosen after the fact:
+`after0` is S7's unconditional call site, `sched0` sits inside the range
+`0x10b7dfea` skips when the bit is **set**, so **`after0 − sched0` is the count
+of functions with the bit set.**
+
+| cell | functions | `sched0` | `after0` | bit set on |
+|---|---:|---:|---:|---:|
+| `s7_ctl.cpp` — three ordinary functions, **control** | 3 | **3** | 3 | **0** |
+| `s7_seh.cpp` — `ctl_a` verbatim + `__try/__except` + `__try/__finally` | 3 | **1** | 3 | **2** |
+| `s7_cxx.cpp` — `ctl_a` verbatim + C++ `try/catch` at `/EHsc` | 2 | **2** | 2 | **0** |
+
+**Three results, and the second and third are the ones that matter.**
+
+1. **`sym+0x20` bit 12 is set by `__try`.** Two `__try` functions, two bits set.
+2. **It is per-function, not per-compiland.** `ctl_a` is byte-identical source in
+   the control and in the SEH cell, and it still reaches `sched0` in a TU where
+   two other functions do not. This is what the control was for.
+3. **It is NOT C++ EH and NOT `/EHsc`.** The `try/catch` cell compiles at
+   `/EHsc`, lowers real C++ EH, and leaves the bit **clear on both functions**.
+   So the struck annotation in `WB_F0PRICE_FINDINGS.md` §4.1 was wrong about
+   more than the flag name: the construct is **SEH**, a different feature.
+
+**Obj-side, closing the loop from the read to the object:** `s7_seh.obj`
+contains `__C_specific_handler`, `.pdata` and `.xdata`; `s7_ctl.obj` contains
+**none of the three**. That is precisely what `0x10c21b03`'s body predicts
+(`FUN_10c05869("__C_specific_handler")`, symbol kind `'S'` = `0x53`), so the
+gated block is not merely entered — its output reaches the obj.
+
+> **So the brief's question — *"is `0x10b35c78` reachable in the configurations
+> this project compiles"* — is answered YES, and this lane's first draft
+> answered it NO on an unchecked premise.** `0x10b35c78`, `0x10c21b03`,
+> `0x10be46f0` and S7's mode-0 merger run all execute on any TU containing a
+> `__try`, at the workload's own flags.
+
+### 4.4 What survives, and what it is now a statement about
+
+The corpus claim is unchanged and was independently re-measured: **`sched0` ==
+`after0` on the control**, and `w-restim`'s 2,946/2,946 stands. What narrows is
+the *scope* of the conclusion.
+
+| claim | status after §4.3 |
+|---|---|
+| the bit is clear on all 2,946 measured functions | **stands** |
+| S7 is 5 of 10 passes / 1,027 B reached **on that corpus** | **stands** |
+| `0x10b35c78` executed zero times in those 2,946 compilations | **stands** |
+| *"unreached in the configurations this project compiles"* | **REFUTED by §4.3** — it is reached by any `__try`, at the workload's flags |
+| *"41 % live"* as a property of the stage | **REFUTED as a property**; it is a property of a corpus with no SEH in it |
+
+**And the dc3 workload is one `#include` away from the other side.** Measured:
+
+* `dc3-decomp/src/macros.h`:10 defines **`#define SEH_TRY __try`** (with
+  `SEH_EXCEPT`, `SEH_FINALLY`), so the workload's own header already names the
+  construct — and `grep -rlw SEH_TRY` over `src/` and `native/` returns
+  **only the definition**: zero users today.
+* Of the **4,213** `.obj` files in `dc3-decomp/build`, exactly **one** contains
+  `__C_specific_handler` — `xdk/XBOXKRNL/xboxkrnl.obj`, an XDK import object
+  (machine `0x01f2`, archive long-name members), **not** one of the 878 c2-compiled
+  TUs and not in the workload list.
+
+> **So the correct statement is narrow and it is contingent: S7's second half is
+> dead on the dc3 workload *as it is written today*, and the first TU that uses
+> the `SEH_TRY` macro dc3 already ships turns 1,462 B of S7 — including both of
+> its tuple splicers — live.** That is a materially different fact from
+> "unreached", and it is the one a port has to plan for.
 
 ### 4.1 What still authors order in the reached half
 
@@ -482,19 +591,22 @@ raise it. Only the gloss is wrong.)*
 
 | # | prediction | p | result |
 |---|---|---:|---|
-| **P1** | the `0x1000` bit is not a `/EHsc` mirror but a per-function/per-compiland flag c2 writes | 0.65 | **PARTIAL.** Not `/EHsc` — confirmed hard (2,946/2,946 clear at `/EHsc`), and §1.3's box strikes the annotation. But the second clause is **wrong in an interesting way**: c2 does **not** write it — there is no site in the image that sets bit `0x1000` at any `+0x20`. It comes from the IL |
+| **P1** | the `0x1000` bit is not a `/EHsc` mirror but a per-function/per-compiland flag c2 writes | 0.65 | **PARTIAL, and §4.3 settles all three clauses.** *Not `/EHsc`* — **HIT** twice: clear on 2,946/2,946 at `/EHsc`, and a C++ `try/catch` cell compiled at `/EHsc` leaves it clear. *Per-function* — **HIT**, proven by the `ctl_a` control surviving in the SEH TU. *A flag c2 writes* — **MISS**: no site in the image sets bit `0x1000` at any `+0x20`; it arrives from the IL, and the source construct is **`__try`** |
 | **P2** | `0x10b35c78`'s splice is an unlink, so it cannot author a new position | 0.50 | **MISS.** Unlink **and** insert-after — a genuine move, and the answer to `P_BLOCKORDER` §6 open #2 |
-| **P3** | the splicer **is** reachable on this project's configurations | 0.70 | **MISS, and it is the lane's headline.** Reachable only behind the gate; the gate is clear on 2,946 of 2,946 functions over 384 fixtures. §1.1 of the prereg registered in advance that this was the outcome the lane wanted *less* and the project wanted *more* |
+| **P3** | the splicer **is** reachable on this project's configurations | 0.70 | **HIT — and this document's first draft scored it MISS on an unchecked premise.** Reachable only behind the gate, and the gate is clear on 2,946 of 2,946 *measured* functions; but §4.3 compiles a `__try` cell at the workload's own flags and the gate opens. **The corpus claim stands; the configuration claim does not.** The prereg's §1.1 registered that a dead splicer was the outcome the lane wanted *less* — which is exactly why this is written up as a self-refutation and not quietly amended: the draft reached the answer it had pre-committed to disliking and then **stopped checking** |
 | **P4** | ≥ 3 of the ten are dead in this project's configurations | 0.55 | **HIT — 5 of 10, 59 % of the bytes.** (The first draft of `--s7` scored this by substring-matching `0x1000` on the gate text and marked `0x10c12099` dead, whose gate needs the bit **clear**; caught and replaced with a per-row flag before the number was quoted) |
 | **P5** | ≥ 2 distinct live order-authors in S7 at `/O1 /EHsc /GR` | 0.70 | **HIT**, and **not in the form registered** — flagged low-information in prereg §1.2 because it leaned on the mode-0 merger, and the merger turns out unreached. It survives on three passes the prereg never named: `0x10c12099`, `0x10c275a7`, `0x10b36169` (§4.1) |
 | **P6** | `w-f0price`'s A/B/C is wrong on ≥ 1 S7 row | 0.40 | **HIT, nine rows over the 34 and one inside S7** — `0x10c12099` is group C and hands the insert-before primitive to a builder by pointer |
 | **P7** | order is frozen at `0x10b3421b`'s entry | 0.75 | **MISS.** Four of its callees splice first; the freeze point is `0x10b338f5` (§4.2) |
 | **P8** | ≥ 3 `cover=none` rows have a prior repo mention | 0.60 | **HIT — all seven of S7's, and 8 of the 34 excluding `WB_F0PRICE`'s own tables** (§6) |
 
-**The three misses are the deliverable.** P3 turned the brief's question from
-*"what does this unpriced splicer cost"* into *"this project has never run it"*;
-P2's miss is the read `P_BLOCKORDER` §6 asked for; P7's miss moves the freeze
-point one level and names the four passes between.
+**P2's miss is the read `P_BLOCKORDER` §6 asked for; P7's miss moves the freeze
+point one level and names the four passes between. P3 is the one worth reading
+twice**: it turned the brief's question from *"what does this unpriced splicer
+cost"* into *"this project has never run it"* — and then, once the cell was
+actually compiled, into the sharper *"this project has never run it, and one
+`__try` turns it on"*. **A prediction graded MISS on an unchecked premise is
+worse than either a HIT or an honest MISS**, because it ships as settled.
 
 ### 7.1 The `#3505` check this lane owes
 
@@ -521,13 +633,19 @@ supplied the artifact.
 
 ## 8. What this lane did NOT establish
 
-1. **What sets `sym+0x20` bit 12.** c2 never does; it is read from the IL and
-   the read site is unlocated (§1.3). This is the single fact that would convert
-   §4's corpus statement into a configuration statement.
-2. **Whether any `/O1 /EHsc` source construct sets it.** No `__try`-bearing cell
-   was compiled — **`wibo` is not installed on this box**, so the reference seam
-   cannot run here at all. One cell would settle it and it is the cheapest
-   follow-up in this document.
+1. **Which IL field carries `sym+0x20` bit 12.** c2 never sets it (§1.3), and
+   §4.3 identifies the *source construct* (`__try`) without locating the *IL
+   field* or c2's read of it. The consequence is bounded: the reachability
+   question is answered, and what is missing is the mechanism.
+2. ~~**Whether any `/O1 /EHsc` source construct sets it.** No `__try`-bearing
+   cell was compiled — **`wibo` is not installed on this box**, so the reference
+   seam cannot run here at all.~~ — **STRUCK: the premise was false and the cell
+   is compiled in §4.3.** `wibo` **is** installed, as the sibling build
+   `Toolchain::locate()` resolves; `command -v` probes `PATH`, and `PATH` is not
+   the resolution order `CLAUDE.md` documents. **The construct is `__try`**, it
+   is per-function, and C++ `try/catch` at `/EHsc` does not set the bit. What
+   remains open is narrower: **which IL field `c1xx` writes it from**, which is
+   a front-end read and not this lane's.
 3. **Whether group C is closed.** Narrower than `--splice`'s premise and still
    an assumption (§3.3's box). Closing it needs a pattern scan for inline
    `tuple+0`/`tuple+0x10` rewiring, which this lane did not build.
@@ -551,6 +669,16 @@ python3 docs/whitebox/scripts/f0_pipeline.py --splice    # w-f0price section 4.2
 
 python3 docs/whitebox/scripts/dump_tuple_splice.py \
         compilers/X360/16.00.11886.00/c2.dll             # section 3.1, section 3.2
+
+# section 4.3 — the cell, at the workload's own profile
+./target/release/c2rs stage counts --fixtures work/w-s7/probe/s7_ctl.cpp   # sched0=3 after0=3
+./target/release/c2rs stage counts --fixtures work/w-s7/probe/s7_seh.cpp   # sched0=1 after0=3
+./target/release/c2rs stage counts --fixtures work/w-s7/probe/s7_cxx.cpp   # sched0=2 after0=2
+./target/release/c2rs compile work/w-s7/probe/s7_seh.cpp --keep-obj /tmp/seh.obj
+strings -a /tmp/seh.obj | grep -E '__C_specific_handler|[.]pdata|[.]xdata'
+
+# the toolchain resolution, since this lane got it wrong once
+command -v wibo ; readlink -f ../wibo ; ls -la ../wibo/build/release/wibo
 
 # the controls, watched failing
 C2RS_IMAGE=/etc/hostname  python3 docs/whitebox/scripts/f0_pipeline.py --verify ; echo $?
