@@ -415,7 +415,9 @@ delta against its base is **one new test file**, and the condition predates it.
 
 ```
 C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast
-  __SUITE__
+  61 targets, 1984 passed, 0 failed, 2 ignored  (exit=0)
+  0 occurrences of `SKIP: toolchain absent` -- the toolchain was present,
+  which C2RS_REQUIRE_TOOLCHAIN=1 turns from an assumption into a hard failure
 ```
 
 > **The FIRST run of this suite is reported and not hidden**, because it is
