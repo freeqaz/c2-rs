@@ -1,0 +1,21 @@
+== CONTROL SUITE, work/w-lowerband/PREREG.md SS5 ==
+image sha256: c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+
+-- C1 POSITIVE (f50.py, objdump listing): the known store must be in the WRITE set
+10b9bf6c  word   WRITE  WORD PTR [esi+0x50],ax                        FUN_10b9b8e9
+C1: GREEN
+
+-- C2 NEGATIVE, WATCHED RED (f50.py on a listing whose disp is edited 0x50 -> 0x51)
+   planted lines: 1
+C2: RED as required -- the enumerator can miss, so its zero is evidence
+
+-- C3 POSITIVE (bytescan.py, raw image): exactly one 16-bit store encoding
+   WORD-PTR encodings found: 1
+
+-- C4 NEGATIVE, WATCHED RED (bytescan.py on an image with that one byte patched 0x50 -> 0x51)
+   patched copy written; original untouched
+C4: RED as required -- the byte scan can miss
+
+-- C5: the patched copy is NOT the tree's image
+   24aee87a912afe0ca9a33625923f688bb0237dc2efded72d318f8a2b6761f393  /tmp/wl_c2_planted.dll
+   c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258  compilers/X360/16.00.11886.00/c2.dll

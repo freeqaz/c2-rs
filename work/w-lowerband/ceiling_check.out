@@ -1,0 +1,54 @@
+cells: 168 unique tags (profiles: ['O1', 'Ox'], families: ['arith', 'fine', 'loop', 'mix', 'static'])
+
+=== profile O1  (82 cells)
+  rule `.gl SIZE < 128` vs the verdict:
+    SIZE <  128 and inlined :  49
+    SIZE <  128 and KEPT    :   8   <- refutes 'SIZE<ceil => inlined'
+    SIZE >= 128 and kept    :  17
+    SIZE >= 128 and INLINED :   8   <- refutes 'SIZE>=ceil => kept'
+       KEPT below the ceiling : mix_007_O1       SIZE 103 attr 104 callee_text 116
+       KEPT below the ceiling : mix_008_O1       SIZE 115 attr 104 callee_text 132
+       KEPT below the ceiling : mix_009_O1       SIZE 127 attr 104 callee_text 148
+       KEPT below the ceiling : fine_002_O1      SIZE 103 attr 104 callee_text 116
+       KEPT below the ceiling : fine_003_O1      SIZE 109 attr 104 callee_text 124
+       KEPT below the ceiling : fine_004_O1      SIZE 115 attr 104 callee_text 132
+       KEPT below the ceiling : fine_005_O1      SIZE 121 attr 104 callee_text 140
+       KEPT below the ceiling : fine_006_O1      SIZE 127 attr 104 callee_text 144
+       INLINED above          : arith_016_O1     SIZE 147 attr 104 callee_text 28
+       INLINED above          : arith_020_O1     SIZE 179 attr 104 callee_text 24
+       INLINED above          : arith_014_O1     SIZE 131 attr 104 callee_text 28
+       INLINED above          : arith_024_O1     SIZE 211 attr 104 callee_text 28
+       INLINED above          : static_014_O1    SIZE 131 attr 72 callee_text 28
+       INLINED above          : static_016_O1    SIZE 147 attr 72 callee_text 28
+       INLINED above          : static_020_O1    SIZE 179 attr 72 callee_text 24
+       INLINED above          : static_024_O1    SIZE 211 attr 72 callee_text 28
+  per-family boundary in .gl SIZE (last inlined, first kept]:
+    arith    n= 16  inlined SIZE max   211   kept SIZE min     -
+    fine     n= 13  inlined SIZE max    97   kept SIZE min   103
+    loop     n= 16  inlined SIZE max    96   kept SIZE min     -
+    mix      n= 21  inlined SIZE max    91   kept SIZE min   103
+    static   n= 16  inlined SIZE max   211   kept SIZE min     -
+
+=== profile Ox  (86 cells)
+  rule `.gl SIZE < 128` vs the verdict:
+    SIZE <  128 and inlined :  55
+    SIZE <  128 and KEPT    :   2   <- refutes 'SIZE<ceil => inlined'
+    SIZE >= 128 and kept    :  21
+    SIZE >= 128 and INLINED :   8   <- refutes 'SIZE>=ceil => kept'
+       KEPT below the ceiling : mix_009_Ox       SIZE 127 attr 104 callee_text 212
+       KEPT below the ceiling : fine_006_Ox      SIZE 127 attr 104 callee_text 196
+       INLINED above          : arith_014_Ox     SIZE 131 attr 104 callee_text 60
+       INLINED above          : arith_016_Ox     SIZE 147 attr 104 callee_text 60
+       INLINED above          : arith_020_Ox     SIZE 179 attr 104 callee_text 48
+       INLINED above          : arith_024_Ox     SIZE 211 attr 104 callee_text 60
+       INLINED above          : static_014_Ox    SIZE 131 attr 72 callee_text 92
+       INLINED above          : static_016_Ox    SIZE 147 attr 72 callee_text 92
+       INLINED above          : static_020_Ox    SIZE 179 attr 72 callee_text 72
+       INLINED above          : static_024_Ox    SIZE 211 attr 72 callee_text 92
+  per-family boundary in .gl SIZE (last inlined, first kept]:
+    arith    n= 16  inlined SIZE max   211   kept SIZE min     -
+    fine     n= 19  inlined SIZE max   121   kept SIZE min   127
+    loop     n= 16  inlined SIZE max    96   kept SIZE min     -
+    mix      n= 19  inlined SIZE max   115   kept SIZE min   127
+    static   n= 16  inlined SIZE max   211   kept SIZE min     -
+
