@@ -128,7 +128,24 @@ def token_in_file(path, tok):
 
 
 def token_in_crates(tok):
-    r = subprocess.run(['git', '-C', REPO, 'grep', '-l', '-F', '--', tok, '--', 'crates/'],
+    """Is `tok` anywhere under crates/?
+
+    `--untracked --exclude-standard` is LOAD-BEARING and was added by
+    `w-clausefix` after a bare `git grep` reported GREEN over a file that
+    existed on disk and had not been `git add`ed yet. The verdict of an
+    ABSENCE check must depend on what is IN crates/, not on what has been
+    staged: otherwise a lane's controls run green, the lane commits, and the
+    check changes its mind with no edit in between. `--exclude-standard` keeps
+    `target/` and other ignored output out of it.
+
+    KNOWN AND NOT FIXED HERE: this is a NAME screen over the whole subtree, so
+    it cannot tell a counterpart in the port from a MENTION in a comment or a
+    test (`#3641`). Narrowing it to `crates/*/src/` would redefine what
+    `absent` means, which is `w-inlmetric` PREREG SS5's to define, not this
+    function's. Named in the rung instead.
+    """
+    r = subprocess.run(['git', '-C', REPO, 'grep', '-l', '--untracked',
+                        '--exclude-standard', '-F', '--', tok, '--', 'crates/'],
                        capture_output=True, text=True)
     return bool(r.stdout.strip())
 

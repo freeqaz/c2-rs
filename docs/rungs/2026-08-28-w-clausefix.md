@@ -373,3 +373,55 @@ quotable patch blocks here rather than edits there.
 ## 9. Gate and suite at the tip
 
 Filled in below from the transcripts at this lane's tip.
+
+## 10. The blast radius fired, from this lane's own file, and the controls could not see it
+
+**This section exists because the lane's own prediction was wrong in an
+instructive way, and the suite — not the lane — found it.**
+
+`PREREG` §4 and §6 above predicted that the ABSENCE check would go red when a
+**peer** adopted the budget model into `crates/`. What actually tripped it, at
+the first full workspace run, was **this lane's own test file**: an earlier draft
+of `clause_table.rs`'s doc comment listed four of the forbidden tokens **as
+examples of the tokens that must not appear**. Four rows went red because of
+prose *about* them:
+
+```
+FAIL C3   ABSENCE state absent but token '…' IS PRESENT in crates/
+FAIL C15  ABSENCE state absent but token '…' IS PRESENT in crates/
+FAIL C17  ABSENCE state absent but token '…' IS PRESENT in crates/
+FAIL C19  ABSENCE state absent but token '…' IS PRESENT in crates/
+```
+
+Two distinct defects, and only one of them is mine.
+
+**(a) The check cannot tell a MENTION from a COUNTERPART.** `#3641`'s class
+exactly — *a counter cannot tell a mark from a mention* — one level down, in the
+instrument rather than the census. `token_in_crates` is a **name screen over the
+whole subtree**, so a doc comment, a test fixture and a real port constant all
+read identically. **Not fixed here, on purpose:** narrowing it to
+`crates/*/src/` would redefine what `absent` *means*, and that definition is
+`work/w-inlmetric/PREREG.md` §5's, not this lane's. It is named at the site, in
+`token_in_crates`'s own docstring, and anything under `crates/` that must
+discuss these clauses now names them **by clause id**, never by token.
+
+**(b) `git grep` is blind to untracked files, so the verdict changed at
+`git add` time.** This is unambiguously a bug with no semantic trade-off, and it
+is fixed: `--untracked --exclude-standard`.
+
+> **This is the part worth reading.** CTL-4 and CTL-5a were watched **GREEN**,
+> and they were green *because `clause_table.rs` was untracked at that moment*.
+> The lane wrote a defect, ran its controls, saw green, and the defect was
+> real the whole time — it became visible when the file was staged, with no
+> edit in between. **A control that runs before `git add` was grading a
+> different tree from the one the suite grades**, and nothing in the repo says
+> so. `#3336` says a control nobody has seen fail is decoration; this adds that
+> **a control run at the wrong moment is decoration too**, and the moment is
+> not obvious.
+
+**CTL-6**, `work/w-clausefix/controls_absence.out`, watched after the fix: an
+untracked probe file under `crates/c2-core/src/` is **invisible** to the old
+form and **RED** under the new one, and green returns when it is removed.
+
+Reported rather than repaired away, and folded into **#3785** — which had
+already declared this radius, and got the mechanism and the culprit wrong.

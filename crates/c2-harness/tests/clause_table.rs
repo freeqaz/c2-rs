@@ -39,21 +39,31 @@
 //! and only the ALIGN line tells you whether 24 or 0 of them were checked for
 //! alignment.
 //!
-//! # Blast radius, declared rather than discovered (`#3684`)
+//! # Blast radius, declared rather than discovered (`#3684`) — and it fired here first
 //!
-//! The ABSENCE check greps `crates/` for tokens that must stay absent —
-//! `INLINE_BUDGET` (C3), `budget_decline` (C17), `inline_charge` (C19),
-//! `maxlevel` (C15), and sixteen more. A lane that adopts the inline budget
-//! model into `crates/` under one of those spellings turns this target **RED on
-//! its own tree**, and it will not be able to fix it, because `CLAUSES.tsv` is
-//! owned by one lane at a time.
+//! The ABSENCE check greps `crates/` for the twenty tokens the `absent` and
+//! `unexercisable` rows cite as *must stay absent*. A lane that adopts the
+//! inline budget model into `crates/` under one of those spellings turns this
+//! target **RED on its own tree**, and it will not be able to fix it, because
+//! `CLAUSES.tsv` is owned by one lane at a time. That is a **true positive** —
+//! the table's `absent` verdict would have gone stale, which is precisely the
+//! reading everything downstream depends on — and `check_table.py`'s failure
+//! message says so in those words and names the remedy: a one-cell `state` edit
+//! by the table's owner, not a change to the adopting lane's code.
 //!
-//! That is a **true positive** — it means the table's `absent` verdict has gone
-//! stale, which is precisely the reading everything downstream depends on — and
-//! `check_table.py`'s failure message says so in those words and names the
-//! remedy (a one-cell `state` edit by the table's owner, not a change to the
-//! adopting lane's code). It is written down here because a blast radius
-//! explained afterwards is an excuse and one declared beforehand is a design.
+//! **THE FIRST THING TO TRIP IT WAS THIS FILE**, and that is why the tokens are
+//! not spelled out above. An earlier draft of this comment listed four of them
+//! as examples. The check cannot tell a **mention in a doc comment** from a
+//! **counterpart in the port** — `#3641`'s class, *a counter cannot tell a mark
+//! from a mention* — so four rows went RED because of prose *about* them.
+//! Anything under `crates/` that needs to discuss these clauses must name them
+//! by **clause id** (C3, C15, C17, C19), never by token.
+//!
+//! Worse, and now fixed: `check_table.py` used a bare `git grep`, which is
+//! **blind to untracked files**. This file was untracked while its controls
+//! were watched, so the controls could not see the defect it was introducing —
+//! the verdict changed at `git add` time, not at write time. The checker now
+//! passes `--untracked --exclude-standard`. See the rung, §10.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
