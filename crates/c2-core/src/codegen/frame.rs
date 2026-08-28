@@ -615,6 +615,65 @@ impl FrameLayout {
     }
 }
 
+/// **SURFACE[frame.out_of_class]** — the registered decision surface's domain
+/// (`crate::surface`, board **#3743**, lane `w-doctrine`).
+///
+/// **Three predicates, not one**, because there are three prologue emitters and
+/// each refuses the other two by name: [`FrameLayout::out_of_class_ctx`] (the
+/// gate every shipped emitter runs),
+/// [`FrameLayout::out_of_class_ctx_gpr_helper`] (Class C) and
+/// [`FrameLayout::out_of_class_ctx_gpr_helper_leaf`] (frameless Class C). This
+/// module's own header says why that separation is the safety argument for
+/// W-XLR — *"the helper prologue is reachable only from an emitter that asked
+/// for it by name"* — and a separation that nothing enumerates is a separation
+/// that can be lost in a one-token edit.
+///
+/// The `saved_gprs` axis jumps to 17 and 18 for one reason: `n_saved() >
+/// FRAME_MAX_SAVED_NO_SPILL` is a **second lock** behind the helper thresholds,
+/// described in its own comment as *"unreachable behind the two helper
+/// thresholds today"*. Unreachable-behind-another-guard is exactly the state in
+/// which a widening is invisible, so the domain reaches it deliberately.
+pub fn surface_rows() -> Vec<crate::surface::Row> {
+    let mut rows = Vec::new();
+    let emitters: [(&str, fn(&FrameLayout) -> Option<&'static str>); 3] = [
+        ("base", FrameLayout::out_of_class_ctx),
+        ("clsC", FrameLayout::out_of_class_ctx_gpr_helper),
+        ("clsCleaf", FrameLayout::out_of_class_ctx_gpr_helper_leaf),
+    ];
+    for (ename, refuses) in emitters {
+        for saved_gprs in [0u8, 1, 2, 3, 4, 17, 18] {
+            for saved_fprs in 0..=5u8 {
+                // `20_360` straddles the `_RtlCheckStack12` threshold *through*
+                // [`FRAME_MIN_OUT_SLOTS`]: at the shipped floor of 8 the frame
+                // sizes to 20,448 and is admitted, and at a floor of 16 it
+                // sizes to 20,512 and is refused. That is deliberate. With the
+                // domain's earlier `20_000` **the floor was not reachable at
+                // all** — raising it 8 -> 16 moved not one line — so naming it a
+                // guard was a false coverage claim, and this is the repair.
+                // `out_slots = 20` sits above the floor so the cells that
+                // depend on it and the cells that do not are both enumerated.
+                for locals in [0u32, 20_360] {
+                    for out_slots in [0u8, 20] {
+                        let l = FrameLayout { locals, out_slots, saved_gprs, saved_fprs };
+                        let outcome = match refuses(&l) {
+                            Some(ctx) => format!("{} {ctx}", crate::surface::REFUSE),
+                            None => format!("probes={}", l.probe_pages()),
+                        };
+                        rows.push(crate::surface::Row::new(
+                            format!(
+                                "emitter={ename} gprs={saved_gprs:02} fprs={saved_fprs} \
+                                 locals={locals:05} out={out_slots}"
+                            ),
+                            outcome,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    rows
+}
+
 #[cfg(test)]
 mod tests {
     // The single `mod tests` this was split out of opened with

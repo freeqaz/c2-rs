@@ -1,0 +1,299 @@
+=================================================================
+CONTROL C6-prime — w-regsel's C6 reconstructed — the caller's allowed set widened from the volatiles to r0..r31. THE DEFECT THAT MOTIVATED #3723
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/alloc.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- the WHOLE c2-core suite (the 'byte' half) ---
+test result: FAILED. 665 passed; 6 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.39s
+--- which tests went RED ---
+test codegen::alloc::tests::one_producer_takes_pool_top_at_every_floor ... FAILED
+test codegen::alloc::tests::the_pool_starts_below_the_live_in_formals ... FAILED
+test codegen::alloc::tests::the_selector_re_expression_is_exact_on_the_whole_grid ... FAILED
+test codegen::leaf::store::tests::the_widening_refuses_one_step_outside_every_models_domain ... FAILED
+test surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary ... FAILED
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+--- the surface instrument's own verdict ---
+test surface::tests::bless_the_domain_baseline ... ignored, regenerates the committed baseline; run deliberately
+test surface::tests::every_boundary_named_const_is_covered_by_a_surface_or_listed_uncovered ... ok
+test surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary ... FAILED
+test surface::tests::every_surface_marker_names_a_registered_surface_and_back ... ok
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+test surface::tests::the_rendered_domain_is_deterministic_and_committable ... ok
+
+=================================================================
+CONTROL CF — FrameLayout::needs_gpr_helper widened from >= 3 to >= 4 — the 3-saved-GPR frame becomes admissible to the OPEN-CODED prologue
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/frame.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- the WHOLE c2-core suite (the 'byte' half) ---
+test result: FAILED. 669 passed; 2 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.42s
+--- which tests went RED ---
+test codegen::frame::tests::frame_helper_and_probe_thresholds_are_where_the_captures_put_them ... FAILED
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+--- the surface instrument's own verdict ---
+test surface::tests::bless_the_domain_baseline ... ignored, regenerates the committed baseline; run deliberately
+test surface::tests::every_boundary_named_const_is_covered_by_a_surface_or_listed_uncovered ... ok
+test surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary ... ok
+test surface::tests::every_surface_marker_names_a_registered_surface_and_back ... ok
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+test surface::tests::the_rendered_domain_is_deterministic_and_committable ... ok
+
+=================================================================
+CONTROL CS — FRAME_MAX_SAVED_NO_SPILL widened 17 -> 31 — the allocator-spill lock, which frame.rs's own comment calls 'unreachable behind the two helper thresholds today'
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/frame.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- the WHOLE c2-core suite (the 'byte' half) ---
+test result: FAILED. 670 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.40s
+--- which tests went RED ---
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+--- the surface instrument's own verdict ---
+test surface::tests::bless_the_domain_baseline ... ignored, regenerates the committed baseline; run deliberately
+test surface::tests::every_boundary_named_const_is_covered_by_a_surface_or_listed_uncovered ... ok
+test surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary ... ok
+test surface::tests::every_surface_marker_names_a_registered_surface_and_back ... ok
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+test surface::tests::the_rendered_domain_is_deterministic_and_committable ... ok
+
+=================================================================
+CONTROL CR — BC_MAX_DISP widened 32764 -> 65532 — one bit past the bc form's own 14-bit BD field
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/encode.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- the WHOLE c2-core suite (the 'byte' half) ---
+test result: FAILED. 655 passed; 16 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.55s
+--- which tests went RED ---
+test codegen::block_ir::tests::a_bc_past_its_field_is_refused_through_the_same_map ... FAILED
+test codegen::counted_accum_loop::tests::bdnz_is_the_captured_word_at_both_measured_displacements ... FAILED
+test codegen::encode::tests::a_branch_past_the_field_refuses_rather_than_truncating ... FAILED
+test codegen::labels::tests::a_backward_bc_past_its_field_is_refused_with_the_expansion_named ... FAILED
+test codegen::labels::tests::a_bc_past_its_field_is_refused_with_the_expansion_named ... FAILED
+test codegen::reach::tests::a_backward_overflow_is_unmeasured_but_a_backward_fit_is_direct ... FAILED
+test codegen::reach::tests::a_bo_with_no_sense_cannot_be_expanded ... FAILED
+test codegen::reach::tests::the_expansion_is_a_bc_and_a_b_and_never_a_register_indirect_form ... FAILED
+test codegen::reach::tests::the_expansion_moves_the_sense_and_nothing_else ... FAILED
+test codegen::reach::tests::the_far_branch_carries_the_pre_expansion_displacement ... FAILED
+test codegen::reach::tests::the_gate_agrees_with_the_encoder_across_the_entire_field ... FAILED
+test codegen::reach::tests::the_gate_refuses_an_overflow_and_names_the_site_and_the_expansion ... FAILED
+test codegen::reach::tests::the_map_and_the_gate_agree_on_every_in_range_site ... FAILED
+test codegen::reach::tests::the_whole_of_section_3_3_1s_sweep_comes_back_out_of_the_model ... FAILED
+test codegen::reach::tests::the_wider_b_field_reaches_where_the_bc_field_does_not ... FAILED
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+--- the surface instrument's own verdict ---
+test surface::tests::bless_the_domain_baseline ... ignored, regenerates the committed baseline; run deliberately
+test surface::tests::every_boundary_named_const_is_covered_by_a_surface_or_listed_uncovered ... ok
+test surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary ... ok
+test surface::tests::every_surface_marker_names_a_registered_surface_and_back ... ok
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+test surface::tests::the_rendered_domain_is_deterministic_and_committable ... ok
+
+=================================================================
+CONTROL CN — the frame surface's source marker renamed to a name the registry does not hold — #3641's shape, a rename silently emptying the population
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/frame.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- the WHOLE c2-core suite (the 'byte' half) ---
+test result: FAILED. 670 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.41s
+--- which tests went RED ---
+test surface::tests::every_surface_marker_names_a_registered_surface_and_back ... FAILED
+--- the surface instrument's own verdict ---
+test surface::tests::bless_the_domain_baseline ... ignored, regenerates the committed baseline; run deliberately
+test surface::tests::every_boundary_named_const_is_covered_by_a_surface_or_listed_uncovered ... ok
+test surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary ... ok
+test surface::tests::every_surface_marker_names_a_registered_surface_and_back ... FAILED
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... ok
+test surface::tests::the_rendered_domain_is_deterministic_and_committable ... ok
+
+=================================================================
+CONTROL CZ — the reach surface's domain collapsed to a single cell AND THE BASELINE RE-BLESSED IN THAT STATE — E1 compares equal, so E3's floors are the only thing left
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/reach.rs   | 18 +--------
+ crates/c2-core/src/surface/DOMAIN.txt | 72 +----------------------------------
+ 2 files changed, 2 insertions(+), 88 deletions(-)
+--- the WHOLE c2-core suite (the 'byte' half) ---
+test result: FAILED. 670 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.45s
+--- which tests went RED ---
+test surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary ... FAILED
+--- the surface instrument's own verdict ---
+test surface::tests::bless_the_domain_baseline ... ignored, regenerates the committed baseline; run deliberately
+test surface::tests::every_boundary_named_const_is_covered_by_a_surface_or_listed_uncovered ... ok
+test surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary ... FAILED
+test surface::tests::every_surface_marker_names_a_registered_surface_and_back ... ok
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... ok
+test surface::tests::the_rendered_domain_is_deterministic_and_committable ... ok
+
+=================================================================
+CONTROL CU — a new boundary-named const (SCHED_MAX_RUN) added to c2-core, covered by no registered surface and listed in no UNCOVERED row
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/schedule.rs | 3 +++
+ 1 file changed, 3 insertions(+)
+--- the WHOLE c2-core suite (the 'byte' half) ---
+test result: FAILED. 670 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.40s
+--- which tests went RED ---
+test surface::tests::every_boundary_named_const_is_covered_by_a_surface_or_listed_uncovered ... FAILED
+--- the surface instrument's own verdict ---
+test surface::tests::bless_the_domain_baseline ... ignored, regenerates the committed baseline; run deliberately
+test surface::tests::every_boundary_named_const_is_covered_by_a_surface_or_listed_uncovered ... FAILED
+test surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary ... ok
+test surface::tests::every_surface_marker_names_a_registered_surface_and_back ... ok
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... ok
+test surface::tests::the_rendered_domain_is_deterministic_and_committable ... ok
+
+=================================================================
+CONTROL CD — a construct rung DATED AT THE CUTOFF with no `Fail axis:` field, planted in docs/rungs/
+-----------------------------------------------------------------
+--- planted diff ---
+?? docs/rungs/2026-08-28-cd-control.md
+--- verdict ---
+test the_fail_axis_detector_fires_and_stays_quiet_in_the_right_places ... ok
+test construct_rungs_from_the_cutoff_name_an_axis_they_can_fail_on ... FAILED
+test rung_docs_claim_their_tag_slug_and_fixtures_exactly_once ... ok
+test rung_index_is_generated_and_current ... FAILED
+A CONSTRUCT RUNG WITH NO FAIL AXIS (board #3744, #3723).
+2026-08-28-cd-control.md declares `Kind: construct rung` and carries no `Fail axis:` header field
+test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.80s
+
+=================================================================
+SUMMARY — seven planted defects, seven watched RED, tree verified
+clean after every one (`git status --short` empty).
+Board #3336: "a control you have never watched FAIL is decoration".
+
+  C          defect                                        c2-core red  which part
+  ---------  --------------------------------------------  -----------  ----------
+  C6-prime   allowed set widened to r0..r31 (w-regsel C6)        6 of 671  E1 + E3
+  CF         needs_gpr_helper  >= 3  ->  >= 4                    2 of 671  E1
+  CS         FRAME_MAX_SAVED_NO_SPILL  17  ->  31                1 of 671  E1
+  CR         BC_MAX_DISP  32764  ->  65532                       5 of 671  E1
+  CN         a surface's source marker renamed                   1 of 671  E2
+  CZ         a surface's domain collapsed AND re-blessed         1 of 671  E3
+  CU         a new unregistered boundary-named const             1 of 671  E4
+  CD         a dated construct rung with no `Fail axis:`         (harness)  E5
+
+THREE ROWS ARE THE RESULT AND THE REST ARE HYGIENE.
+
+**C6-prime** is #3723's own defect, reconstructed one line for one line
+(`crates/c2-core/src/codegen/alloc.rs | 2 +-`, the same file and the same
+statement w-regsel planted). E1 reports `THE DECISION-SURFACE DOMAIN MOVED
+— 127 line(s) of 1102 differ`, every moved line an `alloc.allocate` cell
+flipping from `REFUSE` to a register at a `pool_floor` no fixture reaches,
+and E3 reports the refusal count falling from 190 to 64, through its floor
+of 100. w-regsel measured the other half of this on the same defect: gate
+`PASS` at both ends, identity diff **0 lines over 21 rows**.
+
+**CS is the sharper one, because nothing else in the crate sees it.** 670
+of 671 c2-core tests pass and the single failure is E1. `FRAME_MAX_SAVED_NO_SPILL`
+is the allocator-spill lock whose own comment in `frame.rs` calls it
+*"unreachable behind the two helper thresholds today"* — and
+unreachable-behind-another-guard is precisely the state in which a widening
+is invisible to every fixture, every gate row and every byte. C6-prime is
+caught by three OTHER tests as well, all of them written by the one lane
+that happened to build a grid; CS is caught by this instrument alone.
+
+**CZ is the control that matters for the instrument's own honesty.** The
+reach domain was collapsed to a single cell AND THE BASELINE RE-BLESSED in
+that state, so E1 compares equal and is green. E3's cell and refusal floors
+are the only thing left, and they fire. A baseline check with no floors
+would have passed a domain that had quietly stopped grading anything —
+#3470's shape, and the one this repo has now shipped nine times.
+=================================================================
+CONTROL CM — FRAME_MIN_OUT_SLOTS widened 8 -> 16 — the ABI floor on the outgoing-parameter area. THE GUARD CLAIM THAT WAS FALSE UNTIL THE DOMAIN WAS REPAIRED (see the note below this table)
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/frame.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- the WHOLE c2-core suite (the 'byte' half) ---
+test result: FAILED. 643 passed; 28 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.39s
+--- which tests went RED ---
+test codegen::alloc_init_or_fail::tests::the_body_is_the_reference_obj_word_for_word ... FAILED
+test codegen::calls::tests::a_guarded_call_sequence_matches_the_reference_bytes ... FAILED
+test codegen::calls::tests::framed_call_text_matches_reference_body ... FAILED
+test codegen::close_call_chain::tests::the_frame_is_ninety_six ... FAILED
+test codegen::close_call_chain::tests::the_text_is_byte_identical_to_the_reference_obj ... FAILED
+test codegen::ctor_forward_call::tests::nothing_sits_between_the_call_and_the_epilogue ... FAILED
+test codegen::ctor_forward_call::tests::the_nine_words_are_the_reference_obj ... FAILED
+test codegen::frame::tests::frame_helper_and_probe_thresholds_are_where_the_captures_put_them ... FAILED
+test codegen::frame::tests::frame_prologue_and_epilogue_match_the_reference_words ... FAILED
+test codegen::frame::tests::frame_size_fits_every_captured_witness ... FAILED
+test codegen::frontier_bytes::mmio_tests::mmiogetinfo_eighty_four_bytes_reconstruct_from_the_encoders ... FAILED
+test codegen::guard_chain_shared_tail::tests::body_matches_the_reference_obj_word_for_word ... FAILED
+test codegen::guard_chain_shared_tail::tests::the_five_formal_byte_store_body_matches_its_reference_obj ... FAILED
+test codegen::guard_ret_chain::tests::sub_shape_g_is_mmiogetinfo_word_for_word ... FAILED
+test codegen::guard_ret_chain::tests::sub_shape_s_is_mmiosetinfo_word_for_word ... FAILED
+test codegen::if_call_join::tests::the_body_is_the_bytes_c2_emitted_for_negate_test ... FAILED
+test codegen::if_call_join::tests::the_literals_are_two_immediate_fields ... FAILED
+test codegen::osf_handle_guard::tests::the_body_is_the_reference_obj_word_for_word ... FAILED
+test codegen::xlrc_create_guard::tests::body_matches_the_reference_words ... FAILED
+test codegen::xlrc_create_guard::tests::the_frame_is_the_published_rule_at_six_saved_gprs ... FAILED
+--- the surface instrument's own verdict ---
+test surface::tests::bless_the_domain_baseline ... ignored, regenerates the committed baseline; run deliberately
+test surface::tests::every_boundary_named_const_is_covered_by_a_surface_or_listed_uncovered ... ok
+test surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary ... ok
+test surface::tests::every_surface_marker_names_a_registered_surface_and_back ... ok
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+test surface::tests::the_rendered_domain_is_deterministic_and_committable ... ok
+
+=================================================================
+CONTROL CS-2 — FRAME_MAX_SAVED_NO_SPILL 17 -> 31, RE-RUN after the frame domain was repaired — CS must still be red, and still alone
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/frame.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- the WHOLE c2-core suite (the 'byte' half) ---
+test result: FAILED. 670 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.40s
+--- which tests went RED ---
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+--- the surface instrument's own verdict ---
+test surface::tests::bless_the_domain_baseline ... ignored, regenerates the committed baseline; run deliberately
+test surface::tests::every_boundary_named_const_is_covered_by_a_surface_or_listed_uncovered ... ok
+test surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary ... ok
+test surface::tests::every_surface_marker_names_a_registered_surface_and_back ... ok
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+test surface::tests::the_rendered_domain_is_deterministic_and_committable ... ok
+
+=================================================================
+ADDENDUM — TWO OF THE FOUR GUARD CLAIMS WERE FALSE, AND THE CONTROL
+SET IS WHAT FOUND THEM.
+
+`Surface::guards` is a **claim**: *this surface's domain exercises this
+boundary constant*. `surface.rs` says at the field that "an entry here
+that the domain does not reach is a false coverage claim and the control
+set is what keeps it honest". Run against the four surfaces' seven
+guards, the control set found **two** entries that were exactly that:
+
+  POOL_TOP              re-spelled as a literal `9`      -> 0 lines moved
+  FRAME_MIN_OUT_SLOTS   widened 8 -> 16                  -> 0 lines moved
+
+Neither was a slip of the pen. They are the two failure modes a coverage
+claim has, and they need different repairs:
+
+  * **POOL_TOP is not an independent boundary at all.** Since `w-regsel`
+    it is `GPR_DEFAULT.regs[0]` — a derived alias with no production use
+    outside tests and comments. There is nothing for a domain to reach.
+    Moved to `UNCOVERED` with the measurement as its reason; the thing it
+    aliases, the order's head, is covered by `regalloc.select`. Ratchet
+    12 -> 13.
+  * **FRAME_MIN_OUT_SLOTS was a real boundary the DOMAIN was too narrow
+    to see.** At `locals = 20_000` the floor moves the frame by 64 bytes
+    and lands on the same side of every threshold, so raising it moved
+    nothing. Repaired by choosing `locals = 20_360`, which straddles the
+    `_RtlCheckStack12` threshold *through* the floor: at 8 the frame is
+    20,448 and admitted, at 16 it is 20,512 and refused.
+
+CONTROL CM (after the repair): the widening now moves **7 lines**, and 28
+of 671 crate tests go red as well — this one was never a silent boundary,
+which is precisely why it needed measuring rather than assuming.
+CONTROL CS-2 (after the repair): FRAME_MAX_SAVED_NO_SPILL 17 -> 31 is
+still `670 passed; 1 failed`, still E1 alone. The repair did not cost the
+sharp control.
+
+**This is the lane's own instrument catching the lane's own false claim,
+and it is the reason a `guards` list has to be executed rather than
+written.** A registry that reports coverage it does not have is #3470
+with an extra step: the number goes UP and the grading does not.

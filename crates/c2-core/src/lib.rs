@@ -23,6 +23,9 @@ pub mod passes;
 /// An INSTRUMENT, never a gate; see the module doc.
 pub mod plan;
 pub mod splice;
+/// The DECISION-SURFACE registry — board **#3723**'s checkable form. An
+/// INSTRUMENT, never a gate and never a licence to emit; see the module doc.
+pub mod surface;
 
 use std::fmt;
 

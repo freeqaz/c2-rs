@@ -504,6 +504,69 @@ pub fn direct_op(form: Form, disp: i32, site: &str) -> Result<MachineOp, Backend
     }
 }
 
+/// **SURFACE[reach.branch]** — the registered decision surface's domain
+/// (`crate::surface`, board **#3743**, lane `w-doctrine`).
+///
+/// Every displacement here is a **boundary value or one word past one**: the
+/// `bc` field's last reachable displacement and the first unreachable one, the
+/// same pair for `b`, the misaligned case, and the two measured expansions from
+/// `CFG_SHAPE.md` §3.3.1. A range check is exactly the kind of predicate whose
+/// widening costs one character and shows up in no fixture — every body this
+/// crate emits today gets [`Reach::Direct`], so **the whole refusal half of
+/// this surface is unexercised by the corpus** and the byte delta is silent
+/// about all of it.
+pub fn surface_rows() -> Vec<crate::surface::Row> {
+    use super::encode::{
+        cr_bi, BC_MAX_DISP, B_MAX_DISP, BO_ALWAYS, BO_DNZ, BO_FALSE, BO_TRUE, CR_BIT_EQ, CR_COMPARE,
+    };
+    let bi = cr_bi(CR_COMPARE, CR_BIT_EQ);
+    let forms: [(&str, Form); 5] = [
+        ("b", Form::B),
+        ("bc-false", Form::Bc { bo: BO_FALSE, bi }),
+        ("bc-true", Form::Bc { bo: BO_TRUE, bi }),
+        ("bc-always", Form::Bc { bo: BO_ALWAYS, bi }),
+        ("bc-dnz", Form::Bc { bo: BO_DNZ, bi }),
+    ];
+    let disps: [i32; 15] = [
+        0,
+        2,
+        -2,
+        4,
+        -4,
+        34_148,
+        46_708,
+        BC_MAX_DISP,
+        BC_MAX_DISP + 4,
+        -BC_MAX_DISP - 4,
+        -BC_MAX_DISP - 8,
+        B_MAX_DISP,
+        B_MAX_DISP + 4,
+        -B_MAX_DISP - 4,
+        -B_MAX_DISP - 8,
+    ];
+    let mut rows = Vec::new();
+    for (fname, form) in forms {
+        for disp in disps {
+            let outcome = match Reach::of(form, disp) {
+                Reach::Direct(_) => "direct".to_string(),
+                Reach::Expanded(_) => "expanded".to_string(),
+                Reach::Misaligned => format!("{} misaligned", crate::surface::REFUSE),
+                Reach::Unmeasured(u) => format!(
+                    "{} unmeasured-{}",
+                    crate::surface::REFUSE,
+                    match u {
+                        Unmeasured::Backward => "backward",
+                        Unmeasured::BOutOfReach => "b-out-of-reach",
+                        Unmeasured::NoSenseToInvert => "no-sense-to-invert",
+                    }
+                ),
+            };
+            rows.push(crate::surface::Row::new(format!("form={fname} disp={disp:+011}"), outcome));
+        }
+    }
+    rows
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

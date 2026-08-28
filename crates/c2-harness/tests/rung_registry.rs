@@ -294,3 +294,215 @@ fn rung_index_is_generated_and_current() {
          `scripts/gen_rung_index.sh`."
     );
 }
+
+// ===========================================================================
+// **THE FAIL-AXIS REQUIREMENT** — board **#3744**, lane `w-doctrine`, wave 17.
+//
+// `docs/rungs/README.md`'s construct-rung definition grades on a **required-zero
+// byte delta**. Board `#3723` measured that this passes a real emit widening:
+// `w-regsel`'s control C6 opened the caller's allowed register set to `r0..r31`
+// and 471 of 475 crate tests, every encoder row and both gate ends stayed green.
+//
+// The executable half of the answer is `c2_core::surface` — a registry of
+// decision surfaces whose domains run past what the corpus exercises. It can
+// only cover surfaces somebody registered. **This is the half that reaches an
+// UNREGISTERED surface**: a construct rung has to name, in its header, the axis
+// on which it can fail with every byte identical, and for a rung over an allowed
+// set, a candidate set or a refusal boundary that axis is the refusal domain.
+//
+// **This check is weaker than it looks and the weakness is stated on purpose.**
+// It verifies that a field is present and non-empty. It cannot verify that the
+// axis was measured, or that the thing named is really an axis. Presence is not
+// measurement. It ships because it is the only part of this that binds a FUTURE
+// lane over a surface `c2_core::surface::SURFACES` does not hold, and because
+// `#3679`/`#3689` are this repo's standing finding that an unenforced rule is a
+// paragraph — a paragraph in `README.md` is what was already there.
+//
+// **Scope, declared rather than discovered (the `#3684` objection).** The
+// population is construct rungs dated on or after [`FAIL_AXIS_CUTOFF`]. Every
+// construct rung in the tree predates it, so the tree run grades **zero** docs
+// today — which is exactly the state `#3470` says is green-and-says-nothing, and
+// is why the detector has its own two-directional self-test below rather than
+// relying on the tree ever entering the population. Blast radius: a rung doc
+// only exists in the worktree of the lane writing it until it merges, and the
+// merge funnel (`#3687`) runs `cargo test --workspace`, so a doc that fails this
+// cannot reach master and cannot redden a peer's tree.
+// ===========================================================================
+
+/// Construct rungs dated on or after this must name a fail axis. Dated records
+/// before it stay exactly as written (`docs/rungs/README.md`; the same
+/// grandfathering `#3689`'s ceiling uses, and for the same reason).
+///
+/// PROV[N] a policy cutoff date; reaches no emitted byte.
+const FAIL_AXIS_CUTOFF: &str = "2026-08-28";
+
+/// The indented `Key: value` header block at the top of a rung doc, as raw
+/// lines. Deliberately a **second, more tolerant reader** than [`load_rungs`]'s:
+/// that one drops any key containing whitespace, which silently discards
+/// `Fail axis:` — the very field this checks for. Widening the shared parser
+/// would change what every existing assertion sees; this does not.
+fn header_lines(text: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut started = false;
+    for line in text.lines() {
+        match line.strip_prefix("    ") {
+            Some(rest) => {
+                started = true;
+                out.push(rest);
+            }
+            None => {
+                if started && !line.trim().is_empty() {
+                    break;
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The value of a header field whose key may contain spaces or hyphens, matched
+/// case-insensitively. Continuation lines (an indented line with no `Key:` of
+/// its own) count toward the value, so a multi-line axis is not read as empty.
+fn header_field(text: &str, key: &str) -> Option<String> {
+    let want = key.to_ascii_lowercase().replace(['-', ' '], "");
+    let lines = header_lines(text);
+    let mut value: Option<String> = None;
+    for line in lines {
+        let Some((k, v)) = line.split_once(':') else {
+            if let Some(acc) = value.as_mut() {
+                acc.push(' ');
+                acc.push_str(line.trim());
+            }
+            continue;
+        };
+        let k_norm = k.trim().to_ascii_lowercase().replace(['-', ' '], "");
+        if k_norm.chars().all(|c| c.is_ascii_alphanumeric()) && !k_norm.is_empty() {
+            if k_norm == want {
+                value = Some(v.trim().to_string());
+            } else if value.is_some() {
+                break;
+            }
+        } else if let Some(acc) = value.as_mut() {
+            acc.push(' ');
+            acc.push_str(line.trim());
+        }
+    }
+    value
+}
+
+/// Does this doc declare itself a construct rung?
+fn declares_construct_rung(text: &str) -> bool {
+    header_field(text, "Kind")
+        .map(|k| k.to_ascii_lowercase().contains("construct rung"))
+        .unwrap_or(false)
+}
+
+/// The one predicate, so the tree run and the self-test cannot drift apart.
+/// `Some(reason)` is a violation.
+fn fail_axis_violation(file_name: &str, text: &str) -> Option<String> {
+    if !declares_construct_rung(text) {
+        return None;
+    }
+    let date = file_name.get(..10).unwrap_or("");
+    if date < FAIL_AXIS_CUTOFF {
+        return None;
+    }
+    match header_field(text, "Fail axis") {
+        None => Some(format!(
+            "{file_name} declares `Kind: construct rung` and carries no `Fail axis:` \
+             header field"
+        )),
+        Some(v) if v.trim().is_empty() => {
+            Some(format!("{file_name} carries an EMPTY `Fail axis:` field"))
+        }
+        Some(_) => None,
+    }
+}
+
+/// **The tree run.** Board `#3744`.
+#[test]
+fn construct_rungs_from_the_cutoff_name_an_axis_they_can_fail_on() {
+    let root = repo_root();
+    let dir = root.join("docs/rungs");
+    let mut examined = 0usize;
+    let mut construct = 0usize;
+    let mut in_population = 0usize;
+    let mut violations: Vec<String> = Vec::new();
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .expect("docs/rungs readable")
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        // `_`-prefixed files are PREREGS, not rungs, and `load_rungs` excludes
+        // them for the same reason: the requirement is on the rung's own
+        // header. (Their names also sort ABOVE the cutoff because `_` > `2`,
+        // which is how this exclusion was discovered rather than assumed.)
+        .filter(|n| n.ends_with(".md") && !n.starts_with('_') && n != "INDEX.md" && n != "README.md")
+        .collect();
+    names.sort();
+    for name in &names {
+        let text = std::fs::read_to_string(dir.join(name)).expect("rung doc readable");
+        examined += 1;
+        if declares_construct_rung(&text) {
+            construct += 1;
+            if name.get(..10).unwrap_or("") >= FAIL_AXIS_CUTOFF {
+                in_population += 1;
+            }
+        }
+        if let Some(v) = fail_axis_violation(name, &text) {
+            violations.push(v);
+        }
+    }
+    // Denominators, printed rather than asserted, because the population being
+    // zero is the EXPECTED state at the cutoff and asserting it nonzero would
+    // make this test fail for being new. What is asserted instead is that the
+    // detector works, immediately below.
+    println!(
+        "fail-axis: {examined} rung docs examined, {construct} declare a construct rung, \
+         {in_population} dated at or after {FAIL_AXIS_CUTOFF} (the graded population), \
+         {} violation(s)",
+        violations.len()
+    );
+    assert!(examined > 100, "only {examined} rung docs found — the scan is not reading docs/rungs");
+    assert!(construct > 5, "only {construct} construct rungs found — the Kind: parser has stopped matching");
+    assert!(
+        violations.is_empty(),
+        "A CONSTRUCT RUNG WITH NO FAIL AXIS (board #3744, #3723).\n\n\
+         A required-zero byte delta is silent about everything that is not a \
+         byte, and #3723 measured that it is silent about a real emit widening \
+         too. Name, in the rung header, the axis on which this rung can fail \
+         with every byte identical -- for a rung over an allowed set, a \
+         candidate set or a refusal boundary that is the REFUSAL DOMAIN, and \
+         c2_core::surface is where it goes so it is enumerated and not just \
+         asserted.\n\n{}",
+        violations.join("\n")
+    );
+}
+
+/// **The control.** `#3336`: a check never watched failing is decoration — and
+/// this one grades zero docs today, so without this it would be decoration by
+/// construction.
+#[test]
+fn the_fail_axis_detector_fires_and_stays_quiet_in_the_right_places() {
+    let with_axis = "# x\n\n    Tag:        w-x\n    Kind:       construct rung\n    Fail axis:  the refusal domain, tabulated over a 63-cell grid\n\n---\n";
+    let without = "# x\n\n    Tag:        w-x\n    Kind:       construct rung\n    Census:     +0\n\n---\n";
+    let empty = "# x\n\n    Tag:        w-x\n    Kind:       construct rung\n    Fail axis:\n\n---\n";
+    let hyphen = "# x\n\n    Kind:       construct rung\n    Fail-axis:  throughput\n\n---\n";
+    let not_construct = "# x\n\n    Tag:        w-x\n    Kind:       characterization\n\n---\n";
+
+    // Fires.
+    assert!(fail_axis_violation("2026-08-28-w-x.md", without).is_some(), "a construct rung with no Fail axis must be caught");
+    assert!(fail_axis_violation("2026-08-28-w-x.md", empty).is_some(), "an EMPTY Fail axis must be caught");
+    assert!(fail_axis_violation("2099-01-01-w-x.md", without).is_some(), "a later date is still in the population");
+
+    // Stays quiet.
+    assert!(fail_axis_violation("2026-08-28-w-x.md", with_axis).is_none(), "a named axis must pass");
+    assert!(fail_axis_violation("2026-08-28-w-x.md", hyphen).is_none(), "`Fail-axis:` is the same field");
+    assert!(fail_axis_violation("2026-08-28-w-x.md", not_construct).is_none(), "only construct rungs are graded");
+    assert!(fail_axis_violation("2026-08-27-w-x.md", without).is_none(), "docs before the cutoff are grandfathered");
+
+    // And the field reader itself, since a reader that returns None for
+    // everything would make the whole check silently vacuous in one direction.
+    assert_eq!(header_field(with_axis, "Kind").as_deref(), Some("construct rung"));
+    assert_eq!(header_field(without, "Fail axis"), None);
+    assert!(header_field(with_axis, "Fail axis").unwrap().contains("63-cell"));
+}
