@@ -1452,3 +1452,72 @@ under two names, in two tracks, is the thing to avoid.
 `#3731`–`#3736` `w-lowerband` · `#3737`–`#3742` `w-s7` ·
 `#3743`–`#3748` `w-doctrine` · `#3749`–`#3754` `w-floor`.
 `#3647` remains reserved-and-unspent. Next free `#3755`.
+
+---
+
+## Decision 22 — 2026-08-28 — wave 18 is an ADOPTION wave
+
+**The owner, verbatim:** *"please continue work here. dont worry about the
+prices. lets keep chipping away and making measurable progress by analyzing
+msvc to reproduce the behavior we expect"*.
+
+Two instructions, and the second is the operative one. **"Don't worry about the
+prices" closes the pricing track** — `w-floor`'s `REPRICE_2026-08-28.md` and
+`w-f0price`'s enumeration stay on the shelf as reference and no lane this wave
+re-opens either. **"Reproduce the behavior we expect" is the dispatch
+criterion**: a read that exists and has not been turned into port code the byte
+judge can grade is the thing to fund.
+
+### 1. Why this shape
+
+Five consecutive lanes delivered **reach 0** by design, and eight of the ten
+`ported` cells read `RESIDUE`. Both facts are correct — decision 21 §4 forbids
+inventing the missing numerators and that prohibition is unchanged — but
+together they say the reading is running ahead of the writing. Wave 18 closes
+some of that distance.
+
+Brief: `docs/ADOPTION_BRIEF_2026-08-28.md`, board **#3755**, with every figure
+re-derived on tree `f91d7671b` rather than quoted from a row.
+
+### 2. Funded — five lanes
+
+* **`w-encarms`** (construct rung / adoption) — the encoder's **52 unported
+  arms** of 79. `[encode]` is the only subsystem with a defined `ported`
+  denominator, so it is the only one where writing code moves a published
+  number honestly. First job is to characterize the six largest unmapped arms
+  (`10bf9f91` alone covers 104 c2 opcodes); second is to adopt the ones the
+  byte judge can grade. **Every adopted arm gets a `c2_core::surface` row** —
+  the registry's first outside consumer.
+* **`w-inlbudget`** (construct rung / adoption) — `P_INLINE` §6.6.2's read
+  budget model: `remaining_budget / (n − i + 1)`, `level += BYTE[site+0x18]`,
+  `__forceinline` charged nothing. Byte-neutral on the admitted set **by
+  construction** (`n = 1` makes the divisor the identity), which is what makes
+  it a construct rung rather than an emit change. Must register `n ≥ 2` as a
+  refusal domain. Also owns `#3723`'s registry-completeness residue.
+* **`w-globobj`** (characterization) — obj-confirm `P_GLOBREGS`. **2 of 48
+  marks is the weakest agreement cell of the ten subsystems**, and the page is
+  `P_REGALLOC`'s own missing input, in that page's words. `w-regcells` proved
+  the method on the adjacent band last wave.
+* **`w-inlswitch`** (characterization) — the **21 undocumented `-inl*#`
+  switches** at `0x10c45db4`–`0x10c45e10`, `FUN_10b5da2f` (573 B, unread, reads
+  `k` twice), and `DAT_10c3de20`'s ten writers — the switch that
+  *"would make c2 narrate its own inline decisions"* (`w-lowerband` §7).
+* **`w-clausefix`** (instrument) — **eight of the 24 clause addresses are
+  mid-instruction** (`#3721`), two of them inside a duplicate of the wrong
+  function. Repair under a prereg that owns `CLAUSES.tsv`, fold
+  `addr_align.py` into `check_table.py`, settle C10.
+
+### 3. Still NOT authorised — unchanged
+
+* A full register allocator (decision 20 §2; F5 is not separable from F0).
+* A `ported` numerator for regalloc or the inliner (decision 21 §4; `#3505` is
+  five for five). `[encode]` moves because its denominator was already defined.
+* A new count-bearing `gate.sh` row, from anyone (`#3691`).
+* Re-taking `#3534`; `byte-owned` stays cited.
+* **Adopting 128 as the inline ceiling** — `#3732` closed that trap with 8
+  counterexamples in each direction.
+
+**Board:** `#3755` this decision and the brief · `#3756`–`#3761` `w-encarms` ·
+`#3762`–`#3767` `w-inlbudget` · `#3768`–`#3773` `w-inlswitch` ·
+`#3774`–`#3779` `w-globobj` · `#3780`–`#3785` `w-clausefix`.
+`#3647` remains reserved-and-unspent. Next free `#3786`.
