@@ -1,0 +1,59 @@
+# The c2 command line cl.exe 16.00.11886.00 actually builds, per mode.
+# Lane w-inlswitch, 2026-08-28.  `cl /Bd` prints each pass's own command line.
+# Rows = every row of scripts/lanes.txt, plus /Os /Ot /Ox /Ob0 /Ox /Ob1 as
+# controls.  Every invocation is `cl /Bd <mode> /GS- /c t.cpp` on a two-function
+# TU with one inlinable callee; the IL path is elided as <IL>.
+#
+# THE QUESTION: does ANY mode this project compiles pass -vol, any -inl*, or a
+# POGO switch?  If none does, then k = DAT_10c2ea98 keeps its .data value 3 at
+# run time (the numeric-option setter FUN_10c1f572 kind 0x24 stores only on a
+# name match, and there is no initialisation sweep), DAT_10c6f1c8 = 0 so the
+# LIVE inline parameter table is A (0x10c45e18), and DAT_10c3de20 = 0 so every
+# `== 1` / `== 2` branch on the effective POGO mode is dead here.
+#
+# NOTE ON THE INSTRUMENT.  The loop uses zsh's explicit word-split `${=m}`.  An
+# earlier version wrote `$m` unquoted, and zsh does NOT word-split an unquoted
+# parameter expansion: cl.exe received each multi-flag mode as ONE argument and
+# parsed only the first flag, so /EHsc and /Gy silently vanished from the table
+# and it looked as though cl were discarding them.  That false reading was one
+# command away from being published as a board row claiming two lanes.txt rows
+# are duplicates.  It was caught by re-deriving one cell by hand.  Do not
+# "simplify" the `${=m}` away.
+
+
+cl /Od                    c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Ob0'
+cl /Od /EHsc              c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Ob0 -EHs'
+cl /Od /GR                c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Ob0'
+cl /Od /EHsc /GR          c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Ob0 -EHs'
+cl /O1                    c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob2 -Gy'
+cl /O1 /EHsc              c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob2 -Gy -EHs'
+cl /O1 /Oi                c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob2 -Gy'
+cl /O1 /Oi /EHsc          c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob2 -Gy -EHs'
+cl /O1 /Oi /GR            c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob2 -Gy'
+cl /O1 /Oi /EHsc /GR      c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob2 -Gy -EHs'
+cl /O2                    c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob2 -Gy'
+cl /O2 /EHsc              c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob2 -Gy -EHs'
+cl /Ox                    c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob2'
+cl /Ox /EHsc              c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob2 -EHs'
+cl /Ox /Gy                c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob2 -Gy'
+cl /Ox /Gy /EHsc          c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob2 -Gy -EHs'
+cl /Ox /GR                c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob2'
+cl /Ox /EHsc /GR          c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob2 -EHs'
+cl /Os                    c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -Ob0 -MT -Fdvc100.pdb -f t.cpp -Bd'
+cl /Ot                    c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -Ob0 -MT -Fdvc100.pdb -f t.cpp -Bd'
+cl /Ox /Ob0               c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob0'
+cl /Ox /Ob1               c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f t.cpp -Bd -Og -Ob1'
+
+# --- THE ANSWER, by grep over the 22 rows above ---
+#   ' -vol'  : 0 hit(s) over 22 mode rows
+#   ' -inl'  : 0 hit(s) over 22 mode rows
+#   ' -pgi'  : 0 hit(s) over 22 mode rows
+#   ' -pgo'  : 0 hit(s) over 22 mode rows
+#   ' -pgu'  : 0 hit(s) over 22 mode rows
+#   ' -pi '  : 0 hit(s) over 22 mode rows
+#   ' -po '  : 0 hit(s) over 22 mode rows
+#   ' -pv '  : 0 hit(s) over 22 mode rows
+#
+# The only inline-related switch cl ever passes is -Ob0/-Ob1/-Ob2, whose
+# value word is 0x10c46bc0 -- NOT one of the 24 -inl* words at
+# 0x10c45db4..0x10c45e10, and not a field of the 46-dword parameter record.
