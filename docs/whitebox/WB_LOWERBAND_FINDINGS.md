@@ -49,7 +49,16 @@ the reference set is enumerated — this repo's most repeated defect
 
 | id | instrument | population | result |
 |---|---|---|---|
-| **E1/E2** | [`work/w-lowerband/f50.py`](../../work/w-lowerband/f50.py) | the **independent objdump boundary set** — `objdump -d -M intel`, **424,232** instruction starts | **125** instructions with a memory operand at `+0x50`, split by width and direction |
+| **E1/E2** | [`work/w-lowerband/f50.py`](../../work/w-lowerband/f50.py) | the **independent objdump boundary set** — `objdump -d -M intel`, **424,232** decoded instructions | **125** instructions with a memory operand at `+0x50`, split by width and direction |
+
+> **The 424,232 and `#3721`'s 425,871 are the same set counted two ways, and
+> the difference is reconciled rather than left to look like a discrepancy.**
+> The listing has **425,871** addressed lines; **1,639** of them are
+> byte-continuation lines carrying no mnemonic (`10b5e4de:\t03 00 00`, the tail
+> of the seven-byte `mov` above it). `425,871 − 1,639 = 424,232` decoded
+> instructions. `#3721` counts addressed lines, which is the right denominator
+> for an *alignment* question; this lane counts decoded instructions, which is
+> the right one for an *operand* question. Neither is wrong.
 | **E3** | Ghidra's decompiler, `decomp_all.c` (control-flow-driven, not linear) | the whole export | **0** `ushort` assignments at `+0x50` image-wide; **11** `ushort` read expressions |
 | **E5** | [`work/w-lowerband/bytescan.py`](../../work/w-lowerband/bytescan.py) | **all 1,232,384 raw bytes of `.text`**, decode-independent, **2,136** encoding patterns | **exactly one** 16-bit-store encoding present |
 | **E4** | [`work/w-lowerband/fieldmap.py`](../../work/w-lowerband/fieldmap.py) | 67 functions referencing `+0x50`, 207 referencing `+0x4c` | **29** touch both; the struct filter in §1.3 |

@@ -902,7 +902,7 @@ located reads that reduction."*
 
 | instrument | population | result |
 |---|---|---|
-| `f50.py` over the **independent objdump boundary set** | **424,232** instruction starts | 125 operands at `+0x50`; **1** 16-bit write |
+| `f50.py` over the **independent objdump boundary set** | **424,232** decoded instructions (= 425,871 addressed lines − 1,639 byte-continuation lines; `#3721`'s denominator is the former) | 125 operands at `+0x50`; **1** 16-bit write |
 | Ghidra's decompiler (control-flow-driven, not linear) | the whole export | **0** `ushort` assignments at `+0x50` image-wide |
 | `bytescan.py`, **decode-independent** | **all 1,232,384 bytes of `.text`**, 2,136 encoding patterns (`mov`/`add`/`sub`/`or`/`and`/`xor`/`adc`/`sbb`/`xchg`/group1/3/5/shifts, disp8 + disp32 + SIB, and both byte halves) | **exactly one** 16-bit-store encoding present |
 
