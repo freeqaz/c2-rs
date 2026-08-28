@@ -10,8 +10,10 @@
 inliner band `0x10b5b86d`–`0x10b62b00` (`inline.c`'s anchor span plus the gaps
 on both sides that hold the parameter tables and the legality check). Not
 covered: `ptinl.c` entirely, the expansion's own body rewrite beyond its entry,
-and both 46-dword POGO parameter tables (read, unreachable, deliberately not
-quoted — §5).
+~~and both 46-dword POGO parameter tables (read, unreachable, deliberately not
+quoted — §5)~~ ⭑ **the tables' DEFAULTS are quoted as of 2026-08-28: they are
+recoverable from the two initializer sweeps, §6.8.1. Still unreachable, and the
+run-time tables under an overriding command line are still unquotable.**
 
 > ### The headline, and it is a warning about fitted rules
 >
