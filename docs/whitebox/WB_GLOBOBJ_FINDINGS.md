@@ -450,7 +450,7 @@ only failure in 987 tests:
 
 ```
 crates/c2-harness/src/subsys.rs:2803  assertion `left == right` failed
-  left: (49, 18, 4)     <- P_GLOBREGS.md at this tip
+  left: (49, 21, 4)     <- P_GLOBREGS.md at this tip
  right: (45, 2, 1)      <- the pinned baseline
 ```
 
@@ -465,7 +465,7 @@ fails. The cause is the page and only the page.
 ten subsystems — `eh` and `globregs` — and that lane amended `P_REGALLOC`.
 
 **This lane did not make the one-line re-bless**
-(`(45, 2, 1)` → `(49, 18, 4)`), because `reach 0` is the check the brief uses to
+(`(45, 2, 1)` → `(49, 21, 4)`), because `reach 0` is the check the brief uses to
 verify the lane stayed in its seam and `#3748`'s doctrine is that a re-bless
 must appear in a diff a reviewer reads. **The real finding is about the wave's
 design**: a lane cannot both own a reference page and be barred from `crates/`
