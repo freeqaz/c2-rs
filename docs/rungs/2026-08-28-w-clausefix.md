@@ -293,12 +293,59 @@ quotable patch blocks here rather than edits there.
    > `test DWORD PTR [esi+0x4c],0x2000` at `0x10b625a6`, which is a **second**
    > site with that effect alongside `w-inlfit` §3's `0x10b6240f`.
 
-2. **`w-inlfit` §4 and `ADOPTION_BRIEF` §L5 carry the refuted
-   duplicate-function story** (§4 above). Both are dated records and stay as
-   written; a reader arriving at either should be sent here. One line in
-   `P_INLINE.md` §6.1 would do it, and this lane cannot write it.
+2. **`docs/whitebox/ref/P_INLINE.md` §6.1's table now DIVERGES from
+   `CLAUSES.tsv` on ten addresses, and this lane may not close it.** This is
+   the highest-value item in the section and it is a *divergence*, not merely a
+   staleness: the page and the machine table are the same instrument published
+   twice, and they no longer agree.
 
-3. **The `asm` column is a weak witness on four rows and says so.** C1, C5/C6,
+   > **First, the corroboration, because it matters.** §6.6.3 — written by
+   > `w-inlfit`, on master, before this lane started — already publishes
+   > repairs for **C4 → `0x10b6276e`**, **C18 → `0x10b625b6`** and
+   > **C19 → `0x10b625bb`/`0x10b625c1`**, derived by hand. This lane derived
+   > all three **independently, mechanically, from the objdump listing**, and
+   > got **the same three addresses**. Two derivations by two methods meeting
+   > is worth more than either alone, and it is registered here rather than
+   > left implicit.
+
+   What `w-inlswitch` (or the next owner of the page) should apply, ready to
+   paste:
+
+   * **§6.1's table, ten `addr` cells:** C2 `0x10b626d8`→**`0x10b62703`**,
+     C3 `0x10b626f4`→**`0x10b62708`**, C4 `0x10b6276a`→**`0x10b6276e`**,
+     C10 `0x10b609d3`→**`0x10b60a28`**, C14 `0x10b609ae`→**`0x10b60a1c`**,
+     C15 `0x10b609bd`→**`0x10b60a2f`**, C16 `0x10b609ee`→**`0x10b60a63`**,
+     C17 `0x10b60a04`→**`0x10b60a73`**, C18 `0x10b6249b`→**`0x10b625b6`**,
+     C19 `0x10b624a2`→**`0x10b625bb`**. Every `state`, `witness` and
+     `exercised` cell stays exactly as it is.
+   * **§6.6.3's heading and three of its sentences.** "eight of the
+     twenty-four" is **ten**; "425,871 instruction starts" is **424,232**
+     (`#3784` — the larger figure counts objdump's byte-continuation lines);
+     the paragraph beginning *"C18/C19's citations are `0x11b` bytes early
+     because they landed in a DUPLICATE of the wrong function"* is refuted
+     (`#3782`) and its replacement is:
+
+     > **C18/C19's citations are `0x11b` bytes early, both of them, under one
+     > uniform transcription shift**: `0x10b6249b + 0x11b = 0x10b625b6` (the
+     > clause's `cmp eax,0x28`) and `0x10b624a2 + 0x11b = 0x10b625bd` (the
+     > re-load feeding the clause's `add`). The nearby block at
+     > `0x10b62488`–`0x10b624be` is **not** the explanation: it is
+     > structurally but not byte-identical to `0x10b5fb85` (the register
+     > differs — `ecx` against `edi`), it is inside `FUN_10b6242a`, which is
+     > the function C18/C19's `owner` cell already names, there is a **third**
+     > copy at `0x10b62519`, and it contains no `0x28` and no `+0x50` access
+     > for a content search to have matched.
+   * **§6.6.3's closing "filed as follow-ups"** — C10 is **settled** (`#3781`)
+     and its class is not out of reach; it is the class **DECODE** now covers.
+     `docs/whitebox/WB_INLINE_FINDINGS.md` §2.2–§2.4 and
+     `docs/rungs/2026-08-08-wb-inline.md` carry the same ten addresses and are
+     **dated records that stay as written**.
+
+3. **`w-inlfit` §4 and `ADOPTION_BRIEF` §L5 carry the refuted
+   duplicate-function story** (§4 above). Both are dated records and stay as
+   written; a reader arriving at either should be sent here.
+
+4. **The `asm` column is a weak witness on four rows and says so.** C1, C5/C6,
    C20 and C21 cite function **entries**, so their `asm` cell is `push ebp`.
    DECODE-green on those four means the address is an entry, not that it is the
    *right* entry. Documented in the table header rather than left for a reader
@@ -307,13 +354,13 @@ quotable patch blocks here rather than edits there.
    **not built here**, because it needs a per-row window size and that is a
    parameter somebody would fit.
 
-4. **`docs/ADOPTION_BRIEF_2026-08-28.md` §4 and §L5 give `check_table.py`'s path
+5. **`docs/ADOPTION_BRIEF_2026-08-28.md` §4 and §L5 give `check_table.py`'s path
    as `docs/whitebox/scripts/check_table.py`.** It has always lived at
    `work/w-inlmetric/check_table.py`. Not moved: the path is cited by two
    landed rungs and `P_INLINE.md`, and moving it to fix a brief's typo would
    break three correct citations to repair one wrong one.
 
-5. **The seam table in `ADOPTION_BRIEF` §4 lists `crates/` under this lane's
+6. **The seam table in `ADOPTION_BRIEF` §4 lists `crates/` under this lane's
    *must not touch*, and the dispatch assigns it a `crates/c2-harness/tests/`
    target.** Resolved in favour of the dispatch (`PREREG` §1) and recorded so
    the conflict is visible: the new file collides with nothing any peer owns,
