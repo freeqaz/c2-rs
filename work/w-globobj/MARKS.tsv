@@ -1,0 +1,61 @@
+# MARKS.tsv — every evidence mark on docs/whitebox/ref/P_GLOBREGS.md, classified
+# BEFORE any deciding cell was compiled. Lane w-globobj, prereg §2.
+#
+# line   : line number in P_GLOBREGS.md at base 4b79bf46a (45 [R] + 2 [O] + 1 [I] = 48,
+#          re-derived: python3 -c "count marks after the first --- line")
+# kind   : the mark as the page carries it
+# bucket : OBS    = a real obj can decide it; this lane builds the cell
+#          CONSTR = unobservable in an obj BY CONSTRUCTION — the two bodies that
+#                   would have to differ cannot exist. Requires a stated reason.
+#          UNCOMP = a cell could exist; this lane does not build it (or it does
+#                   not reach). Names the cell that would decide it.
+# series : the cell series that touches it, or the reason/blocker
+line	kind	subject	bucket	series-or-reason
+46	R	cand+0x44 writer 0x10b55fac, its value and its zero default	CONSTR	no obj distinguishes WHICH instruction wrote an internal field; only the resulting order is emitted (series O carries that)
+47	R	what the +0x44 ordinal means in PROGRAM terms	OBS	series O — the source-level ordering rule
+163	R	0x10b57633 phase driver, four resets	CONSTR	per-function counter resets have no output form
+164	R	0x10b550e5 STEP 1, index + promotion policy	OBS	series P
+165	R	0x10b568af fills DAT_10c400d0 and block+0x2c/30/34	CONSTR	internal side tables
+166	R	0x10b55732 STEP 2 renamer, version per (symbol,definition)	OBS	series V
+167	R	0x10b54bad HEAD-inserts the version record	CONSTR	head-vs-tail insert only reaches output through mint id order, which is the THIRD tie tier (prereg 5.5)
+168	R	0x10b54bf0 candidate-list link sym+0x30 next / aux+0x10 prev	CONSTR	list link direction has no output form
+169	R	0x10b54c07 STEP 2b, the MERGE at joins	UNCOMP	a two-predecessor join cell (if(c) x=A; else x=B; use(x);) would show whether two defs merge to ONE candidate. Not built here.
+170	R	0x10b55dbe STEP 3 mint, arena order x version-list order	OBS	series V (one candidate per version); the ID ORDER half is CONSTR, see line 347
+171	R	0x10b55eae STEP 4, sole originating writer; re-points operands	CONSTR	site attribution; the ordinal's consequence is line 47
+172	R	0x10b54d32 constructor never writes +0x44	CONSTR	a never-written field has no obj form
+173	R	0x10b2efd6 destructor memsets 0x48, restores only +0x1c	CONSTR	free-list hygiene is invisible unless a stale key leaks, which it cannot
+174	R	0x10b2dfe2 split child copies parent +0x44	UNCOMP	needs a spill/split cell (>= 19 simultaneously live candidates). Not built here.
+175	R	0x10b2e4ae two more verbatim +0x44 inheritances	UNCOMP	same cell as line 174
+176	R	0x10b316b1 worklist build, ascending buckets, no +0x44 ref	CONSTR	bucket walk order is subsumed by the comparator's output order
+177	R	0x10b2b82d THE COMPARATOR, +0x0c DESC then +0x44 DESC	OBS	series O grades the COMPOSITE order; the split into two keys is the prereg 5.4 ceiling
+178	R	0x10bd2343 symbol-chunk allocator, 32 slots, stride 0x60, APPEND	CONSTR	arena geometry; reaches output only via mint id (third tier)
+179	R	0x10bd3225 symbol alloc / free-list memset restoring +0x1c	CONSTR	same
+180	R	0x10bd7d24 the promotable-type gate	OBS	series P
+181	R	0x10c2022a arena allocator memsets every chunk	CONSTR	zeroed-allocation guarantee has no output form
+187	R	DAT_10c6f844 symbol-table layout	CONSTR	structure layout
+188	R	sym+0x1c serial preserved across recycling	CONSTR	reaches output only via mint id (third tier)
+189	R	sym+0x34 the 0x20-byte aux record	CONSTR	structure layout
+190	R	aux+0x00 the liveness bitset index	CONSTR	structure layout; its ORDER is line 331
+191	R	aux+0x0c version list, HEAD-inserted, descending	CONSTR	same as line 167
+192	R	aux+0x10 candidate-list prev	CONSTR	structure layout
+193	R	aux+0x14 current version number (0 = none)	CONSTR	structure layout
+194	R	aux+0x18 a partner symbol versioned alongside	UNCOMP	P_GLOBREGS 9 already calls it read-as-a-field-not-a-rule; no cell is known that exposes the partner relation
+195	R	DAT_10c400d0 index->symbol array	CONSTR	structure layout
+196	R	0x10b18b28 promotable-type table, 30 bytes stride 4	OBS	series P — at the CONSEQUENCE level, and only for classes reachable from C++ source
+197	R	0x10bd7cf0 13-entry type-class jump table, bounded at 13	CONSTR	table arity has no output form
+237	R	gate B rejects classes 0x00 0x12 0x13 0x18 0x1d	OBS	series P
+257	R	FUN_10b54bad does exactly four things	CONSTR	instruction-level enumeration
+275	R	a symbol is versioned on FIRST ENCOUNTER, in either operand list	UNCOMP	needs a cell separating T->[0x28] from T->[0x2c]; P_GLOBREGS 9 records that which is the def list is unknown
+288	R	FUN_10b54c07 is called with a POINTER to the version counter	CONSTR	calling convention of an internal helper
+331	R	walking the arena yields ascending sym+0x1c	OBS	series O — rival DECL is the source-level proxy for arena order; series O can refute it
+347	R	id ascends with (sym+0x1c ASC, version DESC)	CONSTR	prereg 5.5 — the id is read only by the THIRD tie tier, reached only on an exact tie in BOTH +0x0c and +0x44; two bodies tying in both are the same body
+355	I	arena order == creation order only if nothing recycled	CONSTR	same as line 188
+355	R	0x10bd3225's free-list path restores +0x1c	CONSTR	same as line 179
+395	R	the +0x44 default is a hard 0, twice guaranteed	CONSTR	a default that cannot leak cannot be seen
+434	R	+0x44 written at one site with a monotone ordinal; the comparator's 2nd key	OBS	series O grades the composite order (prereg 5.4 ceiling applies)
+438	R	what the ordinal means in program terms	OBS	series O — same claim as line 47
+441	O	262 formal->register assignments over 62 grid objs	-	already [O] (read R4)
+460	R	the tie key is cand+0x44, written at 0x10b55fac	CONSTR	site attribution
+461	R	sorted DESCENDING by 0x10b2b82d	OBS	series O grades the direction of the composite order
+464	R	blocks-forward x tuples-backward; value taken at the LAST VISIT	OBS	series O — prereg 5.1 derives the single-block entailment from exactly this
+465	O	the cell built to take it to [O] never reached the tier	-	already [O] (read R4)
