@@ -1,0 +1,60 @@
+   Compiling c2-core v0.1.0 (<worktree>/crates/c2-core)
+warning: unused variable: `pool_floor`
+    --> crates/c2-core/src/codegen/alloc.rs:1269:41
+     |
+1269 | pub fn allocate(producers: &[Producer], pool_floor: u8) -> Option<Vec<(u32, u8)>> {
+     |                                         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pool_floor`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `c2-core` (lib test) generated 1 warning (run `cargo fix --lib -p c2-core --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.98s
+     Running unittests src/lib.rs (target/debug/deps/c2_core-e2b98bdb77b52971)
+
+running 1 test
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+
+failures:
+
+---- surface::tests::the_decision_surface_domain_matches_the_committed_baseline stdout ----
+
+thread 'surface::tests::the_decision_surface_domain_matches_the_committed_baseline' (3136153) panicked at crates/c2-core/src/surface.rs:349:9:
+THE DECISION-SURFACE DOMAIN MOVED — 127 line(s) of 1102 differ from crates/c2-core/src/surface/DOMAIN.txt.
+
+This is board #3723's check. A required-zero byte delta and a 0-line gate identity diff are BOTH silent about the lines below: they are points the corpus does not reach.
+
+If the change is intended, re-bless the baseline
+(cargo test -p c2-core --lib surface::tests::bless -- --ignored)
+and the widening becomes a reviewable text diff, which is the whole point. If it is not intended, you have just been told about an emit widening no fixture would have caught.
+
+  - alloc.allocate  kind=const n=1 floor=12  REFUSE
+  + alloc.allocate  kind=const n=1 floor=12  r11
+  - alloc.allocate  kind=const n=1 floor=13  REFUSE
+  + alloc.allocate  kind=const n=1 floor=13  r11
+  - alloc.allocate  kind=const n=1 floor=14  REFUSE
+  + alloc.allocate  kind=const n=1 floor=14  r11
+  - alloc.allocate  kind=const n=1 floor=15  REFUSE
+  + alloc.allocate  kind=const n=1 floor=15  r11
+  - alloc.allocate  kind=const n=1 floor=16  REFUSE
+  + alloc.allocate  kind=const n=1 floor=16  r11
+  - alloc.allocate  kind=const n=1 floor=17  REFUSE
+  + alloc.allocate  kind=const n=1 floor=17  r11
+  - alloc.allocate  kind=const n=1 floor=18  REFUSE
+  + alloc.allocate  kind=const n=1 floor=18  r11
+  - alloc.allocate  kind=const n=1 floor=19  REFUSE
+  + alloc.allocate  kind=const n=1 floor=19  r11
+  - alloc.allocate  kind=const n=1 floor=20  REFUSE
+  + alloc.allocate  kind=const n=1 floor=20  r11
+  - alloc.allocate  kind=const n=1 floor=21  REFUSE
+  + alloc.allocate  kind=const n=1 floor=21  r11
+  - alloc.allocate  kind=const n=1 floor=22  REFUSE
+  + alloc.allocate  kind=const n=1 floor=22  r11
+  - alloc.allocate  kind=const n=1 floor=23  REFUSE
+  + alloc.allocate  kind=const n=1 floor=23  r11
+  - alloc.allocate  kind=const n=1 floor=24  REFUSE
+  + alloc.allocate  kind=const n=1 floor=24  r11
+  - alloc.allocate  kind=const n=1 floor=25  REFUSE
+  + alloc.allocate  kind=const n=1 floor=25  r11
+  - alloc.allocate  kind=const n=1 floor=26  REFUSE
+  + alloc.allocate  kind=const n=1 floor=26  r11
+  - alloc.allocate  kind=const n=1 floor=27  REFUSE
