@@ -1,0 +1,1102 @@
+# c2-rs DECISION-SURFACE DOMAIN — GENERATED, DO NOT HAND-EDIT.
+#
+# Regenerate:  cargo test -p c2-core --lib surface::tests::bless -- --ignored
+#
+# This file is the answer to board #3723: a required-zero BYTE delta
+# passes an emit widening whose new emissions the corpus never
+# exercises. Every line below is a point of a decision surface that the
+# corpus does NOT have to reach, so a widening moves lines here even
+# when it moves no byte and no gate row.
+#
+# A line that changed is not automatically a defect. It is a claim that
+# has to be read: the port now chooses, or refuses, differently.
+#
+# `REFUSE` is a refusal; anything else is the comma-separated list of
+# values the port would emit at that point.
+
+## surface  alloc.allocate
+##   site      codegen/alloc.rs
+##   boundary  which registers a store run's producers get, and on which (producer count, pool floor) the allocation REFUSES
+##   cite      docs/ALLOC.md; board #543, #541; the C6 control that motivated #3723
+##   guards    MAX_MODELLED_PRODUCERS VOLATILE_GPR_TOP POOL_TOP
+alloc.allocate  kind=const n=1 floor=00  r11
+alloc.allocate  kind=const n=1 floor=01  r11
+alloc.allocate  kind=const n=1 floor=02  r11
+alloc.allocate  kind=const n=1 floor=03  r11
+alloc.allocate  kind=const n=1 floor=04  r11
+alloc.allocate  kind=const n=1 floor=05  r11
+alloc.allocate  kind=const n=1 floor=06  r11
+alloc.allocate  kind=const n=1 floor=07  r11
+alloc.allocate  kind=const n=1 floor=08  r11
+alloc.allocate  kind=const n=1 floor=09  r11
+alloc.allocate  kind=const n=1 floor=10  r11
+alloc.allocate  kind=const n=1 floor=11  r11
+alloc.allocate  kind=const n=1 floor=12  REFUSE
+alloc.allocate  kind=const n=1 floor=13  REFUSE
+alloc.allocate  kind=const n=1 floor=14  REFUSE
+alloc.allocate  kind=const n=1 floor=15  REFUSE
+alloc.allocate  kind=const n=1 floor=16  REFUSE
+alloc.allocate  kind=const n=1 floor=17  REFUSE
+alloc.allocate  kind=const n=1 floor=18  REFUSE
+alloc.allocate  kind=const n=1 floor=19  REFUSE
+alloc.allocate  kind=const n=1 floor=20  REFUSE
+alloc.allocate  kind=const n=1 floor=21  REFUSE
+alloc.allocate  kind=const n=1 floor=22  REFUSE
+alloc.allocate  kind=const n=1 floor=23  REFUSE
+alloc.allocate  kind=const n=1 floor=24  REFUSE
+alloc.allocate  kind=const n=1 floor=25  REFUSE
+alloc.allocate  kind=const n=1 floor=26  REFUSE
+alloc.allocate  kind=const n=1 floor=27  REFUSE
+alloc.allocate  kind=const n=1 floor=28  REFUSE
+alloc.allocate  kind=const n=1 floor=29  REFUSE
+alloc.allocate  kind=const n=1 floor=30  REFUSE
+alloc.allocate  kind=const n=1 floor=31  REFUSE
+alloc.allocate  kind=const n=2 floor=00  r11,r10
+alloc.allocate  kind=const n=2 floor=01  r11,r10
+alloc.allocate  kind=const n=2 floor=02  r11,r10
+alloc.allocate  kind=const n=2 floor=03  r11,r10
+alloc.allocate  kind=const n=2 floor=04  r11,r10
+alloc.allocate  kind=const n=2 floor=05  r11,r10
+alloc.allocate  kind=const n=2 floor=06  r11,r10
+alloc.allocate  kind=const n=2 floor=07  r11,r10
+alloc.allocate  kind=const n=2 floor=08  r11,r10
+alloc.allocate  kind=const n=2 floor=09  r11,r10
+alloc.allocate  kind=const n=2 floor=10  r11,r10
+alloc.allocate  kind=const n=2 floor=11  REFUSE
+alloc.allocate  kind=const n=2 floor=12  REFUSE
+alloc.allocate  kind=const n=2 floor=13  REFUSE
+alloc.allocate  kind=const n=2 floor=14  REFUSE
+alloc.allocate  kind=const n=2 floor=15  REFUSE
+alloc.allocate  kind=const n=2 floor=16  REFUSE
+alloc.allocate  kind=const n=2 floor=17  REFUSE
+alloc.allocate  kind=const n=2 floor=18  REFUSE
+alloc.allocate  kind=const n=2 floor=19  REFUSE
+alloc.allocate  kind=const n=2 floor=20  REFUSE
+alloc.allocate  kind=const n=2 floor=21  REFUSE
+alloc.allocate  kind=const n=2 floor=22  REFUSE
+alloc.allocate  kind=const n=2 floor=23  REFUSE
+alloc.allocate  kind=const n=2 floor=24  REFUSE
+alloc.allocate  kind=const n=2 floor=25  REFUSE
+alloc.allocate  kind=const n=2 floor=26  REFUSE
+alloc.allocate  kind=const n=2 floor=27  REFUSE
+alloc.allocate  kind=const n=2 floor=28  REFUSE
+alloc.allocate  kind=const n=2 floor=29  REFUSE
+alloc.allocate  kind=const n=2 floor=30  REFUSE
+alloc.allocate  kind=const n=2 floor=31  REFUSE
+alloc.allocate  kind=const n=3 floor=00  r11,r10,r9
+alloc.allocate  kind=const n=3 floor=01  r11,r10,r9
+alloc.allocate  kind=const n=3 floor=02  r11,r10,r9
+alloc.allocate  kind=const n=3 floor=03  r11,r10,r9
+alloc.allocate  kind=const n=3 floor=04  r11,r10,r9
+alloc.allocate  kind=const n=3 floor=05  r11,r10,r9
+alloc.allocate  kind=const n=3 floor=06  r11,r10,r9
+alloc.allocate  kind=const n=3 floor=07  r11,r10,r9
+alloc.allocate  kind=const n=3 floor=08  r11,r10,r9
+alloc.allocate  kind=const n=3 floor=09  r11,r10,r9
+alloc.allocate  kind=const n=3 floor=10  REFUSE
+alloc.allocate  kind=const n=3 floor=11  REFUSE
+alloc.allocate  kind=const n=3 floor=12  REFUSE
+alloc.allocate  kind=const n=3 floor=13  REFUSE
+alloc.allocate  kind=const n=3 floor=14  REFUSE
+alloc.allocate  kind=const n=3 floor=15  REFUSE
+alloc.allocate  kind=const n=3 floor=16  REFUSE
+alloc.allocate  kind=const n=3 floor=17  REFUSE
+alloc.allocate  kind=const n=3 floor=18  REFUSE
+alloc.allocate  kind=const n=3 floor=19  REFUSE
+alloc.allocate  kind=const n=3 floor=20  REFUSE
+alloc.allocate  kind=const n=3 floor=21  REFUSE
+alloc.allocate  kind=const n=3 floor=22  REFUSE
+alloc.allocate  kind=const n=3 floor=23  REFUSE
+alloc.allocate  kind=const n=3 floor=24  REFUSE
+alloc.allocate  kind=const n=3 floor=25  REFUSE
+alloc.allocate  kind=const n=3 floor=26  REFUSE
+alloc.allocate  kind=const n=3 floor=27  REFUSE
+alloc.allocate  kind=const n=3 floor=28  REFUSE
+alloc.allocate  kind=const n=3 floor=29  REFUSE
+alloc.allocate  kind=const n=3 floor=30  REFUSE
+alloc.allocate  kind=const n=3 floor=31  REFUSE
+alloc.allocate  kind=const n=4 floor=00  REFUSE
+alloc.allocate  kind=const n=4 floor=01  REFUSE
+alloc.allocate  kind=const n=4 floor=02  REFUSE
+alloc.allocate  kind=const n=4 floor=03  REFUSE
+alloc.allocate  kind=const n=4 floor=04  REFUSE
+alloc.allocate  kind=const n=4 floor=05  REFUSE
+alloc.allocate  kind=const n=4 floor=06  REFUSE
+alloc.allocate  kind=const n=4 floor=07  REFUSE
+alloc.allocate  kind=const n=4 floor=08  REFUSE
+alloc.allocate  kind=const n=4 floor=09  REFUSE
+alloc.allocate  kind=const n=4 floor=10  REFUSE
+alloc.allocate  kind=const n=4 floor=11  REFUSE
+alloc.allocate  kind=const n=4 floor=12  REFUSE
+alloc.allocate  kind=const n=4 floor=13  REFUSE
+alloc.allocate  kind=const n=4 floor=14  REFUSE
+alloc.allocate  kind=const n=4 floor=15  REFUSE
+alloc.allocate  kind=const n=4 floor=16  REFUSE
+alloc.allocate  kind=const n=4 floor=17  REFUSE
+alloc.allocate  kind=const n=4 floor=18  REFUSE
+alloc.allocate  kind=const n=4 floor=19  REFUSE
+alloc.allocate  kind=const n=4 floor=20  REFUSE
+alloc.allocate  kind=const n=4 floor=21  REFUSE
+alloc.allocate  kind=const n=4 floor=22  REFUSE
+alloc.allocate  kind=const n=4 floor=23  REFUSE
+alloc.allocate  kind=const n=4 floor=24  REFUSE
+alloc.allocate  kind=const n=4 floor=25  REFUSE
+alloc.allocate  kind=const n=4 floor=26  REFUSE
+alloc.allocate  kind=const n=4 floor=27  REFUSE
+alloc.allocate  kind=const n=4 floor=28  REFUSE
+alloc.allocate  kind=const n=4 floor=29  REFUSE
+alloc.allocate  kind=const n=4 floor=30  REFUSE
+alloc.allocate  kind=const n=4 floor=31  REFUSE
+alloc.allocate  kind=regd n=1 floor=00  r11
+alloc.allocate  kind=regd n=1 floor=01  r11
+alloc.allocate  kind=regd n=1 floor=02  r11
+alloc.allocate  kind=regd n=1 floor=03  r11
+alloc.allocate  kind=regd n=1 floor=04  r11
+alloc.allocate  kind=regd n=1 floor=05  r11
+alloc.allocate  kind=regd n=1 floor=06  r11
+alloc.allocate  kind=regd n=1 floor=07  r11
+alloc.allocate  kind=regd n=1 floor=08  r11
+alloc.allocate  kind=regd n=1 floor=09  r11
+alloc.allocate  kind=regd n=1 floor=10  r11
+alloc.allocate  kind=regd n=1 floor=11  r11
+alloc.allocate  kind=regd n=1 floor=12  REFUSE
+alloc.allocate  kind=regd n=1 floor=13  REFUSE
+alloc.allocate  kind=regd n=1 floor=14  REFUSE
+alloc.allocate  kind=regd n=1 floor=15  REFUSE
+alloc.allocate  kind=regd n=1 floor=16  REFUSE
+alloc.allocate  kind=regd n=1 floor=17  REFUSE
+alloc.allocate  kind=regd n=1 floor=18  REFUSE
+alloc.allocate  kind=regd n=1 floor=19  REFUSE
+alloc.allocate  kind=regd n=1 floor=20  REFUSE
+alloc.allocate  kind=regd n=1 floor=21  REFUSE
+alloc.allocate  kind=regd n=1 floor=22  REFUSE
+alloc.allocate  kind=regd n=1 floor=23  REFUSE
+alloc.allocate  kind=regd n=1 floor=24  REFUSE
+alloc.allocate  kind=regd n=1 floor=25  REFUSE
+alloc.allocate  kind=regd n=1 floor=26  REFUSE
+alloc.allocate  kind=regd n=1 floor=27  REFUSE
+alloc.allocate  kind=regd n=1 floor=28  REFUSE
+alloc.allocate  kind=regd n=1 floor=29  REFUSE
+alloc.allocate  kind=regd n=1 floor=30  REFUSE
+alloc.allocate  kind=regd n=1 floor=31  REFUSE
+alloc.allocate  kind=regd n=2 floor=00  r11,r10
+alloc.allocate  kind=regd n=2 floor=01  r11,r10
+alloc.allocate  kind=regd n=2 floor=02  r11,r10
+alloc.allocate  kind=regd n=2 floor=03  r11,r10
+alloc.allocate  kind=regd n=2 floor=04  r11,r10
+alloc.allocate  kind=regd n=2 floor=05  r11,r10
+alloc.allocate  kind=regd n=2 floor=06  r11,r10
+alloc.allocate  kind=regd n=2 floor=07  r11,r10
+alloc.allocate  kind=regd n=2 floor=08  r11,r10
+alloc.allocate  kind=regd n=2 floor=09  r11,r10
+alloc.allocate  kind=regd n=2 floor=10  r11,r10
+alloc.allocate  kind=regd n=2 floor=11  REFUSE
+alloc.allocate  kind=regd n=2 floor=12  REFUSE
+alloc.allocate  kind=regd n=2 floor=13  REFUSE
+alloc.allocate  kind=regd n=2 floor=14  REFUSE
+alloc.allocate  kind=regd n=2 floor=15  REFUSE
+alloc.allocate  kind=regd n=2 floor=16  REFUSE
+alloc.allocate  kind=regd n=2 floor=17  REFUSE
+alloc.allocate  kind=regd n=2 floor=18  REFUSE
+alloc.allocate  kind=regd n=2 floor=19  REFUSE
+alloc.allocate  kind=regd n=2 floor=20  REFUSE
+alloc.allocate  kind=regd n=2 floor=21  REFUSE
+alloc.allocate  kind=regd n=2 floor=22  REFUSE
+alloc.allocate  kind=regd n=2 floor=23  REFUSE
+alloc.allocate  kind=regd n=2 floor=24  REFUSE
+alloc.allocate  kind=regd n=2 floor=25  REFUSE
+alloc.allocate  kind=regd n=2 floor=26  REFUSE
+alloc.allocate  kind=regd n=2 floor=27  REFUSE
+alloc.allocate  kind=regd n=2 floor=28  REFUSE
+alloc.allocate  kind=regd n=2 floor=29  REFUSE
+alloc.allocate  kind=regd n=2 floor=30  REFUSE
+alloc.allocate  kind=regd n=2 floor=31  REFUSE
+alloc.allocate  kind=regd n=3 floor=00  r11,r10,r9
+alloc.allocate  kind=regd n=3 floor=01  r11,r10,r9
+alloc.allocate  kind=regd n=3 floor=02  r11,r10,r9
+alloc.allocate  kind=regd n=3 floor=03  r11,r10,r9
+alloc.allocate  kind=regd n=3 floor=04  r11,r10,r9
+alloc.allocate  kind=regd n=3 floor=05  r11,r10,r9
+alloc.allocate  kind=regd n=3 floor=06  r11,r10,r9
+alloc.allocate  kind=regd n=3 floor=07  r11,r10,r9
+alloc.allocate  kind=regd n=3 floor=08  r11,r10,r9
+alloc.allocate  kind=regd n=3 floor=09  r11,r10,r9
+alloc.allocate  kind=regd n=3 floor=10  REFUSE
+alloc.allocate  kind=regd n=3 floor=11  REFUSE
+alloc.allocate  kind=regd n=3 floor=12  REFUSE
+alloc.allocate  kind=regd n=3 floor=13  REFUSE
+alloc.allocate  kind=regd n=3 floor=14  REFUSE
+alloc.allocate  kind=regd n=3 floor=15  REFUSE
+alloc.allocate  kind=regd n=3 floor=16  REFUSE
+alloc.allocate  kind=regd n=3 floor=17  REFUSE
+alloc.allocate  kind=regd n=3 floor=18  REFUSE
+alloc.allocate  kind=regd n=3 floor=19  REFUSE
+alloc.allocate  kind=regd n=3 floor=20  REFUSE
+alloc.allocate  kind=regd n=3 floor=21  REFUSE
+alloc.allocate  kind=regd n=3 floor=22  REFUSE
+alloc.allocate  kind=regd n=3 floor=23  REFUSE
+alloc.allocate  kind=regd n=3 floor=24  REFUSE
+alloc.allocate  kind=regd n=3 floor=25  REFUSE
+alloc.allocate  kind=regd n=3 floor=26  REFUSE
+alloc.allocate  kind=regd n=3 floor=27  REFUSE
+alloc.allocate  kind=regd n=3 floor=28  REFUSE
+alloc.allocate  kind=regd n=3 floor=29  REFUSE
+alloc.allocate  kind=regd n=3 floor=30  REFUSE
+alloc.allocate  kind=regd n=3 floor=31  REFUSE
+alloc.allocate  kind=regd n=4 floor=00  REFUSE
+alloc.allocate  kind=regd n=4 floor=01  REFUSE
+alloc.allocate  kind=regd n=4 floor=02  REFUSE
+alloc.allocate  kind=regd n=4 floor=03  REFUSE
+alloc.allocate  kind=regd n=4 floor=04  REFUSE
+alloc.allocate  kind=regd n=4 floor=05  REFUSE
+alloc.allocate  kind=regd n=4 floor=06  REFUSE
+alloc.allocate  kind=regd n=4 floor=07  REFUSE
+alloc.allocate  kind=regd n=4 floor=08  REFUSE
+alloc.allocate  kind=regd n=4 floor=09  REFUSE
+alloc.allocate  kind=regd n=4 floor=10  REFUSE
+alloc.allocate  kind=regd n=4 floor=11  REFUSE
+alloc.allocate  kind=regd n=4 floor=12  REFUSE
+alloc.allocate  kind=regd n=4 floor=13  REFUSE
+alloc.allocate  kind=regd n=4 floor=14  REFUSE
+alloc.allocate  kind=regd n=4 floor=15  REFUSE
+alloc.allocate  kind=regd n=4 floor=16  REFUSE
+alloc.allocate  kind=regd n=4 floor=17  REFUSE
+alloc.allocate  kind=regd n=4 floor=18  REFUSE
+alloc.allocate  kind=regd n=4 floor=19  REFUSE
+alloc.allocate  kind=regd n=4 floor=20  REFUSE
+alloc.allocate  kind=regd n=4 floor=21  REFUSE
+alloc.allocate  kind=regd n=4 floor=22  REFUSE
+alloc.allocate  kind=regd n=4 floor=23  REFUSE
+alloc.allocate  kind=regd n=4 floor=24  REFUSE
+alloc.allocate  kind=regd n=4 floor=25  REFUSE
+alloc.allocate  kind=regd n=4 floor=26  REFUSE
+alloc.allocate  kind=regd n=4 floor=27  REFUSE
+alloc.allocate  kind=regd n=4 floor=28  REFUSE
+alloc.allocate  kind=regd n=4 floor=29  REFUSE
+alloc.allocate  kind=regd n=4 floor=30  REFUSE
+alloc.allocate  kind=regd n=4 floor=31  REFUSE
+## summary  alloc.allocate  cells=256 admit=66 refuse=190 values={r10,r11,r9}
+
+## surface  regalloc.select
+##   site      codegen/regalloc.rs
+##   boundary  c2's minimum-cost selector over an ordered register list — which register wins, and when the allowed set is exhausted
+##   cite      docs/whitebox/ref/P_REGALLOC.md §3; c2 `0x10b2e7f8`; DISCLOSURE W-REGSEL-1
+##   guards    (none named)
+regalloc.select  order=gpr-default allowed=00..=31 n=1  11
+regalloc.select  order=gpr-default allowed=00..=31 n=2  11,10
+regalloc.select  order=gpr-default allowed=00..=31 n=3  11,10,9
+regalloc.select  order=gpr-default allowed=00..=31 n=4  11,10,9,8
+regalloc.select  order=gpr-default allowed=03..=31 n=1  11
+regalloc.select  order=gpr-default allowed=03..=31 n=2  11,10
+regalloc.select  order=gpr-default allowed=03..=31 n=3  11,10,9
+regalloc.select  order=gpr-default allowed=03..=31 n=4  11,10,9,8
+regalloc.select  order=gpr-default allowed=10..=31 n=1  11
+regalloc.select  order=gpr-default allowed=10..=31 n=2  11,10
+regalloc.select  order=gpr-default allowed=10..=31 n=3  11,10,31
+regalloc.select  order=gpr-default allowed=10..=31 n=4  11,10,31,30
+regalloc.select  order=gpr-default allowed=11..=31 n=1  11
+regalloc.select  order=gpr-default allowed=11..=31 n=2  11,31
+regalloc.select  order=gpr-default allowed=11..=31 n=3  11,31,30
+regalloc.select  order=gpr-default allowed=11..=31 n=4  11,31,30,29
+regalloc.select  order=gpr-default allowed=12..=31 n=1  31
+regalloc.select  order=gpr-default allowed=12..=31 n=2  31,30
+regalloc.select  order=gpr-default allowed=12..=31 n=3  31,30,29
+regalloc.select  order=gpr-default allowed=12..=31 n=4  31,30,29,28
+regalloc.select  order=gpr-default allowed=14..=31 n=1  31
+regalloc.select  order=gpr-default allowed=14..=31 n=2  31,30
+regalloc.select  order=gpr-default allowed=14..=31 n=3  31,30,29
+regalloc.select  order=gpr-default allowed=14..=31 n=4  31,30,29,28
+regalloc.select  order=gpr-default allowed=20..=31 n=1  31
+regalloc.select  order=gpr-default allowed=20..=31 n=2  31,30
+regalloc.select  order=gpr-default allowed=20..=31 n=3  31,30,29
+regalloc.select  order=gpr-default allowed=20..=31 n=4  31,30,29,28
+regalloc.select  order=gpr-default allowed=31..=31 n=1  31
+regalloc.select  order=gpr-default allowed=31..=31 n=2  REFUSE
+regalloc.select  order=gpr-default allowed=31..=31 n=3  REFUSE
+regalloc.select  order=gpr-default allowed=31..=31 n=4  REFUSE
+regalloc.select  order=gpr-default allowed=00..=11 n=1  11
+regalloc.select  order=gpr-default allowed=00..=11 n=2  11,10
+regalloc.select  order=gpr-default allowed=00..=11 n=3  11,10,9
+regalloc.select  order=gpr-default allowed=00..=11 n=4  11,10,9,8
+regalloc.select  order=gpr-default allowed=00..=12 n=1  11
+regalloc.select  order=gpr-default allowed=00..=12 n=2  11,10
+regalloc.select  order=gpr-default allowed=00..=12 n=3  11,10,9
+regalloc.select  order=gpr-default allowed=00..=12 n=4  11,10,9,8
+regalloc.select  order=gpr-default allowed=11..=11 n=1  11
+regalloc.select  order=gpr-default allowed=11..=11 n=2  REFUSE
+regalloc.select  order=gpr-default allowed=11..=11 n=3  REFUSE
+regalloc.select  order=gpr-default allowed=11..=11 n=4  REFUSE
+regalloc.select  order=gpr-default allowed=12..=13 n=1  REFUSE
+regalloc.select  order=gpr-default allowed=12..=13 n=2  REFUSE
+regalloc.select  order=gpr-default allowed=12..=13 n=3  REFUSE
+regalloc.select  order=gpr-default allowed=12..=13 n=4  REFUSE
+regalloc.select  order=gpr-default allowed=14..=15 n=1  15
+regalloc.select  order=gpr-default allowed=14..=15 n=2  15,14
+regalloc.select  order=gpr-default allowed=14..=15 n=3  REFUSE
+regalloc.select  order=gpr-default allowed=14..=15 n=4  REFUSE
+regalloc.select  order=gpr-default allowed=28..=31 n=1  31
+regalloc.select  order=gpr-default allowed=28..=31 n=2  31,30
+regalloc.select  order=gpr-default allowed=28..=31 n=3  31,30,29
+regalloc.select  order=gpr-default allowed=28..=31 n=4  31,30,29,28
+regalloc.select  order=gpr-qgprreserve allowed=00..=31 n=1  11
+regalloc.select  order=gpr-qgprreserve allowed=00..=31 n=2  11,10
+regalloc.select  order=gpr-qgprreserve allowed=00..=31 n=3  11,10,9
+regalloc.select  order=gpr-qgprreserve allowed=00..=31 n=4  11,10,9,8
+regalloc.select  order=gpr-qgprreserve allowed=03..=31 n=1  11
+regalloc.select  order=gpr-qgprreserve allowed=03..=31 n=2  11,10
+regalloc.select  order=gpr-qgprreserve allowed=03..=31 n=3  11,10,9
+regalloc.select  order=gpr-qgprreserve allowed=03..=31 n=4  11,10,9,8
+regalloc.select  order=gpr-qgprreserve allowed=10..=31 n=1  11
+regalloc.select  order=gpr-qgprreserve allowed=10..=31 n=2  11,10
+regalloc.select  order=gpr-qgprreserve allowed=10..=31 n=3  11,10,31
+regalloc.select  order=gpr-qgprreserve allowed=10..=31 n=4  11,10,31,30
+regalloc.select  order=gpr-qgprreserve allowed=11..=31 n=1  11
+regalloc.select  order=gpr-qgprreserve allowed=11..=31 n=2  11,31
+regalloc.select  order=gpr-qgprreserve allowed=11..=31 n=3  11,31,30
+regalloc.select  order=gpr-qgprreserve allowed=11..=31 n=4  11,31,30,29
+regalloc.select  order=gpr-qgprreserve allowed=12..=31 n=1  31
+regalloc.select  order=gpr-qgprreserve allowed=12..=31 n=2  31,30
+regalloc.select  order=gpr-qgprreserve allowed=12..=31 n=3  31,30,29
+regalloc.select  order=gpr-qgprreserve allowed=12..=31 n=4  31,30,29,28
+regalloc.select  order=gpr-qgprreserve allowed=14..=31 n=1  31
+regalloc.select  order=gpr-qgprreserve allowed=14..=31 n=2  31,30
+regalloc.select  order=gpr-qgprreserve allowed=14..=31 n=3  31,30,29
+regalloc.select  order=gpr-qgprreserve allowed=14..=31 n=4  31,30,29,28
+regalloc.select  order=gpr-qgprreserve allowed=20..=31 n=1  31
+regalloc.select  order=gpr-qgprreserve allowed=20..=31 n=2  31,30
+regalloc.select  order=gpr-qgprreserve allowed=20..=31 n=3  31,30,29
+regalloc.select  order=gpr-qgprreserve allowed=20..=31 n=4  31,30,29,28
+regalloc.select  order=gpr-qgprreserve allowed=31..=31 n=1  31
+regalloc.select  order=gpr-qgprreserve allowed=31..=31 n=2  REFUSE
+regalloc.select  order=gpr-qgprreserve allowed=31..=31 n=3  REFUSE
+regalloc.select  order=gpr-qgprreserve allowed=31..=31 n=4  REFUSE
+regalloc.select  order=gpr-qgprreserve allowed=00..=11 n=1  11
+regalloc.select  order=gpr-qgprreserve allowed=00..=11 n=2  11,10
+regalloc.select  order=gpr-qgprreserve allowed=00..=11 n=3  11,10,9
+regalloc.select  order=gpr-qgprreserve allowed=00..=11 n=4  11,10,9,8
+regalloc.select  order=gpr-qgprreserve allowed=00..=12 n=1  11
+regalloc.select  order=gpr-qgprreserve allowed=00..=12 n=2  11,10
+regalloc.select  order=gpr-qgprreserve allowed=00..=12 n=3  11,10,9
+regalloc.select  order=gpr-qgprreserve allowed=00..=12 n=4  11,10,9,8
+regalloc.select  order=gpr-qgprreserve allowed=11..=11 n=1  11
+regalloc.select  order=gpr-qgprreserve allowed=11..=11 n=2  REFUSE
+regalloc.select  order=gpr-qgprreserve allowed=11..=11 n=3  REFUSE
+regalloc.select  order=gpr-qgprreserve allowed=11..=11 n=4  REFUSE
+regalloc.select  order=gpr-qgprreserve allowed=12..=13 n=1  REFUSE
+regalloc.select  order=gpr-qgprreserve allowed=12..=13 n=2  REFUSE
+regalloc.select  order=gpr-qgprreserve allowed=12..=13 n=3  REFUSE
+regalloc.select  order=gpr-qgprreserve allowed=12..=13 n=4  REFUSE
+regalloc.select  order=gpr-qgprreserve allowed=14..=15 n=1  REFUSE
+regalloc.select  order=gpr-qgprreserve allowed=14..=15 n=2  REFUSE
+regalloc.select  order=gpr-qgprreserve allowed=14..=15 n=3  REFUSE
+regalloc.select  order=gpr-qgprreserve allowed=14..=15 n=4  REFUSE
+regalloc.select  order=gpr-qgprreserve allowed=28..=31 n=1  31
+regalloc.select  order=gpr-qgprreserve allowed=28..=31 n=2  31,30
+regalloc.select  order=gpr-qgprreserve allowed=28..=31 n=3  31,30,29
+regalloc.select  order=gpr-qgprreserve allowed=28..=31 n=4  31,30,29,28
+regalloc.select  order=gpr-pogo allowed=00..=31 n=1  11
+regalloc.select  order=gpr-pogo allowed=00..=31 n=2  11,10
+regalloc.select  order=gpr-pogo allowed=00..=31 n=3  11,10,9
+regalloc.select  order=gpr-pogo allowed=00..=31 n=4  11,10,9,8
+regalloc.select  order=gpr-pogo allowed=03..=31 n=1  11
+regalloc.select  order=gpr-pogo allowed=03..=31 n=2  11,10
+regalloc.select  order=gpr-pogo allowed=03..=31 n=3  11,10,9
+regalloc.select  order=gpr-pogo allowed=03..=31 n=4  11,10,9,8
+regalloc.select  order=gpr-pogo allowed=10..=31 n=1  11
+regalloc.select  order=gpr-pogo allowed=10..=31 n=2  11,10
+regalloc.select  order=gpr-pogo allowed=10..=31 n=3  11,10,31
+regalloc.select  order=gpr-pogo allowed=10..=31 n=4  11,10,31,30
+regalloc.select  order=gpr-pogo allowed=11..=31 n=1  11
+regalloc.select  order=gpr-pogo allowed=11..=31 n=2  11,31
+regalloc.select  order=gpr-pogo allowed=11..=31 n=3  11,31,30
+regalloc.select  order=gpr-pogo allowed=11..=31 n=4  11,31,30,29
+regalloc.select  order=gpr-pogo allowed=12..=31 n=1  31
+regalloc.select  order=gpr-pogo allowed=12..=31 n=2  31,30
+regalloc.select  order=gpr-pogo allowed=12..=31 n=3  31,30,29
+regalloc.select  order=gpr-pogo allowed=12..=31 n=4  31,30,29,28
+regalloc.select  order=gpr-pogo allowed=14..=31 n=1  31
+regalloc.select  order=gpr-pogo allowed=14..=31 n=2  31,30
+regalloc.select  order=gpr-pogo allowed=14..=31 n=3  31,30,29
+regalloc.select  order=gpr-pogo allowed=14..=31 n=4  31,30,29,28
+regalloc.select  order=gpr-pogo allowed=20..=31 n=1  31
+regalloc.select  order=gpr-pogo allowed=20..=31 n=2  31,30
+regalloc.select  order=gpr-pogo allowed=20..=31 n=3  31,30,29
+regalloc.select  order=gpr-pogo allowed=20..=31 n=4  31,30,29,28
+regalloc.select  order=gpr-pogo allowed=31..=31 n=1  31
+regalloc.select  order=gpr-pogo allowed=31..=31 n=2  REFUSE
+regalloc.select  order=gpr-pogo allowed=31..=31 n=3  REFUSE
+regalloc.select  order=gpr-pogo allowed=31..=31 n=4  REFUSE
+regalloc.select  order=gpr-pogo allowed=00..=11 n=1  11
+regalloc.select  order=gpr-pogo allowed=00..=11 n=2  11,10
+regalloc.select  order=gpr-pogo allowed=00..=11 n=3  11,10,9
+regalloc.select  order=gpr-pogo allowed=00..=11 n=4  11,10,9,8
+regalloc.select  order=gpr-pogo allowed=00..=12 n=1  11
+regalloc.select  order=gpr-pogo allowed=00..=12 n=2  11,10
+regalloc.select  order=gpr-pogo allowed=00..=12 n=3  11,10,9
+regalloc.select  order=gpr-pogo allowed=00..=12 n=4  11,10,9,8
+regalloc.select  order=gpr-pogo allowed=11..=11 n=1  11
+regalloc.select  order=gpr-pogo allowed=11..=11 n=2  REFUSE
+regalloc.select  order=gpr-pogo allowed=11..=11 n=3  REFUSE
+regalloc.select  order=gpr-pogo allowed=11..=11 n=4  REFUSE
+regalloc.select  order=gpr-pogo allowed=12..=13 n=1  REFUSE
+regalloc.select  order=gpr-pogo allowed=12..=13 n=2  REFUSE
+regalloc.select  order=gpr-pogo allowed=12..=13 n=3  REFUSE
+regalloc.select  order=gpr-pogo allowed=12..=13 n=4  REFUSE
+regalloc.select  order=gpr-pogo allowed=14..=15 n=1  REFUSE
+regalloc.select  order=gpr-pogo allowed=14..=15 n=2  REFUSE
+regalloc.select  order=gpr-pogo allowed=14..=15 n=3  REFUSE
+regalloc.select  order=gpr-pogo allowed=14..=15 n=4  REFUSE
+regalloc.select  order=gpr-pogo allowed=28..=31 n=1  31
+regalloc.select  order=gpr-pogo allowed=28..=31 n=2  31,30
+regalloc.select  order=gpr-pogo allowed=28..=31 n=3  31,30,29
+regalloc.select  order=gpr-pogo allowed=28..=31 n=4  31,30,29,28
+regalloc.select  order=fpr-default allowed=00..=31 n=1  0
+regalloc.select  order=fpr-default allowed=00..=31 n=2  0,13
+regalloc.select  order=fpr-default allowed=00..=31 n=3  0,13,12
+regalloc.select  order=fpr-default allowed=00..=31 n=4  0,13,12,11
+regalloc.select  order=fpr-default allowed=03..=31 n=1  13
+regalloc.select  order=fpr-default allowed=03..=31 n=2  13,12
+regalloc.select  order=fpr-default allowed=03..=31 n=3  13,12,11
+regalloc.select  order=fpr-default allowed=03..=31 n=4  13,12,11,10
+regalloc.select  order=fpr-default allowed=10..=31 n=1  13
+regalloc.select  order=fpr-default allowed=10..=31 n=2  13,12
+regalloc.select  order=fpr-default allowed=10..=31 n=3  13,12,11
+regalloc.select  order=fpr-default allowed=10..=31 n=4  13,12,11,10
+regalloc.select  order=fpr-default allowed=11..=31 n=1  13
+regalloc.select  order=fpr-default allowed=11..=31 n=2  13,12
+regalloc.select  order=fpr-default allowed=11..=31 n=3  13,12,11
+regalloc.select  order=fpr-default allowed=11..=31 n=4  13,12,11,31
+regalloc.select  order=fpr-default allowed=12..=31 n=1  13
+regalloc.select  order=fpr-default allowed=12..=31 n=2  13,12
+regalloc.select  order=fpr-default allowed=12..=31 n=3  13,12,31
+regalloc.select  order=fpr-default allowed=12..=31 n=4  13,12,31,30
+regalloc.select  order=fpr-default allowed=14..=31 n=1  31
+regalloc.select  order=fpr-default allowed=14..=31 n=2  31,30
+regalloc.select  order=fpr-default allowed=14..=31 n=3  31,30,29
+regalloc.select  order=fpr-default allowed=14..=31 n=4  31,30,29,28
+regalloc.select  order=fpr-default allowed=20..=31 n=1  31
+regalloc.select  order=fpr-default allowed=20..=31 n=2  31,30
+regalloc.select  order=fpr-default allowed=20..=31 n=3  31,30,29
+regalloc.select  order=fpr-default allowed=20..=31 n=4  31,30,29,28
+regalloc.select  order=fpr-default allowed=31..=31 n=1  31
+regalloc.select  order=fpr-default allowed=31..=31 n=2  REFUSE
+regalloc.select  order=fpr-default allowed=31..=31 n=3  REFUSE
+regalloc.select  order=fpr-default allowed=31..=31 n=4  REFUSE
+regalloc.select  order=fpr-default allowed=00..=11 n=1  0
+regalloc.select  order=fpr-default allowed=00..=11 n=2  0,11
+regalloc.select  order=fpr-default allowed=00..=11 n=3  0,11,10
+regalloc.select  order=fpr-default allowed=00..=11 n=4  0,11,10,9
+regalloc.select  order=fpr-default allowed=00..=12 n=1  0
+regalloc.select  order=fpr-default allowed=00..=12 n=2  0,12
+regalloc.select  order=fpr-default allowed=00..=12 n=3  0,12,11
+regalloc.select  order=fpr-default allowed=00..=12 n=4  0,12,11,10
+regalloc.select  order=fpr-default allowed=11..=11 n=1  11
+regalloc.select  order=fpr-default allowed=11..=11 n=2  REFUSE
+regalloc.select  order=fpr-default allowed=11..=11 n=3  REFUSE
+regalloc.select  order=fpr-default allowed=11..=11 n=4  REFUSE
+regalloc.select  order=fpr-default allowed=12..=13 n=1  13
+regalloc.select  order=fpr-default allowed=12..=13 n=2  13,12
+regalloc.select  order=fpr-default allowed=12..=13 n=3  REFUSE
+regalloc.select  order=fpr-default allowed=12..=13 n=4  REFUSE
+regalloc.select  order=fpr-default allowed=14..=15 n=1  15
+regalloc.select  order=fpr-default allowed=14..=15 n=2  15,14
+regalloc.select  order=fpr-default allowed=14..=15 n=3  REFUSE
+regalloc.select  order=fpr-default allowed=14..=15 n=4  REFUSE
+regalloc.select  order=fpr-default allowed=28..=31 n=1  31
+regalloc.select  order=fpr-default allowed=28..=31 n=2  31,30
+regalloc.select  order=fpr-default allowed=28..=31 n=3  31,30,29
+regalloc.select  order=fpr-default allowed=28..=31 n=4  31,30,29,28
+## summary  regalloc.select  cells=224 admit=174 refuse=50 values={0,10,11,12,13,14,15,28,29,30,31,8,9}
+
+## surface  frame.out_of_class
+##   site      codegen/frame.rs
+##   boundary  which frame layouts the prologue/epilogue emitter admits, and the named reason it refuses the rest
+##   cite      docs/CODEGEN_FRAMED_CALLS.md §1.2; the helper thresholds 3 (GPR) and 4 (FPR)
+##   guards    FRAME_MAX_SAVED_NO_SPILL FRAME_MIN_OUT_SLOTS
+frame.out_of_class  emitter=base gprs=00 fprs=0 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=base gprs=00 fprs=0 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=base gprs=00 fprs=0 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=0 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=1 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=base gprs=00 fprs=1 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=base gprs=00 fprs=1 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=1 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=2 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=base gprs=00 fprs=2 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=base gprs=00 fprs=2 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=2 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=3 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=base gprs=00 fprs=3 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=base gprs=00 fprs=3 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=3 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=00 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=00 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=00 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=00 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=00 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=00 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=00 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=01 fprs=0 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=base gprs=01 fprs=0 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=base gprs=01 fprs=0 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=base gprs=01 fprs=0 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=01 fprs=1 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=base gprs=01 fprs=1 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=base gprs=01 fprs=1 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=base gprs=01 fprs=1 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=01 fprs=2 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=base gprs=01 fprs=2 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=base gprs=01 fprs=2 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=base gprs=01 fprs=2 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=01 fprs=3 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=base gprs=01 fprs=3 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=base gprs=01 fprs=3 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=base gprs=01 fprs=3 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=01 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=01 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=01 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=01 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=01 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=01 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=01 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=01 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=02 fprs=0 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=base gprs=02 fprs=0 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=base gprs=02 fprs=0 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=base gprs=02 fprs=0 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=02 fprs=1 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=base gprs=02 fprs=1 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=base gprs=02 fprs=1 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=base gprs=02 fprs=1 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=02 fprs=2 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=base gprs=02 fprs=2 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=base gprs=02 fprs=2 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=base gprs=02 fprs=2 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=02 fprs=3 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=base gprs=02 fprs=3 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=base gprs=02 fprs=3 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=base gprs=02 fprs=3 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=02 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=02 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=02 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=02 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=02 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=02 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=02 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=02 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=0 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=0 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=0 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=0 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=1 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=1 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=1 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=1 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=2 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=2 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=2 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=2 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=3 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=3 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=3 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=3 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=4 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=4 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=4 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=4 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=5 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=5 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=5 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=5 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=0 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=0 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=0 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=0 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=1 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=1 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=1 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=1 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=2 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=2 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=2 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=2 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=3 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=3 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=3 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=3 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=4 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=4 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=4 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=4 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=5 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=5 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=5 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=5 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=0 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=0 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=0 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=0 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=1 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=1 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=1 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=1 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=2 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=2 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=2 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=2 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=3 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=3 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=3 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=3 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=4 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=4 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=4 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=4 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=5 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=5 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=5 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=5 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=0 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=0 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=0 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=0 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=1 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=1 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=1 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=1 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=2 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=2 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=2 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=2 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=3 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=3 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=3 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=3 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=4 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=4 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=4 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=4 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=5 locals=00000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=5 locals=00000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=5 locals=20000 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=5 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=0 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=4 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=4 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=4 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=4 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=5 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=5 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=5 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=5 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=0 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=4 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=4 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=4 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=4 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=5 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=5 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=5 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=5 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=0 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=4 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=4 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=4 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=4 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=5 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=5 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=5 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=5 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=03 fprs=0 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=clsC gprs=03 fprs=0 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=clsC gprs=03 fprs=0 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=clsC gprs=03 fprs=0 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=03 fprs=1 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=clsC gprs=03 fprs=1 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=clsC gprs=03 fprs=1 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=clsC gprs=03 fprs=1 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=03 fprs=2 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=clsC gprs=03 fprs=2 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=clsC gprs=03 fprs=2 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=clsC gprs=03 fprs=2 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=03 fprs=3 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=clsC gprs=03 fprs=3 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=clsC gprs=03 fprs=3 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=clsC gprs=03 fprs=3 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=03 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=03 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=03 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=03 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=03 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=03 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=03 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=03 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=04 fprs=0 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=clsC gprs=04 fprs=0 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=clsC gprs=04 fprs=0 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=clsC gprs=04 fprs=0 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=04 fprs=1 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=clsC gprs=04 fprs=1 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=clsC gprs=04 fprs=1 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=clsC gprs=04 fprs=1 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=04 fprs=2 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=clsC gprs=04 fprs=2 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=clsC gprs=04 fprs=2 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=clsC gprs=04 fprs=2 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=04 fprs=3 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=clsC gprs=04 fprs=3 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=clsC gprs=04 fprs=3 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=clsC gprs=04 fprs=3 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=04 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=04 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=04 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=04 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=04 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=04 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=04 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=04 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=17 fprs=0 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=clsC gprs=17 fprs=0 locals=00000 out=8  probes=0
+frame.out_of_class  emitter=clsC gprs=17 fprs=0 locals=20000 out=0  probes=4
+frame.out_of_class  emitter=clsC gprs=17 fprs=0 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=17 fprs=1 locals=00000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=1 locals=00000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=1 locals=20000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=1 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=2 locals=00000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=2 locals=00000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=2 locals=20000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=2 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=3 locals=00000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=3 locals=00000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=3 locals=20000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=3 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=17 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=17 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=17 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=17 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=17 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=17 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=17 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=18 fprs=0 locals=00000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=0 locals=00000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=0 locals=20000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=0 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=1 locals=00000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=1 locals=00000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=1 locals=20000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=1 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=2 locals=00000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=2 locals=00000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=2 locals=20000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=2 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=3 locals=00000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=3 locals=00000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=3 locals=20000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=3 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=18 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=18 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=18 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=18 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=18 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=18 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=18 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=0 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=4 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=4 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=4 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=4 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=5 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=5 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=5 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=5 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=0 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=4 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=4 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=4 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=4 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=5 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=5 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=5 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=5 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=0 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=4 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=4 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=4 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=4 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=5 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=5 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=5 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=5 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=0 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-leaf-with-saved-fprs
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-leaf-with-saved-fprs
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-leaf-with-saved-fprs
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=0 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-leaf-with-saved-fprs
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-leaf-with-saved-fprs
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-leaf-with-saved-fprs
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=0 locals=00000 out=0  probes=0
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=1 locals=00000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=1 locals=00000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=1 locals=20000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=1 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=2 locals=00000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=2 locals=00000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=2 locals=20000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=2 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=3 locals=00000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=3 locals=00000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=3 locals=20000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=3 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=0 locals=00000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=0 locals=00000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=0 locals=20000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=0 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=1 locals=00000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=1 locals=00000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=1 locals=20000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=1 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=2 locals=00000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=2 locals=00000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=2 locals=20000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=2 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=3 locals=00000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=3 locals=00000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=3 locals=20000 out=0  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=3 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+## summary  frame.out_of_class  cells=504 admit=87 refuse=417 values={probes=0,probes=4}
+
+## surface  reach.branch
+##   site      codegen/reach.rs
+##   boundary  whether a branch displacement is emitted direct, expanded, or refused as unmeasured
+##   cite      docs/CFG_SHAPE.md §3.3.1; board #290, #3119
+##   guards    BC_MAX_DISP B_MAX_DISP
+reach.branch  form=b disp=+0000000000  direct
+reach.branch  form=b disp=+0000000002  REFUSE misaligned
+reach.branch  form=b disp=-0000000002  REFUSE misaligned
+reach.branch  form=b disp=+0000000004  direct
+reach.branch  form=b disp=-0000000004  direct
+reach.branch  form=b disp=+0000034148  direct
+reach.branch  form=b disp=+0000046708  direct
+reach.branch  form=b disp=+0000032764  direct
+reach.branch  form=b disp=+0000032768  direct
+reach.branch  form=b disp=-0000032768  direct
+reach.branch  form=b disp=-0000032772  direct
+reach.branch  form=b disp=+0033554428  direct
+reach.branch  form=b disp=+0033554432  REFUSE unmeasured-b-out-of-reach
+reach.branch  form=b disp=-0033554432  direct
+reach.branch  form=b disp=-0033554436  REFUSE unmeasured-b-out-of-reach
+reach.branch  form=bc-false disp=+0000000000  direct
+reach.branch  form=bc-false disp=+0000000002  REFUSE misaligned
+reach.branch  form=bc-false disp=-0000000002  REFUSE misaligned
+reach.branch  form=bc-false disp=+0000000004  direct
+reach.branch  form=bc-false disp=-0000000004  direct
+reach.branch  form=bc-false disp=+0000034148  expanded
+reach.branch  form=bc-false disp=+0000046708  expanded
+reach.branch  form=bc-false disp=+0000032764  direct
+reach.branch  form=bc-false disp=+0000032768  expanded
+reach.branch  form=bc-false disp=-0000032768  direct
+reach.branch  form=bc-false disp=-0000032772  REFUSE unmeasured-backward
+reach.branch  form=bc-false disp=+0033554428  expanded
+reach.branch  form=bc-false disp=+0033554432  REFUSE unmeasured-no-sense-to-invert
+reach.branch  form=bc-false disp=-0033554432  REFUSE unmeasured-backward
+reach.branch  form=bc-false disp=-0033554436  REFUSE unmeasured-backward
+reach.branch  form=bc-true disp=+0000000000  direct
+reach.branch  form=bc-true disp=+0000000002  REFUSE misaligned
+reach.branch  form=bc-true disp=-0000000002  REFUSE misaligned
+reach.branch  form=bc-true disp=+0000000004  direct
+reach.branch  form=bc-true disp=-0000000004  direct
+reach.branch  form=bc-true disp=+0000034148  expanded
+reach.branch  form=bc-true disp=+0000046708  expanded
+reach.branch  form=bc-true disp=+0000032764  direct
+reach.branch  form=bc-true disp=+0000032768  expanded
+reach.branch  form=bc-true disp=-0000032768  direct
+reach.branch  form=bc-true disp=-0000032772  REFUSE unmeasured-backward
+reach.branch  form=bc-true disp=+0033554428  expanded
+reach.branch  form=bc-true disp=+0033554432  REFUSE unmeasured-no-sense-to-invert
+reach.branch  form=bc-true disp=-0033554432  REFUSE unmeasured-backward
+reach.branch  form=bc-true disp=-0033554436  REFUSE unmeasured-backward
+reach.branch  form=bc-always disp=+0000000000  direct
+reach.branch  form=bc-always disp=+0000000002  REFUSE misaligned
+reach.branch  form=bc-always disp=-0000000002  REFUSE misaligned
+reach.branch  form=bc-always disp=+0000000004  direct
+reach.branch  form=bc-always disp=-0000000004  direct
+reach.branch  form=bc-always disp=+0000034148  REFUSE unmeasured-no-sense-to-invert
+reach.branch  form=bc-always disp=+0000046708  REFUSE unmeasured-no-sense-to-invert
+reach.branch  form=bc-always disp=+0000032764  direct
+reach.branch  form=bc-always disp=+0000032768  REFUSE unmeasured-no-sense-to-invert
+reach.branch  form=bc-always disp=-0000032768  direct
+reach.branch  form=bc-always disp=-0000032772  REFUSE unmeasured-backward
+reach.branch  form=bc-always disp=+0033554428  REFUSE unmeasured-no-sense-to-invert
+reach.branch  form=bc-always disp=+0033554432  REFUSE unmeasured-no-sense-to-invert
+reach.branch  form=bc-always disp=-0033554432  REFUSE unmeasured-backward
+reach.branch  form=bc-always disp=-0033554436  REFUSE unmeasured-backward
+reach.branch  form=bc-dnz disp=+0000000000  direct
+reach.branch  form=bc-dnz disp=+0000000002  REFUSE misaligned
+reach.branch  form=bc-dnz disp=-0000000002  REFUSE misaligned
+reach.branch  form=bc-dnz disp=+0000000004  direct
+reach.branch  form=bc-dnz disp=-0000000004  direct
+reach.branch  form=bc-dnz disp=+0000034148  REFUSE unmeasured-no-sense-to-invert
+reach.branch  form=bc-dnz disp=+0000046708  REFUSE unmeasured-no-sense-to-invert
+reach.branch  form=bc-dnz disp=+0000032764  direct
+reach.branch  form=bc-dnz disp=+0000032768  REFUSE unmeasured-no-sense-to-invert
+reach.branch  form=bc-dnz disp=-0000032768  direct
+reach.branch  form=bc-dnz disp=-0000032772  REFUSE unmeasured-backward
+reach.branch  form=bc-dnz disp=+0033554428  REFUSE unmeasured-no-sense-to-invert
+reach.branch  form=bc-dnz disp=+0033554432  REFUSE unmeasured-no-sense-to-invert
+reach.branch  form=bc-dnz disp=-0033554432  REFUSE unmeasured-backward
+reach.branch  form=bc-dnz disp=-0033554436  REFUSE unmeasured-backward
+## summary  reach.branch  cells=75 admit=39 refuse=36 values={direct,expanded}

@@ -1374,6 +1374,50 @@ pub fn allocate(producers: &[Producer], pool_floor: u8) -> Option<Vec<(u32, u8)>
     )
 }
 
+/// **SURFACE[alloc.allocate]** — the registered decision surface's domain
+/// (`crate::surface`, board **#3743**, lane `w-doctrine`).
+///
+/// This is `w-regsel`'s fail-axis grid generalised and made a standing
+/// artifact. The domain runs `pool_floor` to **31**, past every floor any
+/// fixture reaches, and the producer count to **one past
+/// [`MAX_MODELLED_PRODUCERS`]**, so both walls of the refusal boundary are
+/// inside the enumeration rather than outside it.
+///
+/// That is the whole trick and it is the answer to board **#3723**: control C6
+/// — the caller's allowed set opened from the volatiles to `r0..r31` — is
+/// byte-neutral, gate-neutral and identity-diff-neutral, because no fixture
+/// reaches a floor where the widening changes anything. It moves **126 of these
+/// 256 lines**.
+///
+/// Kinds are uniform per cell and `uses` is 1 for every producer, so clause 1
+/// is a flat tie and the assignment vector is the pool walk itself — the
+/// allocation ORDER, not the sort. The sort's own tie clauses are graded by
+/// this module's other tests; mixing them in here would make a moved line
+/// ambiguous between two rules.
+pub fn surface_rows() -> Vec<crate::surface::Row> {
+    let mut rows = Vec::new();
+    for (kname, kind) in [("const", ProducerKind::Constant), ("regd", ProducerKind::RegisterDerived)] {
+        for n in 1..=MAX_MODELLED_PRODUCERS + 1 {
+            for pool_floor in 0..=31u8 {
+                let producers: Vec<Producer> = (0..n)
+                    .map(|i| Producer { id: 100 + i as u32, kind, uses: 1, first: i, roots: None })
+                    .collect();
+                let outcome = match allocate(&producers, pool_floor) {
+                    None => crate::surface::REFUSE.to_string(),
+                    Some(a) => {
+                        a.iter().map(|&(_, r)| format!("r{r}")).collect::<Vec<_>>().join(",")
+                    }
+                };
+                rows.push(crate::surface::Row::new(
+                    format!("kind={kname} n={n} floor={pool_floor:02}"),
+                    outcome,
+                ));
+            }
+        }
+    }
+    rows
+}
+
 /// True when every producer of the run lands in `reg`.
 ///
 /// The store emitters put every materialised value in `r11` today, which

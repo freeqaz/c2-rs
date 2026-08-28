@@ -423,6 +423,58 @@ pub fn select_sequence(order: &RegOrder, allowed: RegSet, cost: &Costs, n: usize
     Some(out)
 }
 
+/// The allowed-set windows the surface domain walks. `(lo, hi)` for
+/// [`RegSet::range_inclusive`], chosen so that each order's head, its
+/// volatile/callee-saved seam, and its exhaustion are all inside the
+/// enumeration.
+const SURFACE_WINDOWS: [(u8, u8); 14] = [
+    (0, 31),
+    (3, 31),
+    (10, 31),
+    (11, 31),
+    (12, 31),
+    (14, 31),
+    (20, 31),
+    (31, 31),
+    (0, 11),
+    (0, 12),
+    (11, 11),
+    (12, 13),
+    (14, 15),
+    (28, 31),
+];
+
+/// **SURFACE[regalloc.select]** — the registered decision surface's domain
+/// (`crate::surface`, board **#3743**, lane `w-doctrine`).
+///
+/// The selector across **all four** entries of [`ORDERS`], not just the
+/// default. That is deliberate and it is the decision-surface clause paying
+/// out: the three non-default orders are instrument states that license no
+/// emit, and enumerating them here is how a transcription error in one of them
+/// — an array **no obj cell exercises**, so no fixture and no gate row can ever
+/// reach it — becomes a moved line instead of a silence.
+///
+/// Enumerating the orders from any other file would trip this module's own cost
+/// fence, which is why the generator lives here; see `crate::surface`'s header.
+pub fn surface_rows() -> Vec<crate::surface::Row> {
+    let mut rows = Vec::new();
+    for order in ORDERS {
+        for (lo, hi) in SURFACE_WINDOWS {
+            for n in 1..=4usize {
+                let outcome = match select_sequence(order, RegSet::range_inclusive(lo, hi), &Costs::ZERO, n) {
+                    None => crate::surface::REFUSE.to_string(),
+                    Some(v) => v.iter().map(|r| format!("{r}")).collect::<Vec<_>>().join(","),
+                };
+                rows.push(crate::surface::Row::new(
+                    format!("order={} allowed={lo:02}..={hi:02} n={n}", order.name),
+                    outcome,
+                ));
+            }
+        }
+    }
+    rows
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
