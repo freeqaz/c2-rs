@@ -1,0 +1,144 @@
++0x50: 105 refs in 67 functions
++0x4c: 337 refs in 207 functions
+
+functions touching ALL of 0x50 0x4c: 29
+  FUN_10b2bbb1
+      +0x50  10b2bbc7  mov    ecx,DWORD PTR [esi+0x50]
+      +0x4c  10b2bbda  mov    ecx,DWORD PTR [esi+0x4c]
+      +0x4c  10b2bbe5  mov    ecx,DWORD PTR [esi+0x4c]
+  FUN_10b2c4d1
+      +0x50  10b2c5ab  mov    ecx,DWORD PTR [edi+0x50]
+      +0x4c  10b2c583  mov    ecx,DWORD PTR [edi+0x4c]
+      +0x4c  10b2c592  mov    ecx,DWORD PTR [edi+0x4c]
+      +0x4c  10b2c5a1  mov    ecx,DWORD PTR [edi+0x4c]
+      +0x4c  10b2c5c4  mov    ecx,DWORD PTR [edi+0x4c]
+  FUN_10b2ceb7
+      +0x50  10b2d119  mov    ecx,DWORD PTR [edi+0x50]
+      +0x4c  10b2cf12  mov    edx,DWORD PTR [edi+0x4c]
+      +0x4c  10b2d469  mov    ecx,DWORD PTR [eax+0x4c]
+  FUN_10b2d630
+      +0x50  10b2d66e  mov    ecx,DWORD PTR [eax+0x50]
+      +0x4c  10b2d695  mov    edx,DWORD PTR [edx+0x4c]
+      +0x4c  10b2ddd5  mov    ecx,DWORD PTR [eax+0x4c]
+  FUN_10b2dfe2
+      +0x50  10b2e1c5  mov    ecx,DWORD PTR [esi+0x50]
+      +0x50  10b2e1e9  mov    ecx,DWORD PTR [esi+0x50]
+      +0x4c  10b2e1db  mov    ecx,DWORD PTR [esi+0x4c]
+  FUN_10b2e4ae
+      +0x50  10b2e676  mov    ecx,DWORD PTR [ebx+0x50]
+      +0x50  10b2e750  mov    ecx,DWORD PTR [ebx+0x50]
+      +0x4c  10b2e5e2  mov    edx,DWORD PTR [ebx+0x4c]
+      +0x4c  10b2e719  mov    edx,DWORD PTR [ebx+0x4c]
+  FUN_10b2e7f8
+      +0x50  10b2e940  mov    ecx,DWORD PTR [esi+0x50]
+      +0x4c  10b2e972  mov    ecx,DWORD PTR [esi+0x4c]
+  FUN_10b2fb59
+      +0x50  10b2fbb1  mov    ecx,DWORD PTR [esi+0x50]
+      +0x50  10b2fc3a  mov    ecx,DWORD PTR [esi+0x50]
+      +0x4c  10b2fb72  mov    ecx,DWORD PTR [esi+0x4c]
+      +0x4c  10b2fbd0  mov    ecx,DWORD PTR [ebx+0x4c]
+      +0x4c  10b2fc08  mov    ecx,DWORD PTR [ebx+0x4c]
+  FUN_10b3032a
+      +0x50  10b30394  mov    ecx,DWORD PTR [esi+0x50]
+      +0x50  10b304a7  mov    ecx,DWORD PTR [esi+0x50]
+      +0x4c  10b303d6  mov    ecx,DWORD PTR [esi+0x4c]
+  FUN_10b30517
+      +0x50  10b3055f  mov    ecx,DWORD PTR [esi+0x50]
+      +0x4c  10b30572  mov    edx,DWORD PTR [esi+0x4c]
+  FUN_10b30dbd
+      +0x50  10b30de3  mov    ecx,DWORD PTR [ebx+0x50]
+      +0x4c  10b30e41  mov    ecx,DWORD PTR [ebx+0x4c]
+      +0x4c  10b30f19  mov    ecx,DWORD PTR [esi+0x4c]
+  FUN_10b30ff6
+      +0x50  10b3101b  mov    ecx,DWORD PTR [ebx+0x50]
+      +0x50  10b3102d  mov    ecx,DWORD PTR [ebx+0x50]
+      +0x50  10b3138a  mov    ecx,DWORD PTR [esi+0x50]
+      +0x4c  10b31041  mov    ecx,DWORD PTR [ebx+0x4c]
+      +0x4c  10b3139e  mov    ecx,DWORD PTR [esi+0x4c]
+  FUN_10b3f454
+      +0x50  10b3f557  mov    DWORD PTR [esi+0x50],ecx
+      +0x50  10b3f568  mov    DWORD PTR [esi+0x50],eax
+      +0x50  10b3f5b3  mov    DWORD PTR [esi+0x50],ebp
+      +0x4c  10b3f590  mov    DWORD PTR [esi+0x4c],eax
+      +0x4c  10b3f5b0  mov    DWORD PTR [esi+0x4c],ebp
+  FUN_10b53c31
+      +0x50  10b53c5a  mov    ecx,DWORD PTR [esi+0x50]
+      +0x50  10b53c6a  mov    ecx,DWORD PTR [esi+0x50]
+      +0x50  10b53c82  mov    edx,DWORD PTR [esi+0x50]
+      +0x4c  10b53c8b  mov    eax,DWORD PTR [esi+0x4c]
+  FUN_10b55429
+      +0x50  10b55609  mov    DWORD PTR [esi+0x50],eax
+      +0x50  10b5570d  mov    ecx,DWORD PTR [ebx+0x50]
+      +0x4c  10b5547a  mov    edx,DWORD PTR [eax+0x4c]
+      +0x4c  10b555cc  mov    edx,DWORD PTR [ebx+0x4c]
+      +0x4c  10b555e2  mov    DWORD PTR [esi+0x4c],eax
+      +0x4c  10b556fc  mov    ecx,DWORD PTR [ebx+0x4c]
+  FUN_10b5fb5f
+      +0x50  10b5fc86  movzx  eax,WORD PTR [esi+0x50]
+      +0x4c  10b5fbf9  mov    ebx,DWORD PTR [esi+0x4c]
+      +0x4c  10b5fc92  mov    eax,DWORD PTR [esi+0x4c]
+      +0x4c  10b5fcc1  test   DWORD PTR [esi+0x4c],0x2080
+  FUN_10b60930
+      +0x50  10b60a6f  movzx  eax,WORD PTR [edi+0x50]
+      +0x4c  10b6095c  mov    eax,DWORD PTR [edi+0x4c]
+      +0x4c  10b60a25  mov    eax,DWORD PTR [edi+0x4c]
+  FUN_10b6242a
+      +0x50  10b625b2  movzx  eax,WORD PTR [esi+0x50]
+      +0x50  10b625bd  movzx  eax,WORD PTR [esi+0x50]
+      +0x4c  10b625a6  test   DWORD PTR [esi+0x4c],0x2000
+  FUN_10b72eca
+      +0x50  10b72ee6  movzx  eax,WORD PTR [ecx+0x50]
+      +0x4c  10b72ee0  test   BYTE PTR [ecx+0x4c],0x20
+  FUN_10b9b8e9
+      +0x50  10b9bf6c  mov    WORD PTR [esi+0x50],ax
+      +0x4c  10b9bf78  mov    DWORD PTR [esi+0x4c],eax
+      +0x4c  10b9bf99  test   DWORD PTR [esi+0x4c],0x1000
+      +0x4c  10b9c030  mov    DWORD PTR [esi+0x4c],eax
+  FUN_10ba769f
+      +0x50  10ba788b  mov    ebx,DWORD PTR [esi+0x50]
+      +0x4c  10ba7892  mov    edi,DWORD PTR [esi+0x4c]
+  FUN_10ba83b2
+      +0x50  10ba83da  mov    ebx,DWORD PTR [esi+0x50]
+      +0x4c  10ba83e1  mov    edi,DWORD PTR [esi+0x4c]
+  FUN_10baa4aa
+      +0x50  10baa74f  or     BYTE PTR [esi+0x50],0x2
+      +0x50  10baa8c1  or     BYTE PTR [esi+0x50],0x1
+      +0x4c  10baa7d2  cmp    DWORD PTR [eax+0x4c],0x0
+      +0x4c  10baa7dd  mov    ecx,DWORD PTR [ecx+0x4c]
+  FUN_10be460f
+      +0x50  10be4623  mov    ebx,DWORD PTR [esi+0x50]
+      +0x4c  10be4626  mov    edi,DWORD PTR [esi+0x4c]
+  FUN_10be4f28
+      +0x50  10be51c9  mov    DWORD PTR [esi+0x50],eax
+      +0x4c  10be5161  mov    DWORD PTR [esi+0x4c],eax
+  FUN_10bf39d7
+      +0x50  10bf3c4d  mov    DWORD PTR [ebp+0x50],ecx
+      +0x4c  10bf3bfc  mov    DWORD PTR [ebp+0x4c],eax
+      +0x4c  10bf3c47  mov    DWORD PTR [ebp+0x4c],edx
+  FUN_10c113f3
+      +0x50  10c115e6  mov    DWORD PTR [esi+0x50],eax
+      +0x50  10c11765  add    DWORD PTR [esi+0x50],eax
+      +0x4c  10c11707  cmp    DWORD PTR [esi+0x4c],ecx
+      +0x4c  10c1170c  mov    DWORD PTR [esi+0x4c],ecx
+      +0x4c  10c11748  mov    eax,DWORD PTR [esi+0x4c]
+  FUN_10c1c3f7
+      +0x50  10c1c405  mov    DWORD PTR [ebp+0x50],edx
+      +0x50  10c1c6e9  cmp    DWORD PTR [ebp+0x50],0x0
+      +0x50  10c1cb92  cmp    DWORD PTR [ebp+0x50],0x0
+      +0x50  10c1cc10  cmp    DWORD PTR [ebp+0x50],0x0
+      +0x50  10c1ce00  cmp    DWORD PTR [ebp+0x50],eax
+      +0x50  10c1ce41  cmp    DWORD PTR [ebp+0x50],0x0
+      +0x4c  10c1c40b  mov    DWORD PTR [ebp+0x4c],esi
+      +0x4c  10c1c53d  and    eax,DWORD PTR [ebp+0x4c]
+      +0x4c  10c1c66c  and    eax,DWORD PTR [ebp+0x4c]
+      +0x4c  10c1c68a  or     DWORD PTR [ebp+0x4c],eax
+      +0x4c  10c1cde1  mov    DWORD PTR [ebp+0x4c],eax
+  FUN_10c20f79
+      +0x50  10c21020  mov    ecx,DWORD PTR [esi+0x50]
+      +0x50  10c2102e  mov    ecx,DWORD PTR [esi+0x50]
+      +0x50  10c21036  mov    ecx,DWORD PTR [esi+0x50]
+      +0x50  10c2105c  mov    ecx,DWORD PTR [esi+0x50]
+      +0x50  10c21064  mov    DWORD PTR [esi+0x50],edi
+      +0x4c  10c2101d  mov    edx,DWORD PTR [esi+0x4c]
+
+functions touching both +0x50 and +0x4c: 29  FUN_10b2bbb1 FUN_10b2c4d1 FUN_10b2ceb7 FUN_10b2d630 FUN_10b2dfe2 FUN_10b2e4ae FUN_10b2e7f8 FUN_10b2fb59 FUN_10b3032a FUN_10b30517 FUN_10b30dbd FUN_10b30ff6 FUN_10b3f454 FUN_10b53c31 FUN_10b55429 FUN_10b5fb5f FUN_10b60930 FUN_10b6242a FUN_10b72eca FUN_10b9b8e9 FUN_10ba769f FUN_10ba83b2 FUN_10baa4aa FUN_10be460f FUN_10be4f28 FUN_10bf39d7 FUN_10c113f3 FUN_10c1c3f7 FUN_10c20f79

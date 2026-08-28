@@ -54,11 +54,18 @@ second reading against the *first* lane's prereg rather than one of its own.
 **Read the findings, but score them against their prereg.** A findings document
 read on its own loses the only thing that makes it evidence rather than a story.
 
-## The eighteen findings documents
+## The twenty-one findings documents
 
 Freshness class for all of them: **dated record**. They stay as written; where
 a later lane overturned one, the overturn is bannered in place and the original
 text is left alone.
+
+> **The heading said "eighteen" and the table had TWENTY rows, before
+> `w-lowerband` added the twenty-first** (2026-08-28). Re-counted mechanically
+> — `awk '/^\| \[`WB_.*FINDINGS/'` over this section — rather than adjusted by
+> one. An index whose own count is wrong is the same failure class this
+> directory keeps recording elsewhere, so it is corrected here and the drift is
+> named instead of quietly absorbed.
 
 ### The middle end — scheduling, allocation, selection
 
@@ -81,6 +88,7 @@ text is left alone.
 |---|---|
 | [`WB_INLINE_FINDINGS.md`](WB_INLINE_FINDINGS.md) | the **inliner's decision function**, read out of the binary and graded by objs — the mechanism `../DIFF_STRUCTURE.md` says dominates the port's wrong-body population. Prereg: [`WB_INLINE_PREREG.md`](WB_INLINE_PREREG.md) |
 | [`WB_MEMCPY_FINDINGS.md`](WB_MEMCPY_FINDINGS.md) | the intrinsic-expansion decision function. No prereg pair |
+| [`WB_LOWERBAND_FINDINGS.md`](WB_LOWERBAND_FINDINGS.md) | **the `[sym+0x50]` reduction `ref/P_INLINE.md` §6.6.1 named as the inliner's blocker DOES NOT EXIST** — the field has one writer and nine readers, and §2.1b's conclusion survives without it. Three instruments over three populations, including a **decode-independent** scan of all 1,232,384 bytes of `.text`, because a linear disassembler desynchronises on c2's head data block. Prereg: [`../../work/w-lowerband/PREREG.md`](../../work/w-lowerband/PREREG.md), and it **LOST** |
 | [`WB_LABEL_FINDINGS.md`](WB_LABEL_FINDINGS.md) | the label counter **settled**: one global, one increment instruction, and an id space shared with the front end. This is the reading that showed `../LABEL_COUNTER.md`'s tables were right and four consecutive lanes had measured them wrong. Prereg: [R1](WB_LABEL_PREREG.md), [R2](WB_LABEL_PREREG_R2.md), [R3](WB_LABEL_PREREG_R3.md) |
 | [`WB_FRAME_FINDINGS.md`](WB_FRAME_FINDINGS.md) | the frame-opening predicate and the frame-size arithmetic. No prereg pair |
 | [`WB_LOOP_FINDINGS.md`](WB_LOOP_FINDINGS.md) | how c2 lowers a counted loop. Prereg: [`WB_LOOP_PREREG.md`](WB_LOOP_PREREG.md) |

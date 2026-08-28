@@ -876,3 +876,119 @@ C10's cited `0x10b609d3` decodes to `call 0x10b5e64d`, not a `0x2000` test —
 aligned but describing something else, which is a defect class the new checker
 does **not** reach; and `FUN_10b5da2f` (573 B, unread) is the second consumer of
 `k`.
+
+### 6.7 THE `[sym+0x50]` REDUCTION DOES NOT EXIST — §6.6.1's first missing link is refuted, and §2.1b's conclusion survives without it
+
+> **Added 2026-08-28 by lane `w-lowerband`** (decision 21, board **#3731**–**#3736**).
+> **Amend-beside**: §1–§6.6 are unchanged — including §2.1's struck block and its
+> correction, §2.1a's *"exactly ONE 16-bit store"*, §2.1b, and §6.1's table.
+> **No clause row is added, removed, renumbered or restated**; the reachable
+> denominator is still **21 of 24** and the split is still
+> `absent 17 · fitted 2 · [R]-derived 2 · unexercisable 3`.
+>
+> Prereg `work/w-lowerband/PREREG.md`, committed at `19d6c4797` **before the
+> image was opened**. **Predicted reach 0, delivered 0**: zero `crates/` bytes,
+> no `DISCLOSURE` row, no `gate.sh` row (`#3691`).
+> Full record: [`../WB_LOWERBAND_FINDINGS.md`](../WB_LOWERBAND_FINDINGS.md).
+
+§6.6.1 names as C8's first missing link that `[sym+0x50]` *"is **reduced by
+every pass that runs between there and `0x10b5fc8a`**"* and that *"nothing yet
+located reads that reduction."*
+
+> #### **Nothing has located it because it does not exist. The field has ONE writer and NINE readers, and the writer stores `il-read-varint16`'s return verbatim.**
+
+**Three instruments, and the two that could miss were watched missing**
+(`work/w-lowerband/controls.out`, `#3336`):
+
+| instrument | population | result |
+|---|---|---|
+| `f50.py` over the **independent objdump boundary set** | **424,232** decoded instructions (= 425,871 addressed lines − 1,639 byte-continuation lines; `#3721`'s denominator is the former) | 125 operands at `+0x50`; **1** 16-bit write |
+| Ghidra's decompiler (control-flow-driven, not linear) | the whole export | **0** `ushort` assignments at `+0x50` image-wide; 13 read occurrences over 12 lines = the same **9** instructions E2 finds (the decompiler re-materialises the load inside `CARRY4` idioms and compound tests) |
+| `bytescan.py`, **decode-independent** | **all 1,232,384 bytes of `.text`**, 2,136 encoding patterns (`mov`/`add`/`sub`/`or`/`and`/`xor`/`adc`/`sbb`/`xchg`/group1/3/5/shifts, disp8 + disp32 + SIB, and both byte halves) | **exactly one** 16-bit-store encoding present |
+
+`bytescan.py` exists because `objdump` sweeps `.text` linearly and c2 has a
+~150 KB data block at its head; a store inside a desynchronised run would be
+invisible to the listing. It is not.
+
+**The nine readers, complete:** `0x10b56732` (`FUN_10b566e9`, returns the field
+`& 0x3f`), **`0x10b5fc86` (C8)**, `0x10b60a6f` (C17), `0x10b625b2` (C18),
+`0x10b625bd` (C19), `0x10b626f7` (C2), `0x10b72ee6` and `0x10b72f0f` (two
+**64-bit whole-module accumulators**, `DAT_10c46398` and `DAT_10c2ebb8`),
+`0x10b8fbda` (`FUN_10b8fb47`, an **IL hash**).
+
+#### 6.7.1 §2.1b's conclusion survives — and its one-sided form must not be raised to 128 `[O]`
+
+**Read-before-probe: `w-sizebracket`'s cells are already measured and committed,
+so this is a RE-READ and nothing was recompiled.** 168 unique tags,
+`work/w-lowerband/ceiling_check.out`. Grading `.gl SIZE < 128` — §6.6.1's own
+ceiling — against the recorded verdict:
+
+| profile | `< 128` inlined | `< 128` but **KEPT** | `≥ 128` kept | `≥ 128` but **INLINED** |
+|---|---:|---:|---:|---:|
+| `/O1` | 49 | **8** | 17 | **8** |
+| `/Ox` | 55 | **2** | 21 | **8** |
+
+Sixteen counterexamples at `/O1`, **in both directions**. So the tested value is
+**not** the `.gl` `SIZE` — §2.1b is right — but not for the reason §6.6.1 gave.
+§2.1b's `T = 98` form is untouched and holds; **raising `T` to the image's 128,
+which is the natural move once §6.6.1 publishes the ceiling, breaks it on eight
+cells that were already on disk.**
+
+**Therefore the missing link is AT THE STORE, not after it**, and it is one of
+three named things — the cheapest being that the harness's `SIZE` column and
+`il-read-varint16`'s three forms (§2.1d: `0x80` → three bytes; `0x81..0xff` →
+**one signed byte**) are not the same quantity. **None of them is "the whole of
+lowering" and none is "every pass in between."**
+
+#### 6.7.2 What IS on the path: a POINTER-SELECTION chain, and TWO OF ITS THREE SITES ARE IN THE BAND
+
+Nothing changes the field's value; three sites change **which record's field is
+read** and **whether the test runs at all**.
+
+| site | addr | in band? | what |
+|---|---|---|---|
+| **S1** | `0x10b5fb6e` → `FUN_10b5bfae` | yes | site→symbol, **18 bytes, 13 callers, TWO arms**: `sym = [[site+0x28]+0x18]` when the operand node's kind byte is `4`, else `sym = *[[[site+0x28]+0x18]+0x8]` |
+| **S2** | **`0x10b5fbf3`** | **yes** | `mov esi,[esi+0x90]` — **C8's operand is REPLACED by another record**, gated `DAT_10c3de20 == 1 && [sym+0x94] & 0x400`. §6.5 named both fields as *"NOT pursued"*; they are the second source of C8's left operand |
+| **S3** | `0x10b624c6`/`0x10b624dc` + `0x10b62557`/`0x10b6255a` | **yes** | the charge **saves, overrides and restores the favour-speed global `DAT_10c2e310`** around the expansion, from `[[sym+0x80]+0x76] & 0x800000` — so C8's *liveness* is per-callee. POGO-gated, therefore **read and dead on this workload** |
+
+> **This is what contradicts §6.6.** §6.6.1 concludes *"the fit is not
+> replaceable by any read confined to `0x10b5b86d`–`0x10b62b00`"* **because both
+> missing links are outside the band.** Link 1 as described does not exist, and
+> what stands in its place is **two-thirds in-band and was unread**. The
+> conclusion still holds — for the *unit* reason, §6.6.1's second link — but the
+> reason given for it does not.
+
+#### 6.7.3 Two corrections to §6.6.1, both about instruments `[R]`
+
+1. **`k` has THREE readers, not two**: `0x10b5da64`, **`0x10b5dacb`** (a second
+   read inside the same unread `FUN_10b5da2f`) and `0x10b5e4cc`. Four references
+   in total, the fourth being the descriptor store at `0x10c29800`.
+2. **`"k is never stored by any instruction"` is exact about DIRECT-ADDRESSED
+   stores and silent about indirect ones.** `0x10c29800` plants `k`'s *address*
+   in the `-vol#` descriptor — precisely a handle for a generic numeric-option
+   setter to store through. `k = 3` is the **load-time** value; that it is the
+   **run-time** value under `/O1` is not established by a direct-store
+   enumeration, and since `DAT_10c46318` is BSS the ceiling's run-time value is
+   settled only when `k`'s is.
+
+**And a datum nobody had read: the favour-speed bit's IMAGE value is `1`** —
+`DAT_10c2e310`, raw `.data`, file offset `0x12d510` — and non-zero means C8's
+size test is **skipped**. `FUN_10b82338` writes it from **bit 23 of a
+per-function option word** (`0x10b8238d`–`0x10b82392`), confirming §2.1's
+attribution; **so the default being ON does NOT license "therefore `/O1` clears
+it"**, and this page does not claim it.
+
+**What does follow is that the bit has THREE homes.** When `DAT_10c3de20 == 2`,
+or `DAT_10c2eaac != 0 && DAT_10c6f1c8 == 2`, the same bit is written to a
+**different global `DAT_10c3dddc`** at `0x10b823a1` and **`DAT_10c2e310` is
+never written, keeping `1`** — C8's size test off. And `0x10b82352` stores the
+option word into `[[…]+0x80]+0x76`, **exactly the field §6.7.2's S3 reads at
+`0x10b624d4` with mask `0x800000` — bit 23 again**. So **S3 restores the
+favour-speed bit to the CALLEE's own `/Ot`-vs-`/Os` setting for the duration of
+its expansion**, rather than being a profile-weight mechanism. S3 needs
+`[sym+0x80] != 0` and bit 10 of `[[sym+0x80]+0xb1]`, and the `+0x76` fill needs
+`DAT_10c2eaac != 0` (image `0`): **read, not exercised here**.
+
+Neighbours, same read: `DAT_10c2e2fc`, `DAT_10c2e308`, `DAT_10c2eab0`,
+`DAT_10c2eaac` are all `0` in raw `.data`; `DAT_10c3de20`, `DAT_10c3dddc`,
+`DAT_10c6f1c8` and `DAT_10c46318` are **BSS, zero at load**.

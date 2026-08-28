@@ -1,0 +1,138 @@
+E1  instruction starts in the listing : 424232
+E2  with a memory operand at +0x50   : 125
+
+     width x direction
+       byte   RMW      18
+       byte   read      5
+       dword  RMW       3
+       dword  WRITE    14
+       dword  read     73
+       word   WRITE     2
+       word   read     10
+
+va        width  dir    text                                          owner
+10b01e87  byte   RMW    BYTE PTR [esi+0x50],al                        -
+10b02423  word   read   WORD PTR [ecx+0x50],esp                       -
+10b12e09  byte   RMW    BYTE PTR [ecx+0x50],cl                        -
+10b1316f  byte   RMW    BYTE PTR [ecx+0x50],cl                        -
+10b1318e  byte   RMW    BYTE PTR fs:[ecx+0x50],cl                     -
+10b166df  byte   RMW    BYTE PTR [ebp+ebp*2+0x50],al                  -
+10b166f7  byte   RMW    BYTE PTR [ebp+ebp*2+0x50],al                  -
+10b1674b  byte   RMW    BYTE PTR [edi+0x50],cl                        -
+10b1755f  byte   RMW    BYTE PTR [edi+0x50],cl                        -
+10b175ab  byte   RMW    BYTE PTR [edi+0x50],cl                        -
+10b191e1  word   WRITE  WORD PTR ds:[eax+0x50],?                      -
+10b240db  byte   RMW    BYTE PTR [ecx+0x50],cl                        -
+10b27e60  dword  read   eax,DWORD PTR [edi+0x50]                      FUN_10b27e53
+10b27e78  dword  read   eax,DWORD PTR [edi+0x50]                      FUN_10b27e53
+10b27e7d  dword  WRITE  DWORD PTR [edi+0x50],esi                      FUN_10b27e53
+10b2b406  dword  WRITE  DWORD PTR [esi+0x50],eax                      FUN_10b2b3f0
+10b2bbc7  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b2bbb1
+10b2c353  dword  read   ecx,DWORD PTR [ebx+0x50]                      FUN_10b2c300
+10b2c5ab  dword  read   ecx,DWORD PTR [edi+0x50]                      FUN_10b2c4d1
+10b2d119  dword  read   ecx,DWORD PTR [edi+0x50]                      FUN_10b2ceb7
+10b2d66e  dword  read   ecx,DWORD PTR [eax+0x50]                      FUN_10b2d630
+10b2de86  dword  read   edx,DWORD PTR [edi+0x50]                      FUN_10b2de22
+10b2e1c5  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b2dfe2
+10b2e1e9  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b2dfe2
+10b2e676  dword  read   ecx,DWORD PTR [ebx+0x50]                      FUN_10b2e4ae
+10b2e750  dword  read   ecx,DWORD PTR [ebx+0x50]                      FUN_10b2e4ae
+10b2e940  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b2e7f8
+10b2fbb1  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b2fb59
+10b2fc3a  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b2fb59
+10b30394  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b3032a
+10b304a7  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b3032a
+10b3055f  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b30517
+10b30de3  dword  read   ecx,DWORD PTR [ebx+0x50]                      FUN_10b30dbd
+10b3101b  dword  read   ecx,DWORD PTR [ebx+0x50]                      FUN_10b30ff6
+10b3102d  dword  read   ecx,DWORD PTR [ebx+0x50]                      FUN_10b30ff6
+10b3138a  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b30ff6
+10b317af  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b31755
+10b3f205  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b3f1e8
+10b3f215  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b3f1e8
+10b3f22e  dword  read   DWORD PTR [esi+0x50]                          FUN_10b3f1e8
+10b3f257  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b3f23a
+10b3f270  dword  read   DWORD PTR [esi+0x50]                          FUN_10b3f23a
+10b3f557  dword  WRITE  DWORD PTR [esi+0x50],ecx                      FUN_10b3f454
+10b3f568  dword  WRITE  DWORD PTR [esi+0x50],eax                      FUN_10b3f454
+10b3f5b3  dword  WRITE  DWORD PTR [esi+0x50],ebp                      FUN_10b3f454
+10b42ad4  dword  read   eax,DWORD PTR [eax+0x50]                      FUN_10b42aab
+10b447d1  dword  read   edx,DWORD PTR [esi+0x50]                      FUN_10b447c4
+10b4482e  dword  read   eax,DWORD PTR [esi+0x50]                      FUN_10b44823
+10b44840  dword  read   edx,DWORD PTR [esi+0x50]                      FUN_10b44823
+10b46a12  dword  read   edx,DWORD PTR [esi+0x50]                      FUN_10b469ae
+10b4fd75  dword  read   ecx,DWORD PTR [eax+0x50]                      FUN_10b4fab1
+10b4fdc3  dword  read   ecx,DWORD PTR [eax+0x50]                      FUN_10b4fab1
+10b53c5a  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b53c31
+10b53c6a  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b53c31
+10b53c82  dword  read   edx,DWORD PTR [esi+0x50]                      FUN_10b53c31
+10b55609  dword  WRITE  DWORD PTR [esi+0x50],eax                      FUN_10b55429
+10b5570d  dword  read   ecx,DWORD PTR [ebx+0x50]                      FUN_10b55429
+10b56732  word   read   eax,WORD PTR [ecx+0x50]                       FUN_10b566e9
+10b5fc86  word   read   eax,WORD PTR [esi+0x50]                       FUN_10b5fb5f
+10b60a6f  word   read   eax,WORD PTR [edi+0x50]                       FUN_10b60930
+10b625b2  word   read   eax,WORD PTR [esi+0x50]                       FUN_10b6242a
+10b625bd  word   read   eax,WORD PTR [esi+0x50]                       FUN_10b6242a
+10b626f7  word   read   eax,WORD PTR [eax+0x50]                       FUN_10b62675
+10b72ee6  word   read   eax,WORD PTR [ecx+0x50]                       FUN_10b72eca
+10b72f0f  word   read   eax,WORD PTR [ecx+0x50]                       FUN_10b72f0f
+10b75944  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10b7591b
+10b75947  dword  WRITE  DWORD PTR [esi+0x50],eax                      FUN_10b7591b
+10b76bec  dword  read   edi,DWORD PTR [eax+0x50]                      FUN_10b76bcd
+10b76df0  dword  read   esi,DWORD PTR [eax+0x50]                      FUN_10b76dea
+10b76e3a  dword  read   edi,DWORD PTR [eax+0x50]                      FUN_10b76e32
+10b76ec7  dword  read   ebx,DWORD PTR [eax+0x50]                      FUN_10b76ec1
+10b8fbda  word   read   esi,WORD PTR [edi+0x50]                       FUN_10b8fb47
+10b9bf6c  word   WRITE  WORD PTR [esi+0x50],ax                        FUN_10b9b8e9
+10ba164f  dword  read   DWORD PTR [ecx+0x50],esi                      FUN_10ba1430
+10ba28ce  dword  read   esi,DWORD PTR [eax+0x50]                      FUN_10ba28bb
+10ba788b  dword  read   ebx,DWORD PTR [esi+0x50]                      FUN_10ba769f
+10ba83da  dword  read   ebx,DWORD PTR [esi+0x50]                      FUN_10ba83b2
+10ba955b  byte   RMW    BYTE PTR [esi+0x50],0x4                       FUN_10ba9538
+10baa74f  byte   RMW    BYTE PTR [esi+0x50],0x2                       FUN_10baa4aa
+10baa8c1  byte   RMW    BYTE PTR [esi+0x50],0x1                       FUN_10baa4aa
+10baf504  dword  WRITE  DWORD PTR [eax+0x50],edi                      FUN_10baf4eb
+10bb08ef  dword  read   DWORD PTR [eax+0x50],0x0                      FUN_10bb08e0
+10bb0916  dword  read   eax,DWORD PTR [eax+0x50]                      FUN_10bb08e0
+10bb1155  dword  read   ebp,DWORD PTR [eax+0x50]                      FUN_10bb1103
+10bb15d9  byte   RMW    BYTE PTR [esi+0x50],0x2                       FUN_10bb15c7
+10bb1e78  byte   read   BYTE PTR [ebx+0x50],0x2                       FUN_10bb1e1b
+10bb2041  byte   RMW    BYTE PTR [edi+0x50],0xfe                      FUN_10bb1f54
+10bb216f  byte   read   BYTE PTR [eax+0x50],0x2                       FUN_10bb1f54
+10bb23d3  byte   read   cl,BYTE PTR [ebx+0x50]                        FUN_10bb1f54
+10bb24c4  byte   read   BYTE PTR [ebx+0x50],0x2                       FUN_10bb1f54
+10bb24db  byte   read   esi,BYTE PTR [ebx+0x50]                       FUN_10bb1f54
+10be4601  dword  read   DWORD PTR [eax+0x50],ecx                      FUN_10be45f6
+10be460a  dword  RMW    DWORD PTR [eax+0x50],0x0                      FUN_10be45f6
+10be4623  dword  read   ebx,DWORD PTR [esi+0x50]                      FUN_10be460f
+10be51c9  dword  WRITE  DWORD PTR [esi+0x50],eax                      FUN_10be4f28
+10bf3c4d  dword  WRITE  DWORD PTR [ebp+0x50],ecx                      FUN_10bf39d7
+10bff032  dword  read   DWORD PTR [esi+0x50]                          FUN_10bfefbb
+10bff10b  dword  read   ecx,DWORD PTR [edi+0x50]                      FUN_10bfefbb
+10bffa7e  dword  RMW    DWORD PTR [ebp+0x50],0x40000                  FUN_10bff95c
+10c082d0  dword  read   eax,DWORD PTR [edi+0x50]                      FUN_10c07c6c
+10c0b977  dword  read   eax,DWORD PTR [esi+0x50]                      FUN_10c0b8ca
+10c115e6  dword  WRITE  DWORD PTR [esi+0x50],eax                      FUN_10c113f3
+10c11765  dword  RMW    DWORD PTR [esi+0x50],eax                      FUN_10c113f3
+10c1c405  dword  WRITE  DWORD PTR [ebp+0x50],edx                      FUN_10c1c3f7
+10c1c6e9  dword  read   DWORD PTR [ebp+0x50],0x0                      FUN_10c1c3f7
+10c1cb92  dword  read   DWORD PTR [ebp+0x50],0x0                      FUN_10c1c3f7
+10c1cc10  dword  read   DWORD PTR [ebp+0x50],0x0                      FUN_10c1c3f7
+10c1ce00  dword  read   DWORD PTR [ebp+0x50],eax                      FUN_10c1c3f7
+10c1ce41  dword  read   DWORD PTR [ebp+0x50],0x0                      FUN_10c1c3f7
+10c20be1  dword  WRITE  DWORD PTR [edi+0x50],eax                      FUN_10c20b3f
+10c21020  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10c20f79
+10c2102e  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10c20f79
+10c21036  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10c20f79
+10c2105c  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10c20f79
+10c21064  dword  WRITE  DWORD PTR [esi+0x50],edi                      FUN_10c20f79
+10c212df  dword  read   DWORD PTR [edi+0x50]                          FUN_10c21257
+10c21cd9  dword  read   ecx,DWORD PTR [esi+0x50]                      FUN_10c21b03
+10c2d28a  dword  read   esi,DWORD PTR [ebp+eiz*2+0x50],0x65626f72     -
+10c2d2f8  dword  read   esi,DWORD PTR [ebp+eiz*2+0x50],0x65626f72     -
+10c2d383  byte   RMW    BYTE PTR [eax+eax*1+0x50],ah                  -
+10c2d4f5  byte   RMW    BYTE PTR [eax+eax*1+0x50],bl                  -
+10c2d579  byte   RMW    BYTE PTR [eax+eax*1+0x50],ch                  -
+10c2da7c  dword  read   esi,DWORD PTR [ebp+eiz*2+0x50],0x69747261     -
+10c2da9c  dword  read   esi,DWORD PTR [ebp+eiz*2+0x50],0x69747261     -
+10c2dabe  dword  read   esi,DWORD PTR [ebp+eiz*2+0x50],0x69747261     -
