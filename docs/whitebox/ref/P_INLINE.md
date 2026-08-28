@@ -1141,7 +1141,9 @@ where `DAT_10c6f1c8` is the mode requested.**
 > **The follow-up's premise is FALSE.** The switch exists and is named, but
 > setting it does not make c2 report anything — it puts c2 in profile-guided
 > optimization, which **swaps the live parameter record from table A to table
-> B** and turns on a cost model whose thresholds are 3×–13× tighter. It is a
+> B**, which differs from A on **13 of its 46 fields (8 of the 24 switch-fed
+> ones) by 2.1× to 30×, B tighter in every one**, and turns on a cost model
+> gated on profile data. It is a
 > mode selector that **changes** the inline decision, so using it to observe
 > the decision would be measuring a different compiler. The narration seam this
 > was reaching for already exists and is `cl /FAsc`.

@@ -185,11 +185,24 @@ arithmetic each value enters. For five of them (`-inlfcsw#`, `-inlflcsw#`,
 inliner band that were not opened (§9 item 3); the in-band decision is named
 for every one.
 
-**Table A vs table B are not two tunings of one model; nine fields differ and
-every difference is in the same direction** — B's threshold and bonus values
-are 3×–13× smaller. `[I]` The natural gloss is that B is the profile-guided
-table, where a measured call count carries the weight the static heuristics
-carry in A; this page does not claim it.
+**Table A vs table B differ on 13 of the 46 fields — 8 of the 24 switch-fed
+ones — and every difference is in the same direction, A larger:**
+
+| field | A | B | ratio |   | field | A | B | ratio |
+|---|---:|---:|---:|---|---|---:|---:|---:|
+| `-inlS#` | 60 | 2 | **30.0×** | | `-inluserinl#` | 8 | 2 | 4.0× |
+| `-inlT#` | 104 | 20 | 5.2× | | `-inlnobr#` | 48 | 3 | **16.0×** |
+| `-inlfcsw#` | 32 | 5 | 6.4× | | `+0x50` | 4 | 1 | 4.0× |
+| `-inlocsa1#` | 96 | 15 | 6.4× | | `+0x54` | 4 | 1 | 4.0× |
+| `-inlocsa4#` | 96 | 15 | 6.4× | | `-inlmlsa#` | 32 | 15 | 2.1× |
+| `+0x44` | −4 | −1 | 4.0× | | `+0x7c` | 32 | 6 | 5.3× |
+| | | | | | `+0x80` | 16 | 4 | 4.0× |
+
+`|A|/|B|` spans **2.1× to 30.0×**, and `A` is the larger in all 13 — including
+`+0x44`, the model's only penalty, where "larger" means more negative.
+`[I]` The natural gloss is that B is the profile-guided table, where a measured
+call count carries the weight the static heuristics carry in A; this page does
+not claim it.
 
 ### 3.1 What each reader decides `[R]`
 
@@ -404,7 +417,8 @@ that zero it.
 > FALSE.** The switch is `-pgo#` / `-po#` / `-pgu#`. Setting it does not make
 > c2 report anything — it puts c2 in profile-guided optimization, which
 > **swaps the live inline parameter record from table A to table B**
-> (`0x10b5e50f`) and turns on a cost model whose thresholds are 3×–13× tighter.
+> (`0x10b5e50f`) — 13 of whose 46 fields differ, by 2.1× to 30×, B tighter in
+> every one — and turns on a cost model gated on profile data.
 > It is a **mode selector that changes the answer**, and using it to observe
 > the answer would be measuring a different compiler.
 >
