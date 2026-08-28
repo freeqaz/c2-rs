@@ -246,6 +246,29 @@ Ready-list order: **priority DESC (unsigned), then `node+0x44` ASC**
 >   cycle** (`0x10c1bbaf` then `0x10be6046`), so the priority is a function of
 >   (DAG, cycle, resource state) — **not a static function of the DAG.**
 
+> ### ⛔ THE CONFIDENCE OF THIS WHOLE SECTION, 2026-08-28 (lane `w-sched`, board **#3728**) — **EVERY CLAUSE ABOVE IS `[R]`, AND NO SETTING OF THE STAGE TAP CAN MOVE IT**
+>
+> Not one term of the priority function is observable by the stage tap, at any
+> setting, at any of its **eight** sites. `c2host/stagetap.c` emits fields of
+> the **tuple** record only — `+0x4` opcode, `+0x8` category, `+0x9` flags,
+> `+0xa & 0x1f` cc, optionally raw *tuple* bytes (`C2RS_STAGE_RAW`), the
+> operand chain (`C2RS_STAGE_OPS`) and a whole-function *tuple* walk
+> (`C2RS_STAGE_FUNCWALK`). **No site dereferences the DAG at all.** So height,
+> fanout, the weights, the dead `-1` terms, the critical-path bit, `w[6]`'s
+> typeword gate, `w[7]`'s bonus, the `+0x3c`-vs-`+0x38` field, the 16-bit
+> truncation of `+0x44` and the per-cycle re-sort are each observable **only**
+> through their effect on final tuple order.
+>
+> **And that channel has been sized: 8 tuple positions out of 3,015.** At the
+> final schedule (`sched0` → `after0`) run 4 reorders 3 of 357 functions, and
+> inside those three **8 positions move** — `?b_bswap64@@YA_K_K@Z` (4),
+> `?addr_taken@@YAHH@Z` (2), `?mixed_addr@@YAHH@Z` (2). Two priority models are
+> separated by this instrument **only if they disagree on one of those 8
+> positions**; the published family has far more than 8 binary decisions, so
+> the shortfall is structural, not statistical, and no sample size fixes it.
+> [`../scripts/grade_final_order.py`](../scripts/grade_final_order.py);
+> [`WB_SCHEDCHK_FINDINGS.md`](../WB_SCHEDCHK_FINDINGS.md) §4.2, §6.
+
 ---
 
 ## 4. The five commissioned answers `[O]`
@@ -335,6 +358,26 @@ Ready-list order: **priority DESC (unsigned), then `node+0x44` ASC**
 > Data: [`SCHED_LATENCY.tsv`](SCHED_LATENCY.tsv). Full decode:
 > [`WB_SCHEDCONF_FINDINGS.md`](../WB_SCHEDCONF_FINDINGS.md) §2.4.
 
+> ### ⛔ AMENDED 2026-08-28 (lane `w-sched`, board **#3729**) — **THE 10/10 IS IMAGE-VS-IMAGE. IT NEVER MET THE TAP, AND IT DOES NOT PROMOTE THIS SECTION**
+>
+> The box above is headed `✅⛔ … ALL NINE ROWS CONFIRMED`, and
+> [`WB_SCHEDCONF_FINDINGS.md`](../WB_SCHEDCONF_FINDINGS.md) §0 files it under
+> ***"THE STRUCTURAL MODEL SURVIVED THE TAP"***. Re-run on this tree:
+> `dump_sched_tables.py <c2.dll> --verify` prints `10/10` and takes **the image
+> and nothing else** as input — no snap, no obj, no fixture, no `/FAsc`
+> listing.
+>
+> It is a **self-consistency check between two readings of the same image**:
+> §5's prose against the bytes at `0x10c3c1a8` and `0x10b221d0`. That is a real
+> and valuable check — it is what caught the tag mechanism, by going red on the
+> correct width — and it is **not an observation**. Under
+> [`README.md`](README.md)'s legend `[O]` means *confirmed against a real obj
+> or `/FAsc` listing*, so **this section is `[R]`**, as is every clause of the
+> cycle model in §2 (issue width, the ≤ 2 nonzero-unit cap, `slack`, the
+> `+15`/`+40` stall penalties, the iteration). Filing it under a heading with
+> the word *tap* in it invites the other reading, which is why this box exists
+> rather than an edit to the sentence.
+
 ---
 
 ## 6. What is NOT known here
@@ -421,3 +464,45 @@ Ready-list order: **priority DESC (unsigned), then `node+0x44` ASC**
 > **A scheduler model graded on this corpus scores ~99 % by returning its
 > input**, so the corpus cannot validate one in either direction —
 > [`WB_SCHEDCONF_FINDINGS.md`](../WB_SCHEDCONF_FINDINGS.md) §4.
+
+> ### ⛔ AMENDED 2026-08-28 (lane `w-sched`, board **#3725**–**#3730**) — **THE BOX ABOVE IS WRONG ABOUT WHICH CLAUSE FIRES 1,121 TIMES, AND THE 1,461/1,461 PINS FOUR CLAUSES OF NINE**
+>
+> Amended beside, per [`README.md`](README.md) §2.1. Grade and full derivation:
+> [`WB_SCHEDCHK_FINDINGS.md`](../WB_SCHEDCHK_FINDINGS.md); instrument
+> [`../scripts/mutate_regions.py`](../scripts/mutate_regions.py). The region
+> rule's **transcription** is untouched and every one of R7's corrections to
+> §2's region row stands; what changes is what the 100.00 % is evidence *for*.
+>
+> * ***"There is a HEAD SPECIAL CASE … It fires on 1,121 of the 1,461 graded
+>   pairs — the most common path in the whole rule"*** — ~~struck~~. **The
+>   1,121 is a different clause**: it is `grade_regions.py`'s
+>   `excl-0x17/0x30f` **exit** count, the region *terminator* at `0x10be5d8b`.
+>   The head case at `0x10be5d55` is not an exit and has **no row in that
+>   histogram**. Measured: it fires on **1,428 of 2,889 walks** and on
+>   **0 of the 1,461 graded pairs**, and the arithmetic closes to the unit —
+>   `1,428 − 60 last-of-fixture = 1,368 = the UNGRADED count`. A region ending
+>   at the exclusive `0x30f` leaves the next region's head *on* that `0x30f`,
+>   and that walk's successor is the first walk of the next run, which is
+>   **longer** — so the instrument check (B a strict tail of A) discards every
+>   walk the clause fires on. **Deleting the head case entirely, or changing
+>   its `0x30f` to any other value, leaves all 1,461 cells unmoved.** Board
+>   **#3725**.
+> * **Four clauses are pinned, five are not.** `0x12` inclusive (204 cells),
+>   `0x1b` inclusive (136), the `0x17`/`0x30f` exclusive terminator (1,121),
+>   and the *existence* of a head test (38). Unconfirmable on this corpus: the
+>   head case's effect and its opcode, the `0x17` test's **opcode** half (all
+>   2,889 category-`0x17` tuples carry opcode `0x30f`), the `0x14` and `0x19`
+>   clauses in either polarity, and the cap. Board **#3726**.
+> * **The `0x50` cap is confirmed as a RAY, not a value.** A cap of **13**
+>   scores 1,461/1,461; 12 goes red. The tap says `cap ≥ 13`; the read constant
+>   is 80. **6.2× slack.** §6's *"measured, 0/1,461"* is true and is a statement
+>   about the corpus — a port adopting 80 should cite `0x10be5d66`, never the
+>   1,461. Board **#3727**.
+> * **A clause's fire count OVERSTATES its confirmation.** `incl-cat-12` fires
+>   204 times but its removal costs only **146** — on 58 cells another clause
+>   stops the scan at the same index. `incl-cat-1b`: 136 fired, **86** lost.
+>   *Clause coverage is not clause confirmation*, in both directions at once.
+> * **The cap's signedness is unfalsifiable BY CONSTRUCTION**, not by corpus:
+>   the counter is 0-initialised and only incremented, so `jg` and `ja` agree on
+>   every reachable input. Distinguished from the corpus-limited rows above
+>   deliberately — conflating them reports a tautology as a coverage gap.
