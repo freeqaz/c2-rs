@@ -1316,3 +1316,95 @@ reporting "the cost model is confirmed" has confirmed nothing.
 `#3700`–`#3705` `w-regprio` · `#3706`–`#3711` `w-regcells` ·
 `#3712`–`#3716` `w-f0price` · `#3717`–`#3722` `w-inlfit`.
 `#3647` remains reserved-and-unspent. Next free `#3723`.
+
+---
+
+## Decision 21 — OWNER: wave 17 funds the INFRASTRUCTURE READ *and* the consolidation, and the broader-goal pause is LIFTED (2026-08-27)
+
+Asked where the next wave should go, given that both subsystems the owner
+named in decision 18 had reached their separable boundary, and whether decision
+18's pause still held. The owner's answers:
+
+> **"#1 and #3. delegate to opus subagents"** — fund the infrastructure read
+> **and** consolidate.
+>
+> **"Unpause — review is done."**
+
+### 1. The finding this decision responds to, and it was not anticipated by decision 15
+
+**Both named subsystems bottom out on the same class of thing, and wave 16
+established it from two independent directions.**
+
+- **Register allocator.** The brief split it into a half that *computes*
+  priorities (needs the scheduler) and a half that *consumes* them (does not).
+  Wave 16 built the consuming half — `w-regsel`'s selector and `w-regprio`'s
+  comparator. **There is no third separable piece.** Everything remaining runs
+  through `cand+0x0c`, which accumulates over code the scheduler produced, and
+  `w-f0price` then made that blocker both larger and better specified:
+  **F0 ≥ 10 raw sub-lanes + 2 UNPRICED terms**, naming **1 of 34**
+  post-allocator passes with **27 uncovered** and stage S7 unpriced entirely.
+- **Inliner.** `w-inlfit` read C8 end to end — the ceiling is 128 instructions
+  and is command-line settable via `-vol#` — and then concluded, in
+  `P_INLINE` §6.6's own words, that the fit **"is not replaceable by any read
+  confined to `0x10b5b86d`–`0x10b62b00`"**. The two missing links are named and
+  **neither is in the band**: the `[sym+0x50]` reduction, which *"nothing yet
+  located reads"*, and count→bytes, which is *"the whole of lowering"*.
+
+**So the per-subsystem programme did not stall — it succeeded down to its
+natural boundary on both subsystems, and the boundary is shared
+infrastructure.** Decision 15 restructured dispatch onto per-subsystem
+scoreboards on the premise that subsystems are independently advanceable. On
+these two, past a point, they are not. That premise is now amended by
+measurement rather than by argument.
+
+### 2. What is funded
+
+**Infrastructure read** — three lanes, aimed at the floor rather than at
+either subsystem:
+
+| lane | subject | why it is the cheapest entry |
+|---|---|---|
+| `w-sched` | `READ_PLAN` **R7** — *"Scheduler `[R]` → `[O]`: no new reading; check the read priority/latency model against the live tap"* | It is a **check of an existing read**, not a fresh one. `P_DAG` §3/§5 already holds the model at `[R]`; the live tap already exists |
+| `w-lowerband` | the `[sym+0x50]` reduction chain between `0x10b9bf6c` and `0x10b5fc8a` | The inliner's blocker, and it is **located but unread** — `P_INLINE` §6.6 says nothing yet reads it, and §2.1b measures its consequence (`arith_012`/`mix_008`, identical `SIZE` 115, opposite verdicts) |
+| `w-s7` | stage **S7** `0x10b7e032` — the live mode-0 merger run, the direct tuple-splicer `0x10b35c78`, the emit walk | `w-f0price` found F0 gives this stage **no sub-item at all**, and 2 of the 4 confirmed splicers sit in stages F0 prices at 1 lane and 0 lanes |
+
+**Consolidation** — two lanes:
+
+| lane | subject |
+|---|---|
+| `w-doctrine` | Turn **`#3723`** into an enforceable requirement. A required-zero byte delta **passes a real emit widening** (`w-regsel`'s control C6: allowed set opened to `r0..r31`, 471/475 tests still green, gate `PASS`). Any construct rung over an allowed set, a candidate set, or a refusal boundary needs a **refusal-domain check registered in its prereg** — and that must be checkable, not advisory, because this repo's standing finding is that an unenforced rule is a paragraph (`#3679`, `#3689`) |
+| `w-floor` | Write up §1 above as a first-class finding, and **re-price the newly unpaused items against F0's new number** — they may be pricing the same read twice |
+
+**Coordinator, done before dispatch:** 20 spent worktrees reaped (all merged,
+all clean or holding only the deliberate `c2rs.base` deletion), the **5 locked
+trees with pinned measurement artifacts untouched and re-verified** by
+`wt_pin_audit.sh` afterwards.
+
+### 3. The pause is LIFTED
+
+Decision 18 answer #4 paused the one-arm byte-judged slice, **4a(ii)/I2**,
+**4b/IR3**, and **step 5**, with *"not yet — we are still mid review and
+planning"*. The owner has ended that: **review is done.** Those items re-enter
+the dispatch pool.
+
+**They are not auto-funded by re-entering it.** `w-floor` prices them against
+what wave 16 measured, because the overlap is real and specific: **step 5's
+per-stage table and F0's enumeration are about the same pipeline**, and
+`STEP5_PRICING` §2.1's own re-price box already says the direction is up and
+the magnitude is not re-priceable by arithmetic. Pricing the same read twice,
+under two names, in two tracks, is the thing to avoid.
+
+### 4. What is still NOT authorised
+
+- **A full register allocator.** Decision 20 §2 stands unchanged, and
+  `w-f0price` strengthened its basis rather than weakening it.
+- **A `ported` numerator for regalloc.** Still not *defined*; `#3505` is now
+  **five for five**. `[regalloc] ported` correctly read `RESIDUE` after wave 16
+  shipped ~1,200 lines of allocator code, and that is the instrument working.
+- **A new count-bearing `gate.sh` row**, from anyone (`#3691`).
+- **Re-taking `#3534`.** `byte-owned` stays cited.
+
+**Board:** `#3724` this decision · `#3725`–`#3730` `w-sched` ·
+`#3731`–`#3736` `w-lowerband` · `#3737`–`#3742` `w-s7` ·
+`#3743`–`#3748` `w-doctrine` · `#3749`–`#3754` `w-floor`.
+`#3647` remains reserved-and-unspent. Next free `#3755`.
