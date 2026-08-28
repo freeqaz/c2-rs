@@ -1,0 +1,55 @@
+############################################################
+# w-clausefix -- CTL-5: THE cargo test TARGET ITSELF
+# crates/c2-harness/tests/clause_table.rs, watched RED on a real
+# defective table and on a shrunken one, before its green is quoted.
+############################################################
+
+=== CTL-5a  GREEN at the tip, both tests ===================
+$ cargo test -p c2-harness --release --test clause_table
+running 2 tests
+test the_clause_table_is_green_and_grades_all_twenty_four_rows ... ok
+test the_clause_table_check_goes_red_on_a_planted_defect ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+
+
+=== CTL-5b  RED when the table is the PRE-REPAIR one ========
+# The eight misaligned rows restored under the tracked path.
+test the_clause_table_is_green_and_grades_all_twenty_four_rows ... FAILED
+test the_clause_table_check_goes_red_on_a_planted_defect ... ok
+  FAIL C2: ALIGN 0x10b626d8 is +1 INTO the instruction at 0x10b626d7 -- caller instruction count seeded: DAT_10c3f5cc = (ush
+  FAIL C3: ALIGN 0x10b626f4 is +1 INTO the instruction at 0x10b626f3 -- growth budget B = clamp(2 x caller_instrs, 1000, 350
+  FAIL C4: ALIGN 0x10b6276a is +6 INTO the instruction at 0x10b62764 -- driver entry FUN_10b61ee1(fn, level=1, budget=B, 0, 
+  FAIL C14: ALIGN 0x10b609ae is +1 INTO the instruction at 0x10b609ad -- depth cap: 0x10 < level - DAT_10c3f50c => decline (1
+  FAIL C16: ALIGN 0x10b609ee is +3 INTO the instruction at 0x10b609eb -- caller-huge decline: 35000 < DAT_10c3f5cc
+  FAIL C17: ALIGN 0x10b60a04 is +2 INTO the instruction at 0x10b60a02 -- budget accept/decline: budget < instrs && instrs > 0
+  FAIL C18: ALIGN 0x10b6249b is +1 INTO the instruction at 0x10b6249a -- the 40-instruction test, SECOND copy: cmp WORD [call
+  FAIL C19: ALIGN 0x10b624a2 is +1 INTO the instruction at 0x10b624a1 -- the charge: *budget -= WORD[callee+0x50]; DAT_10c3f5
+CONFORMANCE-CHECK: RED  (8 failure(s) over 24 rows)
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+error: test failed, to rerun pass `-p c2-harness --test clause_table`
+
+=== CTL-5c  RED when the table is SHRUNK to 2 rows ==========
+# #3748's degenerate re-bless: a checker that grades 2 rows prints GREEN.
+# The row-count and split assertions are the only things that can see it.
+test the_clause_table_check_goes_red_on_a_planted_defect ... FAILED
+test the_clause_table_is_green_and_grades_all_twenty_four_rows ... FAILED
+thread 'the_clause_table_check_goes_red_on_a_planted_defect' (755545) panicked at crates/c2-harness/tests/clause_table.rs:183:5:
+thread 'the_clause_table_is_green_and_grades_all_twenty_four_rows' (755546) panicked at crates/c2-harness/tests/clause_table.rs:121:5:
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+=== CTL-5d  the SKIP path: no listing, target still passes ===
+$ C2RS_OBJDUMP_ASM=/nonexistent/objdump.asm cargo test ... -- --nocapture
+PARTIAL: the objdump listing is absent, so ALIGN and DECODE graded 0 of 24 rows. ADDRESS, WITNESS and ABSENCE graded 24 of 24. Regenerate per docs/whitebox/C2_MAP_METHOD.md, or set C2RS_OBJDUMP_ASM.
+  ALIGN  : SKIP -- listing absent, so 0 of 24 rows were checked for instruction alignment
+  DECODE : SKIP -- listing absent, so 0 of 24 rows were checked against their `asm` cell
+CONFORMANCE-CHECK: GREEN (ALIGN+DECODE SKIPPED)  (0 failure(s) over 24 rows)
+test the_clause_table_is_green_and_grades_all_twenty_four_rows ... ok
+  ALIGN  : SKIP -- listing absent, so 0 of 24 rows were checked for instruction alignment
+  DECODE : SKIP -- listing absent, so 0 of 24 rows were checked against their `asm` cell
+CONFORMANCE-CHECK: RED (ALIGN+DECODE SKIPPED)  (1 failure(s) over 24 rows)
+test the_clause_table_check_goes_red_on_a_planted_defect ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+=== restored: the table is byte-identical to the tip ========
+(empty above = restored)
