@@ -704,6 +704,9 @@ refuted allocation keys, "wrong on 5 to 42 each"**, and `alloc.rs:29-36`'s
 >    candidates (§1 step 3), each with its own `+0x44`. Every one of the ten
 >    keys is one-candidate-per-variable by construction and is therefore wrong
 >    in kind, not merely mis-fitted, on any body where a value is redefined.
+>    *(**`[O]` since `w-globobj`, 2026-08-28** — §6.2's box: `vc_three` gives
+>    ONE symbol TWO colours, and `vc_three` / `vc_three_distinct` are
+>    byte-identical. This clause is now measured, not read.)*
 >
 > **And the 52,416-configuration null is explained too, which is the sharper
 > half.** That search ranged over *priority functions* — candidates for
@@ -713,6 +716,22 @@ refuted allocation keys, "wrong on 5 to 42 each"**, and `alloc.rs:29-36`'s
 > accumulated. **No member of that family could have expressed it**, so the
 > null was structurally guaranteed rather than evidence about priority
 > functions. Board **#3413**.
+
+> ### ⚠ §8 AMENDED BY `w-globobj`, 2026-08-28 — two of the three clauses moved, in opposite directions
+>
+> * **Clause 3 is now `[O]`** — see the inline note above.
+> * **Clause 2's parenthetical is superseded but its verdict is NOT.** The
+>   *"later block outranks an earlier one"* form is still **UNGRADED**; what
+>   changed is that the *unbuilt separator* it blamed has been built (§0.3), the
+>   composite order is `[O]` as **definition order**, and a **single `for` loop**
+>   moves it (§7.1) — so `cand+0x0c` is reachable and the residue is now
+>   *"`+0x44` or a definition-ordered `+0x0c`"*, not *"no cell reached the
+>   tier"*.
+> * **The 52,416-configuration argument below is UNCHANGED and this lane adds
+>   to it**: `LIVELEN` and `USECOUNT`, the two source-level quantities a
+>   priority function is most likely to be, are refuted by 14 and 6 cells
+>   respectively — and [`P_REGALLOC.md`](P_REGALLOC.md):71's accumulator, under
+>   either sign of `cand+0x18`, predicts `LIVELEN`. §7.1.
 
 **The fence on that, stated in the lane's own voice.** This says the ten keys
 were fitting the wrong variable and names the right one. It does **not** say
