@@ -82,7 +82,7 @@ the live one and its defaults are the operative ones**.
 | lane | result |
 |---|---|
 | `scripts/gate.sh --jobs 16 --require-graded` | **`GATE: PASS (HATCH-RED REFUSED)`** — **18/18 lanes PASS**, 0 FAIL, 0 SKIP, 0 NO-RESULT, **7,038 fixture-verdicts**; sweep **19,460 of 19,556** graded, **0 mismatch**; cross **90,424 of 90,812** cells graded, **0 mismatch**; debug lane 18/18, 7,038 verdicts, **0 panic**. Transcript `work/w-inlswitch/gate_tip.out` |
-| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,981 passed / 1 failed / 2 ignored over 60 result blocks** on the first run; the single failure was `rung_registry::rung_index_is_generated_and_current`, i.e. the *generated* `docs/rungs/INDEX.md` going stale because this rung doc was added. Regenerated with `scripts/gen_rung_index.sh`, never by hand; re-run clean. Transcripts `cargo_test_pre_index.out` (first) and `cargo_test_tip.out` (final, at the tip) |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,982 passed / 0 failed / 2 ignored over 60 result blocks**, transcript `work/w-inlswitch/cargo_test_tip.out`, re-run at the tip after the gate. The **first** run (`cargo_test_pre_index.out`) was 1,981 / **1** / 2, and the one failure was `rung_registry::rung_index_is_generated_and_current` — the *generated* `docs/rungs/INDEX.md` going stale because this rung doc was added. Regenerated with `scripts/gen_rung_index.sh`, never by hand. **Both transcripts are kept**: a lane that reports only the clean re-run has hidden the reason it needed one |
 | `git diff master..HEAD -- crates/` | **empty** — required, and the lane's whole grading criterion |
 
 **Read the verdict LINE, not the exit code** — `REFUSED` exits 0. The
