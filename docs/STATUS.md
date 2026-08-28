@@ -86,14 +86,14 @@ a read attached to it.
 > 63,335 graded**.
 
 <!-- BEGIN GENERATED: scripts/status.sh — do not hand-edit -->
-Collected 2026-08-28 · tree `46f5e38cc` · binary `2e9fc75556e5` · workload `15a64d92f`
+Collected 2026-08-28 · tree `72caf2586` · binary `2270689bb959` · workload `15a64d92f`
 
 | metric | value |
 |---|---|
-| Workspace tests (cargo test --workspace --release) | 1982 passed, 0 failed, 60 targets |
+| Workspace tests (cargo test --workspace --release) | 1993 passed, 0 failed, 61 targets |
 | Oracle self-test (c2rs selftest) | 391 PASS, 0 FAIL |
 | Fixture port gate (c2rs perf) | 157 port Match, 0 mismatch, 234 not-implemented (of 391) |
-| Port speedup, geomean over matched fixtures | 564x geomean over matched fixtures |
+| Port speedup, geomean over matched fixtures | 597x geomean over matched fixtures |
 | 878-TU dc3 workload scan (c2rs gap) | match 25, mismatch 0, codegen-gap 0, vocab-gap 845, capture-fail 8 |
 | Per-function census (driver, not target) | 707728/2417794 functions in class (29.27%) |
 | Emitted-function census | 39369/162205 emitted functions in class (24.27%) |
