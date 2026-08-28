@@ -135,7 +135,14 @@ excluded by construction rather than by a heuristic.
 | `int`, `unsigned char`, `short`, `long long`, `int*`, `bool`, `enum`, `float`, `double` | `volatile int` |
 | `struct{int a;}`, `struct{int a,b;}` **member-wise**, `struct{int a,b,c,d;}` member-wise | `struct{int a,b;}` **whole-object copy** (`S2 v = *p;`) |
 | `union{int a; float b;}` | `int` whose **address escapes** |
-| `int[2]`, `int[4]`, `int[8]`, `int[12]` | function-`static int` |
+| `int[2]`, `int[4]`, `int[8]`, `int[12]`† | function-`static int` |
+
+† `pa_arr12` was registered in addendum 1 as **data, not a graded cell**,
+because the frame-traffic readout cannot separate *"never promoted"* from
+*"promoted then spilled"*. It is quoted here anyway because it did **not** need
+the readout: the twelve values are visibly in `r31 … r20` and there is no frame
+traffic at all, which is stronger evidence than the readout was designed to
+give. **No threshold claim is made above twelve in either direction.**
 
 **Controls both fired**: `pc_int` PROMOTED (positive), `pc_vol` MEMORY
 (negative). `pc_static` is MEMORY through the *relocated-static* arm of the
@@ -380,7 +387,7 @@ number to watch is the `OBS` bucket's fill rate, not the ratio.
 |---|---|---:|---:|---:|---:|
 | **PREREG** — before any deciding cell | `7495010c6` | 21 | **18** | **2** | 1 (`pc_struct1`, registered OPEN) |
 | **ADDENDUM 1** — in-flight | `b0af95af4` | 7 | **7** | 0 | 0 |
-| **ADDENDUM 2** — in-flight | `fe76047f6` | 2 | **1** | **1** | 0 |
+| **ADDENDUM 2** — in-flight | `c2226763c` | 2 | **1** | **1** | 0 |
 
 **PREREG misses** — `pc_arr` and `pc_union`, both predicted MEMORY, both
 PROMOTED. The reasoning error, named because it is repeatable: **it treated the
