@@ -1,0 +1,22 @@
+=== C-0  baseline: the instrument's own self-test
+self-test: GREEN (660 opcodes, 79 arms, 13 decode cases)
+   exit=0
+
+=== C-A  PLANT: widen the first mask over the RB field (0xFC0007FF -> 0xFC00FFFF)
+         so a word with a non-zero RB can no longer be attributed.
+T2 FAIL: 0x7c641b78 -> ['and'], expected or
+T3b FAIL: baseline read an `addco` word as ['addc']
+self-test: RED
+   exit=1  <-- MUST be 1
+         RESTORED:
+self-test: GREEN (660 opcodes, 79 arms, 13 decode cases)
+   exit=0  <-- MUST be 0
+
+=== C-B  PLANT: P3 says arm 10bfa81d (the ICE arm, forms 8/9/10/11/13/48/60)
+         is reached ZERO times.  Show the count CAN be non-zero: re-point
+         a high-frequency opcode (`or`, 0x011d) at that arm and re-count.
+   as read : 10bfa81d reached 0 times over 40 objs   <-- P3 predicts 0
+   planted : 10bfa81d reached 15944 times over the same objs
+   C-B OK: the count is capable of being non-zero, and as read it is 0
+
+=== all controls watched

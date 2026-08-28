@@ -1,0 +1,128 @@
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258   base 0x10b00000
+# disassembly by objdump -b binary -m i386 -M intel, addresses rebased to the VA
+# (P_ENCODE.md §5.5 records that objdump mis-syncs at 0x10bf9e55 -- read the raw
+#  bytes when a linear disassembler stops making sense.)
+
+### arm 10bf9f91 -- form 78, 104 opcodes, the largest unmapped arm
+### VA 0x10bf9f91  file offset 0xf9391  192 bytes
+### raw: 833d78e9c210008b401c8b561c8b491c8b40288b52288b4928740f83f82073d483fa2073cf83f92073ca83e01fc1e00583e21f0bc2c1e00583e11fe984070000833d78e9c210008b561c8b368b368b401c8b491c8b761c8b40288b52288b49288b76280f843701000083f820738683fa20738183f9200f8378ffffff83fe20e916010000833d78e9c210008b401c8b561c8b40288b52288b4918741283f8200f834fffffff83fa200f8346ffffff83e01fc1e00583e11f0bc1c1e00583e21f0b
+  10bf9f91 <.data>:
+  10bf9f91:	83 3d 78 e9 c2 10 00 	cmp    DWORD PTR ds:0x10c2e978,0x0
+  10bf9f98:	8b 40 1c             	mov    eax,DWORD PTR [eax+0x1c]
+  10bf9f9b:	8b 56 1c             	mov    edx,DWORD PTR [esi+0x1c]
+  10bf9f9e:	8b 49 1c             	mov    ecx,DWORD PTR [ecx+0x1c]
+  10bf9fa1:	8b 40 28             	mov    eax,DWORD PTR [eax+0x28]
+  10bf9fa4:	8b 52 28             	mov    edx,DWORD PTR [edx+0x28]
+  10bf9fa7:	8b 49 28             	mov    ecx,DWORD PTR [ecx+0x28]
+  10bf9faa:	74 0f                	je     0x10bf9fbb
+  10bf9fac:	83 f8 20             	cmp    eax,0x20
+  10bf9faf:	73 d4                	jae    0x10bf9f85
+  10bf9fb1:	83 fa 20             	cmp    edx,0x20
+  10bf9fb4:	73 cf                	jae    0x10bf9f85
+  10bf9fb6:	83 f9 20             	cmp    ecx,0x20
+  10bf9fb9:	73 ca                	jae    0x10bf9f85
+  10bf9fbb:	83 e0 1f             	and    eax,0x1f
+  10bf9fbe:	c1 e0 05             	shl    eax,0x5
+  10bf9fc1:	83 e2 1f             	and    edx,0x1f
+  10bf9fc4:	0b c2                	or     eax,edx
+  10bf9fc6:	c1 e0 05             	shl    eax,0x5
+  10bf9fc9:	83 e1 1f             	and    ecx,0x1f
+  10bf9fcc:	e9 84 07 00 00       	jmp    0x10bfa755
+  10bf9fd1:	83 3d 78 e9 c2 10 00 	cmp    DWORD PTR ds:0x10c2e978,0x0
+  10bf9fd8:	8b 56 1c             	mov    edx,DWORD PTR [esi+0x1c]
+  10bf9fdb:	8b 36                	mov    esi,DWORD PTR [esi]
+  10bf9fdd:	8b 36                	mov    esi,DWORD PTR [esi]
+  10bf9fdf:	8b 40 1c             	mov    eax,DWORD PTR [eax+0x1c]
+  10bf9fe2:	8b 49 1c             	mov    ecx,DWORD PTR [ecx+0x1c]
+  10bf9fe5:	8b 76 1c             	mov    esi,DWORD PTR [esi+0x1c]
+  10bf9fe8:	8b 40 28             	mov    eax,DWORD PTR [eax+0x28]
+  10bf9feb:	8b 52 28             	mov    edx,DWORD PTR [edx+0x28]
+  10bf9fee:	8b 49 28             	mov    ecx,DWORD PTR [ecx+0x28]
+  10bf9ff1:	8b 76 28             	mov    esi,DWORD PTR [esi+0x28]
+  10bf9ff4:	0f 84 37 01 00 00    	je     0x10bfa131
+  10bf9ffa:	83 f8 20             	cmp    eax,0x20
+  10bf9ffd:	73 86                	jae    0x10bf9f85
+  10bf9fff:	83 fa 20             	cmp    edx,0x20
+  10bfa002:	73 81                	jae    0x10bf9f85
+  10bfa004:	83 f9 20             	cmp    ecx,0x20
+  10bfa007:	0f 83 78 ff ff ff    	jae    0x10bf9f85
+  10bfa00d:	83 fe 20             	cmp    esi,0x20
+  10bfa010:	e9 16 01 00 00       	jmp    0x10bfa12b
+  10bfa015:	83 3d 78 e9 c2 10 00 	cmp    DWORD PTR ds:0x10c2e978,0x0
+  10bfa01c:	8b 40 1c             	mov    eax,DWORD PTR [eax+0x1c]
+  10bfa01f:	8b 56 1c             	mov    edx,DWORD PTR [esi+0x1c]
+  10bfa022:	8b 40 28             	mov    eax,DWORD PTR [eax+0x28]
+  10bfa025:	8b 52 28             	mov    edx,DWORD PTR [edx+0x28]
+  10bfa028:	8b 49 18             	mov    ecx,DWORD PTR [ecx+0x18]
+  10bfa02b:	74 12                	je     0x10bfa03f
+  10bfa02d:	83 f8 20             	cmp    eax,0x20
+  10bfa030:	0f 83 4f ff ff ff    	jae    0x10bf9f85
+  10bfa036:	83 fa 20             	cmp    edx,0x20
+  10bfa039:	0f 83 46 ff ff ff    	jae    0x10bf9f85
+  10bfa03f:	83 e0 1f             	and    eax,0x1f
+  10bfa042:	c1 e0 05             	shl    eax,0x5
+  10bfa045:	83 e1 1f             	and    ecx,0x1f
+  10bfa048:	0b c1                	or     eax,ecx
+  10bfa04a:	c1 e0 05             	shl    eax,0x5
+  10bfa04d:	83 e2 1f             	and    edx,0x1f
+  10bfa050:	0b                   	.byte 0xb
+
+### arm 10bfa81d -- the ICE arm, 7 forms / 19 opcodes
+### VA 0x10bfa81d  file offset 0xf9c1d  40 bytes
+### raw: bad9030000e90afdffff8b411c8b40288b7618c1e0090bc6e9dc0500000fb64618c1e006e924fcff
+  10bfa81d <.data>:
+  10bfa81d:	ba d9 03 00 00       	mov    edx,0x3d9
+  10bfa822:	e9 0a fd ff ff       	jmp    0x10bfa531
+  10bfa827:	8b 41 1c             	mov    eax,DWORD PTR [ecx+0x1c]
+  10bfa82a:	8b 40 28             	mov    eax,DWORD PTR [eax+0x28]
+  10bfa82d:	8b 76 18             	mov    esi,DWORD PTR [esi+0x18]
+  10bfa830:	c1 e0 09             	shl    eax,0x9
+  10bfa833:	0b c6                	or     eax,esi
+  10bfa835:	e9 dc 05 00 00       	jmp    0x10bfae16
+  10bfa83a:	0f b6 46 18          	movzx  eax,BYTE PTR [esi+0x18]
+  10bfa83e:	c1 e0 06             	shl    eax,0x6
+  10bfa841:	e9                   	.byte 0xe9
+  10bfa842:	24 fc                	and    al,0xfc
+  10bfa844:	ff                   	.byte 0xff
+
+### arm 10bfa285 -- form 7, `bl`
+### VA 0x10bfa285  file offset 0xf9685  48 bytes
+### raw: 837d0c000f848c0b00008bcfe8d7f4ffff8b4508f7d825feffff03e9740b000081cb00008002e96b0b00008a4f0a8b16
+  10bfa285 <.data>:
+  10bfa285:	83 7d 0c 00          	cmp    DWORD PTR [ebp+0xc],0x0
+  10bfa289:	0f 84 8c 0b 00 00    	je     0x10bfae1b
+  10bfa28f:	8b cf                	mov    ecx,edi
+  10bfa291:	e8 d7 f4 ff ff       	call   0x10bf976d
+  10bfa296:	8b 45 08             	mov    eax,DWORD PTR [ebp+0x8]
+  10bfa299:	f7 d8                	neg    eax
+  10bfa29b:	25 fe ff ff 03       	and    eax,0x3fffffe
+  10bfa2a0:	e9 74 0b 00 00       	jmp    0x10bfae19
+  10bfa2a5:	81 cb 00 00 80 02    	or     ebx,0x2800000
+  10bfa2ab:	e9 6b 0b 00 00       	jmp    0x10bfae1b
+  10bfa2b0:	8a 4f 0a             	mov    cl,BYTE PTR [edi+0xa]
+  10bfa2b3:	8b 16                	mov    edx,DWORD PTR [esi]
+
+### arm 10bfa76a -- form 54, `mfspr`
+### VA 0x10bfa76a  file offset 0xf9b6a  58 bytes
+### raw: 807e08078b401c8b402875058b7618eb068b4e1c8b71288bce83e11fc1e0050bc8c1e10a81e6e00300000bcec1e106e915fcffff8b461cebbc80
+  10bfa76a <.data>:
+  10bfa76a:	80 7e 08 07          	cmp    BYTE PTR [esi+0x8],0x7
+  10bfa76e:	8b 40 1c             	mov    eax,DWORD PTR [eax+0x1c]
+  10bfa771:	8b 40 28             	mov    eax,DWORD PTR [eax+0x28]
+  10bfa774:	75 05                	jne    0x10bfa77b
+  10bfa776:	8b 76 18             	mov    esi,DWORD PTR [esi+0x18]
+  10bfa779:	eb 06                	jmp    0x10bfa781
+  10bfa77b:	8b 4e 1c             	mov    ecx,DWORD PTR [esi+0x1c]
+  10bfa77e:	8b 71 28             	mov    esi,DWORD PTR [ecx+0x28]
+  10bfa781:	8b ce                	mov    ecx,esi
+  10bfa783:	83 e1 1f             	and    ecx,0x1f
+  10bfa786:	c1 e0 05             	shl    eax,0x5
+  10bfa789:	0b c8                	or     ecx,eax
+  10bfa78b:	c1 e1 0a             	shl    ecx,0xa
+  10bfa78e:	81 e6 e0 03 00 00    	and    esi,0x3e0
+  10bfa794:	0b ce                	or     ecx,esi
+  10bfa796:	c1 e1 06             	shl    ecx,0x6
+  10bfa799:	e9 15 fc ff ff       	jmp    0x10bfa3b3
+  10bfa79e:	8b 46 1c             	mov    eax,DWORD PTR [esi+0x1c]
+  10bfa7a1:	eb bc                	jmp    0x10bfa75f
+  10bfa7a3:	80                   	.byte 0x80
