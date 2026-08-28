@@ -1,0 +1,44 @@
+=== C-0  baseline
+test result: ok. 671 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+
+=== C-C  PLANT: form 7's LI field 24 bits -> 23 (one bit narrower)
+codegen::alloc_init_or_fail::tests::the_body_is_the_reference_obj_word_for_word --- FAILED
+codegen::calls::tests::a_guarded_call_sequence_matches_the_reference_bytes --- FAILED
+codegen::calls::tests::encode_call_branch_sets_link_bit --- FAILED
+codegen::calls::tests::framed_call_moves_a_non_first_formal_into_r3 --- FAILED
+codegen::calls::tests::framed_call_text_matches_reference_body --- FAILED
+codegen::ctor_forward_call::tests::the_call_displacement_follows_the_function --- FAILED
+codegen::ctor_forward_call::tests::the_nine_words_are_the_reference_obj --- FAILED
+codegen::frame::tests::frame_helper_and_probe_thresholds_are_where_the_captures_put_them --- FAILED
+codegen::frontier_bytes::mmio_tests::mmiogetinfo_eighty_four_bytes_reconstruct_from_the_encoders --- FAILED
+codegen::guard_chain_shared_tail::tests::body_matches_the_reference_obj_word_for_word --- FAILED
+codegen::guard_chain_shared_tail::tests::the_five_formal_byte_store_body_matches_its_reference_obj --- FAILED
+codegen::guard_ret_chain::tests::sub_shape_g_is_mmiogetinfo_word_for_word --- FAILED
+codegen::guard_ret_chain::tests::sub_shape_s_is_mmiosetinfo_word_for_word --- FAILED
+codegen::json_utf8_copy::tests::body_matches_the_reference_words --- FAILED
+codegen::json_utf8_copy::tests::exactly_two_words_move_with_the_function --- FAILED
+codegen::if_call_join::tests::the_body_is_the_bytes_c2_emitted_for_negate_test --- FAILED
+codegen::if_call_join::tests::the_literals_are_two_immediate_fields --- FAILED
+codegen::osf_handle_guard::tests::the_body_is_the_reference_obj_word_for_word --- FAILED
+codegen::xlrc_create_guard::tests::body_matches_the_reference_words --- FAILED
+codegen::xtea_encrypt_loop::tests::the_target_body_is_ninety_six_bytes --- FAILED
+   ^ MUST show failures
+
+=== C-C2 PLANT: form 54's SPR high half 11 -> 12 (mflr r12 moves)
+surface::tests::the_decision_surface_domain_matches_the_committed_baseline --- FAILED
+test result: FAILED. 670 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.42s
+   ^ MUST show failures
+
+=== C-D  PLANT: drop bl OPCODE row — the surface domain must move
+  - mop.encode_form  form=007  fixed=0x00000000 DispWord<<2/24 | bl=0x4bfffff9
+  + mop.encode_form  form=007  fixed=0x00000000 DispWord<<2/24 | no-opcode-row
+  - mop.encode_form  bl.disp=0  0x48000001 =c2
+  + mop.encode_form  bl.disp=0  REFUSE not-in-table DIVERGES-from-c2
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 671 filtered out; finished in 0.00s
+   ^ MUST show the domain diff and a failure
+
+=== RESTORED
+test result: ok. 671 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+   ^ MUST be empty

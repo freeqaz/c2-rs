@@ -24,8 +24,8 @@
 //! not, for four days, while this sentence said it did.** The hole was found
 //! by `scripts/provenance_census.py` on its first real run (board **#3632**),
 //! reported and deliberately not repaired by the lane that found it, and
-//! filed by lane `w-disclose` as three rows (**#3642**): **`W-MOP-1`** the 85
-//! opcode numbers and the table extent, **`W-MOP-2`** the 85 transcribed rows
+//! filed by lane `w-disclose` as three rows (**#3642**): **`W-MOP-1`** the 88
+//! opcode numbers and the table extent, **`W-MOP-2`** the 88 transcribed rows
 //! of `0x10c3a578` / `0x10c39b18` / `0x10b1b260`, **`W-MOP-3`** the field
 //! placements. They are the ledger's **first rows whose `Adopted into` is on
 //! the emit path**; every `W-MID-*` and `W-STAGETAP-*` row above them is
@@ -104,28 +104,31 @@
 //! requires `N` to appear in the prose it annotates, so a binding cannot drift
 //! away from the sentence it grades.
 //!
-//! The population is the **85** `op::` opcode constants — one per row of
-//! [`OPCODE_ROWS`], which is the invariant worth watching, since an 86th
+//! The population is the **88** `op::` opcode constants — one per row of
+//! [`OPCODE_ROWS`], which is the invariant worth watching, since an 89th
 //! `op::` constant with no row (or the reverse) is exactly the drift `#3643`
 //! was — plus seven others ([`OPCODES`], [`OPCODE_ROWS`], [`MAX_C2_OPCODE`],
 //! [`OPCODE_INDEX`], [`MAX_FIELDS`], [`NONE_FIELD`], [`EncodeParams::C2`]).
+//! *(**85 -> 88 on 2026-08-28**, lane `w-encarms`: `op::BL`, `op::MFSPR` and
+//! `op::STWUX`, the three rows `codegen::word_seam`'s armed refusals were
+//! waiting for.)*
 //!
-//! This module declares **92** `const`/`static` items in non-test code:
+//! This module declares **95** `const`/`static` items in non-test code:
 //!
-//! COUNT[rs-consts:crates/c2-core/src/codegen/mop.rs] = 92
+//! COUNT[rs-consts:crates/c2-core/src/codegen/mop.rs] = 95
 //!
 //! **What is NOT bound, and it is named rather than left silent.** The other
-//! three numbers `#3643` repaired — **575** untranscribed rows, over **34** of
+//! three numbers `#3643` repaired — **572** untranscribed rows, over **34** of
 //! c2's **104** distinct form values — have **no recipe that can express
 //! them**. `run_recipe`'s whole vocabulary (`ledger-rows`, `md-rows`, `grep`,
 //! `rs-consts`, `rs-marks`, `rs-array`) counts matching lines or literal
-//! entries; `575` is a *difference* (660 − 85) and `34` / `104` are
+//! entries; `572` is a *difference* (660 − 88) and `34` / `104` are
 //! *distinct-value* counts over a column, which needs a dedup no recipe does.
 //! All three were re-derived by hand at `bce2bfc68` and all three are correct.
 //! `660` **is** bindable (`grep:docs/whitebox/ref/ENCODE_OPCODES.txt:^0x`
 //! recounts to 660) and is deliberately not bound here — this lane's prereg
 //! ruled it out of scope; it is the obvious next annotation and binding it
-//! would leave `575` checkable by a reader's subtraction.
+//! would leave `572` checkable by a reader's subtraction.
 //!
 //! # The decision surface
 //!
@@ -195,8 +198,8 @@ pub mod op {
     //! **`W-MID-1` is the neighbouring row and is NOT this one.** It adopts the
     //! table's *address, stride, index origin and `_last` sentinel* into
     //! `c2-reference/tests/middle_interfaces.rs`, and says in its own text *"no
-    //! table entry is copied"* — true there, and false here: the 85 constants
-    //! below are 85 of the table's positions, written out as literals, on the
+    //! table entry is copied"* — true there, and false here: the 88 constants
+    //! below are 88 of the table's positions, written out as literals, on the
     //! **emit path** (`base_word` is the port's only source of a primary opcode
     //! ~~*full stop*~~ **for instructions that go through `MachineOp`** —
     //! corrected 2026-08-26, board **#3638**; three the port emits are outside
@@ -209,7 +212,7 @@ pub mod op {
     //!
     //! **Verified against the image, not against the transcription**:
     //! `work/w-disclose/verify_rows.py` check D re-dumps `c2.dll` live and
-    //! agrees with all 85 rows on mnemonic, base word and form.
+    //! agrees with all 88 rows on mnemonic, base word and form.
     use super::C2Op;
 
     // form 49 — XO with RT/RA/RB
@@ -316,6 +319,20 @@ pub mod op {
     // form 62 — the split SPR field
     pub const MTSPR: C2Op = C2Op(0x00F8);
 
+    /// `mfspr` — form **54**, arm `10bfa76a`, the mirror of [`MTSPR`].
+    ///
+    /// Adopted by lane `w-encarms` (wave 18); `DISCLOSURE.md` `W-ENCARMS-1`.
+    /// `frame.rs`'s `mflr r12` was a literal until this row existed, because
+    /// `mtspr`'s form 62 is a *different* form and cannot stand in for it —
+    /// `word_seam`'s `EXCEPTIONS` carried the refusal, armed, until now.
+    pub const MFSPR: C2Op = C2Op(0x00E6);
+
+    /// `stwux` — form **61**, arm `10bfa1a1`, the form the port already places
+    /// for `stdx`. One transcribed row and no new arm.
+    ///
+    /// Adopted by lane `w-encarms` (wave 18); `DISCLOSURE.md` `W-ENCARMS-1`.
+    pub const STWUX: C2Op = C2Op(0x017F);
+
     // forms 1 / 4 / 5 / 6 / 55 — branches
     pub const B: C2Op = C2Op(0x001F);
     pub const BC: C2Op = C2Op(0x0021);
@@ -328,6 +345,18 @@ pub mod op {
     /// to compose it from a primary, a `BO`, an extended opcode and a literal
     /// `1`; four facts where c2 has one row.
     pub const BCTRL: C2Op = C2Op(0x002A);
+
+    /// `bl` — form **7**, arm `10bfa285`. **Not `b` with a link bit**: c2 files
+    /// it as its own opcode on its own form, and its base word already carries
+    /// `LK` (`48000001`).
+    ///
+    /// Adopted by lane `w-encarms` (wave 18); `DISCLOSURE.md` `W-ENCARMS-1`.
+    /// Read at `0x10bfa285`: with a `NULL` relocation sink the arm stores the
+    /// base word alone; otherwise it requests `REL24` and ORs
+    /// `(−pc) & 0x03fffffe`. See [`plan`]'s form-7 note for the one-bit
+    /// difference between that mask and this port's field, and the domain row
+    /// in [`surface_rows`] that fences it.
+    pub const BL: C2Op = C2Op(0x002B);
 
     // forms 14 / 15 / 16 — compares
     pub const CMP: C2Op = C2Op(0x002D);
@@ -342,11 +371,11 @@ pub mod op {
 /// **c2's base-word table, for the opcodes this port emits.** READ from the
 /// pinned image; see the module doc and `docs/whitebox/DISCLOSURE.md`.
 ///
-/// This is a **subset** of c2's 660 rows and says so: the port emits 85
-/// distinct opcodes and the other 575 are not transcribed. That is deliberate —
+/// This is a **subset** of c2's 660 rows and says so: the port emits 88
+/// distinct opcodes and the other 572 are not transcribed. That is deliberate —
 /// a row here is a claim the port makes about a word it emits, and copying rows
-/// the port never uses would put 575 unexercised claims behind the same green
-/// test as the 85 exercised ones (`STATUS.md` trap 0: a green control is a
+/// the port never uses would put 572 unexercised claims behind the same green
+/// test as the 88 exercised ones (`STATUS.md` trap 0: a green control is a
 /// statement about the population it ran over).
 ///
 /// *(**The counts above read 71 and 589 from this file's first commit
@@ -354,12 +383,12 @@ pub mod op {
 /// and `EncodeParams::row`'s own comment below has said 575 correctly the whole
 /// time. Corrected by lane `w-disclose` while filing the row this constant was
 /// missing, board **#3643**; comment-only, no value moved and none could.)*
-/// PROV[R] DISCLOSURE `W-MOP-2` — 85 whole ROWS of c2's tables, copied as
+/// PROV[R] DISCLOSURE `W-MOP-2` — 88 whole ROWS of c2's tables, copied as
 /// source literals: the base word from `0x10c3a578`, the encode-form number
 /// from `0x10c39b18`, the mnemonic from `0x10b1b260`, transcribed row by row
 /// from `docs/whitebox/ref/ENCODE_OPCODES.txt` (which `verify_rows.py` check E
 /// reproduces byte-identically from the pinned image). **A subset by design**:
-/// 85 of c2's 660 rows. `W-MID-2` adopts the two table ADDRESSES and their
+/// 88 of c2's 660 rows. `W-MID-2` adopts the two table ADDRESSES and their
 /// strides into `middle_interfaces.rs` and says no entry is copied there; this
 /// row is the entries, here, on the emit path.
 pub static OPCODES: &[OpRow] = OPCODE_ROWS;
@@ -384,10 +413,12 @@ pub static OPCODES: &[OpRow] = OPCODE_ROWS;
 ///
 /// **The row count is BOUND, not asserted** (`#3643`, lane `w-wire`, board
 /// **#3683**): `scripts/prose_audit.py` C4 recounts the literal below on every
-/// run, so the **85** that every sentence in this file leans on cannot go stale
-/// the way *"71"* did for four days.
+/// run, so the **88** that every sentence in this file leans on cannot go stale
+/// the way *"71"* did for four days — and it earned its keep on 2026-08-28,
+/// when lane `w-encarms` took the table from 85 rows to **88** and C4 named
+/// every sentence that still said 85.
 ///
-/// COUNT[rs-array:crates/c2-core/src/codegen/mop.rs:OPCODE_ROWS] = 85
+/// COUNT[rs-array:crates/c2-core/src/codegen/mop.rs:OPCODE_ROWS] = 88
 const OPCODE_ROWS: &[OpRow] = &[
     row(op::ADD, "add", 0x7c00_0214, 49),
     row(op::ADDE, "adde", 0x7c00_0114, 49),
@@ -462,7 +493,10 @@ const OPCODE_ROWS: &[OpRow] = &[
     row(op::STDX, "stdx", 0x7c00_012a, 61),
     row(op::STFSX, "stfsx", 0x7c00_052e, 28),
     row(op::MTSPR, "mtspr", 0x7c00_03a6, 62),
+    row(op::MFSPR, "mfspr", 0x7c00_02a6, 54),
+    row(op::STWUX, "stwux", 0x7c00_016e, 61),
     row(op::B, "b", 0x4800_0000, 6),
+    row(op::BL, "bl", 0x4800_0001, 7),
     row(op::BC, "bc", 0x4000_0000, 5),
     row(op::BCLR, "bclr", 0x4c00_0020, 4),
     row(op::BCCTR, "bcctr", 0x4c00_0420, 4),
@@ -484,7 +518,7 @@ const fn row(op: C2Op, mnemonic: &'static str, base: u32, form: u16) -> OpRow {
 /// base-word table read at `0x10c3a578`.
 /// PROV[R] DISCLOSURE `W-MOP-1` — `0x294` is `_last`(`0x295`) minus one. The
 /// `_last` sentinel index is what `W-MID-1` adopts into `middle_interfaces.rs`;
-/// `W-MOP-1` is the same fact adopted here, beside the 85 table positions.
+/// `W-MOP-1` is the same fact adopted here, beside the 88 table positions.
 /// `verify_rows.py` check D asserts this equals a live dump's own extent.
 const MAX_C2_OPCODE: usize = 0x294;
 
@@ -767,7 +801,7 @@ impl EncodeParams {
         // The dual path is a PERFORMANCE path, never a semantic one: both
         // branches return the same row, and `the_index_and_the_scan_agree_on_
         // every_opcode` checks that over the entire opcode space including the
-        // 575 absent ones.
+        // 572 absent ones.
         if std::ptr::eq(self.rows.as_ptr(), OPCODES.as_ptr()) && self.rows.len() == OPCODES.len() {
             let i = *OPCODE_INDEX.get(op.0 as usize)?;
             if i == 0 {
@@ -813,7 +847,7 @@ pub fn mnemonic_of(op: C2Op) -> Option<&'static str> {
 
 /// **The field plan for one c2 form**, transcribed from `P_ENCODE.md` §5.
 ///
-/// Returns `None` for a form this port does not emit; the port's **85** opcodes
+/// Returns `None` for a form this port does not emit; the port's **88** opcodes
 /// reach **34** of the **104** distinct form values c2's table contains
 /// (`P_ENCODE.md` §3), and the 27 arms below cover **35** form numbers — the
 /// extra one is form 2, which shares an arm with form 6.
@@ -911,6 +945,37 @@ pub const fn plan(form: Form) -> Option<FieldPlan> {
         // `mtspr`'s base word is `7c0003a6` with the field zero (§8.1 residual
         // 5). `9 << 11` would be a legal-looking `mtspr` naming SPR 288.
         62 => fp3(f(S, 21, 5), f(D1, 16, 5), f(D2, 11, 5)),
+        // `10bfa76a` — `mfspr`, the MIRROR of form 62 and read at that address
+        // by lane `w-encarms`, instruction by instruction:
+        //
+        //     cmp BYTE [esi+0x8],7      ; kind(D0) == 7 -> the SPR is an imm
+        //     eax = [[eax+0x1c]+0x28]   ; RT = reg(S)
+        //     esi = kind==7 ? [esi+0x18] : [[esi+0x1c]+0x28]
+        //     ecx = (esi & 0x1f) | (eax << 5)
+        //     ecx <<= 10 ; ecx |= (esi & 0x3e0) ; ecx <<= 6
+        //
+        // The last three lines are `RT<<21 | (spr & 0x1f)<<16 | (spr>>5)<<11`,
+        // the SAME low-half-first split §5.7 gives for form 62 — which is why
+        // this plan is form 62's, and why `mtspr` still could not stand in for
+        // it: the port needs the ROW (`mfspr`'s base word is `7c0002a6`, not
+        // `7c0003a6`) and c2 needs the form to reach a different arm.
+        54 => fp3(f(S, 21, 5), f(D1, 16, 5), f(D2, 11, 5)),
+        // `10bfa285` — `bl`. Read by lane `w-encarms` at that address:
+        //
+        //     cmp DWORD [ebp+0xc],0 ; je 0x10bfae1b   ; NULL sink -> base alone
+        //     mov ecx,edi ; call 0x10bf976d           ; request REL24
+        //     mov eax,[ebp+0x8] ; neg eax             ; -pc
+        //     and eax,0x3fffffe ; jmp 0x10bfae19      ; or ebx,eax ; store
+        //
+        // **c2's mask is `0x03fffffe`, one bit wider than the `LI` field**,
+        // which is bits 6..29 (`0x03fffffc`); bit 1 is the `AA` bit's
+        // neighbour. The two masks are the same function only while `pc` is a
+        // multiple of 4 — a caller precondition, not a property of the field,
+        // exactly as `Slot::DispWord`'s own note says of the arithmetic shift.
+        // This plan spells the FIELD (`((disp >> 2) & 0xffffff) << 2`), and the
+        // half-word domain where the two diverge is a registered decision
+        // surface row rather than a silent coincidence — see [`surface_rows`].
+        7 => fp1(f(DispWord, 2, 24)),
         // `10bfa2a5` — `blr`/`bctr`/`bctrl`: `or ebx,0x2800000`, i.e. BO = 20
         // supplied by the ARM, no operand read at all. The port used to bake
         // this into a literal `4e800020`; it is #3379's `BO_ALWAYS` residual
@@ -1168,6 +1233,110 @@ pub fn agreement(params: &EncodeParams) -> Vec<AgreementRow> {
         .collect()
 }
 
+// ---------------------------------------------------------------------------
+// The registered decision surface
+// ---------------------------------------------------------------------------
+
+/// **SURFACE[mop.encode_form]** — the registered decision surface's domain.
+///
+/// Registered by lane `w-encarms` (wave 18), the **first outside consumer** of
+/// `w-doctrine`'s registry (`crate::surface`). Board `#3760`.
+///
+/// # What it fences, and why the encoder needed one
+///
+/// Adopting an encoder arm converts a `NotImplemented` into an **emit**. That
+/// is precisely the change board `#3723` says a required-zero byte delta cannot
+/// grade: the gate only sees emissions the corpus exercises, so a form plan
+/// added for an instruction the corpus never reaches is green for the wrong
+/// reason. This surface's domain is **all 113 encode forms**, whether or not
+/// any fixture reaches them, so adding or changing a field plan moves lines in
+/// `surface/DOMAIN.txt` that a reviewer reads as text.
+///
+/// # Two blocks, and the second one exists because of a one-bit divergence
+///
+/// * **`form=NNN`** — one row per c2 encode form `1..=113`. The outcome is the
+///   plan's field spelling and the word it composes for a canonical operand
+///   assignment, or `REFUSE no-field-plan`. 113 cells, and most of them are
+///   refusals: that is the honest shape of a port that transcribes 88 of c2's
+///   660 rows.
+/// * **`bl.disp=N`** — form 7's displacement, including **misaligned** points.
+///   Arm `0x10bfa285` masks with `0x03fffffe`, one bit wider than the `LI`
+///   field (`0x03fffffc`), and this port spells the field. **The two agree only
+///   while the displacement is a multiple of 4** and the rows below make the
+///   divergence visible: at `disp = -2` c2's rule yields `0x4bffffff` and this
+///   port yields `0x4bfffffd`.
+///
+///   **This lane did NOT add a refusal there, deliberately.** The same exposure
+///   already exists on forms 2, 5 and 6, whose `DispWord` slot carries the same
+///   caller precondition and predates this lane; fencing only form 7 would be
+///   arbitrary, and a refusal is priced two-sided in this repo, not reflexively.
+///   Registering it here is what makes it a *known* boundary instead of a
+///   coincidence — board `#3761`.
+///
+/// PROV[N] an instrument's domain; every value it renders comes from [`plan`]
+/// and [`encode_op`], and it reaches no emitted byte of its own.
+pub fn surface_rows() -> Vec<crate::surface::Row> {
+    use crate::surface::{Row, REFUSE};
+    let mut rows = Vec::new();
+
+    // -- block one: every c2 encode form, plan or refusal --------------------
+    for form in 1u16..=113 {
+        let point = format!("form={form:03}");
+        let Some(fp) = plan(Form(form)) else {
+            rows.push(Row::new(point, format!("{REFUSE} no-field-plan")));
+            continue;
+        };
+        let mut spelling = format!("fixed={:#010x}", fp.fixed);
+        for fl in fp.fields() {
+            spelling.push_str(&format!(" {:?}<<{}/{}", fl.slot, fl.shift, fl.width));
+        }
+        // A canonical operand assignment, so a change to a WIDTH or a SHIFT
+        // moves the line even when the field list is unchanged. The values are
+        // distinct and non-zero so no two slots alias.
+        let canon = MachineOp::new(C2Op(0))
+            .s(3)
+            .d0(4)
+            .d1(5)
+            .d2(6)
+            .d3(7)
+            .disp(-8);
+        let words: Vec<String> = OPCODES
+            .iter()
+            .filter(|r| r.form.0 == form)
+            .map(|r| {
+                let m = MachineOp { op: r.op, ..canon };
+                match encode_op(&m, &EncodeParams::C2) {
+                    Ok(w) => format!("{}={w:#010x}", r.mnemonic),
+                    Err(_) => format!("{}=ERR", r.mnemonic),
+                }
+            })
+            .collect();
+        let tail =
+            if words.is_empty() { "no-opcode-row".to_string() } else { words.join(" ") };
+        rows.push(Row::new(point, format!("{spelling} | {tail}")));
+    }
+
+    // -- block two: form 7's displacement, aligned AND misaligned ------------
+    for disp in [0i32, -4, -8, -12, -0x2C, -0x3FFFFFC, -1, -2, -3, -6, 2, 6] {
+        let w = encode_op(&MachineOp::new(op::BL).disp(disp), &EncodeParams::C2)
+            .map(|w| format!("{w:#010x}"))
+            .unwrap_or_else(|_| format!("{REFUSE} not-in-table"));
+        // c2's arm masks with `0x03fffffe`; this port spells the `LI` field.
+        //
+        // **The base word comes from the table, not from a literal.** Writing
+        // `0x4800_0001` here was the first draft and `word_seam`'s value half
+        // caught it in those words — *"A SECOND PRODUCER OF AN INSTRUCTION WORD
+        // APPEARED … `mop::OPCODES` already composes this word as `bl`"* — on
+        // the very row this lane added the `bl` table entry for. The guard
+        // works on new code, which is worth more than the two seconds it cost.
+        let c2_word = base_word(op::BL).unwrap_or(0) | ((disp as u32) & 0x03FF_FFFE);
+        let agree = if w == format!("{c2_word:#010x}") { "=c2" } else { "DIVERGES-from-c2" };
+        rows.push(Row::new(format!("bl.disp={disp}"), format!("{w} {agree}")));
+    }
+
+    rows
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1198,7 +1367,7 @@ mod tests {
     }
 
     /// **The O(1) index and the linear scan agree on the WHOLE opcode space**,
-    /// including the 575 opcodes this port does not emit and the ones past the
+    /// including the 572 opcodes this port does not emit and the ones past the
     /// table's extent.
     ///
     /// The fast path is guarded by a pointer comparison, so a future edit that
@@ -1908,6 +2077,14 @@ mod ops_tests {
         // the two numbers being equal until today was a coincidence: `mtlr` and
         // `mtctr` are two encoders over one `MTSPR` row, as `blr`/`bctrl` are
         // two over form 55.
-        assert_eq!(encoders, 86, "the encoder population moved; update the sweeps too");
+        //
+        // **86 -> 87 on 2026-08-28, lane `w-encarms`**: `encode_mflr`/`mop_mflr`
+        // are new, for the same reason and in the same shape as the `mtlr` pair
+        // above — `frame::FRAME_MFLR_R12` was the literal `0x7D88_02A6`, the
+        // last of board **#3637**'s duplicate word productions that a *missing
+        // table row* was blocking rather than a disagreement. Again an encoder
+        // the file was missing, not an encoder the port gained: `mflr` and
+        // `mfspr` are one row, as `mtlr`/`mtctr` are one row.
+        assert_eq!(encoders, 87, "the encoder population moved; update the sweeps too");
     }
 }

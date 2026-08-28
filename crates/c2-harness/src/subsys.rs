@@ -621,10 +621,11 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
         // ENCODE_ARMS.txt plus c2-core's own public tables on every run and
         // every `cargo test`. See `recount_encode_ported` for the predicate.
         ported: Cell::Measured {
-            num: 27,
+            num: 29,
             den: 79,
             unit: "encode arms the port can produce a word through",
-            source: "lane w-encmap, board #3636-#3641: ENCODE_ARMS.txt (79 rows, \
+            source: "lane w-encmap, board #3636-#3641 (27/79); lane w-encarms, board \
+                     #3756-#3761 (29/79, wave 18): ENCODE_ARMS.txt (79 rows, \
                      re-measured on this tree) x c2_core::codegen::mop::{plan, OPCODES}",
             caveat: "THE DENOMINATOR IS THE 79 ARMS, NOT THE BAND'S 14 AND NOT THE 111 \
                      JUMP-TABLE ENTRIES, and the choice is published rather than \
@@ -636,17 +637,24 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
                      14 is Ghidra function entries -- a different population \
                      entirely. AN ARM COUNTS ON ONE OF ITS FORMS, so this OVER-states \
                      partial arms: the strict reading (every form of the arm \
-                     reachable) is 25, and the loose reading (a FieldPlan exists, \
-                     whether or not an opcode reaches it) is 28 -- the extra arm is \
-                     10bfa26c, form 2, a plan no opcode reaches. The 52 unmapped arms \
-                     are NOT uniform: 25 are VMX/VMX128-dominated (243 of c2's 639 \
-                     form-carrying opcodes, including the 104-opcode default arm \
-                     10bf9f91), leaving 27 non-VMX arms over 100 opcodes -- the \
-                     CR-logical family (10bfa81d, 19), FP multiply-add (10bfa49a, \
-                     18), the nop family (10bfa1ad, 13), the cache ops (10bfa8ae, 9), \
-                     and three the port DOES emit by another route and is therefore \
-                     not refusing: bl (10bfa285, form 7), mfspr (10bfa76a, form 54) \
-                     and li/lis (10bfa5a0, form 33). See P_ENCODE.md section 10",
+                     reachable) is 26, and the loose reading (a FieldPlan exists, \
+                     whether or not an opcode reaches it) is 30 -- the extra arm is \
+                     10bfa26c, form 2, a plan no opcode reaches. \
+                     27 -> 29 ON 2026-08-28, lane w-encarms: arms 10bfa285 (form 7, \
+                     `bl`) and 10bfa76a (form 54, `mfspr`) were read at their \
+                     addresses in the pinned image and adopted, discharging all three \
+                     of codegen::word_seam's armed refusals; DISCLOSURE W-ENCARMS-1. \
+                     THE SAME LANE REFUTED THE `25` THIS CAVEAT USED TO CARRY FOR THE \
+                     STRICT READING: measured directly at master 4b79bf46a it is 24, \
+                     so the strict reading moved 24 -> 26 and the published 25 never \
+                     reproduced (board #3759). The 50 still-unmapped arms are NOT \
+                     uniform, and neither is what the WORKLOAD reaches: over 861 \
+                     real-c2 objs of the 878-TU workload (3,192,747 non-zero \
+                     executable .text words) only 10 of the 52 pre-adoption unmapped \
+                     arms are reached unambiguously and 31 are reached ZERO times, \
+                     including the ICE arm 10bfa81d and 30 others; the 104-opcode \
+                     default arm 10bf9f91 is reached by at most 10 words, 0.0003 %. \
+                     work/w-encarms/armhist.py. See P_ENCODE.md section 10",
         },
         ported_recount: Some(PortedRecount::EncodeArms),
         agreement_extra: Some(Cell::Measured {
@@ -2539,7 +2547,13 @@ mod tests {
             }
             other => panic!("the encode row's ported is no longer measured: {other:?}"),
         };
-        assert_eq!((num, den), (27, 79), "the shipped ported cell moved");
+        // **27 -> 29 on 2026-08-28, lane `w-encarms`** (board #3758): arms
+        // `10bfa285` (form 7, `bl`) and `10bfa76a` (form 54, `mfspr`) were
+        // adopted into `mop`. The pin is deliberate and stays a pin — it is
+        // what makes this control a statement about a KNOWN cell rather than
+        // about whatever the cell happens to be, and it went red on exactly the
+        // commit that moved the number, which is the behaviour asked for.
+        assert_eq!((num, den), (29, 79), "the shipped ported cell moved");
         // The cheapest lie: one more arm than the port implements.
         table[i].ported = Cell::Measured { num: num + 1, den, unit, source, caveat };
         let v = verify(&root(), &ref_dir(), &table);

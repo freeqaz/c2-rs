@@ -159,28 +159,28 @@ pub fn dyninit_thunk_text(k: i32) -> Option<DynInitBody> {
 /// (`disp = −(own .text offset)`) plus the link bit. Verified: `bl` at offset
 /// 0xC → `0x4BFFFFF5` (disp −0xC, LK=1).
 ///
-/// **This one did NOT fold onto `mop`, and it is not a duplicate** (lane
-/// `w-mopfold`, board **#3637**). `bl` is not `b` with a bit set: c2 files it
-/// as its **own opcode** on its **own form** — `docs/whitebox/ref/
-/// ENCODE_OPCODES.txt` opcode `0x002b`, base `48000001`, **form 7**, arm
-/// `10bfa285` — and `mop::OPCODES` transcribes neither the row nor the arm. So
-/// no `(row, operands)` pair in this port composes `0x4BFFFFF5`, there is no
-/// second rule to disagree with, and the fence is a missing transcription
-/// rather than a conflict. Finishing it is an **adoption**: it moves
-/// `DISCLOSURE.md`'s `W-MOP-2`/`W-MOP-3` counts and needs form 7's placement,
-/// which is not among the 27 arms `w-read-r2` read. Priced and declined; the
-/// refusal is *armed* rather than merely recorded — `word_seam`'s inventory
-/// re-derives this word every test run and goes red the moment `mop` can
-/// compose it.
+/// **2026-08-28, lane `w-encarms` — folded, and folded the way `w-mopfold` said
+/// it had to be.** `bl` is not `b` with a bit set: c2 files it as its **own
+/// opcode** on its **own form** — `docs/whitebox/ref/ENCODE_OPCODES.txt` opcode
+/// `0x002b`, base `48000001`, **form 7**, arm `10bfa285`. `mop::OPCODES` now
+/// transcribes the row and `mop::plan` places form 7, both from a read of
+/// `0x10bfa285` in the pinned image (`DISCLOSURE.md` `W-ENCARMS-1`), so this is
+/// `op::BL` and **not** `op::B` with a `| 1`.
 ///
-/// **Do not "fix" this by writing `op::B` with a `| 1`.** That would put a
-/// field c2's form 6 does not place into a word the table claims to own, which
-/// is a worse defect than the literal: it would make `mop::OPCODES` *look*
-/// like the source of a word it is not the source of.
+/// **The warning that block carried is still live and is why the row exists:**
+/// writing `op::B | 1` would put a field c2's form 6 does not place into a word
+/// the table claims to own, making `mop::OPCODES` *look* like the source of a
+/// word it is not the source of. A separate opcode and a separate form is what
+/// c2 has, so it is what the port has.
+///
+/// **Zero emitted bytes moved.** The old rule was
+/// `0x4800_0000 | (disp & 0x03FF_FFFC) | 1`; the new one is
+/// `base(0x48000001) | ((disp >> 2) & 0xFFFFFF) << 2`, and the two are the same
+/// function on all of `i32` for the same reason [`encode_tail_branch`]'s fold
+/// was — the mask's low two bits are zero and the 24-bit width discards the
+/// sign extension. Byte-neutral by algebra, not by coverage.
 pub fn encode_call_branch(text_offset: u32) -> [u8; 4] {
-    let disp = -(text_offset as i32);
-    let word: u32 = 0x4800_0000 | (disp as u32 & 0x03FF_FFFC) | 1;
-    word.to_be_bytes()
+    MachineOp::new(op::BL).disp(-(text_offset as i32)).word()
 }
 
 /// A framed non-leaf call's emitted body: the bytes, and the `.text` offsets the

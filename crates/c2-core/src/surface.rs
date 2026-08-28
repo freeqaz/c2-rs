@@ -227,6 +227,28 @@ pub const SURFACES: &[Surface] = &[
         min_cells: 350,
         min_refusals: 150,
     },
+    // -- APPENDED 2026-08-28 by lane `w-encarms`, the registry's FIRST OUTSIDE
+    //    CONSUMER. Kept as one additive block at the end of the array so the
+    //    merge against `w-inlbudget`, which owns this file the same wave, is a
+    //    trivial one. Nothing above this line was touched.
+    Surface {
+        name: "mop.encode_form",
+        site: "codegen/mop.rs",
+        boundary: "which of c2's 113 encode FORMS the port can place fields for, \
+                   the word each one composes at a canonical operand assignment, \
+                   and the displacement domain where form 7's `bl` mask diverges \
+                   from c2's",
+        cite: "docs/whitebox/ref/P_ENCODE.md §5, §10; c2 arms `0x10bfa285` (form 7) \
+               and `0x10bfa76a` (form 54); DISCLOSURE W-ENCARMS-1; board #3760, #3761",
+        // No guard named. `MAX_FIELDS` is the obvious candidate and is the WRONG
+        // one: it is a capacity bound on this port's own `FieldPlan` array, not a
+        // c2 boundary, `UNCOVERED` already says so, and claiming it here would be
+        // a false coverage claim of exactly the shape `POOL_TOP` was found to be.
+        guards: &[],
+        rows: crate::codegen::mop::surface_rows,
+        min_cells: 113,
+        min_refusals: 60,
+    },
 ];
 
 /// Boundary-named `const`s this crate carries that **no registered surface

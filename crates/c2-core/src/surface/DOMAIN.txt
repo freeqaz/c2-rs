@@ -2406,3 +2406,135 @@ nonce.ds_form  mode=Ox dst=+32764 src=+32756  REFUSE
 nonce.ds_form  mode=Ox dst=+32764 src=+32760  REFUSE
 nonce.ds_form  mode=Ox dst=+32764 src=+32764  REFUSE
 ## summary  nonce.ds_form  cells=392 admit=49 refuse=343 values={e944000078ab00207d4a5a14f9430000e94400087d6a5a14f96300084e800020,e944000078ab00207d4a5a14f9430004e94400087d6a5a14f963000c4e800020,e944000078ab00207d4a5a14f9430008e94400087d6a5a14f96300104e800020,e944000078ab00207d4a5a14f9431000e94400087d6a5a14f96310084e800020,e944000078ab00207d4a5a14f9437fe8e94400087d6a5a14f9637ff04e800020,e944000078ab00207d4a5a14f9437fece94400087d6a5a14f9637ff44e800020,e944000078ab00207d4a5a14f9437ff0e94400087d6a5a14f9637ff84e800020,e944000478ab00207d4a5a14f9430000e944000c7d6a5a14f96300084e800020,e944000478ab00207d4a5a14f9430004e944000c7d6a5a14f963000c4e800020,e944000478ab00207d4a5a14f9430008e944000c7d6a5a14f96300104e800020,e944000478ab00207d4a5a14f9431000e944000c7d6a5a14f96310084e800020,e944000478ab00207d4a5a14f9437fe8e944000c7d6a5a14f9637ff04e800020,e944000478ab00207d4a5a14f9437fece944000c7d6a5a14f9637ff44e800020,e944000478ab00207d4a5a14f9437ff0e944000c7d6a5a14f9637ff84e800020,e944000878ab00207d4a5a14f9430000e94400107d6a5a14f96300084e800020,e944000878ab00207d4a5a14f9430004e94400107d6a5a14f963000c4e800020,e944000878ab00207d4a5a14f9430008e94400107d6a5a14f96300104e800020,e944000878ab00207d4a5a14f9431000e94400107d6a5a14f96310084e800020,e944000878ab00207d4a5a14f9437fe8e94400107d6a5a14f9637ff04e800020,e944000878ab00207d4a5a14f9437fece94400107d6a5a14f9637ff44e800020,e944000878ab00207d4a5a14f9437ff0e94400107d6a5a14f9637ff84e800020,e944100078ab00207d4a5a14f9430000e94410087d6a5a14f96300084e800020,e944100078ab00207d4a5a14f9430004e94410087d6a5a14f963000c4e800020,e944100078ab00207d4a5a14f9430008e94410087d6a5a14f96300104e800020,e944100078ab00207d4a5a14f9431000e94410087d6a5a14f96310084e800020,e944100078ab00207d4a5a14f9437fe8e94410087d6a5a14f9637ff04e800020,e944100078ab00207d4a5a14f9437fece94410087d6a5a14f9637ff44e800020,e944100078ab00207d4a5a14f9437ff0e94410087d6a5a14f9637ff84e800020,e9447fe878ab00207d4a5a14f9430000e9447ff07d6a5a14f96300084e800020,e9447fe878ab00207d4a5a14f9430004e9447ff07d6a5a14f963000c4e800020,e9447fe878ab00207d4a5a14f9430008e9447ff07d6a5a14f96300104e800020,e9447fe878ab00207d4a5a14f9431000e9447ff07d6a5a14f96310084e800020,e9447fe878ab00207d4a5a14f9437fe8e9447ff07d6a5a14f9637ff04e800020,e9447fe878ab00207d4a5a14f9437fece9447ff07d6a5a14f9637ff44e800020,e9447fe878ab00207d4a5a14f9437ff0e9447ff07d6a5a14f9637ff84e800020,e9447fec78ab00207d4a5a14f9430000e9447ff47d6a5a14f96300084e800020,e9447fec78ab00207d4a5a14f9430004e9447ff47d6a5a14f963000c4e800020,e9447fec78ab00207d4a5a14f9430008e9447ff47d6a5a14f96300104e800020,e9447fec78ab00207d4a5a14f9431000e9447ff47d6a5a14f96310084e800020,e9447fec78ab00207d4a5a14f9437fe8e9447ff47d6a5a14f9637ff04e800020,e9447fec78ab00207d4a5a14f9437fece9447ff47d6a5a14f9637ff44e800020,e9447fec78ab00207d4a5a14f9437ff0e9447ff47d6a5a14f9637ff84e800020,e9447ff078ab00207d4a5a14f9430000e9447ff87d6a5a14f96300084e800020,e9447ff078ab00207d4a5a14f9430004e9447ff87d6a5a14f963000c4e800020,e9447ff078ab00207d4a5a14f9430008e9447ff87d6a5a14f96300104e800020,e9447ff078ab00207d4a5a14f9431000e9447ff87d6a5a14f96310084e800020,e9447ff078ab00207d4a5a14f9437fe8e9447ff87d6a5a14f9637ff04e800020,e9447ff078ab00207d4a5a14f9437fece9447ff87d6a5a14f9637ff44e800020,e9447ff078ab00207d4a5a14f9437ff0e9447ff87d6a5a14f9637ff84e800020}
+
+## surface  mop.encode_form
+##   site      codegen/mop.rs
+##   boundary  which of c2's 113 encode FORMS the port can place fields for, the word each one composes at a canonical operand assignment, and the displacement domain where form 7's `bl` mask diverges from c2's
+##   cite      docs/whitebox/ref/P_ENCODE.md §5, §10; c2 arms `0x10bfa285` (form 7) and `0x10bfa76a` (form 54); DISCLOSURE W-ENCARMS-1; board #3760, #3761
+##   guards    (none named)
+mop.encode_form  form=001  fixed=0x02000000 DispWord<<2/14 | bdnz=0x4200fff8
+mop.encode_form  form=002  fixed=0x00000000 DispWord<<2/24 | no-opcode-row
+mop.encode_form  form=003  REFUSE no-field-plan
+mop.encode_form  form=004  fixed=0x00000000 S<<21/5 D0<<16/5 | bclr=0x4c640020 bcctr=0x4c640420
+mop.encode_form  form=005  fixed=0x00000000 S<<21/5 D0<<16/5 DispWord<<2/14 | bc=0x4064fff8
+mop.encode_form  form=006  fixed=0x00000000 DispWord<<2/24 | b=0x4bfffff8
+mop.encode_form  form=007  fixed=0x00000000 DispWord<<2/24 | bl=0x4bfffff9
+mop.encode_form  form=008  REFUSE no-field-plan
+mop.encode_form  form=009  REFUSE no-field-plan
+mop.encode_form  form=010  REFUSE no-field-plan
+mop.encode_form  form=011  REFUSE no-field-plan
+mop.encode_form  form=012  REFUSE no-field-plan
+mop.encode_form  form=013  REFUSE no-field-plan
+mop.encode_form  form=014  fixed=0x00000000 S<<23/3 D0<<16/5 D1<<11/5 | cmp=0x7d842800 cmpl=0x7d842840
+mop.encode_form  form=015  fixed=0x00000000 S<<23/3 D0<<16/5 Disp<<0/16 | cmpi=0x2d84fff8
+mop.encode_form  form=016  fixed=0x00000000 S<<23/3 D0<<16/5 Disp<<0/16 | cmpli=0x2984fff8
+mop.encode_form  form=017  REFUSE no-field-plan
+mop.encode_form  form=018  REFUSE no-field-plan
+mop.encode_form  form=019  REFUSE no-field-plan
+mop.encode_form  form=020  REFUSE no-field-plan
+mop.encode_form  form=021  fixed=0x00000000 S<<21/5 D0<<16/5 Disp<<0/16 | lfs=0xc064fff8 lfd=0xc864fff8
+mop.encode_form  form=022  fixed=0x00000000 S<<21/5 D0<<16/5 D1<<11/5 | fadd=0xfc64282a fadds=0xec64282a fsub=0xfc642828 fsubs=0xec642828 fdiv=0xfc642824 fdivs=0xec642824
+mop.encode_form  form=023  fixed=0x00000000 S<<21/5 D0<<16/5 D1<<6/5 | fmul=0xfc640172 fmuls=0xec640172
+mop.encode_form  form=024  REFUSE no-field-plan
+mop.encode_form  form=025  fixed=0x00000000 S<<21/5 D0<<11/5 | fmr=0xfc602090 frsp=0xfc602018
+mop.encode_form  form=026  fixed=0x00000000 S<<21/5 D0<<16/5 D1<<11/5 | lfsx=0x7c642c2e
+mop.encode_form  form=027  fixed=0x00000000 D0<<21/5 S<<16/5 Disp<<0/16 | stfs=0xd083fff8 stfsu=0xd483fff8 stfd=0xd883fff8
+mop.encode_form  form=028  fixed=0x00000000 D0<<21/5 S<<16/5 D1<<11/5 | stfsx=0x7c832d2e
+mop.encode_form  form=029  REFUSE no-field-plan
+mop.encode_form  form=030  REFUSE no-field-plan
+mop.encode_form  form=031  REFUSE no-field-plan
+mop.encode_form  form=032  REFUSE no-field-plan
+mop.encode_form  form=033  REFUSE no-field-plan
+mop.encode_form  form=034  REFUSE no-field-plan
+mop.encode_form  form=035  REFUSE no-field-plan
+mop.encode_form  form=036  fixed=0x00000000 D0<<21/5 S<<16/5 D0<<11/5 | mr=0x7c832378
+mop.encode_form  form=037  REFUSE no-field-plan
+mop.encode_form  form=038  fixed=0x00000000 D0<<21/5 S<<16/5 | extsb=0x7c830774 extsb.=0x7c830775 extsh=0x7c830734 cntlzw=0x7c830034
+mop.encode_form  form=039  fixed=0x00000000 D0<<21/5 S<<16/5 D1<<11/5 | and=0x7c832838 andc=0x7c832878 or=0x7c832b78 or.=0x7c832b79 orc=0x7c832b38 eqv=0x7c832a38 xor=0x7c832a78 slw=0x7c832830 srw=0x7c832c30 sraw=0x7c832e30
+mop.encode_form  form=040  REFUSE no-field-plan
+mop.encode_form  form=041  fixed=0x00000000 D0<<21/5 S<<16/5 D1<<11/5 | srawi=0x7c832e70
+mop.encode_form  form=042  fixed=0x00000000 D0<<21/5 S<<16/5 D1<<11/5 D2<<6/5 D3<<1/5 | rlwinm=0x5483298e rlwinm.=0x5483298f
+mop.encode_form  form=043  fixed=0x00000000 D0<<21/5 S<<16/5 D1<<0/16 | ori=0x60830005 xori=0x68830005
+mop.encode_form  form=044  REFUSE no-field-plan
+mop.encode_form  form=045  fixed=0x00000000 S<<21/5 D0<<16/5 Disp<<0/16 | lwz=0x8064fff8 lbz=0x8864fff8 lbzu=0x8c64fff8 lhz=0xa064fff8
+mop.encode_form  form=046  fixed=0x00000000 S<<21/5 D0<<16/5 DispWord<<2/14 | ld=0xe864fff8
+mop.encode_form  form=047  fixed=0x00000000 S<<21/5 D0<<16/5 | addze=0x7c640194 subfze=0x7c640190 neg=0x7c6400d0
+mop.encode_form  form=048  REFUSE no-field-plan
+mop.encode_form  form=049  fixed=0x00000000 S<<21/5 D0<<16/5 D1<<11/5 | add=0x7c642a14 adde=0x7c642914 subf=0x7c642850 subfc=0x7c642810 subfe=0x7c642910 mullw=0x7c6429d6 divw=0x7c642bd6 divwu=0x7c642b96
+mop.encode_form  form=050  fixed=0x00000000 S<<21/5 D0<<16/5 D1<<11/5 | lwzx=0x7c64282e lhzx=0x7c642a2e
+mop.encode_form  form=051  fixed=0x00000000 S<<21/5 D0<<16/5 Disp<<0/16 | addi=0x3864fff8 addic=0x3064fff8 addic.=0x3464fff8 addis=0x3c64fff8 mulli=0x1c64fff8 subfic=0x2064fff8
+mop.encode_form  form=052  REFUSE no-field-plan
+mop.encode_form  form=053  REFUSE no-field-plan
+mop.encode_form  form=054  fixed=0x00000000 S<<21/5 D1<<16/5 D2<<11/5 | mfspr=0x7c6532a6
+mop.encode_form  form=055  fixed=0x02800000 | blr=0x4e800020 bctrl=0x4e800421
+mop.encode_form  form=056  fixed=0x00000000 D0<<21/5 S<<16/5 D1<<11/5 D2<<6/5 D3<<1/5 | rlwimi=0x5083298e
+mop.encode_form  form=057  REFUSE no-field-plan
+mop.encode_form  form=058  fixed=0x00000000 D0<<21/5 S<<16/5 Disp<<0/16 | stw=0x9083fff8 stwu=0x9483fff8 stb=0x9883fff8 sth=0xb083fff8 sthu=0xb483fff8
+mop.encode_form  form=059  REFUSE no-field-plan
+mop.encode_form  form=060  REFUSE no-field-plan
+mop.encode_form  form=061  fixed=0x00000000 D0<<21/5 S<<16/5 D1<<11/5 | stdx=0x7c83292a stwux=0x7c83296e
+mop.encode_form  form=062  fixed=0x00000000 S<<21/5 D1<<16/5 D2<<11/5 | mtspr=0x7c6533a6
+mop.encode_form  form=063  REFUSE no-field-plan
+mop.encode_form  form=064  fixed=0x00000000 S<<21/5 D0<<16/5 Disp<<0/16 | twi=0x0c64fff8
+mop.encode_form  form=065  REFUSE no-field-plan
+mop.encode_form  form=066  REFUSE no-field-plan
+mop.encode_form  form=067  REFUSE no-field-plan
+mop.encode_form  form=068  fixed=0x00000000 | rldicl=0x78832980 rldimi=0x7883298c
+mop.encode_form  form=069  REFUSE no-field-plan
+mop.encode_form  form=070  REFUSE no-field-plan
+mop.encode_form  form=071  fixed=0x00000000 D0<<21/5 S<<16/5 DispWord<<2/14 | std=0xf883fff8 stdu=0xf883fff9
+mop.encode_form  form=072  REFUSE no-field-plan
+mop.encode_form  form=073  REFUSE no-field-plan
+mop.encode_form  form=074  REFUSE no-field-plan
+mop.encode_form  form=075  REFUSE no-field-plan
+mop.encode_form  form=076  REFUSE no-field-plan
+mop.encode_form  form=077  REFUSE no-field-plan
+mop.encode_form  form=078  REFUSE no-field-plan
+mop.encode_form  form=079  REFUSE no-field-plan
+mop.encode_form  form=080  REFUSE no-field-plan
+mop.encode_form  form=081  REFUSE no-field-plan
+mop.encode_form  form=082  REFUSE no-field-plan
+mop.encode_form  form=083  REFUSE no-field-plan
+mop.encode_form  form=084  REFUSE no-field-plan
+mop.encode_form  form=085  REFUSE no-field-plan
+mop.encode_form  form=086  REFUSE no-field-plan
+mop.encode_form  form=087  REFUSE no-field-plan
+mop.encode_form  form=088  REFUSE no-field-plan
+mop.encode_form  form=089  REFUSE no-field-plan
+mop.encode_form  form=090  REFUSE no-field-plan
+mop.encode_form  form=091  REFUSE no-field-plan
+mop.encode_form  form=092  REFUSE no-field-plan
+mop.encode_form  form=093  REFUSE no-field-plan
+mop.encode_form  form=094  REFUSE no-field-plan
+mop.encode_form  form=095  REFUSE no-field-plan
+mop.encode_form  form=096  REFUSE no-field-plan
+mop.encode_form  form=097  REFUSE no-field-plan
+mop.encode_form  form=098  REFUSE no-field-plan
+mop.encode_form  form=099  REFUSE no-field-plan
+mop.encode_form  form=100  REFUSE no-field-plan
+mop.encode_form  form=101  REFUSE no-field-plan
+mop.encode_form  form=102  REFUSE no-field-plan
+mop.encode_form  form=103  REFUSE no-field-plan
+mop.encode_form  form=104  REFUSE no-field-plan
+mop.encode_form  form=105  REFUSE no-field-plan
+mop.encode_form  form=106  REFUSE no-field-plan
+mop.encode_form  form=107  REFUSE no-field-plan
+mop.encode_form  form=108  REFUSE no-field-plan
+mop.encode_form  form=109  REFUSE no-field-plan
+mop.encode_form  form=110  REFUSE no-field-plan
+mop.encode_form  form=111  REFUSE no-field-plan
+mop.encode_form  form=112  REFUSE no-field-plan
+mop.encode_form  form=113  REFUSE no-field-plan
+mop.encode_form  bl.disp=0  0x48000001 =c2
+mop.encode_form  bl.disp=-4  0x4bfffffd =c2
+mop.encode_form  bl.disp=-8  0x4bfffff9 =c2
+mop.encode_form  bl.disp=-12  0x4bfffff5 =c2
+mop.encode_form  bl.disp=-44  0x4bffffd5 =c2
+mop.encode_form  bl.disp=-67108860  0x48000005 =c2
+mop.encode_form  bl.disp=-1  0x4bfffffd DIVERGES-from-c2
+mop.encode_form  bl.disp=-2  0x4bfffffd DIVERGES-from-c2
+mop.encode_form  bl.disp=-3  0x4bfffffd =c2
+mop.encode_form  bl.disp=-6  0x4bfffff9 DIVERGES-from-c2
+mop.encode_form  bl.disp=2  0x48000001 DIVERGES-from-c2
+mop.encode_form  bl.disp=6  0x48000005 DIVERGES-from-c2
+## summary  mop.encode_form  cells=125 admit=49 refuse=76 values={0x48000001 =c2,0x48000001 DIVERGES-from-c2,0x48000005 =c2,0x48000005 DIVERGES-from-c2,0x4bffffd5 =c2,0x4bfffff5 =c2,0x4bfffff9 =c2,0x4bfffff9 DIVERGES-from-c2,0x4bfffffd =c2,0x4bfffffd DIVERGES-from-c2,fixed=0x00000000 D0<<21/5 S<<16/5 D0<<11/5 | mr=0x7c832378,fixed=0x00000000 D0<<21/5 S<<16/5 D1<<0/16 | ori=0x60830005 xori=0x68830005,fixed=0x00000000 D0<<21/5 S<<16/5 D1<<11/5 D2<<6/5 D3<<1/5 | rlwimi=0x5083298e,fixed=0x00000000 D0<<21/5 S<<16/5 D1<<11/5 D2<<6/5 D3<<1/5 | rlwinm=0x5483298e rlwinm.=0x5483298f,fixed=0x00000000 D0<<21/5 S<<16/5 D1<<11/5 | and=0x7c832838 andc=0x7c832878 or=0x7c832b78 or.=0x7c832b79 orc=0x7c832b38 eqv=0x7c832a38 xor=0x7c832a78 slw=0x7c832830 srw=0x7c832c30 sraw=0x7c832e30,fixed=0x00000000 D0<<21/5 S<<16/5 D1<<11/5 | srawi=0x7c832e70,fixed=0x00000000 D0<<21/5 S<<16/5 D1<<11/5 | stdx=0x7c83292a stwux=0x7c83296e,fixed=0x00000000 D0<<21/5 S<<16/5 D1<<11/5 | stfsx=0x7c832d2e,fixed=0x00000000 D0<<21/5 S<<16/5 Disp<<0/16 | stfs=0xd083fff8 stfsu=0xd483fff8 stfd=0xd883fff8,fixed=0x00000000 D0<<21/5 S<<16/5 Disp<<0/16 | stw=0x9083fff8 stwu=0x9483fff8 stb=0x9883fff8 sth=0xb083fff8 sthu=0xb483fff8,fixed=0x00000000 D0<<21/5 S<<16/5 DispWord<<2/14 | std=0xf883fff8 stdu=0xf883fff9,fixed=0x00000000 D0<<21/5 S<<16/5 | extsb=0x7c830774 extsb.=0x7c830775 extsh=0x7c830734 cntlzw=0x7c830034,fixed=0x00000000 DispWord<<2/24 | b=0x4bfffff8,fixed=0x00000000 DispWord<<2/24 | bl=0x4bfffff9,fixed=0x00000000 DispWord<<2/24 | no-opcode-row,fixed=0x00000000 S<<21/5 D0<<11/5 | fmr=0xfc602090 frsp=0xfc602018,fixed=0x00000000 S<<21/5 D0<<16/5 D1<<11/5 | add=0x7c642a14 adde=0x7c642914 subf=0x7c642850 subfc=0x7c642810 subfe=0x7c642910 mullw=0x7c6429d6 divw=0x7c642bd6 divwu=0x7c642b96,fixed=0x00000000 S<<21/5 D0<<16/5 D1<<11/5 | fadd=0xfc64282a fadds=0xec64282a fsub=0xfc642828 fsubs=0xec642828 fdiv=0xfc642824 fdivs=0xec642824,fixed=0x00000000 S<<21/5 D0<<16/5 D1<<11/5 | lfsx=0x7c642c2e,fixed=0x00000000 S<<21/5 D0<<16/5 D1<<11/5 | lwzx=0x7c64282e lhzx=0x7c642a2e,fixed=0x00000000 S<<21/5 D0<<16/5 D1<<6/5 | fmul=0xfc640172 fmuls=0xec640172,fixed=0x00000000 S<<21/5 D0<<16/5 Disp<<0/16 | addi=0x3864fff8 addic=0x3064fff8 addic.=0x3464fff8 addis=0x3c64fff8 mulli=0x1c64fff8 subfic=0x2064fff8,fixed=0x00000000 S<<21/5 D0<<16/5 Disp<<0/16 | lfs=0xc064fff8 lfd=0xc864fff8,fixed=0x00000000 S<<21/5 D0<<16/5 Disp<<0/16 | lwz=0x8064fff8 lbz=0x8864fff8 lbzu=0x8c64fff8 lhz=0xa064fff8,fixed=0x00000000 S<<21/5 D0<<16/5 Disp<<0/16 | twi=0x0c64fff8,fixed=0x00000000 S<<21/5 D0<<16/5 DispWord<<2/14 | bc=0x4064fff8,fixed=0x00000000 S<<21/5 D0<<16/5 DispWord<<2/14 | ld=0xe864fff8,fixed=0x00000000 S<<21/5 D0<<16/5 | addze=0x7c640194 subfze=0x7c640190 neg=0x7c6400d0,fixed=0x00000000 S<<21/5 D0<<16/5 | bclr=0x4c640020 bcctr=0x4c640420,fixed=0x00000000 S<<21/5 D1<<16/5 D2<<11/5 | mfspr=0x7c6532a6,fixed=0x00000000 S<<21/5 D1<<16/5 D2<<11/5 | mtspr=0x7c6533a6,fixed=0x00000000 S<<23/3 D0<<16/5 D1<<11/5 | cmp=0x7d842800 cmpl=0x7d842840,fixed=0x00000000 S<<23/3 D0<<16/5 Disp<<0/16 | cmpi=0x2d84fff8,fixed=0x00000000 S<<23/3 D0<<16/5 Disp<<0/16 | cmpli=0x2984fff8,fixed=0x00000000 | rldicl=0x78832980 rldimi=0x7883298c,fixed=0x02000000 DispWord<<2/14 | bdnz=0x4200fff8,fixed=0x02800000 | blr=0x4e800020 bctrl=0x4e800421}

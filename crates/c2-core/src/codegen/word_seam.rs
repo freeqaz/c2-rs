@@ -124,53 +124,64 @@ mod seam {
 
     /// **Every live instruction-word production outside the `mop` seam.**
     ///
-    /// Three rows, and all three are the same shape: c2 files the instruction
-    /// under an opcode `mop::OPCODES` does not transcribe. **None of them is a
-    /// disagreement** — nothing in this port can compose these words, so there
-    /// is no second rule to be wrong. The fence is a missing transcription.
+    /// # EMPTY as of 2026-08-28, lane `w-encarms`, and empty is not vacuous
     ///
-    /// Finishing any of them is an **adoption**, not a derivation: it copies
-    /// rows out of `docs/whitebox/ref/ENCODE_OPCODES.txt` and therefore moves
-    /// `docs/whitebox/DISCLOSURE.md`'s `W-MOP-2` / `W-MOP-3` counts. Lane
-    /// `w-mopfold` was fenced out of that file and declined all three; the
-    /// price is in its rung.
+    /// This list carried **three** rows — `bl` (`codegen/calls.rs`,
+    /// `encode_call_branch`), `mfspr` (`codegen/frame.rs`, `FRAME_MFLR_R12`)
+    /// and `stwux` (`codegen/frame.rs`, `FRAME_STWUX`) — all three the same
+    /// shape: c2 filed the instruction under an opcode `mop::OPCODES` did not
+    /// transcribe, so **none of them was a disagreement**; the fence was a
+    /// missing transcription and `w-mopfold` was fenced out of the file that
+    /// would have to record it.
     ///
-    /// **The refusal is ARMED, which is the point.** The day `bl`, `mfspr` or
-    /// `stwux` is transcribed into `OPCODES`,
+    /// **The armed refusal did its job and then expired.** `w-mopfold` wrote
+    /// *"the day `bl`, `mfspr` or `stwux` is transcribed into `OPCODES`,
     /// [`no_inventoried_word_is_one_mop_can_compose`] turns red on that row and
-    /// asks for the fold to finish. A refusal that notices when its own reason
-    /// expires is worth more than the fold it postponed.
-    const EXCEPTIONS: &[Exception] = &[
-        Exception {
-            file: "codegen/calls.rs",
-            item: "encode_call_branch",
-            mnemonic: "bl",
-            witness: 0x4BFF_FFF5,
-            why: "c2 files `bl` as its OWN opcode on its OWN form — ENCODE_OPCODES.txt \
-                  0x002b, base 48000001, form 7, arm 10bfa285 — not as `b` with a link \
-                  bit. OPCODES transcribes neither the row nor the arm, and form 7 is \
-                  outside the 27 arms w-read-r2 read.",
-        },
-        Exception {
-            file: "codegen/frame.rs",
-            item: "FRAME_MFLR_R12",
-            mnemonic: "mfspr",
-            witness: 0x7D88_02A6,
-            why: "ENCODE_OPCODES.txt 0x00e6, base 7c0002a6, form 54, arm 10bfa76a. \
-                  OPCODES has no `mfspr` row and `plan` has no form-54 arm; `mtspr` \
-                  (form 62) is a different form and cannot stand in for it.",
-        },
-        Exception {
-            file: "codegen/frame.rs",
-            item: "FRAME_STWUX",
-            mnemonic: "stwux",
-            witness: 0x7C21_616E,
-            why: "ENCODE_OPCODES.txt 0x017f, base 7c00016e, form 61 — and the port \
-                  ALREADY has a form-61 plan (it emits `stdx`). So this one needs one \
-                  transcribed row and no new arm: the cheapest of the three, and still \
-                  an adoption that moves DISCLOSURE.md.",
-        },
-    ];
+    /// asks for the fold to finish."* On 2026-08-28 lane `w-encarms` read arms
+    /// `10bfa285` (form 7) and `10bfa76a` (form 54) in the pinned image,
+    /// transcribed all three rows, and **the test went red on all three, in
+    /// those words, before the fold was written.** That is the only evidence
+    /// this project has that arming a refusal does anything at all, and it is
+    /// worth more than the rows it replaced.
+    ///
+    /// # An EMPTY list is `#3470`'s hazard and is guarded, not assumed
+    ///
+    /// A check over zero cells is green and says nothing. Two things stop this
+    /// one from decaying into decoration:
+    ///
+    /// * [`no_inventoried_word_is_one_mop_can_compose`] is now a **structural**
+    ///   claim — *no site outside the seam composes a word at all* — which
+    ///   [`every_big_endian_emission_is_inventoried`] independently enforces
+    ///   over the whole crate. The population is not zero; the *exceptions* are.
+    /// * [`the_value_half_can_fail`]'s negative probe no longer reads this list
+    ///   (it would iterate nothing). It uses [`LEGITIMATE_WITNESS`], a word this
+    ///   port's table demonstrably cannot compose, so the discriminator is still
+    ///   shown saying **no** as well as yes.
+    ///
+    /// A row added here again is a new refusal and needs the same treatment:
+    /// a witness that is *run*, a reason the test asserts, and a lane that
+    /// prices the adoption rather than deferring it silently.
+    const EXCEPTIONS: &[Exception] = &[];
+
+    /// A word this port's transcribed table **cannot** compose, used as the
+    /// negative half of [`the_value_half_can_fail`] now that [`EXCEPTIONS`] is
+    /// empty.
+    ///
+    /// `7c2004ac` is `lwsync`, and it is the sharpest available witness because
+    /// **c2 itself cannot produce it through the encoder** — `P_ENCODE.md`
+    /// §8.2: c2's machine table has no `lwsync` opcode, `sync` is `0x196` with
+    /// base `7c0004ac` on form 113 which routes to the field-less default arm,
+    /// so the only path in the whole table that can emit this word is `emit`
+    /// (`0x290`, form 18), whose arm copies an operand word verbatim. The port
+    /// transcribes neither, and `__lwsync()` reaching `.text` as a literal word
+    /// is how §8.2's 17 residuals were explained.
+    ///
+    /// If a future lane transcribes `emit`, this constant stops being a
+    /// legitimate witness and the control will say so by going red.
+    /// PROV[R] `docs/whitebox/DISCLOSURE.md` `W-ENCARMS-2` — the word and the
+    /// reason no table row composes it, from `P_ENCODE.md` §8.2. It is a test
+    /// witness: it reaches no emitted byte.
+    const LEGITIMATE_WITNESS: u32 = 0x7C20_04AC;
 
     /// Run each exception's site and return the word it really emits.
     ///
@@ -207,7 +218,9 @@ mod seam {
         // -- the seam --------------------------------------------------------
         ("codegen/mop.rs", "word", 1),
         // -- instruction words, composed elsewhere (see EXCEPTIONS) ----------
-        ("codegen/calls.rs", "encode_call_branch", 1),
+        //    EMPTY as of 2026-08-28 (`w-encarms`): `encode_call_branch` folded
+        //    onto `mop` when `bl`'s row and form 7's arm were transcribed, so
+        //    it emits through `MachineOp::word` and needs no row here.
         // -- instruction words composed by `mop`, emitted through a `const` --
         ("codegen/frame.rs", "prologue_gpr_helper", 1),
         ("codegen/frame.rs", "prologue_gpr_helper_leaf", 1),
@@ -728,7 +741,26 @@ mod seam {
     /// and asks for the fold that was postponed.
     #[test]
     fn no_inventoried_word_is_one_mop_can_compose() {
-        assert!(!EXCEPTIONS.is_empty(), "an empty exception list checks nothing");
+        // ~~`assert!(!EXCEPTIONS.is_empty(), "an empty exception list checks
+        // nothing")`~~ — **STRUCK 2026-08-28, lane `w-encarms`, which emptied
+        // the list by folding all three rows.**
+        //
+        // `w-mopfold` was right to write it and it is right to remove it *only*
+        // because its concern is now discharged somewhere else. The concern is
+        // `#3470`'s: a loop over zero rows is green and says nothing. Two
+        // things carry it now, and neither is this assert:
+        //
+        //   * [`the_value_half_can_fail`] no longer reads `EXCEPTIONS` for its
+        //     negative probe — it uses [`LEGITIMATE_WITNESS`], so the
+        //     discriminator is still watched saying NO on a fixed word whether
+        //     or not the port owes a refusal.
+        //   * [`every_big_endian_emission_is_inventoried`] is the population
+        //     control, and it is not empty: it enumerates every emission site
+        //     in the crate and went RED on `encode_call_branch` disappearing.
+        //
+        // Re-adding the assert would make this test permanently red, which
+        // would be a demand that the port *owe* a refusal in order to be
+        // checkable. That is backwards.
         for e in EXCEPTIONS {
             let got = witness(e);
             assert_eq!(
@@ -793,9 +825,15 @@ mod seam {
             hits.contains(&"stw"),
             "the planted duplicate {planted:#010x} was not identified as `stw`; got {hits:?}"
         );
-        // The negative side of the same control: the three inventoried
-        // exceptions must NOT be flagged, or the discriminator says yes to
+        // The negative side of the same control: a word the table demonstrably
+        // cannot compose must NOT be flagged, or the discriminator says yes to
         // everything and is equally useless.
+        //
+        // **This used to iterate `EXCEPTIONS`, and `w-encarms` emptied that
+        // list** by folding all three. An empty loop is `#3470` exactly — a
+        // check over zero cells, green and silent — so the negative half moved
+        // to a fixed witness that does not depend on the port still owing a
+        // refusal.
         for e in EXCEPTIONS {
             assert!(
                 coverable(e.witness).is_empty(),
@@ -803,6 +841,12 @@ mod seam {
                 e.mnemonic
             );
         }
+        assert!(
+            coverable(LEGITIMATE_WITNESS).is_empty(),
+            "coverable({LEGITIMATE_WITNESS:#010x}) flagged `lwsync`, which no row in \
+             `mop::OPCODES` composes — the discriminator is saying yes to everything, \
+             so every LEGITIMATE verdict in this module is worthless"
+        );
     }
 
     /// **The structural half can fail.**
