@@ -1,0 +1,57 @@
+############################################################
+# w-clausefix -- CTL-6: THE BLAST RADIUS FIRED, FROM THIS LANE'S OWN FILE
+#
+# PREREG SS4 predicted a PEER would trip the ABSENCE check by adopting the
+# budget model. What actually tripped it first was this lane's own test
+# file -- its doc comment LISTED four of the forbidden tokens as examples.
+# The check cannot tell a MENTION in a comment from a COUNTERPART in the
+# port (#3641), so four rows went RED because of prose ABOUT them.
+#
+# And the reason no control caught it: check_table.py used a bare
+# 'git grep', which is BLIND TO UNTRACKED FILES. clause_table.rs was
+# untracked while CTL-4 and CTL-5a were watched. The verdict changed at
+# 'git add' time, not at write time.
+############################################################
+
+=== CTL-6a  git grep, tracked-only vs --untracked ==========
+# A file that exists on disk and is not yet staged:
+$ git grep -l -F INLINE_BUDGET -- crates/          # what the check USED to do
+  (no matches -- the probe is INVISIBLE)
+$ git grep -l --untracked --exclude-standard -F INLINE_BUDGET -- crates/   # what it does NOW
+crates/c2-core/src/zz_probe.rs
+
+=== CTL-6b  the ABSENCE check now REDDENS on that probe =====
+$ python3 work/w-inlmetric/check_table.py
+  FAIL C3: ABSENCE state absent but token 'INLINE_BUDGET' IS PRESENT in crates/. If you are a lane that just added it, this is NOT a defect in your code -- the table's `absent` verdict has gone stale and the remedy is a one-cell `state` edit by CLAUSES.tsv's owner.
+CONFORMANCE-CHECK: RED  (1 failure(s) over 24 rows)
+exit=
+
+=== CTL-6c  probe removed: GREEN again =====================
+$ python3 work/w-inlmetric/check_table.py
+CONFORMANCE-CHECK: GREEN  (0 failure(s) over 24 rows)
+
+=== CTL-6d  the exact failure the suite caught, replayed ====
+# The four rows that went RED off this lane's own doc comment, verbatim
+# from work/w-clausefix/cargo_test_tip.out at 53deb51ff:
+#   FAIL C3:  ABSENCE state absent but token 'INLINE_...' IS PRESENT in crates/
+#   FAIL C15: ABSENCE state absent but token 'max...'    IS PRESENT in crates/
+#   FAIL C17: ABSENCE state absent but token 'budget_...' IS PRESENT in crates/
+#   FAIL C19: ABSENCE state absent but token 'inline_...' IS PRESENT in crates/
+# (the tokens are elided HERE for the same reason they were removed from
+#  clause_table.rs -- but this file is under work/, not crates/, so the
+#  eliding is courtesy to a future reader, not a requirement.)
+
+# Fixed two ways, both committed:
+#  1. clause_table.rs names the clauses by ID (C3, C15, C17, C19), never
+#     by token, and says at the site why.
+#  2. check_table.py passes --untracked --exclude-standard, so its verdict
+#     depends on what is IN crates/ and not on what has been staged.
+
+# NOT fixed, and named rather than papered over: the check is a NAME screen
+# over the whole subtree and still cannot tell a counterpart from a mention.
+# Narrowing it to crates/*/src/ would redefine what 'absent' MEANS, which is
+# w-inlmetric PREREG SS5's to define, not this lane's.
+
+$ git status --porcelain -- crates/    # the probe is gone
+ M crates/c2-harness/tests/clause_table.rs
+(only clause_table.rs should appear, if anything)
