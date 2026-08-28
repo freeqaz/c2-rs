@@ -443,6 +443,38 @@ this lane rests on an absence.
 
 ---
 
+## 5.1 ⛔ THE ONE RED IN THE SUITE — a seam conflict, not a defect in either side
+
+`subsys::tests::the_mark_census_reproduces` **fails at this tip**, and it is the
+only failure in 987 tests:
+
+```
+crates/c2-harness/src/subsys.rs:2803  assertion `left == right` failed
+  left: (49, 18, 4)     <- P_GLOBREGS.md at this tip
+ right: (45, 2, 1)      <- the pinned baseline
+```
+
+**`P_GLOBREGS`'s mark census is pinned as a constant inside `crates/`.** The
+brief assigns this lane that page *and* forbids it any `crates/` file — so
+**every `[O]` the lane was dispatched to add reddens that assertion, and no
+amendment to the page avoids it.** Proved by swapping `master`'s copy of the
+page in with nothing else changed: `1 passed; 0 failed`. Swap this tip's back:
+fails. The cause is the page and only the page.
+
+`w-regcells` did not hit it last wave because the test pins only **two** of the
+ten subsystems — `eh` and `globregs` — and that lane amended `P_REGALLOC`.
+
+**This lane did not make the one-line re-bless**
+(`(45, 2, 1)` → `(49, 18, 4)`), because `reach 0` is the check the brief uses to
+verify the lane stayed in its seam and `#3748`'s doctrine is that a re-bless
+must appear in a diff a reviewer reads. **The real finding is about the wave's
+design**: a lane cannot both own a reference page and be barred from `crates/`
+while that page's census is pinned there. Either the pin moves out of `crates/`
+— it is a documentation baseline, not port behaviour — or a page-owning lane
+gets a one-line exemption named in its brief.
+
+---
+
 ## 6. HANDOFFS
 
 * **Anyone porting the candidate order** (not this wave — decision 20 §2): the
