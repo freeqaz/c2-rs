@@ -1416,7 +1416,8 @@ under two names, in two tracks, is the thing to avoid.
 > as *"a **check of an existing read**, not a fresh one"* and cites `READ_PLAN`
 > **R7** as open. **R7 was already discharged on 2026-08-23** —
 > `docs/rungs/2026-08-23-w-read-r7.md`, outcome `built`, board `#3433`–`#3436`
-> — five days before this decision funded it again. `READ_PLAN` §3's row still
+> — **four** days before this decision funded it again (2026-08-23 → 2026-08-27;
+> `w-sched` corrected my "five" on re-check). `READ_PLAN` §3's row still
 > read as open and the coordinator did not check the rung index before
 > dispatching. **Sixth instance of a row re-entering the dispatch pool after
 > already being answered, and the first that cost a whole lane.** The row is
@@ -1427,6 +1428,25 @@ under two names, in two tracks, is the thing to avoid.
 >
 > Neither correction changes what this decision funded, and both are the kind
 > of thing this repo records beside rather than rewrites.
+>
+> **3. A third correction, and it runs AGAINST the coordinator's own relay.**
+> On `w-floor`'s double-pricing flag I told `w-sched` that its honest outcomes
+> were a re-confirmation or ≈1 day building a population, and that the day
+> *would spend* F0's sub-item-4 UNPRICED term. **It took neither, and the term
+> is NOT spent.** It kept the instrument and changed the question — from
+> *grade the model* (impossible per `#3435`) to *characterize the instrument
+> clause by clause* (answerable, and answered: 4 of 9 pinned). No new
+> population was built. **Do not book sub-item 4 as paid** — that is wrong in
+> the expensive direction. What `#3728` supplies is the *target* such a spend
+> would be scored against — 8 discriminating tuple positions of 3,015 — which
+> makes the term **priceable, not paid**.
+>
+> **And my relay was over-general.** `#3435`'s *"that confrontation"* is P4,
+> the **order** model alone. R7 splits three ways: the order model is not
+> dischargeable on this corpus (confirmed, and now sized), the **structural**
+> model was discharged and this lane advanced it from rule-level to
+> clause-level, and the latency question does not arise. *"R7 cannot be
+> discharged as written"* is true of **one third** of the row.
 
 **Board:** `#3724` this decision · `#3725`–`#3730` `w-sched` ·
 `#3731`–`#3736` `w-lowerband` · `#3737`–`#3742` `w-s7` ·

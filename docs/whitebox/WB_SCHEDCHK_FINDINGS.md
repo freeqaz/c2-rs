@@ -22,7 +22,7 @@ scheduler band was read on this branch.
 > ### **R7 WAS ALREADY DISCHARGED. THIS LANE IS A RE-DISPATCH OF A SPENT READ.**
 >
 > `docs/rungs/2026-08-23-w-read-r7.md`, outcome `built`, board **#3433**–**#3436**,
-> five days before decision 21 funded it again. Its brief was word for word
+> **four days** before decision 21 funded it again. Its brief was word for word
 > this one's. Registered as P0.1 **before** any measurement and **HIT**.
 
 > ### WHAT WAS GENUINELY UNRUN, AND IS THIS LANE'S DELIVERABLE
@@ -496,7 +496,92 @@ date.
 
 ---
 
-## 9. Everything this lane corrected
+## 9. `#3435` RE-VERIFIED FROM SCRATCH — it HOLDS, and it is NARROWER than both readings of it
+
+Added after the lane's first close, on a coordinator relay of peer lane
+`w-floor`'s finding that `#3435` may make R7 undischargeable as written. **Not
+taken at face value** — `w-floor` is a peer, not an oracle, and this repo's
+standing lesson is that dated rows decay in place (`#3712`: a commit edited the
+very section holding a stale figure and walked past it). Instrument:
+[`scripts/verify_3435.py`](scripts/verify_3435.py), which recomputes every
+number `#3435` states from this lane's own two tap runs and prints each beside
+the filed value.
+
+```
+  HOLDS   region method, reordered            got 5 of 456 (1.10%)   filed 5 of 456 (1.10%)
+  HOLDS   input-returner score, region        got 98.90%             filed 98.9%
+  HOLDS   function length <= 7                got 355 of 456, 0      filed 355 of 456, 0.00%
+  HOLDS   function length 10                  got 28.6%              filed 28.6%
+  HOLDS   run 1 (sched1->globregs)            got 6 of 357 (1.68%)   filed 6 of 357
+  HOLDS   run 2 (sched2->color)               got 9 of 357 (2.52%)   filed 9 of 357
+  HOLDS   run 4 (sched0->after0) FINAL        got 3 of 357 (0.84%)   filed 3 of 357
+  HOLDS   input-returner score, final run     got 99.16%             filed 99.2%
+  DIFFERS globregs, the CONTRAST figure       got 1 of 24 (333 excl) filed 334 of 357
+```
+
+**8 of 9 reproduce to the digit. `#3435` holds and this lane confirms it.**
+
+### 9.1 The one that differs is a units difference, and it makes the contrast smaller — not the finding
+
+*"For contrast `globregs` moves **334 of 357**"* is a **DIFFERS** count; the
+`6 / 9 / 3` printed beside it are **REORDER** counts. `globregs` assigns
+registers, so it rewrites tuple **content**: 333 of its 357 pairs fail the
+multiset test and are excluded, leaving **24** comparable pairs of which **1**
+reorders. Read as written — *"globregs reorders 334 against the scheduler's
+3"* — the sentence compares two different quantities. `#3435`'s own claim
+reproduces exactly; only its rhetorical contrast partner is mismeasured, and
+correcting it shrinks the contrast rather than the result.
+
+### 9.2 `#3435`'s scope, which both the relay and `#3716` drop
+
+`#3435`'s consequence column says *"**that** confrontation is not available on
+this corpus at any price"*. **"That confrontation" is P4 — the ORDER model.**
+`WB_SCHEDCONF` §0 splits its verdict into two halves explicitly and reports
+them differently on purpose:
+
+| half of R7's model | R7's verdict | dischargeable on this corpus? |
+|---|---|---|
+| the ORDER model (`P_DAG` §3's priority, the cycle model) | **not confronted**, P4 UNGRADED | **No** — `#3435`, re-verified above, and §6 sizes the residue at 8 positions |
+| the STRUCTURAL model (the region rule, `0x10be5d4b`) | **survived**, 1,461/1,461 | **Yes** — and this lane advanced it from rule-level to clause-level (§3) |
+| the LATENCY model (`P_DAG` §5) | *"survived the tap"* | **the question does not arise** — §4.3 shows it never met the tap; it is image-vs-image |
+
+So *"R7 cannot be discharged as written on this corpus"* is **true of one of
+the three and false of the other two**. The relay's premise is right about the
+order half and over-general across the row. R7's row names two deliverables:
+*"the list scheduler as pseudocode"* — delivered, and **no clause of it is
+reachable by this tap** (#3728) — and *"the latency matrix as data"* —
+delivered, and it is `[R]` (#3729).
+
+### 9.3 This lane took NEITHER of the two outcomes offered, and that is deliberate
+
+The relay enumerated two honest outcomes: a re-confirmation, or ≈1 d building
+the reordering population. **A third was available and is what happened: keep
+the instrument, change the question** — from *grade the model* (impossible, as
+`#3435` says) to *characterize the instrument, clause by clause* (answerable,
+and answered). It needed no new population and it produced six rows, four of
+which correct something published.
+
+**Consequence for the F0 books, stated so nobody mis-files it:
+this lane does NOT spend F0's sub-item-4 UNPRICED term.** The population was
+not built. What §6 supplies is the **target that spend would be scored
+against** — 8 discriminating positions in 3,015 — which makes the term
+*priceable*, not *paid*. `#3716`'s figure is unchanged and stays
+`w-f0price`'s.
+
+### 9.4 What this lane did NOT verify, said plainly
+
+**`WB_SCHEDCONF` §8 item 1's ≈1 d is UNVERIFIED here.** This lane checked item
+**2** (the ≈0.5 d) and refuted it on record and time (§7); item 1 prices work
+that was not done and is not checkable by inspection. What *is* checked is its
+**premise** — it names *"long straight-line regions … the shapes at which
+§4.1's stratification shows reordering starts"*, and that stratification
+reproduces exactly here (0.00 % at every length ≤ 7 over 355 of 456 pairs,
+28.6 % at 10). The premise is sound; the number is not this lane's to confirm
+or to deny, and it is not restated as though it were.
+
+---
+
+## 10. Everything this lane corrected
 
 | corrected | was | now |
 |---|---|---|
@@ -507,3 +592,4 @@ date.
 | `WB_SCHEDCONF` §8.2 | *"≈0.5 day. Three fields in `tap_walk_tuples`"* | **wrong record and wrong time**; no tuple→node back-pointer exists; the mechanism that does work is the DAG object `DAT_10c435e0` + `node+0x1c`, and it is a new walker |
 | `WB_SCHEDCONF` §4 | the order confrontation is UNGRADED, input-returner scores 98.9 % | sized: **8 discriminating tuple positions of 3,015** at the final schedule, in 3 named functions |
 | `READ_PLAN` §3 row **R7** | an open read, re-dispatched by decision 21 | **spent 2026-08-23**; the re-dispatch is instance N of *"check the board before dispatching"* |
+| **#3435**'s contrast figure | *"for contrast `globregs` moves **334 of 357**"*, printed beside three REORDER counts | a **DIFFERS** count. In reorder terms `globregs` is **1 of 24** multiset-preserving pairs, 333 excluded because it rewrites tuple content. The headline is untouched and the contrast shrinks (§9.1) |
