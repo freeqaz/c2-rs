@@ -992,3 +992,222 @@ its expansion**, rather than being a profile-weight mechanism. S3 needs
 Neighbours, same read: `DAT_10c2e2fc`, `DAT_10c2e308`, `DAT_10c2eab0`,
 `DAT_10c2eaac` are all `0` in raw `.data`; `DAT_10c3de20`, `DAT_10c3dddc`,
 `DAT_10c6f1c8` and `DAT_10c46318` are **BSS, zero at load**.
+
+---
+
+### 6.8 THE 24 `-inl*` SWITCHES ARE THE POGO TABLES' OWN OVERRIDES — and §5's "not quotable" is too strong
+
+> **Added 2026-08-28 by lane `w-inlswitch`** (decision 22, board **#3768**–**#3773**).
+> **Amend-beside**: §1–§6.7 are unchanged — including §2.1's struck block and
+> its correction, §2.1a, §2.1b, §6.1's table, §6.6's two `fitted` verdicts and
+> §6.7's refutation. **No clause row is added, removed, renumbered or
+> restated**; the reachable denominator is still **21 of 24** and the split is
+> still `absent 17 · fitted 2 · [R]-derived 2 · unexercisable 3`.
+>
+> Prereg `work/w-inlswitch/PREREG.md`, committed at `5eec1a7d5` **before the
+> image was opened**. **Predicted reach 0, delivered 0**: zero `crates/` bytes,
+> no `DISCLOSURE` row, no `gate.sh` row (`#3691`).
+> Full record: [`../WB_INLSWITCH_FINDINGS.md`](../WB_INLSWITCH_FINDINGS.md).
+> Instrument: [`../scripts/dump_inlswitch.py`](../scripts/dump_inlswitch.py).
+
+#### 6.8.0 The count `#3718` published is wrong, and it is 24 `[R]`
+
+`optmap.py`, re-run unmodified in this lane's tree and **byte-identical** to
+`w-inlfit`'s committed output, names **24** `-inl`-prefixed switches over **24
+distinct** value words. They tile `0x10c45db4`–`0x10c45e10` **contiguously**:
+`(0x10c45e10 − 0x10c45db4)/4 + 1 = 24`, so there is no gap and no screen under
+which the answer is 21. 23 are numeric (kind `0x2401`); **`-inlnlw` at
+`0x10c45db8` is a boolean** (kind `0x0101`), which is what the `-inl*#`
+spelling silently drops — but 23 is not 21 either.
+
+#### 6.8.1 §5's two POGO tables ARE recoverable, by §5's own method `[R]`
+
+§5 says of `DAT_10c45e18`/`DAT_10c45ed0` that *"none of their values is
+quotable from the image and this page does not quote them."* The premise —
+BSS, zero at load — is exactly right. The conclusion is **too strong**, for the
+same reason the descriptor table is recoverable: **the code that fills them is
+in the image.**
+
+**`FUN_10b5b88f`** (`0x10b5b88f`, 335 B) scatters **37** switch value words —
+the contiguous block `0x10c45d80`–`0x10c45e10` — into `[ecx+0x00…0xb4]`, and it
+has **exactly two callers**, each passing one table:
+
+| filler | `ecx` | then |
+|---|---|---|
+| `FUN_10b5ba71` (`0x10b5ba78`) | `0x10c45ed0` — **table B** | 33 zero-guarded default stores |
+| `FUN_10b5bc6e` (`0x10b5bc73`) | `0x10c45e18` — **table A** | 33 zero-guarded default stores |
+
+The guard is `cmp ds:F,0 / jne skip / mov ds:F,<imm>`: **a switch left unset
+falls through to a default that differs between the two tables.** Both 33-value
+sets are printed in `WB_INLSWITCH_FINDINGS.md` §3. 46 − 33 = the 13 fields that
+get no default in either table, and they are exactly the 13 that no switch
+names and nothing reads.
+
+**So a `-inl*` switch's "load-time default" is not a value at its own address**
+— that is always `0`, by BSS — **it is the value its DESTINATION field receives
+when the switch is absent.** The lane's own prereg predicted ≥ 12 initializing
+stores at the switch words; there are **0 of 24**, and locating the mechanism
+instead is what the miss bought.
+
+#### 6.8.2 Which table is live, and the two gates `[R]` `[O]`
+
+`FUN_10b5e4cc` — §6.6.1's producer of `DAT_10c46318` — is also the whole
+parameter initialisation, and it runs both fillers before copying **46 dwords**
+into the live record at `0x10c3f510`:
+
+```
+10b5e4cc  k = DAT_10c2ea98
+10b5e4d2  DAT_10c46318 = (k <= 6) ? 0x10 << k : 1000     ; §6.6.1, re-read here
+10b5e4ed  call FUN_10b5ba71                              ; fill table B
+10b5e4f2  call FUN_10b5bc6e                              ; fill table A
+10b5e4f7  if DAT_10c462c4 == 0: return                   ; GATE 1 — not read
+10b5e50a  call FUN_10b5b9de(size)                        ; module-size trim of A
+10b5e50f  esi = (DAT_10c6f1c8 == 0) ? 0x10c45e18 : 0x10c45ed0    ; GATE 2
+10b5e52a  rep movsd 0x2e dwords -> 0x10c3f510
+```
+
+`DAT_10c6f1c8` is the **requested POGO mode**, and §6.8.4 measures it `0` here.
+**Table A is the live table on this workload.**
+
+#### 6.8.3 All 24 have a reader, all 24 are dead here `[R]` `[O]`
+
+**24 of 24** have at least one read of their live field — the prereg predicted
+at most 11, and at most 6 tied to a named decision. 29 of the 32 distinct read
+instructions are inside **`FUN_10b5fcd8`**, §5's POGO cost model, which
+accumulates a score and returns `score < -inlS#`. The decisions, in arithmetic:
+
+* **`-inlS#`** (`+0x00`, A **60** / B **2**) is the **accept threshold** —
+  `0x10b600d6`: `cmp esi,ds:0x10c3f510` / `setl al`.
+* **`-inlcsw#` `-inldasw#` `-inlcasw#` `-inlflcsw#` `-inlfcsw#`** are five
+  linear weights summed in one run at `0x10b5fdba`–`0x10b5fdf1` and subtracted
+  from the score. **Four of the five default to 0 in both tables** — a dormant
+  cost model inside the cost model.
+* **`-inlnlw`** (boolean, default 0) gates the whole banded rational-scale
+  block, so **`-inlniln#`/`-inlnild#`/`-inlnoln#`/`-inlnold#` are four numeric
+  switches behind one boolean that is off by default.**
+* **`-inlocsa1#`…`4#`** are flat credits by call-count band (25 M / 50 M /
+  100 M); **`ocsa2`/`ocsa3` default to 0 in both tables** while `ocsa1`/`ocsa4`
+  are 96 (A) / 15 (B).
+* **`-inlcrmax#`** (10) caps the repeat count above which **`-inlfcsa#`**'s
+  credit `esi -= (fcsa + esi)/ecx` is skipped.
+* **`-inluserinl#`** (A 8 / B 2) credits bit 7 of the caller's argument byte;
+  **`-inlnobr#`** (A **48** / B 3) credits bit 7 of `[sym+0xb1]` and is table
+  A's largest single credit.
+* **`-inlmlsa#`** (A 32 / B 15) is the one read outside the model —
+  `FUN_10b5dc6c` at `0x10b5dca9` bails when a byte counter exceeds it.
+
+**Every one of them is read and dead on this workload.** `FUN_10b5fcd8` is
+entered only from `0x10b60a50` under §5's profile-record gate, and
+`FUN_10b5dc6c`'s caller `FUN_10b60727` opens with `cmp ds:0x10c3de20,0x1`
+(`0x10b60730`) and `cmp ds:0x10c6f1c8,0x1` (`0x10b60767`). **This is a
+characterization of c2's decision surface, not a candidate for adoption, and
+nothing in it licenses an emit.**
+
+#### 6.8.4 `DAT_10c3de20` is the EFFECTIVE POGO mode — and it narrates nothing `[R]`
+
+`w-lowerband` §7 filed it as *"389 refs, 10 writers, three values"* with the
+follow-up that *"naming the switch that sets it to `2` would make c2 narrate
+its own inline decisions."*
+
+**The writer count is 19 instructions in 13 owner functions**, and the two
+instruments agree to the address: Ghidra's `WRITE` (13) plus `READ_WRITE` (6,
+the `and ds:…,0x0` clears) is the same set the objdump listing yields. Neither
+instrument produces 10.
+
+**The chain, complete.** The only literal `2` is `0x10b9e2bb`, inside
+`FUN_10b9e1d2`, which returns at once unless `DAT_10c6f1c8 == 2`
+(`0x10b9e229`). `DAT_10c6f1c8`'s enabling writers are three instructions in
+`FUN_10b848dc`, immediately after the option-table walk:
+
+| site | condition | stores |
+|---|---|---|
+| `0x10b84b47` | `[0x10c46bcc] != 0` — **`-pgo#`** / **`-po#`** | `2` |
+| `0x10b84b58` | `[0x10c46bc4] != 0` — **`-pgu#`** | `2` |
+| `0x10b84b80` | `[0x10c46bd0] != 0` — **`-pgi#`** / **`-pi#`** | `1` |
+
+`0x10c46bcc` and `0x10c46bd0` are the value words `optmap.py` prints as
+`(reg)`; resolved here by tracking the two registers loaded at `0x10c29c23`
+and `0x10c29c28`, which also shows **`-pgo#`/`-po#` and `-pgi#`/`-pi#` are
+alias pairs on one word each.** `FUN_10bae79c`'s two stores write `0` only.
+
+`0x10b9e07d` is a bare mirror `DAT_10c3de20 := DAT_10c6f1c8`, and the two
+neighbouring stores zero it right after a diagnostic — `"ERR:\t%s was not
+profiled; Pogo disabled\n"` (`0x10b16788`) and `"WRN:\t%s was not probed; Pogo
+disabled\n"` (`0x10b16724`). **So `DAT_10c3de20 ∈ {0,1,2}` is
+`{no POGO, instrument, optimize/update}`, and it is the mode that took effect
+where `DAT_10c6f1c8` is the mode requested.**
+
+> **The follow-up's premise is FALSE.** The switch exists and is named, but
+> setting it does not make c2 report anything — it puts c2 in profile-guided
+> optimization, which **swaps the live parameter record from table A to table
+> B** and turns on a cost model whose thresholds are 3×–13× tighter. It is a
+> mode selector that **changes** the inline decision, so using it to observe
+> the decision would be measuring a different compiler. The narration seam this
+> was reaching for already exists and is `cl /FAsc`.
+
+#### 6.8.5 `FUN_10b5da2f` READ — and its "second reader of `k`" is a loop reload `[R]`
+
+573 B, **one caller `0x10b5eb27` inside `FUN_10b5e9a5`**, which is in the band.
+It is a **budgeted statement-cost test returning 1 when the cost exceeds the
+budget**:
+
+* **budget** = `k · (n + 2 + [DAT_10c2e310 != 0] + 2·[attr 0x500000 & 8])`,
+  where `n` counts the operand nodes of kind 1/2 with a non-null `[[node+0x18]+0x14]`
+  (`0x10b5da47`–`0x10b5da98`);
+* **cost** accumulates over the statement list by node kind — `0x0d` +1 (plus a
+  structural match ending in `call 0x10b4cc87` that re-anchors the walk),
+  `0x0f` +2 **and a `2k` refund to the budget**, `0x13` +2;
+* the tail is `cmp [ebp-4],esi; jg` → return 1.
+
+**`k` has three read instructions and two semantic uses.** `0x10b5dacb` is the
+loop-head reload made necessary by the `0x0f` arm's `neg ecx` at `0x10b5daed`.
+`#3734` is correct as filed; its implication that `k` is *"a general inliner
+scaling knob"* at two independent places is one place, read twice — the other
+use is §6.6.1's `16 << k`.
+
+#### 6.8.6 `k`'s RUN-TIME value is settled at 3 — `#3734`'s open question is closed `[R]` `[O]`
+
+`#3734` left it open because `0x10c29800` plants `k`'s *address* in the
+`-vol#` descriptor, *"precisely a handle for a generic numeric-option setter to
+store through."* Both halves are now closed.
+
+**Read.** `FUN_10c1f746` walks the table from `0x10c46bd8` at **stride 12**
+(`add esi,0xc` at `0x10c1f7a4` — the stride confirmed independently of
+`optmap.py`), terminating on `BYTE [esi+9] == 0`, and calls `FUN_10c1f572`
+**only on a name match**. `FUN_10c1f572`'s kind-`0x24` arm is three
+instructions — `call 0x10c1f34c` (parse), `mov ecx,[edi+4]` (the value_ptr),
+`mov [ecx],eax` — and **it is the only store through a numeric descriptor's
+value pointer in the image. There is no initialisation sweep.**
+
+**Measured** `[O]`, witness `work/w-inlswitch/cl_argv_modes.out`: `cl /Bd`
+prints each pass's own command line, and over **every row of
+`scripts/lanes.txt`** plus `/Os` `/Ot` `/Ox /Ob0` `/Ox /Ob1`, the c2 argv is
+`-il … -typedil -Fo… -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f … [-Og] [-Ob0|-Ob1|-Ob2] [-Gy] [-EHs]`
+and **contains no `-vol`, no `-inl*`, and no `-pgi`/`-pgo`/`-pgu`/`-pi`/`-po`/
+`-pv` at any mode.** The only inline switch cl ever passes is `-Ob<n>`
+(`0x10c46bc0`), which is not one of the 24.
+
+> **`k = 3` at run time, so `DAT_10c46318 = 0x10 << 3 = 128`, on every
+> compilation this project runs.** Same evidence gives `DAT_10c6f1c8 = 0`
+> (table A live) and `DAT_10c3de20 = 0`, so **§6.7.2's S2 gate
+> (`DAT_10c3de20 == 1`) and §6.7.3's `DAT_10c3dddc` arm (`== 2`) are both dead
+> here** — which sharpens §6.7's *"read, not exercised"* into a measurement.
+>
+> **This does not make 128 adoptable, and this lane does not adopt it**
+> (decision 22 §3; `#3732`'s 8 counterexamples in each direction; §6.7.1's
+> `/O1` table). Settling `k` closes a **provenance** question. C8's remaining
+> defect is the **unit** — §6.6.1's second missing link — and §6.6.1's verdict
+> is untouched.
+
+#### 6.8.7 A control this lane failed, and caught before publishing `[O]`
+
+An earlier probe reported that `cl /Ox /Gy` does not pass `-Gy` to c2 — which
+would have made two `scripts/lanes.txt` rows byte-identical duplicates. **It
+was the instrument.** The loop wrote the mode as an unquoted `$m` and **zsh
+does not word-split unquoted parameter expansions**, so `cl.exe` received
+`/Ox /Gy` as one argument and parsed only `/Ox`; the same defect dropped
+`/EHsc` from every multi-flag row. Re-derived with separate argv entries,
+`-Gy` **is** passed at every ordering. No lane is a duplicate and no row is
+owed. Recorded because the false reading was one command from publication, and
+because it is the same class as `#3731`: an enumeration of one addressing form
+— here, one *argument* form — quoted as an enumeration of the thing.
