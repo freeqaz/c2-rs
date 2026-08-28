@@ -271,12 +271,13 @@ was not.
 
 | lane | result |
 |---|---|
-| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | see §9 — transcript `work/w-clausefix/cargo_test_tip.out` |
-| `c2rs bench` | not run — this lane compiles nothing and emits nothing |
-| `scripts/gate.sh --jobs 16 --require-graded` | see §9 — transcript `work/w-clausefix/gate_tip.out` |
-| `scripts/expr_sweep.sh` | a `gate.sh` row; counts in §9 |
-| 878-TU workload scan | not run — no acceptance predicate moved |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | §9 — transcript `work/w-clausefix/cargo_test_tip.out` |
+| `c2rs bench` | run as part of the suite (`every_invocation_the_scripts_make_is_still_accepted_bench`); not quoted separately — this lane compiles nothing and emits nothing |
+| `scripts/gate.sh --jobs 16 --require-graded` | **18/18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, 7,038 fixture-verdicts** — transcript `work/w-clausefix/gate_tip.out` |
+| `scripts/expr_sweep.sh` | a `gate.sh` row: **19,460 of 19,556 graded, 0 mismatch** |
+| 878-TU workload scan | not run — no acceptance predicate moved, no emit widened |
 | fixtures, `c2rs census` | `Fixtures: none`, `Census: +0` |
+| `work/w-inlmetric/check_table.py` | **GREEN, 0 failures over 24 rows**, all five checks graded 24 of 24 — `work/w-clausefix/check_table_tip.out` |
 
 ## 8. Found and not taken
 
@@ -372,7 +373,42 @@ quotable patch blocks here rather than edits there.
 
 ## 9. Gate and suite at the tip
 
-Filled in below from the transcripts at this lane's tip.
+Tip on a clean tree, under a box carrying **six** peer lanes' workspace suites
+concurrently (load average 66–145 for the duration; the first suite run took
+53 minutes for work that is ~4 minutes warm).
+
+Transcripts: `work/w-clausefix/gate_tip.out`, `work/w-clausefix/cargo_test_tip.out`.
+
+```
+GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them graded a corpus
+  lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+  graded: 7038 fixture-verdicts across all lanes
+  sweep:  PASS — 19556 of 19556 reached, 19460 GRADED, 0 mismatch
+  cross:  PASS — 90424 of 90812 cells graded, 0 mismatch
+  debug:  PASS — 18 of 18 lanes, 7038 fixture-verdicts, 0 mismatch, 0 PANIC
+  graded tree: 879c07904ade (805 files under crates fixtures scripts)
+  count-bearing rows: 21 — this lane added none (#3691), and `scripts/` is
+  untouched: `git diff --stat master..HEAD -- scripts/` is empty
+```
+
+**`HATCH-RED REFUSED` is INHERITED, not this lane's.** `hatch.py apply` cannot
+hatch this tree, so the arms have no tree to run on (`#1389`) —
+`work/w-hatch/hatch_red_master.txt`, a committed artifact taken on master,
+already records `SETUP FAILED: hatch.py apply refused`. This lane's `crates/`
+delta against its base is **one new test file**, and the condition predates it.
+`w-inlfit` recorded the identical inheritance on 2026-08-27.
+
+```
+C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast
+  __SUITE__
+```
+
+> **The FIRST run of this suite is reported and not hidden**, because it is
+> §10's whole subject: at `53deb51ff` it read **61 targets, 1,983 passed, 1
+> failed**, and the failure was this lane's own `clause_table` target going RED
+> on four ABSENCE rows off its own doc comment. The tree above is the fixed one.
+> A lane that reports only its last run has thrown away the only measurement
+> that found anything.
 
 ## 10. The blast radius fired, from this lane's own file, and the controls could not see it
 
