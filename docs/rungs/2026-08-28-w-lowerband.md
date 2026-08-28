@@ -150,4 +150,29 @@ twice.
 Full `scripts/gate.sh` and `cargo test --workspace --release` at this lane's
 tip; transcripts `work/w-lowerband/gate_tip.out` and
 `work/w-lowerband/cargo_test_tip.out`. The `GATE:` verdict **line** is the
-verdict, not the exit code.
+verdict, not the exit code:
+
+```
+lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+        checked=19556 mismatches=0 graded=19460 ungraded=96 unknown=0   (sweep)
+        checked=90812 mismatches=0 graded=90424 ungraded=388 unknown=0  (cross)
+        7038 fixture-verdicts, match 2479, 0 mismatch, 0 PANIC
+GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them graded a corpus,
+  the sweep graded 19460 of 19556 generated cases and the cross graded
+  90424 of 90812 case-lane cells, with 0 mismatches anywhere
+```
+
+**A required-zero byte delta is not this lane's criterion** — it is a
+characterization lane, not a construct rung, and `git diff 8213c7b77..HEAD --
+crates/` is empty, so the gate cannot be evidence *for* it either. The gate is
+here to show the tree was not broken, and **`mismatch 0` is not evidence of
+correctness** (`docs/STATUS.md`'s standing trap).
+
+**The transcripts are sanitized of the worktree's absolute path** before
+committing (`<worktree>`), per `CLAUDE.md` § "Never commit … absolute machine
+paths"; the `GATE:` lines and every count are untouched.
+
+**`cargo test` was run twice on purpose.** The first run predated this rung
+file, and `rung_registry.rs` reads `docs/rungs/` — so a green from it would
+have graded a tree that did not contain the thing most likely to fail. The
+committed transcript is the second run, at the tip.
