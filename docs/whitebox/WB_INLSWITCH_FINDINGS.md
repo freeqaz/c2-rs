@@ -175,7 +175,11 @@ is absent; `defB` = the same for table **B** via `FUN_10b5ba71`. `live` =
 **24 named, 24 with at least one live reader — 24 of 24, denominator 24.**
 **P2 is refuted twice over**: not only is it not "at most 11", it is *all of
 them*, and the sub-prediction ("at most 6 tied to a named decision") is
-refuted too — §3.1 names the decision for **20 of 24**.
+refuted too — **§3.1 names the decision for all 24**, at the level of the
+arithmetic each value enters. For five of them (`-inlfcsw#`, `-inlflcsw#`,
+`-inlcsw#`, `-inldasw#`, `-inlcasw#`) there are *further* readers outside the
+inliner band that were not opened (§9 item 3); the in-band decision is named
+for every one.
 
 **Table A vs table B are not two tunings of one model; nine fields differ and
 every difference is in the same direction** — B's threshold and bonus values

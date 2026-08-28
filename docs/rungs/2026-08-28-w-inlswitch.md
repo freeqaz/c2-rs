@@ -42,7 +42,7 @@ the refutation of each named in advance.
 | # | prediction | outcome |
 |---|---|---|
 | **P1** | ≥ 12 of 24 carry an initializing store at their own value word | **REFUTED — 0 of 24.** The words are BSS and stay 0; the operative default is installed at the *destination* field by a zero-guarded sweep. Locating that mechanism is what the miss bought |
-| **P2** | ≤ 11 of 24 have any reader; ≤ 6 tied to a named decision | **REFUTED TWICE — 24 of 24 have a reader, 20 of 24 are tied to a named decision.** Not one is vestigial |
+| **P2** | ≤ 11 of 24 have any reader; ≤ 6 tied to a named decision | **REFUTED TWICE — 24 of 24 have a reader, and the in-band decision is named for all 24.** Not one is vestigial. Five of them have further readers outside the band that were not opened |
 | **P3(a)** | no writer of `DAT_10c3de20` traces to a resolvable switch name | **REFUTED — and this is the lane's best result.** `-pgo#` / `-po#` / `-pgu#`, via `DAT_10c6f1c8` at `0x10b84b47`/`0x10b84b58` |
 | **P3(b)** | it is a compilation-MODE selector, not a diagnostic; setting it to 2 would *change* the decisions, not report them; mode axis = whole-program operation | **HELD, including the registered guess at the axis.** `{0,1,2}` = `{no POGO, instrument, optimize/update}` |
 | **P4** | `FUN_10b5da2f` is NOT on the inline path this workload takes | **REFUTED — it is in the band**, sole caller `0x10b5eb27` inside `FUN_10b5e9a5` |
@@ -61,7 +61,7 @@ the image, byte-identical to `w-inlfit`'s committed output.
 
 | target | result | where |
 |---|---|---|
-| **the 24 switches** | **24 named, 24 with a reader, 20 tied to a named decision, both default sets recovered** — and they are the override inputs to `P_INLINE` §5's two "unquotable" POGO tables, not inputs to the inliner | `WB_INLSWITCH_FINDINGS.md` §1–§4, `P_INLINE` §6.8.0–§6.8.3 |
+| **the 24 switches** | **24 named, 24 with a reader, the in-band decision named for all 24, both default sets recovered** — and they are the override inputs to `P_INLINE` §5's two "unquotable" POGO tables, not inputs to the inliner | `WB_INLSWITCH_FINDINGS.md` §1–§4, `P_INLINE` §6.8.0–§6.8.3 |
 | **`DAT_10c3de20`** | **19 writers in 13 functions, not 10.** It is the EFFECTIVE POGO mode; `-pgo#`/`-po#`/`-pgu#` set it to 2. **The "narrates its own inline decisions" claim is FALSE** | §5, §6.8.4 |
 | **`FUN_10b5da2f`** | a **budgeted statement-cost test**, budget `k · (n + 2 + …)`, in the band. Its "second reader of `k`" is a **loop reload after `neg ecx`** | §6, §6.8.5 |
 | **`k` at run time** | **settled at 3**, hence `DAT_10c46318 = 128`. `#3734`'s open question is closed — and 128 is still not adopted | §7, §6.8.6 |

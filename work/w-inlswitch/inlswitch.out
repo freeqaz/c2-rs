@@ -1,5 +1,5 @@
 image   : compilers/X360/16.00.11886.00/c2.dll  base 0x10b00000
-listing : /home/free/ghidra-projects/export/c2/objdump_intel.asm  424232 decoded instruction starts
+listing : ~/ghidra-projects/export/c2/objdump_intel.asm  424232 decoded instruction starts
 raw .data ends at 0x10c3cc00 -- everything at or above this VA is BSS, ZERO AT LOAD
 
 CONTROLS -- watched before any verdict from this script is quoted (#3336)

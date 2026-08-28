@@ -374,8 +374,13 @@ def main():
     body = load_listing()
     funcs = load_funcs()
 
+    # Print the listing path HOME-collapsed: this output is committed to the
+    # `work/` evidence shelf, which `scripts/tracked_artifact_audit.sh` class 3
+    # gates at ZERO absolute machine paths.
+    home = os.path.expanduser('~')
+    shown = ('~' + ASM[len(home):]) if ASM.startswith(home) else ASM
     print(f"image   : {DLL}  base 0x{base:08x}")
-    print(f"listing : {ASM}  {len(body)} decoded instruction starts")
+    print(f"listing : {shown}  {len(body)} decoded instruction starts")
     print(f"raw .data ends at 0x{raw_data_end:08x} -- everything at or above "
           f"this VA is BSS, ZERO AT LOAD\n")
 
