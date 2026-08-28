@@ -50,7 +50,7 @@ the reference set is enumerated — this repo's most repeated defect
 | id | instrument | population | result |
 |---|---|---|---|
 | **E1/E2** | [`work/w-lowerband/f50.py`](../../work/w-lowerband/f50.py) | the **independent objdump boundary set** — `objdump -d -M intel`, **424,232** decoded instructions | **125** instructions with a memory operand at `+0x50`, split by width and direction |
-| **E3** | Ghidra's decompiler, `decomp_all.c` (control-flow-driven, not linear) | the whole export | **0** `ushort` assignments at `+0x50` image-wide; **11** `ushort` read expressions |
+| **E3** | Ghidra's decompiler, `decomp_all.c` (control-flow-driven, not linear) | the whole export | **0** `ushort` assignments at `+0x50` image-wide; **13** read occurrences over **12** lines — which is **9 distinct instructions** (see below) |
 | **E5** | [`work/w-lowerband/bytescan.py`](../../work/w-lowerband/bytescan.py) | **all 1,232,384 raw bytes of `.text`**, decode-independent, **2,136** encoding patterns | **exactly one** 16-bit-store encoding present |
 | **E4** | [`work/w-lowerband/fieldmap.py`](../../work/w-lowerband/fieldmap.py) | 67 functions referencing `+0x50`, 207 referencing `+0x4c` | **29** touch both; the struct filter in §1.3 |
 | **E4b** | [`work/w-lowerband/dwordwrites.py`](../../work/w-lowerband/dwordwrites.py) | all **17** dword stores/RMWs at `+0x50` | **0** are on this record; **0** left needing a hand read |
@@ -64,6 +64,17 @@ the reference set is enumerated — this repo's most repeated defect
 > instructions. `#3721` counts addressed lines, which is the right denominator
 > for an *alignment* question; this lane counts decoded instructions, which is
 > the right one for an *operand* question. Neither is wrong.
+
+
+> **13 expressions, 12 lines, 9 instructions — reconciled, not left to look
+> like a discrepancy.** Ghidra re-materialises the load wherever it appears in
+> the C it prints, so one instruction can produce several occurrences: the
+> `CARRY4` idiom at readers 7 and 8 prints the load **twice** each
+> (`bVar = CARRY4(acc, x); acc = acc + x;`), reader 3's compound test prints it
+> twice on one line, and readers 4/5 contribute three occurrences across three
+> lines. `1+1+2+3+1+2+2+1 = 13` occurrences ← **9 instructions**, which is
+> exactly E2's word-read count. The two instruments agree on the object and
+> differ only in what they count.
 
 **E4b is P1 form (b) taken to the end**, because a 32-bit store writes `SIZE`
 without appearing in any 16-bit enumeration. **Its control went RED on the

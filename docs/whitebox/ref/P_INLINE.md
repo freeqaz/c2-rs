@@ -903,7 +903,7 @@ located reads that reduction."*
 | instrument | population | result |
 |---|---|---|
 | `f50.py` over the **independent objdump boundary set** | **424,232** decoded instructions (= 425,871 addressed lines − 1,639 byte-continuation lines; `#3721`'s denominator is the former) | 125 operands at `+0x50`; **1** 16-bit write |
-| Ghidra's decompiler (control-flow-driven, not linear) | the whole export | **0** `ushort` assignments at `+0x50` image-wide |
+| Ghidra's decompiler (control-flow-driven, not linear) | the whole export | **0** `ushort` assignments at `+0x50` image-wide; 13 read occurrences over 12 lines = the same **9** instructions E2 finds (the decompiler re-materialises the load inside `CARRY4` idioms and compound tests) |
 | `bytescan.py`, **decode-independent** | **all 1,232,384 bytes of `.text`**, 2,136 encoding patterns (`mov`/`add`/`sub`/`or`/`and`/`xor`/`adc`/`sbb`/`xchg`/group1/3/5/shifts, disp8 + disp32 + SIB, and both byte halves) | **exactly one** 16-bit-store encoding present |
 
 `bytescan.py` exists because `objdump` sweeps `.text` linearly and c2 has a
