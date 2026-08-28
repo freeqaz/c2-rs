@@ -1,0 +1,41 @@
+CONTROL -- sites KNOWN to be on the .gl function-symbol record.
+Expected all three GREEN; observed 1 of 3, and the miss is the finding
+that BOUNDS this filter.  See the CONTROL comment in the source.
+
+  0x10b9bf6c  BUILDER  (the .gl reader)      owner FUN_10b9b8e9     signature 13  -> recognised   [as bounded]
+        10b9bd24  test   DWORD PTR [esi+0x37],0x400
+        10b9be19  xor    eax,DWORD PTR [esi+0x37]
+        10b9be21  xor    DWORD PTR [esi+0x37],eax
+  0x10b5fc86  consumer (C8, candidacy)       owner FUN_10b5fb5f     signature  0  -> NOT recognised   [as bounded]
+  0x10b625b2  consumer (C18/C19, the charge) owner FUN_10b6242a     signature  0  -> NOT recognised   [as bounded]
+
+  CONTROL: GREEN -- the filter separates builders from consumers, as stated
+
+SCOPE: applied to the WRITER question only.  A function that stores to the
+field is updating the record; every function shown to BUILD this record
+touches +0x37 or +0x52.  Consumers are out of this filter's reach by
+construction and no consumer verdict is taken from it.
+
+dword stores at +0x50, and whether the base can be the .gl function-symbol record
+listing: 424232 instruction starts
+
+0x10b27e7d  base edi   owner FUN_10b27e53     refs-on-base   3  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+0x10b2b406  base esi   owner FUN_10b2b3f0     refs-on-base   5  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+0x10b3f557  base esi   owner FUN_10b3f454     refs-on-base  40  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+0x10b3f568  base esi   owner FUN_10b3f454     refs-on-base  40  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+0x10b3f5b3  base esi   owner FUN_10b3f454     refs-on-base  40  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+0x10b55609  base esi   owner FUN_10b55429     refs-on-base  16  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+0x10b75947  base esi   owner FUN_10b7591b     refs-on-base   2  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+0x10baf504  base eax   owner FUN_10baf4eb     refs-on-base   1  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+0x10be460a  base eax   owner FUN_10be45f6     refs-on-base   3  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+0x10be51c9  base esi   owner FUN_10be4f28     refs-on-base  73  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+0x10bf3c4d  base ebp   owner FUN_10bf39d7     refs-on-base  63  signature  0  -> STACK LOCAL (ebp frame, no struct use)
+0x10bffa7e  base ebp   owner FUN_10bff95c     refs-on-base   5  signature  1  -> STACK LOCAL (ebp frame, no struct use)
+                 10bff976  mov    esi,DWORD PTR [ebp+0x78]
+0x10c115e6  base esi   owner FUN_10c113f3     refs-on-base  39  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+0x10c11765  base esi   owner FUN_10c113f3     refs-on-base  39  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+0x10c1c405  base ebp   owner FUN_10c1c3f7     refs-on-base 185  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+0x10c20be1  base edi   owner FUN_10c20b3f     refs-on-base  14  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+0x10c21064  base esi   owner FUN_10c20f79     refs-on-base  18  signature  0  -> NOT the record (no +0x37/+0x52/+0x78 on this base)
+
+sites needing a hand read: 0  
