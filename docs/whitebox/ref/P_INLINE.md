@@ -1189,7 +1189,9 @@ prints each pass's own command line, and over **every row of
 `scripts/lanes.txt`** plus `/Os` `/Ot` `/Ox /Ob0` `/Ox /Ob1`, the c2 argv is
 `-il … -typedil -Fo… -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f … [-Og] [-Ob0|-Ob1|-Ob2] [-Gy] [-EHs]`
 and **contains no `-vol`, no `-inl*`, and no `-pgi`/`-pgo`/`-pgu`/`-pi`/`-po`/
-`-pv` at any mode.** The only inline switch cl ever passes is `-Ob<n>`
+`-pv` at any of the 22 modes.** (The bracket notation is schematic: `/Os` and
+`/Ot` emit `-Ob0` *before* `-MT` and emit no `-Og` at all, so the order is not
+fixed — the table is the witness, not this line.) The only inline switch cl ever passes is `-Ob<n>`
 (`0x10c46bc0`), which is not one of the 24.
 
 > **`k = 3` at run time, so `DAT_10c46318 = 0x10 << 3 = 128`, on every

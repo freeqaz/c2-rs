@@ -542,9 +542,16 @@ cl /Od             … -Bd -Ob0
 ```
 
 **Zero occurrences of `-vol`, of any `-inl*`, and of `-pgi`/`-pgo`/`-pgu`/
-`-pi`/`-po`/`-pv` across every mode row.** The only inline-related switch cl
-ever passes is **`-Ob0`/`-Ob1`/`-Ob2`** (value word `0x10c46bc0`), which is not
-in the 24 and is not in the parameter record.
+`-pi`/`-po`/`-pv` across all 22 mode rows** — the counts are printed at the foot
+of the file, each beside its denominator. The only inline-related switch cl ever
+passes is **`-Ob0`/`-Ob1`/`-Ob2`** (value word `0x10c46bc0`), which is not one of
+the 24 and is not a field of the parameter record.
+
+Two incidental readings from the same table, neither pursued: **`/Os` and `/Ot`
+emit `-Ob0` before `-MT` and emit no `-Og` at all**, so c2 sees them as
+inlining-off rather than as optimisation modes; and **`/Gy` reaches c2 from
+`/O1`, `/O2` and explicit `/Gy` alike**, which is what §8.1's failed control
+originally denied.
 
 The reference seam's own standalone template
 (`crates/c2-reference/src/lib.rs:1709`) is the same list and likewise carries
