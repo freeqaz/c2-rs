@@ -244,8 +244,13 @@ paid at the moment the objs disagreed.
   the rule is stated over values. **A workload scan would still add something
   this cannot: the real distribution of switch shapes.** Unclaimed follow-up.
 * **The cluster partition is named, not modelled.** §5.1a. One cell in 240.
-* **`FUN_10b35c78`** is unread; it is the standing candidate for
-  `P_BLOCKORDER.md` §6 open #1.
+* ~~**`FUN_10b35c78`** is unread; it is the standing candidate for
+  `P_BLOCKORDER.md` §6 open #1.~~ — **READ and ELIMINATED 2026-08-28 (`w-s7`,
+  board #3737).** It is a genuine move (unlink + insert-after at every kind-`0x1b`
+  label, draining `tuple+0x2c`), **and it did not run on this lane's grid**:
+  both its callers are inside `0x10b7e032`'s `sym+0x20 & 0x1000` gate, clear on
+  2,946 of 2,946 functions at `/O1 /EHsc`. Open #1 keeps its question and loses
+  its candidate. [`WB_S7_FINDINGS.md`](WB_S7_FINDINGS.md) §2, §4.
 * **No call-bearing-arm grid**, which is what would separate a block *move*
   from a leaf *materialization*.
 * **No `/Os` cell**, so the size-mode threshold record is read but unexercised.

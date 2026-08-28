@@ -367,9 +367,16 @@ source-level use counts is fitting the wrong variable.
   > * **The scope is the larger error.** The pipeline downstream of
   >   `0x10b31c9a` is **7 stage drivers, 34 depth-1 passes, 10,714 B, 17 TUs**,
   >   of which **27 are `cover=none`**. F0's eight sub-items name **1** of the
-  >   34, and stage **S7 (`0x10b7e032`)** — which holds a live mode-0 run of the
-  >   merger driver, the direct tuple-splicer `0x10b35c78`, and the emit walk —
-  >   **has no sub-item at all**. Board **#3714**, **#3715**.
+  >   34, and stage **S7 (`0x10b7e032`)** — which holds ~~a live mode-0 run of
+  >   the merger driver, the direct tuple-splicer `0x10b35c78`~~, and the emit
+  >   walk — **has no sub-item at all**. Board **#3714**, **#3715**.
+  >   **AMENDED 2026-08-28 by `w-s7` (#3737, #3738):** the merger run is **not**
+  >   live and neither is the splicer — both sit behind `sym+0x20 & 0x1000` at
+  >   `0x10b7e03a`, measured **clear on 2,946 of 2,946 functions over 384
+  >   fixtures** at the workload's own mode. S7 is **5 of 10 passes, 1,027 B of
+  >   2,489, reached**. *"No sub-item at all"* stands. And the `27 cover=none`
+  >   line above keeps its count but not its gloss — **17 of the 27 are
+  >   mentioned in a repo page** (#3742). [`../WB_S7_FINDINGS.md`](../WB_S7_FINDINGS.md).
   > * **Quote the pair with care.** The `8` is published *"ceiling, NO discount
   >   factor"*; the `4` is a lower bound with `CEILING` §5's ×5 applied in the
   >   same sentence (*"×5 = 20"*). **The two figures a reader can find in this
