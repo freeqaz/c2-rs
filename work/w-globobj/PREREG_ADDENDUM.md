@@ -131,3 +131,78 @@ cell decides something and it is reported as data, not as a pass/fail.
 Everything in `PREREG.md` §7 (controls), §8 (what this lane will not do) and §9
 (what makes it `FAILED`) applies verbatim. Reach stays 0; no `crates/` file is
 touched; no gate row is added.
+
+---
+
+# PREREG ADDENDUM 2 (IN-FLIGHT) — the cell that can break this lane's ceiling
+
+Written after addendum 1's grids were graded and **before `order_loop_grid.cpp`
+exists**. Scored in the IN-FLIGHT tier.
+
+## A. What addendum 1 returned, stated before anything new is predicted
+
+**42 graded cells, 0 scored `U`. `DEF` survives 42/42 at both profiles. Seven
+rivals refuted by cell count:** `REVDEF` 42, `REVDECL` 28, `DECL` 22, `USE` 22,
+`LASTUSE` 22, **`LIVELEN` 12**, `USECOUNT` 4.
+
+**`LIVELEN` being refuted by 12 cells is the load-bearing one**, and it needed a
+correction to this lane's own grader to appear: the first `parse_grid` indexed
+positions by `u_i` call order, which made `order_lr_grid.cpp`'s padding
+invisible, computed `LIVELEN == DEF`, and scored the two cells built to separate
+them as agreeing. `--selftest` now carries an assertion that fails on that
+version.
+
+## B. The inference that opens the deciding cell
+
+`P_REGALLOC.md`:71 reads the priority accumulator as
+`cand[0x0c] += cand[0x18] * n_live` where live, `-= n_live` where not.
+
+* If `cand+0x18 > 0`, a longer-lived candidate accumulates strictly more →
+  sorted DESC, longer-lived first → **`LIVELEN`**.
+* If `cand+0x18 == 0`, `+0x0c` is `-Σ n_live` over the points where the
+  candidate is **not** live; a longer-lived candidate is not-live at fewer
+  points, so its `+0x0c` is larger → sorted DESC → **`LIVELEN` again.**
+
+**Under either sign, a `+0x0c` that is a monotone function of live extent
+predicts `LIVELEN`, and `LIVELEN` is refuted by 12 cells.** Exactly two
+survivors, and this lane cannot yet choose between them:
+
+1. `+0x0c` **ties** across these cells and the comparator falls to `+0x44` —
+   §7.1's ordinal reading, supported at the observable; or
+2. `+0x0c` is itself ordered by definition position, and `P_REGALLOC`:71's
+   reading of the accumulator is wrong or incomplete.
+
+## C. The cell that separates them
+
+If `+0x0c` can be made to move by a source-level quantity that is **not**
+definition position, then survivor 2 is dead and the LR cells were decided in
+the tie tier. The obvious such quantity is a **loop-weighted use count** —
+`cand+0x18` is a per-candidate weight and loop depth is what a priority
+accumulator exists to express.
+
+```
+ob_loop_y : x=p[0]; y=p[1]; call; u(x);            for(i<n) u(y);   <- DISCRIMINATOR
+ob_loop_x : x=p[0]; y=p[1]; call; for(i<n) u(x);   u(y);            (consistency)
+ob_loop2_y: x=p[0]; y=p[1]; call; u(x);  for(j<n) for(i<n) u(y);    (depth 2)
+```
+
+| | `ob_loop_y` |
+|---|---|
+| **DEF** (unbeaten on 42 cells) | `x → r31` |
+| **LOOPWEIGHT** (`+0x0c` responds to loop depth) | `y → r31` |
+
+**PREDICTION: `y → r31`.** `DEF` is refuted for the first time, `+0x0c` is
+shown to move on a quantity that is not definition position, survivor 2 dies,
+and the 42 straight-line cells are thereby located **in the tie tier** — which
+is `[O]`-grade support for §7.1's ordinal, and it would **break the ceiling
+this lane registered in `PREREG.md` §5.4 before any cell existed.**
+
+**If `x → r31` instead**, the loop does not move the priority either, `DEF`
+stands at 45/45, and §5.4's ceiling is **confirmed by a cell built to break
+it** — the residue stays exactly as registered, and this lane will say so.
+Both outcomes are publishable; neither is an exit code.
+
+**The premise test that must pass first:** `n` arrives as a second formal, so
+the loop cells have a third candidate. A cell in which `x` and `y` do not both
+resolve to distinct callee-saved registers scores `U` and enters no numerator
+and no denominator, exactly as in §7 of `PREREG.md`.
