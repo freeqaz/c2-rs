@@ -907,6 +907,29 @@ rung.**
 > | **F7** the fence that would ship F2/F4/F5/F6 without F0 | 1 |
 > | | **17** |
 >
+> > ### ⛔ ANNOTATED 2026-08-28 — **THE `17` IS NOW MATCHED BY A FLOOR. THE RE-PRICE TO 13/65 IS SUPERSEDED, AND THE `17` ITSELF IS A CEILING WHILE TODAY'S FIGURE IS A LOWER BOUND — SAME DIGITS, OPPOSITE BOUND DIRECTION.**
+> > *Lane `w-floor`, wave 17 (decision 21 §3). Derivation:
+> > [`REPRICE_2026-08-28.md`](REPRICE_2026-08-28.md) §3; board **#3751**,
+> > **#3752**. **No digit in this table is edited** — it is a correct ceiling,
+> > published with no discount factor and an anti-inflation check that fired
+> > twice, and it is quotable as one.*
+> >
+> > `w-f0price` (2026-08-27) re-priced **F0 8 → ≥ 9 raw** by enumerating its own
+> > eight sub-items against the pinned image (published `≥ 10`; its addends sum
+> > to 9 — `REPRICE` §2.1), and `w-regcells` spent **F4**'s grid lane, which had
+> > *already been paid a month before this table was written* (`#3710`). So:
+> >
+> > `F0 ≥9 · F1 2 · F2 1 · F4 1 · F5 2 · F6 1 · F7 1` = **≥ 17 raw all-in**,
+> > **≥ 16 remaining** (R4 spent F1's characterization lane on 2026-08-23),
+> > **+ 3 UNPRICED terms** — the tuple-level IR (= proposal row `4b`), sub-item
+> > 4's verification population (`#3435`: *"not available on this corpus at any
+> > price"*; ≈ 1 d to build one), and F4's fail-closed boundary (`#3710`:
+> > *"priced free and is not"*).
+> >
+> > **`STEP5_PRICING` §3's `13 raw / 65` is superseded and `65` must not be
+> > re-derived as `85`** — §5 of this page is an *optimism* correction fitted on
+> > rung counts, and an enumerated floor is not a forecast.
+>
 > > **⚠ ANNOTATED 2026-08-22 — THIS TABLE IS THE COST OF *PROBING* THESE FACTS,
 > > NOT THE COST OF THE FACTS.** *Lane `w-readdocs`, propagating
 > > `WHITEBOX_LEVERAGE_2026-08-21.md` §1's read-before-probe doctrine

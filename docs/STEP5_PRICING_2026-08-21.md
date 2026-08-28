@@ -463,6 +463,40 @@ Re-priced honestly: **F0 8 → 4 lanes raw (×5 = 20)**, and the 4 that leave ar
 search lanes, not construction lanes. Item F's total goes **17 → 13 lanes raw
 (×5 = 65)**.
 
+> ### ⛔ 2026-08-28 — **THE `4` IS SUPERSEDED AND SO IS THE `13 / 65`. F0 IS A FLOOR OF ≥ 9 RAW AND ITEM F RE-DERIVES TO ≥ 17 RAW — THE SAME DIGITS AS THE 2026-08-15 FIGURE, WITH THE BOUND DIRECTION INVERTED.**
+> *Lane `w-floor`, wave 17, decision 21 §3. Read + derivation:
+> [`REPRICE_2026-08-28.md`](REPRICE_2026-08-28.md) §2–§4; board **#3751**,
+> **#3752**, **#3753**. **Amended beside — no digit above is edited**, and the
+> paragraph above is correct as the black-box statement it was written as.*
+>
+> * **F0.** `w-f0price` (2026-08-27) priced F0 sub-item by sub-item against
+>   `WB_ITEMF` §6.1's own enumeration and published **≥ 10 + 2 UNPRICED
+>   terms**. Its addends sum to **≥ 9** — the withdrawn sub-item 1 was not
+>   subtracted (`REPRICE` §2.1). Either way the raw-to-raw comparison with the
+>   `4` above is an **increase of ≥ 2.25×**, and the floor now exceeds the `8`
+>   this paragraph re-priced *down* from.
+> * **Item F.** `≥9 + 2 + 1 + 1 + 2 + 1 + 1 = ≥ 17 raw all-in` (F4 is 1, not 2 —
+>   `#3710`), **≥ 16 remaining** once R4's spent F1 characterization lane comes
+>   out. Against the `13` that is **≥ 1.23×**.
+> * **`65` is withdrawn as an arithmetic descendant of the `13` and must NOT be
+>   re-derived as `85`.** §2.1(e) of this page already says why: the ×5 was
+>   fitted on rung counts, it is an *optimism* correction, and this figure is an
+>   enumerated floor.
+> * **And §4's curve does not add** — 5 of its 5–6 characterization lanes are
+>   counted a second time in the same table, including this section's own
+>   globregs row (F1) and COLOR row (F5). `REPRICE` §4.
+
+> ### ⭑ 2026-08-28 — **THIS SECTION'S OWN TABLE HAS DECAYED IN TWO CELLS.**
+> *Lane `w-floor`; board **#3752**. Reported beside, not rewritten.*
+> The **globregs** row's *"`0x10b55732`'s promotion policy, **unread**"* was
+> read on **2026-08-23 by R4**, and at a different address —
+> `FUN_10b550e5` ([`whitebox/ref/P_GLOBREGS.md`](whitebox/ref/P_GLOBREGS.md)
+> §3). Its 2 lanes are `WB_ITEMF` §6.1's F1 price, which that page decomposes as
+> *"1 characterization + 1 construct rung"*, so **the characterization half is
+> spent and the construction half is item F's, not this table's.** The **COLOR**
+> row's 2 is F5's, decomposed the same way. See `REPRICE` §4 for the corrected
+> reading of the whole table.
+
 > **⚠ 2026-08-22 — 13/65 IS A BLACK-BOX NUMBER AND MUST NOT BE QUOTED AS THE
 > COST OF THE FACTS.** *`ROADMAP_SLICING_2026-08-21.md` §6 rule 6, verbatim:
 > "no slice may quote it as the cost of the fact when the cost of reading the
@@ -477,6 +511,16 @@ search lanes, not construction lanes. Item F's total goes **17 → 13 lanes raw
 ---
 
 ## 4. The whole curve
+
+> ### ⛔ 2026-08-28 — **THIS TABLE'S ROWS ARE EACH DEFENSIBLE AND THE COLUMN IS NOT A TOTAL: 5 OF THE 5–6 CHARACTERIZATION LANES ARE COUNTED A SECOND TIME IN THE SAME TABLE.**
+> *Lane `w-floor`, decision 21 §3; board **#3752**, **#3754**.
+> [`REPRICE_2026-08-28.md`](REPRICE_2026-08-28.md) §4. **No digit here is
+> edited.*** §3's globregs cell (2) and COLOR cell (2) name themselves as
+> `CEILING` §6.1's **F1** and **F5** prices, both of which are inside the item-F
+> row's 13; §3's lowering-band lane (1) is this table's own next row. In the
+> `× 5` column that is **25 of the 25–30**. And the **item F row is
+> superseded** — `≥ 17 raw all-in / ≥ 16 remaining` + 3 UNPRICED terms, the
+> `65` withdrawn rather than re-derived (`REPRICE` §3).
 
 > **⛔ 2026-08-26 — the `I1` row of this table is RE-PRICED at §2.1, and the
 > re-price does not change a digit here.** Direction **UP**, magnitude **not
