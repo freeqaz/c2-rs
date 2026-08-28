@@ -7,6 +7,11 @@
 # Each block plants a defect, shows the check go RED, restores, shows GREEN.
 set -e
 cd "$(dirname "$0")/../.."
+# The reference objs are the sibling `dc3-decomp` tree's, by the same
+# convention `Toolchain::locate` uses for wibo. Env-driven, never an absolute
+# path in tracked source (`scripts/tracked_artifact_audit.sh` class 3) -- and a
+# worktree is NOT beside the sibling, so `C2RS_DC3_OBJS` is required there.
+export C2RS_DC3_OBJS="${C2RS_DC3_OBJS:-../dc3-decomp/build/373307D9}"
 H=work/w-encarms/armhist.py
 
 echo "=== C-0  baseline: the instrument's own self-test"
@@ -33,10 +38,17 @@ import importlib.util, json, os, sys
 spec = importlib.util.spec_from_file_location("armhist", "work/w-encarms/armhist.py")
 m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 rows = m.load_table("docs/whitebox/ref/ENCODE_OPCODES.txt")
-objs = "/home/free/code/milohax/dc3-decomp/build/373307D9"
+objs = os.environ.get("C2RS_DC3_OBJS", "../../../dc3-decomp/build/373307D9")
 srcs = [json.loads(l)["src"] for l in open("work/w-bss/census/sections.jsonl")]
 paths = [os.path.join(objs, s.rsplit(".", 1)[0] + ".obj") for s in srcs]
 paths = [p for p in paths if os.path.exists(p)][:40]   # 40 objs is enough to move it
+if len(paths) < 40:
+    # `#3470` / `#1002`: a clean report over zero files is not clean.
+    print(f"   C-B SKIPPED: only {len(paths)} reference objs under {objs!r}. "
+          f"Set C2RS_DC3_OBJS to the dc3-decomp build root; a control that runs "
+          f"over an empty population is decoration, so this REFUSES rather than "
+          f"printing 0 == 0.")
+    sys.exit(2)
 
 
 def count(tbl, arm):

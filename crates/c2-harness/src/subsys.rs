@@ -2547,7 +2547,13 @@ mod tests {
             }
             other => panic!("the encode row's ported is no longer measured: {other:?}"),
         };
-        assert_eq!((num, den), (27, 79), "the shipped ported cell moved");
+        // **27 -> 29 on 2026-08-28, lane `w-encarms`** (board #3758): arms
+        // `10bfa285` (form 7, `bl`) and `10bfa76a` (form 54, `mfspr`) were
+        // adopted into `mop`. The pin is deliberate and stays a pin — it is
+        // what makes this control a statement about a KNOWN cell rather than
+        // about whatever the cell happens to be, and it went red on exactly the
+        // commit that moved the number, which is the behaviour asked for.
+        assert_eq!((num, den), (29, 79), "the shipped ported cell moved");
         // The cheapest lie: one more arm than the port implements.
         table[i].ported = Cell::Measured { num: num + 1, den, unit, source, caveat };
         let v = verify(&root(), &ref_dir(), &table);

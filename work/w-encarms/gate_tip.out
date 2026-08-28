@@ -1,0 +1,35 @@
+lane gate: preflight on /tmp
+  keep    /tmp/c2rs-gate-1911128       this run
+  keep    /tmp/c2rs-gate-1656151       recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-1280075       recent — 2 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-765629        recent — 3 of 3 finished runs kept for their logs
+  reaped  /tmp/c2rs-gate-347062        stale — no live gate owns it
+reap:   1 stale run tree(s) removed, 4 kept (0 live, 3 recent, 1 this run)
+strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+        freed 172.0 MiB and 442 inodes (df delta over a SHARED filesystem)
+disk:   /tmp — free 12.4 GiB / 977,728 inodes (floors: 2.0 GiB / 150,000 inodes)
+
+lane gate: 18 lanes from /home/free/code/milohax/c2-rs/.claude/worktrees/w-encarms/scripts/lanes.txt
+  run dir: /tmp/c2rs-gate-1911128   (per-lane run dirs under /tmp/c2rs-gate-1911128/lanes/)
+  row history: /home/free/code/milohax/c2-rs/.claude/worktrees/w-encarms/work/gate_row_history.tsv   (board #3339)
+  graded tree: 0a98461e8fd6  (804 files under crates fixtures scripts, content-hashed)
+               2 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)
+
+hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refusals)
+  REFUSED  HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
+ladder-red:      work/w-ladders/ladder_red.py  (no toolchain; fires ladder.py's width-table refusal)
+  PASS  
+building the harness (no-op if current)
+    Blocking waiting for file lock on build directory
+   Compiling c2-il v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-encarms/crates/c2-il)
+   Compiling c2-core v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-encarms/crates/c2-core)
+   Compiling c2-reference v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-encarms/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (/home/free/code/milohax/c2-rs/.claude/worktrees/w-encarms/crates/c2-harness)
+    Finished `release` profile [optimized] target(s) in 15.85s
+harness: /tmp/c2rs-gate-1911128/c2rs
+  pinned from /home/free/code/milohax/c2-rs/.claude/worktrees/w-encarms/target/release/c2rs  built 2026-08-28 10:20:30
+  sha 1921ba218f11  tree bf773e1b7
+
+wall clock: 2s for 18 lanes at --jobs 16 (C2RS_JOBS=8)
+
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-1911128/sweep 0  (jobs 16)
