@@ -1,0 +1,165 @@
+=== SELFTEST ===
+  grid parse: two cells, decl [x,y] in both                  ok
+  grid parse: definition order differs, use order does not   ok
+  padding lengthens y's live interval (LIVELEN != DEF on the LR cell) ok
+  2 cells graded, 0 unscoreable                              ok
+  DEF survives both cells                                    ok
+  DECL REFUTED by exactly 1 cell                             ok
+  USE REFUTED by exactly 1 cell                              ok
+  REJECT a cell missing a load  (U, not a pass)              ok
+  REJECT two locals sharing a register                       ok
+  REJECT colours outside the image-decoded run               ok
+  REJECT loads off an untracked base (no `mr` from r3)       ok
+  promotion: prologue saves BEFORE the stwu are not frame traffic ok
+  promotion: a post-stwu r1 store is MEMORY                  ok
+  promotion: a store to a relocated static is MEMORY         ok
+  REJECT a body with no frame (readout does not apply)       ok
+  image: class-0 list decodes non-empty                      ok
+  image: callee-saved run is r31..r14 DESCENDING             ok
+  image: gate-B non-promotable set re-derives to P_GLOBREGS §3's ok
+
+  SELFTEST PASS
+
+=== ORDER (48 cells, 6 dumps, both profiles) ===
+ANSWER KEY, decoded from c2.dll (not typed in)
+  class-0 list @ 0x10c385c4 : 27 entries, head r11 r10 r9 r8 r7 r6
+  callee-saved run   : r31 r30 r29 r28 ... r14 (18 entries)
+  gate B @ 0x10b18b28       : 25 promotable, NOT promotable = 0x00 0x12 0x13 0x18 0x1d
+
+ORDER — which candidate is coloured first
+  .  oc2_xy_xy_xy           order_W.txt    x->r31 y->r30 | x<y          survives: DEF,DECL,USE,LASTUSE,LIVELEN,USECOUNT
+  .  oc2_xy_xy_yx           order_W.txt    x->r31 y->r30 | x<y          survives: DEF,DECL,LIVELEN,USECOUNT
+  .  oc2_xy_yx_xy           order_W.txt    x->r30 y->r31 | y<x          survives: DEF,LIVELEN,USECOUNT,REVDECL
+  .  oc2_xy_yx_yx           order_W.txt    x->r30 y->r31 | y<x          survives: DEF,USE,LASTUSE,LIVELEN,USECOUNT,REVDECL
+  .  oc2_yx_xy_xy           order_W.txt    x->r31 y->r30 | x<y          survives: DEF,USE,LASTUSE,LIVELEN,USECOUNT,REVDECL
+  .  oc2_yx_xy_yx           order_W.txt    x->r31 y->r30 | x<y          survives: DEF,LIVELEN,USECOUNT,REVDECL
+  .  oc2_yx_yx_xy           order_W.txt    x->r30 y->r31 | y<x          survives: DEF,DECL,LIVELEN,USECOUNT
+  .  oc2_yx_yx_yx           order_W.txt    x->r30 y->r31 | y<x          survives: DEF,DECL,USE,LASTUSE,LIVELEN,USECOUNT
+  .  oc3_xyz                order_W.txt    x->r31 y->r30 z->r29 | x<y<z survives: DEF,DECL,USE,LASTUSE,LIVELEN,USECOUNT
+  .  oc3_xzy                order_W.txt    x->r31 y->r29 z->r30 | x<z<y survives: DEF,USECOUNT
+  .  oc3_yxz                order_W.txt    x->r30 y->r31 z->r29 | y<x<z survives: DEF,USECOUNT
+  .  oc3_yzx                order_W.txt    x->r29 y->r31 z->r30 | y<z<x survives: DEF,LIVELEN,USECOUNT
+  .  oc3_zxy                order_W.txt    x->r30 y->r29 z->r31 | z<x<y survives: DEF,LIVELEN,USECOUNT
+  .  oc3_zyx                order_W.txt    x->r29 y->r30 z->r31 | z<y<x survives: DEF,LIVELEN,USECOUNT,REVDECL
+  .  oc2_xy_xy_xy           order_X.txt    x->r31 y->r30 | x<y          survives: DEF,DECL,USE,LASTUSE,LIVELEN,USECOUNT
+  .  oc2_xy_xy_yx           order_X.txt    x->r31 y->r30 | x<y          survives: DEF,DECL,LIVELEN,USECOUNT
+  .  oc2_xy_yx_xy           order_X.txt    x->r30 y->r31 | y<x          survives: DEF,LIVELEN,USECOUNT,REVDECL
+  .  oc2_xy_yx_yx           order_X.txt    x->r30 y->r31 | y<x          survives: DEF,USE,LASTUSE,LIVELEN,USECOUNT,REVDECL
+  .  oc2_yx_xy_xy           order_X.txt    x->r31 y->r30 | x<y          survives: DEF,USE,LASTUSE,LIVELEN,USECOUNT,REVDECL
+  .  oc2_yx_xy_yx           order_X.txt    x->r31 y->r30 | x<y          survives: DEF,LIVELEN,USECOUNT,REVDECL
+  .  oc2_yx_yx_xy           order_X.txt    x->r30 y->r31 | y<x          survives: DEF,DECL,LIVELEN,USECOUNT
+  .  oc2_yx_yx_yx           order_X.txt    x->r30 y->r31 | y<x          survives: DEF,DECL,USE,LASTUSE,LIVELEN,USECOUNT
+  .  oc3_xyz                order_X.txt    x->r31 y->r30 z->r29 | x<y<z survives: DEF,DECL,USE,LASTUSE,LIVELEN,USECOUNT
+  .  oc3_xzy                order_X.txt    x->r31 y->r29 z->r30 | x<z<y survives: DEF,USECOUNT
+  .  oc3_yxz                order_X.txt    x->r30 y->r31 z->r29 | y<x<z survives: DEF,USECOUNT
+  .  oc3_yzx                order_X.txt    x->r29 y->r31 z->r30 | y<z<x survives: DEF,LIVELEN,USECOUNT
+  .  oc3_zxy                order_X.txt    x->r30 y->r29 z->r31 | z<x<y survives: DEF,LIVELEN,USECOUNT
+  .  oc3_zyx                order_X.txt    x->r29 y->r30 z->r31 | z<y<x survives: DEF,LIVELEN,USECOUNT,REVDECL
+  .  ol_dxy_xlate           order_lr_W.txt x->r31 y->r30 | x<y          survives: DEF,DECL,LIVELEN,USECOUNT
+  .  ol_dxy_ylate           order_lr_W.txt x->r31 y->r30 | x<y          survives: DEF,DECL,USE,LASTUSE,USECOUNT
+  .  ol_dyx_xlate           order_lr_W.txt x->r30 y->r31 | y<x          survives: DEF,USE,LASTUSE,USECOUNT,REVDECL
+  .  ol_dyx_ylate           order_lr_W.txt x->r30 y->r31 | y<x          survives: DEF,LIVELEN,USECOUNT,REVDECL
+  .  ou_x2                  order_lr_W.txt x->r31 y->r30 | x<y          survives: DEF,DECL,USE,LASTUSE,LIVELEN,USECOUNT
+  .  ou_y2                  order_lr_W.txt x->r31 y->r30 | x<y          survives: DEF,DECL,USE,LASTUSE
+  .  ou_y3                  order_lr_W.txt x->r31 y->r30 | x<y          survives: DEF,DECL,USE,LASTUSE
+  .  ol_dxy_xlate           order_lr_X.txt x->r31 y->r30 | x<y          survives: DEF,DECL,LIVELEN,USECOUNT
+  .  ol_dxy_ylate           order_lr_X.txt x->r31 y->r30 | x<y          survives: DEF,DECL,USE,LASTUSE,USECOUNT
+  .  ol_dyx_xlate           order_lr_X.txt x->r30 y->r31 | y<x          survives: DEF,USE,LASTUSE,USECOUNT,REVDECL
+  .  ol_dyx_ylate           order_lr_X.txt x->r30 y->r31 | y<x          survives: DEF,LIVELEN,USECOUNT,REVDECL
+  .  ou_x2                  order_lr_X.txt x->r31 y->r30 | x<y          survives: DEF,DECL,USE,LASTUSE,LIVELEN,USECOUNT
+  .  ou_y2                  order_lr_X.txt x->r31 y->r30 | x<y          survives: DEF,DECL,USE,LASTUSE
+  .  ou_y3                  order_lr_X.txt x->r31 y->r30 | x<y          survives: DEF,DECL,USE,LASTUSE
+  .  ob_loop_y              order_loop_W.txt x->r28 y->r30 | y<x          survives: LIVELEN,REVDEF,REVDECL
+  .  ob_loop_x              order_loop_W.txt x->r30 y->r29 | x<y          survives: DEF,DECL,USE,LASTUSE,LIVELEN,USECOUNT
+  .  ob_loop2_y             order_loop_W.txt x->r31 y->r28 | x<y          survives: DEF,DECL,USE,LASTUSE,USECOUNT
+  .  ob_loop_y              order_loop_X.txt x->r28 y->r30 | y<x          survives: LIVELEN,REVDEF,REVDECL
+  .  ob_loop_x              order_loop_X.txt x->r30 y->r29 | x<y          survives: DEF,DECL,USE,LASTUSE,LIVELEN,USECOUNT
+  .  ob_loop2_y             order_loop_X.txt x->r31 y->r30 | x<y          survives: DEF,DECL,USE,LASTUSE,USECOUNT
+
+  RIVALS, refuted by cell count (denominator = 48 graded cells, 0 scored U)
+    DEF       REFUTED by 2 of 48     hits 46/48
+    USECOUNT  REFUTED by 6 of 48     hits 42/48
+    LIVELEN   REFUTED by 14 of 48    hits 34/48
+    DECL      REFUTED by 24 of 48    hits 24/48
+    USE       REFUTED by 24 of 48    hits 24/48
+    LASTUSE   REFUTED by 24 of 48    hits 24/48
+    REVDECL   REFUTED by 32 of 48    hits 16/48
+    REVDEF    REFUTED by 46 of 48    hits 2/48
+
+=== PROMOTION (46 cells) ===
+ANSWER KEY, decoded from c2.dll (not typed in)
+  class-0 list @ 0x10c385c4 : 27 entries, head r11 r10 r9 r8 r7 r6
+  callee-saved run   : r31 r30 r29 r28 ... r14 (18 entries)
+  gate B @ 0x10b18b28       : 25 promotable, NOT promotable = 0x00 0x12 0x13 0x18 0x1d
+
+PROMOTION — frame traffic
+  PROMOTED  pc_int             promote_W.txt  
+  PROMOTED  pc_uchar           promote_W.txt  
+  PROMOTED  pc_short           promote_W.txt  
+  PROMOTED  pc_ll              promote_W.txt  
+  PROMOTED  pc_ptr             promote_W.txt  
+  PROMOTED  pc_bool            promote_W.txt  
+  PROMOTED  pc_enum            promote_W.txt  
+  PROMOTED  pc_float           promote_W.txt  
+  PROMOTED  pc_double          promote_W.txt  
+  MEMORY    pc_struct2         promote_W.txt  std 11, 80(1) (frame slot)
+  PROMOTED  pc_struct1         promote_W.txt  
+  PROMOTED  pc_arr             promote_W.txt  
+  PROMOTED  pc_union           promote_W.txt  
+  MEMORY    pc_addr            promote_W.txt  stw 11, 80(1) (frame slot)
+  MEMORY    pc_vol             promote_W.txt  stw 11, 80(1) (frame slot)
+  MEMORY    pc_static          promote_W.txt  stw 11, 0(31) (relocated static)
+  PROMOTED  pc_int             promote_X.txt  
+  PROMOTED  pc_uchar           promote_X.txt  
+  PROMOTED  pc_short           promote_X.txt  
+  PROMOTED  pc_ll              promote_X.txt  
+  PROMOTED  pc_ptr             promote_X.txt  
+  PROMOTED  pc_bool            promote_X.txt  
+  PROMOTED  pc_enum            promote_X.txt  
+  PROMOTED  pc_float           promote_X.txt  
+  PROMOTED  pc_double          promote_X.txt  
+  MEMORY    pc_struct2         promote_X.txt  std 11, 80(1) (frame slot)
+  PROMOTED  pc_struct1         promote_X.txt  
+  PROMOTED  pc_arr             promote_X.txt  
+  PROMOTED  pc_union           promote_X.txt  
+  MEMORY    pc_addr            promote_X.txt  stw 11, 80(1) (frame slot)
+  MEMORY    pc_vol             promote_X.txt  stw 11, 80(1) (frame slot)
+  MEMORY    pc_static          promote_X.txt  stw 11, 0(31) (relocated static)
+  MEMORY    pa_struct2cpy      promote2_W.txt std 11, 80(1) (frame slot)
+  PROMOTED  pa_struct2mem      promote2_W.txt 
+  PROMOTED  pa_struct4mem      promote2_W.txt 
+  PROMOTED  pa_arr4            promote2_W.txt 
+  PROMOTED  pa_arr4u           promote2_W.txt 
+  PROMOTED  pa_arr8            promote2_W.txt 
+  PROMOTED  pa_arr12           promote2_W.txt 
+  MEMORY    pa_struct2cpy      promote2_X.txt std 11, 80(1) (frame slot)
+  PROMOTED  pa_struct2mem      promote2_X.txt 
+  PROMOTED  pa_struct4mem      promote2_X.txt 
+  PROMOTED  pa_arr4            promote2_X.txt 
+  PROMOTED  pa_arr4u           promote2_X.txt 
+  PROMOTED  pa_arr8            promote2_X.txt 
+  PROMOTED  pa_arr12           promote2_X.txt 
+
+=== SHAPE: versions and merges ===
+ANSWER KEY, decoded from c2.dll (not typed in)
+  class-0 list @ 0x10c385c4 : 27 entries, head r11 r10 r9 r8 r7 r6
+  callee-saved run   : r31 r30 r29 r28 ... r14 (18 entries)
+  gate B @ 0x10b18b28       : 25 promotable, NOT promotable = 0x00 0x12 0x13 0x18 0x1d
+
+SHAPE — register map per cell
+  vc_reuse             version_W.txt  p[0]->r29 p[1]->r29
+  vc_distinct          version_W.txt  p[0]->r29 p[1]->r29
+  vc_single            version_W.txt  p[0]->r29
+  vc_three             version_W.txt  p[0]->r31 p[1]->r28 p[2]->r28
+  vc_three_distinct    version_W.txt  p[0]->r31 p[1]->r28 p[2]->r28
+  vc_reuse             version_X.txt  p[0]->r29 p[1]->r29
+  vc_distinct          version_X.txt  p[0]->r29 p[1]->r29
+  vc_single            version_X.txt  p[0]->r29
+  vc_three             version_X.txt  p[0]->r31 p[1]->r28 p[2]->r28
+  vc_three_distinct    version_X.txt  p[0]->r31 p[1]->r28 p[2]->r28
+  vm_merge             merge_W.txt    p[0]->r31 p[1]->r31
+  vm_nomerge           merge_W.txt    p[0]->r31 p[1]->r31
+  vm_merge3            merge_W.txt    p[0]->r31 p[1]->r31 p[2]->r31
+  vm_merge             merge_X.txt    p[0]->r31 p[1]->r31
+  vm_nomerge           merge_X.txt    p[0]->r31 p[1]->r31
+  vm_merge3            merge_X.txt    p[0]->r31 p[1]->r31 p[2]->r31

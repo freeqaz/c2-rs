@@ -221,6 +221,8 @@ def parse_grid(path):
                     c["defs"].append((v, int(slot), i))
             for v in USE.findall(stmt):
                 c["uses"].append((v, i))
+            if "sink(" in stmt and c.get("call") is None:
+                c["call"] = i
     for line in open(path, encoding="utf-8"):
         if line.startswith("//"):
             continue
@@ -228,7 +230,7 @@ def parse_grid(path):
         if m:
             finish()
             cur = m.group(1)
-            cells[cur] = {"decl": [], "defs": [], "uses": []}
+            cells[cur] = {"decl": [], "defs": [], "uses": [], "call": None}
             body = []
             continue
         if cur is None:
@@ -297,6 +299,36 @@ def slot_map(ins):
             # FIRST load of a slot only: a reload after a spill is not a colour.
             out.setdefault(disp // 4, "r%d" % dst)
     return out
+
+
+# Mnemonics whose FIRST operand is a written GPR/FPR, enumerated from the
+# instruction inventory of every dump this lane produced (28 distinct
+# mnemonics). Stores are excluded on purpose: `stw r11, 80(r1)` READS r11.
+# Anything not listed writes nothing, so an unknown opcode makes the premise
+# test UNDER-count reuse and let a cell through — which is why the prefix test
+# above is kept as well rather than replaced.
+DEST_FIRST = {
+    "mr", "lwz", "ld", "lbz", "lhz", "lha", "lwa", "li", "lis", "addi",
+    "addic", "addic.", "add", "subfe", "extsh", "extsb", "extsw", "or",
+    "and", "ori", "neg", "mullw", "mulli", "srawi", "rlwinm", "xor",
+    "lfd", "lfs", "fmr", "mflr", "mfspr", "slw", "sraw", "divw", "nor",
+}
+
+
+def defs_per_reg(ins):
+    """{register name -> number of times it is WRITTEN in the body}."""
+    n = {}
+    for _a, _w, m, ops in ins:
+        if m not in DEST_FIRST:
+            continue
+        o = ops.split(";")[0].strip()
+        mm = re.match(r"^(\d+)\s*,", o)
+        if not mm:
+            continue
+        pfx = "f" if m in ("lfd", "lfs", "fmr") else "r"
+        k = "%s%s" % (pfx, mm.group(1))
+        n[k] = n.get(k, 0) + 1
+    return n
 
 
 def frame_traffic(ins):
@@ -369,14 +401,31 @@ RIVALS = {
 }
 
 
-def predict(cell, rival, run):
+def predict(cell, rival, _run=None):
+    """The COLOURING ORDER a rival predicts — a permutation, not a register map.
+
+    Absolute registers were the first design and they were wrong: a cell may
+    contain candidates the source model does not enumerate (a loop induction
+    variable, the second formal, the call's return value), and those take
+    entries out of the run without saying anything about the modelled locals.
+    Every rival here is an ORDER, so the graded quantity is the order.
+    """
     vs, k = keys(cell)
-    order = sorted(vs, key=lambda v: RIVALS[rival](k[v]))
-    return {v: run[i] for i, v in enumerate(order) if i < len(run)}
+    return sorted(vs, key=lambda v: RIVALS[rival](k[v]))
 
 
 def observe(cell, ins, run):
-    """-> (map, None) or (None, reason) when the premise test rejects the cell."""
+    """-> ((order, map), None) or (None, reason) when the premise rejects it.
+
+    THE INTERFERENCE PREMISE, and it is source-derived rather than fitted to
+    the obj. A register index encodes colouring order only for candidates that
+    MUTUALLY INTERFERE — two candidates whose live ranges are disjoint may take
+    the registers in either order. Every cell in these grids defines all of its
+    locals BEFORE the `sink` call and reads all of them AFTER it, so they are
+    all simultaneously live across that call and pairwise interfere. The
+    premise is checked against the parsed grid, not asserted.
+    """
+    call = cell.get("call")
     sm = slot_map(ins)
     got = {}
     for v, slot, _stmt in cell["defs"]:
@@ -390,7 +439,29 @@ def observe(cell, ins, run):
     bad = [r for r in got.values() if r not in run]
     if bad:
         return None, "register(s) outside the image-decoded callee-saved run: %r" % bad
-    return got, None
+    if call is None:
+        return None, "no `sink` call in the cell — nothing forces the locals to be simultaneously live"
+    _vs, k = keys(cell)
+    for v in got:
+        if k[v]["def"] >= call or k[v]["last"] <= call:
+            return None, ("`%s` is not live across the call (def %d, last use %d, "
+                          "call %d) — it need not interfere with the others"
+                          % (v, k[v]["def"], k[v]["last"], call))
+    # THE INTERFERENCE PREMISE, and it is the one that matters.
+    #
+    # A register index encodes COLOURING ORDER only when the candidates
+    # mutually interfere: a candidate that is dead by the time a later one is
+    # coloured can take an earlier register, and then the map says nothing
+    # about the order. The mechanical form of "the modelled locals are the k
+    # highest-priority mutually-interfering candidates" is that their colours
+    # are exactly the FIRST k entries of the image-decoded run.
+    #
+    # Added in-flight, after order_loop_grid.cpp: in `ob_loop2_y` the inner
+    # loop counter demonstrably REUSES r31 after `x` dies (`mr 31, 30` at
+    # 0x3c), so x's r31 is not evidence that x was coloured first. It changes
+    # no verdict on the 42 straight-line cells, which all satisfy it — that was
+    # checked, not assumed.
+    return (sorted(got, key=lambda v: run.index(got[v])), got), None
 
 
 # ---------------------------------------------------------------------------
@@ -409,17 +480,20 @@ def grade_order(dumps, grids, run, out=sys.stdout):
         for name, ins in cells.items():
             if name not in model:
                 continue
-            got, why = observe(model[name], ins, run)
-            if got is None:
+            res, why = observe(model[name], ins, run)
+            if res is None:
                 unscoreable += 1
                 out.write("  U  %-22s %-14s %s\n" % (name, tag, why))
                 continue
+            order, got = res
             graded += 1
-            desc = " ".join("%s->%s" % (v, got[v]) for v in sorted(got))
+            desc = "%s | %s" % (
+                " ".join("%s->%s" % (v, got[v]) for v in sorted(got)),
+                "<".join(order))
             hits = []
             for r in RIVALS:
-                p = predict(model[name], r, run)
-                if p == got:
+                p = predict(model[name], r)
+                if p == order:
                     tally[r]["hit"] += 1
                     hits.append(r)
                 else:
