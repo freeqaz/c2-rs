@@ -8,7 +8,7 @@ different subject so that the two can be compared:
     R3 asked "is the label allocator's call-site population closed?" and got YES,
     because the allocator's VA occurs zero times as data anywhere in the image.
 
-    R8 asks the same question of the five tuple-list splice primitives and gets
+    R8 asks the same question of the tuple-list splice primitives and gets
     NO -- two of them have their VA taken and passed around as a function
     pointer.  That is a *finding*, not a failure of the script: the direction of
     a splice (before vs after) is a RUNTIME PARAMETER in c2, chosen by the
@@ -42,8 +42,30 @@ PRIMITIVES = [
      "at->next=chain; chain->prev=at; walk chain to its end; reattach old tail"),
     ("10bd3852", 31, "UNLINK (t)",
      "t->prev->next=t->next; t->next->prev=t->prev; t->next=t->prev=0"),
+    # --- three rows ADDED by lane w-s7, 2026-08-28.  The band is contiguous
+    # 0x10bd3815..0x10bd3901 and R8's five had a 33-byte hole at 0x10bd3871 and
+    # skipped the two unlink+insert compounds; WB_S7_FINDINGS.md 3.1.  Adding
+    # them does not touch R8's finding -- the closure result is unchanged,
+    # because all three of these are called and never address-taken.
+    ("10bd3871", 33, "UNLINK RANGE (a, b)   [w-s7]",
+     "a->prev->next=b->next; b->next->prev=a->prev; a->prev=0; b->next=0"),
+    ("10bd3892", 30, "MOVE AFTER  (at, t)   [w-s7]",
+     "call UNLINK(t), then insert t after at -- 0x10bd3852 + 0x10bd3815"),
+    ("10bd38b0", 32, "MOVE BEFORE (at, t)   [w-s7]",
+     "call UNLINK(t), then insert t before at -- 0x10bd3852 + 0x10bd3824"),
     ("10bd38d0", 50, "MOVE RANGE (a, b, c)",
      "unlink around b, then relink the range in front of a"),
+]
+
+# NOT primitives, and the reason this list is not the author population.
+# Both rewire tuple+0 / tuple+0x10 INLINE and call nothing in the band, so no
+# call-graph reach test over PRIMITIVES can see them.  Read by lane w-s7.
+INLINE_SPLICERS = [
+    ("10bd5516", 67, "DELETE: inline unlink, then tail-jump to the freelist",
+     "0x10bd5545: mov eax,[ecx+0x10] / mov edx,[ecx] / mov [eax],edx / "
+     "mov eax,[ecx] / mov edx,[ecx+0x10] / mov [eax+0x10],edx"),
+    ("10bd5577", 131, "inline INSERT BEFORE of a fresh 0x317 tuple",
+     "new->prev=at->prev; at->prev=new; new->next=at; new->prev->next=new"),
 ]
 
 # The tuple record fields these primitives establish.  Cross-checked against
@@ -206,7 +228,7 @@ def main(argv):
         for off, name, note in FIELDS:
             print("    %-6s %-8s %s" % (off, name, note))
         print()
-        print("THE FIVE SPLICE PRIMITIVES -- direct call sites, and whether the")
+        print("THE EIGHT SPLICE PRIMITIVES -- direct call sites, and whether the")
         print("address is ALSO taken as data (the R3 closure test)")
         print()
 
@@ -254,9 +276,33 @@ def main(argv):
             print()
 
     out["total_direct_call_sites"] = total_sites
+    if not as_json:
+        print()
+        print("THE INLINE SPLICERS -- NOT in the band, invisible to any reach")
+        print("test over it, and the refutation of the 'group C cannot reorder'")
+        print("premise (WB_S7_FINDINGS.md 3.2)")
+        print()
+    # The inline splicers, reported beside the band so a reader cannot take
+    # PRIMITIVES for the author population.  Lane w-s7.
+    out["inline_splicers"] = []
+    for va_hex, size, what, body in INLINE_SPLICERS:
+        va = int(va_hex, 16)
+        calls = direct_calls_to(img, va)
+        taken = [h for h in address_taken(img, va) if h[3] != "unclassified"]
+        out["inline_splicers"].append(
+            {"va": va_hex, "size": size, "what": what, "body": body,
+             "direct_call_sites": len(calls),
+             "address_taken_classified": len(taken)})
+        if not as_json:
+            print("  FUN_%s  %3d B  %s" % (va_hex, size, what))
+            print("      %s" % body)
+            print("      direct call sites (E8 rel32) : %d" % len(calls))
+            print("      calls into the band          : NONE -- it splices inline")
+            print()
+
 
     if not as_json:
-        print("TOTAL direct call sites across the five primitives: %d" % total_sites)
+        print("TOTAL direct call sites across the eight primitives: %d" % total_sites)
         print()
         print("HOW TO READ THE CLOSURE RESULT")
         print("  R3 (dump_label_sites.py --closure) established that the label")

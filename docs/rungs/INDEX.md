@@ -338,4 +338,5 @@ the header block this table is read from.
 | 2026-08-27 | w-wire-1406 | [w-wire-1406](2026-08-27-w-wire-1406.md) | 12 | +0 (unchanged; `provenance_census.py` TOTAL identical at both ends) |
 | 2026-08-28 | w-floor | [w-floor](2026-08-28-w-floor.md) | 11 | +0 — zero `crates/` bytes, zero `scripts/` bytes, zero gate rows |
 | 2026-08-28 | w-lowerband | [w-lowerband](2026-08-28-w-lowerband.md) | 10 | 707728/2417794 → 707728/2417794 (29.27% → 29.27%), +0 |
+| 2026-08-28 | w-s7 | [w-s7](2026-08-28-w-s7.md) | 9 | unchanged → unchanged, +0 |
 | 2026-08-28 | w-sched-r7 | [w-sched-r7](2026-08-28-w-sched-r7.md) | 9 | +0 — no `crates/` or `fixtures/` file is touched |
