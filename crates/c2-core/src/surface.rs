@@ -170,6 +170,63 @@ pub const SURFACES: &[Surface] = &[
         min_cells: 75,
         min_refusals: 15,
     },
+    Surface {
+        name: "splice.budget",
+        site: "splice.rs",
+        boundary: "c2's inline growth budget across a recursive expansion — the \
+                   seed clamp, the per-site division, the level, the charge, \
+                   and the site count at which the port must REFUSE because \
+                   `B` is unreadable",
+        cite: "docs/whitebox/ref/P_INLINE.md §6.6.2; c2 `0x10b623ec` (the idiv), \
+               `0x10b602ce` (the level increment); DISCLOSURE W-INLBUDGET-1; \
+               board #3762, #1020, #3719",
+        guards: &[
+            "INLINE_BUDGET_FLOOR",
+            "INLINE_BUDGET_CEILING",
+            "INLINE_LEVEL_DEPTH_CAP",
+            "INLINE_CHARGE_EXEMPT_MAX",
+        ],
+        rows: crate::splice::surface_rows,
+        min_cells: 500,
+        min_refusals: 300,
+    },
+    Surface {
+        name: "mangle.string_comdat",
+        site: "coff/mangle.rs",
+        boundary: "how many of a string literal's own bytes reach the `??_C@…` \
+                   COMDAT name's escaped-text field, and which literals have no \
+                   measured name at all",
+        cite: "docs/SYMBOL.md §5 and its CORRECTION; board #3746 (this row is \
+               one of the four it names as a real boundary with no domain)",
+        guards: &["LITERAL_TEXT_BYTE_LIMIT"],
+        rows: crate::coff::mangle::surface_rows,
+        min_cells: 90,
+        min_refusals: 10,
+    },
+    Surface {
+        name: "order.store_run",
+        site: "codegen/order.rs",
+        boundary: "which store runs the producer-order and layout rules admit — \
+                   by producer count, by symbol count, and by how many symbol \
+                   groups a value crosses before its first use",
+        cite: "docs/ORDER.md; docs/SYMBOL.md §2.3; board #561, #582, #3746",
+        guards: &["HEAD_SLOTS_MAX", "MAX_MULTISYM_PRODUCERS", "MAX_SYMBOL_CROSSINGS"],
+        rows: crate::codegen::order::surface_rows,
+        min_cells: 100,
+        min_refusals: 20,
+    },
+    Surface {
+        name: "nonce.ds_form",
+        site: "codegen/nonce_add_run.rs",
+        boundary: "which 64-bit member-run displacements the `ld`/`std` DS form \
+                   admits — past the field, misaligned, or at a mode whose \
+                   register plan was never measured",
+        cite: "docs/CODEGEN_W5_SCRATCH.md; board #263, #1638, #3746",
+        guards: &["DS_MAX"],
+        rows: crate::codegen::nonce_add_run::surface_rows,
+        min_cells: 350,
+        min_refusals: 150,
+    },
 ];
 
 /// Boundary-named `const`s this crate carries that **no registered surface
@@ -182,17 +239,28 @@ pub const SURFACES: &[Surface] = &[
 /// run drifted 16 to 18 inside one wave because printing is not gating).
 ///
 /// PROV[N] an instrument's own coverage table; reaches no emitted byte.
+/// **FIVE of `#3746`'s thirteen rows are CLOSED here** (lane `w-inlbudget`,
+/// wave 18, board `#3763`): all four it named as real refusal boundaries —
+/// `DS_MAX`, `LITERAL_TEXT_BYTE_LIMIT`, `MAX_MULTISYM_PRODUCERS`,
+/// `MAX_SYMBOL_CROSSINGS` — plus `HEAD_SLOTS_MAX`, which it had written off as
+/// *"a shape-recogniser cap, not an emit boundary"*. They are now `guards` of
+/// `nonce.ds_form`, `mangle.string_comdat` and `order.store_run`.
+///
+/// **Every one was tested the way `#3746` says a coverage claim has to be** —
+/// widen the const by one step, require the rendered domain to move, restore —
+/// because two of the seven original `guards` entries were false and moved zero
+/// lines. `work/w-inlbudget/controls_red.txt` records the runs, and the same
+/// control **refuted this lane's own first draft of the `HEAD_SLOTS_MAX` row**,
+/// which had argued from `layout_slots`' `i.min(u)` that it could not matter:
+/// it moves **47** lines, through `leading_unproduced` and through
+/// `store_order`'s `for u in (0..=head_slots).rev()` search. The rule catches a
+/// wrong *non*-coverage claim exactly as readily as a wrong coverage one.
 pub const UNCOVERED: &[(&str, &str)] = &[
-    ("DS_MAX", "the `ds`-form displacement field; a real boundary, no enumerated domain yet"),
-    ("HEAD_SLOTS_MAX", "a shape-recogniser cap, not an emit boundary"),
-    ("K_ASCII_MAX", "an XTEA-fixture constant; a value, not a decision"),
-    ("K_TWO_MAX", "an XTEA-fixture constant; a value, not a decision"),
-    ("LITERAL_TEXT_BYTE_LIMIT", "a real refusal boundary in the string-literal path; not enumerated yet"),
-    ("MAX_C2_OPCODE", "the opcode table's length; a denominator, not a decision"),
-    ("MAX_FIELDS", "a COFF parse cap; not an emit boundary"),
-    ("MAX_MULTISYM_PRODUCERS", "a real refusal boundary in the multi-symbol run path; not enumerated yet"),
-    ("MAX_OBJECTS_PER_SECTION", "a COFF layout cap; not enumerated yet"),
-    ("MAX_SYMBOL_CROSSINGS", "a real refusal boundary in the symbol-binding path; not enumerated yet"),
+    ("K_ASCII_MAX", "a UTF-8 encoding-length bracket in one fixture class; a real decision, but its consumer takes the whole run or nothing, so a domain over it needs the class's parser and not the const"),
+    ("K_TWO_MAX", "as `K_ASCII_MAX` — the second bracket of the same three-way split"),
+    ("MAX_C2_OPCODE", "the opcode table's length; a denominator, not a decision. Its module is `codegen/mop.rs`, which lane `w-encarms` owns this wave"),
+    ("MAX_FIELDS", "a COFF parse cap; not an emit boundary. Same module, same owner"),
+    ("MAX_OBJECTS_PER_SECTION", "a COFF layout cap; not enumerated yet, and `mangle.rs`'s own doc names it as the `[F]` contrast to `LITERAL_TEXT_BYTE_LIMIT`'s `[O]`"),
     ("POOL_TOP", "MEASURED, not assumed: a DERIVED alias of `GPR_DEFAULT.regs[0]` with no production use outside tests. Re-spelling it as a literal `9` moves ZERO domain lines, so naming it a guard was a false coverage claim. What it aliases — the order's head — is covered by `regalloc.select`"),
     ("R_BOUND", "FALSE POSITIVE of the name screen — a REGISTER NUMBER whose name ends in `_BOUND`"),
     ("TOP", "FALSE POSITIVE of the name screen — a loop-top byte OFFSET named `TOP`"),
@@ -202,8 +270,12 @@ pub const UNCOVERED: &[(&str, &str)] = &[
 /// fine; what is now impossible is raising it **silently**, which is the only
 /// thing that ever actually happens (`#3689`).
 ///
+/// **13 → 8**, lane `w-inlbudget`: five of `#3746`'s rows closed, all four of
+/// the boundaries it named plus one it had dismissed. A ratchet that only ever
+/// rises is a ratchet nobody believes.
+///
 /// PROV[N] an instrument ceiling; reaches no emitted byte.
-pub const UNCOVERED_RATCHET: usize = 13;
+pub const UNCOVERED_RATCHET: usize = 8;
 
 /// Render the whole registry to the canonical text that `surface/DOMAIN.txt`
 /// holds.

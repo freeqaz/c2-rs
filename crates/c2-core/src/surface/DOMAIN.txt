@@ -1100,3 +1100,1309 @@ reach.branch  form=bc-dnz disp=+0033554432  REFUSE unmeasured-no-sense-to-invert
 reach.branch  form=bc-dnz disp=-0033554432  REFUSE unmeasured-backward
 reach.branch  form=bc-dnz disp=-0033554436  REFUSE unmeasured-backward
 ## summary  reach.branch  cells=75 admit=39 refuse=36 values={direct,expanded}
+
+## surface  splice.budget
+##   site      splice.rs
+##   boundary  c2's inline growth budget across a recursive expansion — the seed clamp, the per-site division, the level, the charge, and the site count at which the port must REFUSE because `B` is unreadable
+##   cite      docs/whitebox/ref/P_INLINE.md §6.6.2; c2 `0x10b623ec` (the idiv), `0x10b602ce` (the level increment); DISCLOSURE W-INLBUDGET-1; board #3762, #1020, #3719
+##   guards    INLINE_BUDGET_FLOOR INLINE_BUDGET_CEILING INLINE_LEVEL_DEPTH_CAP INLINE_CHARGE_EXEMPT_MAX
+splice.budget  model=c2-read seed caller_instrs=000000  B=1000
+splice.budget  model=c2-read seed caller_instrs=000001  B=1000
+splice.budget  model=c2-read seed caller_instrs=000400  B=1000
+splice.budget  model=c2-read seed caller_instrs=000499  B=1000
+splice.budget  model=c2-read seed caller_instrs=000500  B=1000
+splice.budget  model=c2-read seed caller_instrs=000501  B=1002
+splice.budget  model=c2-read seed caller_instrs=017499  B=34998
+splice.budget  model=c2-read seed caller_instrs=017500  B=35000
+splice.budget  model=c2-read seed caller_instrs=020000  B=35000
+splice.budget  model=c2-read charge instrs=000000 forceinline=0  local=0,global=0
+splice.budget  model=c2-read charge instrs=000000 forceinline=1  local=0,global=0
+splice.budget  model=c2-read charge instrs=000001 forceinline=0  local=0,global=1
+splice.budget  model=c2-read charge instrs=000001 forceinline=1  local=0,global=0
+splice.budget  model=c2-read charge instrs=000039 forceinline=0  local=0,global=39
+splice.budget  model=c2-read charge instrs=000039 forceinline=1  local=0,global=0
+splice.budget  model=c2-read charge instrs=000040 forceinline=0  local=0,global=40
+splice.budget  model=c2-read charge instrs=000040 forceinline=1  local=0,global=0
+splice.budget  model=c2-read charge instrs=000041 forceinline=0  local=41,global=41
+splice.budget  model=c2-read charge instrs=000041 forceinline=1  local=0,global=0
+splice.budget  model=c2-read charge instrs=001000 forceinline=0  local=1000,global=1000
+splice.budget  model=c2-read charge instrs=001000 forceinline=1  local=0,global=0
+splice.budget  model=c2-read n=1 i=0 level=01 base=0  level=2,budget=parent
+splice.budget  model=c2-read n=1 i=0 level=02 base=0  level=3,budget=parent
+splice.budget  model=c2-read n=1 i=0 level=16 base=0  level=17,budget=parent
+splice.budget  model=c2-read n=1 i=0 level=17 base=0  level=18,budget=parent
+splice.budget  model=c2-read n=1 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=c2-read n=1 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=c2-read n=1 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=c2-read n=2 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=2 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=2 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=2 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=2 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=2 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=2 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=2 i=1 level=01 base=0  level=2,budget=parent
+splice.budget  model=c2-read n=2 i=1 level=02 base=0  level=3,budget=parent
+splice.budget  model=c2-read n=2 i=1 level=16 base=0  level=17,budget=parent
+splice.budget  model=c2-read n=2 i=1 level=17 base=0  level=18,budget=parent
+splice.budget  model=c2-read n=2 i=1 level=02 base=1  level=3,budget=parent
+splice.budget  model=c2-read n=2 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=c2-read n=2 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=c2-read n=3 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=2 level=01 base=0  level=2,budget=parent
+splice.budget  model=c2-read n=3 i=2 level=02 base=0  level=3,budget=parent
+splice.budget  model=c2-read n=3 i=2 level=16 base=0  level=17,budget=parent
+splice.budget  model=c2-read n=3 i=2 level=17 base=0  level=18,budget=parent
+splice.budget  model=c2-read n=3 i=2 level=02 base=1  level=3,budget=parent
+splice.budget  model=c2-read n=3 i=2 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=c2-read n=3 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=c2-read n=4 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=2 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=2 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=2 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=2 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=2 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=2 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=3 level=01 base=0  level=2,budget=parent
+splice.budget  model=c2-read n=4 i=3 level=02 base=0  level=3,budget=parent
+splice.budget  model=c2-read n=4 i=3 level=16 base=0  level=17,budget=parent
+splice.budget  model=c2-read n=4 i=3 level=17 base=0  level=18,budget=parent
+splice.budget  model=c2-read n=4 i=3 level=02 base=1  level=3,budget=parent
+splice.budget  model=c2-read n=4 i=3 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=c2-read n=4 i=3 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=c2-read n=5 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=2 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=2 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=2 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=2 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=2 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=2 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=3 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=3 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=3 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=3 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=3 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=3 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=3 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=4 level=01 base=0  level=2,budget=parent
+splice.budget  model=c2-read n=5 i=4 level=02 base=0  level=3,budget=parent
+splice.budget  model=c2-read n=5 i=4 level=16 base=0  level=17,budget=parent
+splice.budget  model=c2-read n=5 i=4 level=17 base=0  level=18,budget=parent
+splice.budget  model=c2-read n=5 i=4 level=02 base=1  level=3,budget=parent
+splice.budget  model=c2-read n=5 i=4 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=c2-read n=5 i=4 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=c2-read n=6 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=2 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=2 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=2 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=2 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=2 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=2 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=3 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=3 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=3 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=3 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=3 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=3 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=3 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=4 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=4 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=4 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=4 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=4 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=4 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=4 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=5 level=01 base=0  level=2,budget=parent
+splice.budget  model=c2-read n=6 i=5 level=02 base=0  level=3,budget=parent
+splice.budget  model=c2-read n=6 i=5 level=16 base=0  level=17,budget=parent
+splice.budget  model=c2-read n=6 i=5 level=17 base=0  level=18,budget=parent
+splice.budget  model=c2-read n=6 i=5 level=02 base=1  level=3,budget=parent
+splice.budget  model=c2-read n=6 i=5 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=c2-read n=6 i=5 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided seed caller_instrs=000000  B=1000
+splice.budget  model=undivided seed caller_instrs=000001  B=1000
+splice.budget  model=undivided seed caller_instrs=000400  B=1000
+splice.budget  model=undivided seed caller_instrs=000499  B=1000
+splice.budget  model=undivided seed caller_instrs=000500  B=1000
+splice.budget  model=undivided seed caller_instrs=000501  B=1002
+splice.budget  model=undivided seed caller_instrs=017499  B=34998
+splice.budget  model=undivided seed caller_instrs=017500  B=35000
+splice.budget  model=undivided seed caller_instrs=020000  B=35000
+splice.budget  model=undivided charge instrs=000000 forceinline=0  local=0,global=0
+splice.budget  model=undivided charge instrs=000000 forceinline=1  local=0,global=0
+splice.budget  model=undivided charge instrs=000001 forceinline=0  local=0,global=1
+splice.budget  model=undivided charge instrs=000001 forceinline=1  local=0,global=0
+splice.budget  model=undivided charge instrs=000039 forceinline=0  local=0,global=39
+splice.budget  model=undivided charge instrs=000039 forceinline=1  local=0,global=0
+splice.budget  model=undivided charge instrs=000040 forceinline=0  local=0,global=40
+splice.budget  model=undivided charge instrs=000040 forceinline=1  local=0,global=0
+splice.budget  model=undivided charge instrs=000041 forceinline=0  local=41,global=41
+splice.budget  model=undivided charge instrs=000041 forceinline=1  local=0,global=0
+splice.budget  model=undivided charge instrs=001000 forceinline=0  local=1000,global=1000
+splice.budget  model=undivided charge instrs=001000 forceinline=1  local=0,global=0
+splice.budget  model=undivided n=1 i=0 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=1 i=0 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=1 i=0 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=1 i=0 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=1 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=1 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=1 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=2 i=0 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=2 i=0 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=2 i=0 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=2 i=0 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=2 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=2 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=2 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=2 i=1 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=2 i=1 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=2 i=1 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=2 i=1 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=2 i=1 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=2 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=2 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=3 i=0 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=3 i=0 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=3 i=0 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=3 i=0 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=3 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=3 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=3 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=3 i=1 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=3 i=1 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=3 i=1 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=3 i=1 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=3 i=1 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=3 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=3 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=3 i=2 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=3 i=2 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=3 i=2 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=3 i=2 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=3 i=2 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=3 i=2 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=3 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=4 i=0 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=4 i=0 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=4 i=0 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=4 i=0 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=4 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=4 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=4 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=4 i=1 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=4 i=1 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=4 i=1 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=4 i=1 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=4 i=1 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=4 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=4 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=4 i=2 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=4 i=2 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=4 i=2 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=4 i=2 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=4 i=2 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=4 i=2 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=4 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=4 i=3 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=4 i=3 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=4 i=3 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=4 i=3 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=4 i=3 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=4 i=3 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=4 i=3 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=5 i=0 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=5 i=0 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=5 i=0 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=5 i=0 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=5 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=5 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=5 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=5 i=1 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=5 i=1 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=5 i=1 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=5 i=1 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=5 i=1 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=5 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=5 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=5 i=2 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=5 i=2 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=5 i=2 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=5 i=2 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=5 i=2 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=5 i=2 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=5 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=5 i=3 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=5 i=3 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=5 i=3 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=5 i=3 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=5 i=3 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=5 i=3 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=5 i=3 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=5 i=4 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=5 i=4 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=5 i=4 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=5 i=4 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=5 i=4 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=5 i=4 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=5 i=4 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=6 i=0 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=6 i=0 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=6 i=0 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=6 i=0 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=6 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=6 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=6 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=6 i=1 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=6 i=1 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=6 i=1 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=6 i=1 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=6 i=1 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=6 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=6 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=6 i=2 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=6 i=2 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=6 i=2 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=6 i=2 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=6 i=2 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=6 i=2 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=6 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=6 i=3 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=6 i=3 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=6 i=3 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=6 i=3 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=6 i=3 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=6 i=3 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=6 i=3 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=6 i=4 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=6 i=4 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=6 i=4 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=6 i=4 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=6 i=4 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=6 i=4 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=6 i=4 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=6 i=5 level=01 base=0  level=2,budget=parent
+splice.budget  model=undivided n=6 i=5 level=02 base=0  level=3,budget=parent
+splice.budget  model=undivided n=6 i=5 level=16 base=0  level=17,budget=parent
+splice.budget  model=undivided n=6 i=5 level=17 base=0  level=18,budget=parent
+splice.budget  model=undivided n=6 i=5 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=6 i=5 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=undivided n=6 i=5 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=charge-forceinline seed caller_instrs=000000  B=1000
+splice.budget  model=charge-forceinline seed caller_instrs=000001  B=1000
+splice.budget  model=charge-forceinline seed caller_instrs=000400  B=1000
+splice.budget  model=charge-forceinline seed caller_instrs=000499  B=1000
+splice.budget  model=charge-forceinline seed caller_instrs=000500  B=1000
+splice.budget  model=charge-forceinline seed caller_instrs=000501  B=1002
+splice.budget  model=charge-forceinline seed caller_instrs=017499  B=34998
+splice.budget  model=charge-forceinline seed caller_instrs=017500  B=35000
+splice.budget  model=charge-forceinline seed caller_instrs=020000  B=35000
+splice.budget  model=charge-forceinline charge instrs=000000 forceinline=0  local=0,global=0
+splice.budget  model=charge-forceinline charge instrs=000000 forceinline=1  local=0,global=0
+splice.budget  model=charge-forceinline charge instrs=000001 forceinline=0  local=0,global=1
+splice.budget  model=charge-forceinline charge instrs=000001 forceinline=1  local=0,global=1
+splice.budget  model=charge-forceinline charge instrs=000039 forceinline=0  local=0,global=39
+splice.budget  model=charge-forceinline charge instrs=000039 forceinline=1  local=0,global=39
+splice.budget  model=charge-forceinline charge instrs=000040 forceinline=0  local=0,global=40
+splice.budget  model=charge-forceinline charge instrs=000040 forceinline=1  local=0,global=40
+splice.budget  model=charge-forceinline charge instrs=000041 forceinline=0  local=41,global=41
+splice.budget  model=charge-forceinline charge instrs=000041 forceinline=1  local=41,global=41
+splice.budget  model=charge-forceinline charge instrs=001000 forceinline=0  local=1000,global=1000
+splice.budget  model=charge-forceinline charge instrs=001000 forceinline=1  local=1000,global=1000
+splice.budget  model=charge-forceinline n=1 i=0 level=01 base=0  level=2,budget=parent
+splice.budget  model=charge-forceinline n=1 i=0 level=02 base=0  level=3,budget=parent
+splice.budget  model=charge-forceinline n=1 i=0 level=16 base=0  level=17,budget=parent
+splice.budget  model=charge-forceinline n=1 i=0 level=17 base=0  level=18,budget=parent
+splice.budget  model=charge-forceinline n=1 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=charge-forceinline n=1 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=charge-forceinline n=1 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=charge-forceinline n=2 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=2 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=2 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=2 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=2 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=2 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=2 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=2 i=1 level=01 base=0  level=2,budget=parent
+splice.budget  model=charge-forceinline n=2 i=1 level=02 base=0  level=3,budget=parent
+splice.budget  model=charge-forceinline n=2 i=1 level=16 base=0  level=17,budget=parent
+splice.budget  model=charge-forceinline n=2 i=1 level=17 base=0  level=18,budget=parent
+splice.budget  model=charge-forceinline n=2 i=1 level=02 base=1  level=3,budget=parent
+splice.budget  model=charge-forceinline n=2 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=charge-forceinline n=2 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=charge-forceinline n=3 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=2 level=01 base=0  level=2,budget=parent
+splice.budget  model=charge-forceinline n=3 i=2 level=02 base=0  level=3,budget=parent
+splice.budget  model=charge-forceinline n=3 i=2 level=16 base=0  level=17,budget=parent
+splice.budget  model=charge-forceinline n=3 i=2 level=17 base=0  level=18,budget=parent
+splice.budget  model=charge-forceinline n=3 i=2 level=02 base=1  level=3,budget=parent
+splice.budget  model=charge-forceinline n=3 i=2 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=charge-forceinline n=3 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=charge-forceinline n=4 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=2 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=2 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=2 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=2 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=2 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=2 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=3 level=01 base=0  level=2,budget=parent
+splice.budget  model=charge-forceinline n=4 i=3 level=02 base=0  level=3,budget=parent
+splice.budget  model=charge-forceinline n=4 i=3 level=16 base=0  level=17,budget=parent
+splice.budget  model=charge-forceinline n=4 i=3 level=17 base=0  level=18,budget=parent
+splice.budget  model=charge-forceinline n=4 i=3 level=02 base=1  level=3,budget=parent
+splice.budget  model=charge-forceinline n=4 i=3 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=charge-forceinline n=4 i=3 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=charge-forceinline n=5 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=2 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=2 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=2 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=2 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=2 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=2 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=3 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=3 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=3 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=3 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=3 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=3 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=3 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=4 level=01 base=0  level=2,budget=parent
+splice.budget  model=charge-forceinline n=5 i=4 level=02 base=0  level=3,budget=parent
+splice.budget  model=charge-forceinline n=5 i=4 level=16 base=0  level=17,budget=parent
+splice.budget  model=charge-forceinline n=5 i=4 level=17 base=0  level=18,budget=parent
+splice.budget  model=charge-forceinline n=5 i=4 level=02 base=1  level=3,budget=parent
+splice.budget  model=charge-forceinline n=5 i=4 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=charge-forceinline n=5 i=4 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=charge-forceinline n=6 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=2 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=2 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=2 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=2 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=2 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=2 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=3 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=3 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=3 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=3 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=3 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=3 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=3 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=4 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=4 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=4 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=4 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=4 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=4 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=4 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=5 level=01 base=0  level=2,budget=parent
+splice.budget  model=charge-forceinline n=6 i=5 level=02 base=0  level=3,budget=parent
+splice.budget  model=charge-forceinline n=6 i=5 level=16 base=0  level=17,budget=parent
+splice.budget  model=charge-forceinline n=6 i=5 level=17 base=0  level=18,budget=parent
+splice.budget  model=charge-forceinline n=6 i=5 level=02 base=1  level=3,budget=parent
+splice.budget  model=charge-forceinline n=6 i=5 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=charge-forceinline n=6 i=5 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=flat-level seed caller_instrs=000000  B=1000
+splice.budget  model=flat-level seed caller_instrs=000001  B=1000
+splice.budget  model=flat-level seed caller_instrs=000400  B=1000
+splice.budget  model=flat-level seed caller_instrs=000499  B=1000
+splice.budget  model=flat-level seed caller_instrs=000500  B=1000
+splice.budget  model=flat-level seed caller_instrs=000501  B=1002
+splice.budget  model=flat-level seed caller_instrs=017499  B=34998
+splice.budget  model=flat-level seed caller_instrs=017500  B=35000
+splice.budget  model=flat-level seed caller_instrs=020000  B=35000
+splice.budget  model=flat-level charge instrs=000000 forceinline=0  local=0,global=0
+splice.budget  model=flat-level charge instrs=000000 forceinline=1  local=0,global=0
+splice.budget  model=flat-level charge instrs=000001 forceinline=0  local=0,global=1
+splice.budget  model=flat-level charge instrs=000001 forceinline=1  local=0,global=0
+splice.budget  model=flat-level charge instrs=000039 forceinline=0  local=0,global=39
+splice.budget  model=flat-level charge instrs=000039 forceinline=1  local=0,global=0
+splice.budget  model=flat-level charge instrs=000040 forceinline=0  local=0,global=40
+splice.budget  model=flat-level charge instrs=000040 forceinline=1  local=0,global=0
+splice.budget  model=flat-level charge instrs=000041 forceinline=0  local=41,global=41
+splice.budget  model=flat-level charge instrs=000041 forceinline=1  local=0,global=0
+splice.budget  model=flat-level charge instrs=001000 forceinline=0  local=1000,global=1000
+splice.budget  model=flat-level charge instrs=001000 forceinline=1  local=0,global=0
+splice.budget  model=flat-level n=1 i=0 level=01 base=0  level=1,budget=parent
+splice.budget  model=flat-level n=1 i=0 level=02 base=0  level=2,budget=parent
+splice.budget  model=flat-level n=1 i=0 level=16 base=0  level=16,budget=parent
+splice.budget  model=flat-level n=1 i=0 level=17 base=0  level=17,budget=parent
+splice.budget  model=flat-level n=1 i=0 level=02 base=1  level=2,budget=parent
+splice.budget  model=flat-level n=1 i=0 level=17 base=1  level=17,budget=parent
+splice.budget  model=flat-level n=1 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=flat-level n=2 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=2 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=2 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=2 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=2 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=2 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=2 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=2 i=1 level=01 base=0  level=1,budget=parent
+splice.budget  model=flat-level n=2 i=1 level=02 base=0  level=2,budget=parent
+splice.budget  model=flat-level n=2 i=1 level=16 base=0  level=16,budget=parent
+splice.budget  model=flat-level n=2 i=1 level=17 base=0  level=17,budget=parent
+splice.budget  model=flat-level n=2 i=1 level=02 base=1  level=2,budget=parent
+splice.budget  model=flat-level n=2 i=1 level=17 base=1  level=17,budget=parent
+splice.budget  model=flat-level n=2 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=flat-level n=3 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=2 level=01 base=0  level=1,budget=parent
+splice.budget  model=flat-level n=3 i=2 level=02 base=0  level=2,budget=parent
+splice.budget  model=flat-level n=3 i=2 level=16 base=0  level=16,budget=parent
+splice.budget  model=flat-level n=3 i=2 level=17 base=0  level=17,budget=parent
+splice.budget  model=flat-level n=3 i=2 level=02 base=1  level=2,budget=parent
+splice.budget  model=flat-level n=3 i=2 level=17 base=1  level=17,budget=parent
+splice.budget  model=flat-level n=3 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=flat-level n=4 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=2 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=2 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=2 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=2 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=2 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=2 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=3 level=01 base=0  level=1,budget=parent
+splice.budget  model=flat-level n=4 i=3 level=02 base=0  level=2,budget=parent
+splice.budget  model=flat-level n=4 i=3 level=16 base=0  level=16,budget=parent
+splice.budget  model=flat-level n=4 i=3 level=17 base=0  level=17,budget=parent
+splice.budget  model=flat-level n=4 i=3 level=02 base=1  level=2,budget=parent
+splice.budget  model=flat-level n=4 i=3 level=17 base=1  level=17,budget=parent
+splice.budget  model=flat-level n=4 i=3 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=flat-level n=5 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=2 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=2 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=2 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=2 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=2 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=2 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=3 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=3 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=3 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=3 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=3 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=3 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=3 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=4 level=01 base=0  level=1,budget=parent
+splice.budget  model=flat-level n=5 i=4 level=02 base=0  level=2,budget=parent
+splice.budget  model=flat-level n=5 i=4 level=16 base=0  level=16,budget=parent
+splice.budget  model=flat-level n=5 i=4 level=17 base=0  level=17,budget=parent
+splice.budget  model=flat-level n=5 i=4 level=02 base=1  level=2,budget=parent
+splice.budget  model=flat-level n=5 i=4 level=17 base=1  level=17,budget=parent
+splice.budget  model=flat-level n=5 i=4 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=flat-level n=6 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=2 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=2 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=2 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=2 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=2 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=2 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=3 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=3 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=3 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=3 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=3 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=3 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=3 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=4 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=4 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=4 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=4 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=4 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=4 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=4 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=5 level=01 base=0  level=1,budget=parent
+splice.budget  model=flat-level n=6 i=5 level=02 base=0  level=2,budget=parent
+splice.budget  model=flat-level n=6 i=5 level=16 base=0  level=16,budget=parent
+splice.budget  model=flat-level n=6 i=5 level=17 base=0  level=17,budget=parent
+splice.budget  model=flat-level n=6 i=5 level=02 base=1  level=2,budget=parent
+splice.budget  model=flat-level n=6 i=5 level=17 base=1  level=17,budget=parent
+splice.budget  model=flat-level n=6 i=5 level=18 base=1  REFUSE S6-budget-depth-cap
+## summary  splice.budget  cells=672 admit=285 refuse=387 values={B=1000,B=1002,B=34998,B=35000,budget=parent,global=0,global=1,global=1000,global=39,global=40,global=41,level=1,level=16,level=17,level=18,level=2,level=3,local=0,local=1000,local=41}
+
+## surface  mangle.string_comdat
+##   site      coff/mangle.rs
+##   boundary  how many of a string literal's own bytes reach the `??_C@…` COMDAT name's escaped-text field, and which literals have no measured name at all
+##   cite      docs/SYMBOL.md §5 and its CORRECTION; board #3746 (this row is one of the four it names as a real boundary with no domain)
+##   guards    LITERAL_TEXT_BYTE_LIMIT
+mangle.string_comdat  len-1x n=00  ??_C@_00CNPNBAHC@?$AA@
+mangle.string_comdat  len-1x n=01  ??_C@_01MCMALHOG@a?$AA@
+mangle.string_comdat  len-1x n=02  ??_C@_02DFENNNBM@aa?$AA@
+mangle.string_comdat  len-1x n=03  ??_C@_03GINCELHE@aaa?$AA@
+mangle.string_comdat  len-1x n=04  ??_C@_04CLOGDNII@aaaa?$AA@
+mangle.string_comdat  len-1x n=05  ??_C@_05JPKOLHMJ@aaaaa?$AA@
+mangle.string_comdat  len-1x n=06  ??_C@_06JOMBIOEF@aaaaaa?$AA@
+mangle.string_comdat  len-1x n=07  ??_C@_07HKMOCOHH@aaaaaaa?$AA@
+mangle.string_comdat  len-1x n=08  ??_C@_08LCPNHAFH@aaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=09  ??_C@_09IJFLGDMB@aaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=10  ??_C@_0L@JAAMPDKD@aaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=11  ??_C@_0M@DDKJKEEH@aaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=12  ??_C@_0N@JEGNCHHB@aaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=13  ??_C@_0O@FLHAHGGL@aaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=14  ??_C@_0P@KGNNJCEA@aaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=15  ??_C@_0BA@KJMMGOE@aaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=16  ??_C@_0BB@NLILOAEB@aaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=17  ??_C@_0BC@HNOGKAAA@aaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=18  ??_C@_0BD@HMJLLMEG@aaaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=19  ??_C@_0BE@ODCFCFPP@aaaaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=20  ??_C@_0BF@FBAHJAEO@aaaaaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=21  ??_C@_0BG@ONNDDBOB@aaaaaaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=22  ??_C@_0BH@KLAGFLDJ@aaaaaaaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=23  ??_C@_0BI@CDEINELF@aaaaaaaaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=24  ??_C@_0BJ@MHMOFFDB@aaaaaaaaaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=25  ??_C@_0BK@CNPPJEIJ@aaaaaaaaaaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=26  ??_C@_0BL@OIKPJOPG@aaaaaaaaaaaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=27  ??_C@_0BM@CINAKCFB@aaaaaaaaaaaaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=28  ??_C@_0BN@GAKCOLCG@aaaaaaaaaaaaaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=29  ??_C@_0BO@KOILHNPA@aaaaaaaaaaaaaaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=30  ??_C@_0BP@MBPFCDIH@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=31  ??_C@_0CA@PPLLJEG@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?$AA@
+mangle.string_comdat  len-1x n=32  ??_C@_0CB@ODFGEFPK@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@
+mangle.string_comdat  len-1x n=33  ??_C@_0CC@CBGNBHKB@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@
+mangle.string_comdat  len-1x n=34  ??_C@_0CD@NNBGKEIP@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@
+mangle.string_comdat  len-1x n=35  ??_C@_0CE@BDMNCPD@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@
+mangle.string_comdat  len-1x n=36  ??_C@_0CF@FIFDMFJC@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@
+mangle.string_comdat  len-1x n=37  ??_C@_0CG@GCLPPLEL@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@
+mangle.string_comdat  len-1x n=38  ??_C@_0CH@JNIKHNAF@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@
+mangle.string_comdat  len-1x n=39  ??_C@_0CI@MBBCEBE@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@
+mangle.string_comdat  len-1x n=40  ??_C@_0CJ@GGDAJPLP@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@
+mangle.string_comdat  len-1x n=41  ??_C@_0CK@CHFOMEGE@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@
+mangle.string_comdat  len-1x n=42  ??_C@_0CL@DGBOKBGD@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@
+mangle.string_comdat  len-1x n=43  ??_C@_0CM@KIGLHEKF@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@
+mangle.string_comdat  len-1x n=44  ??_C@_0CN@NKPCGGPF@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@
+mangle.string_comdat  len-2x n=24  ??_C@_0BJ@EBPGCGJO@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@
+mangle.string_comdat  len-2x n=25  ??_C@_0BK@FOKHAAI@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@
+mangle.string_comdat  len-2x n=26  ??_C@_0BL@BMMCFKCP@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@
+mangle.string_comdat  len-2x n=27  ??_C@_0BM@LJNBMHGO@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@
+mangle.string_comdat  len-2x n=28  ??_C@_0BN@LIKPKFPF@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@
+mangle.string_comdat  len-2x n=29  ??_C@_0BO@NPHDJBFL@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@
+mangle.string_comdat  len-2x n=30  ??_C@_0BP@OOHKMDIA@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@
+mangle.string_comdat  len-2x n=31  ??_C@_0CA@PPEKMBIO@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@
+mangle.string_comdat  len-2x n=32  ??_C@_0CB@BIODNMIL@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@
+mangle.string_comdat  len-2x n=33  ??_C@_0CC@GIGOIBBJ@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@
+mangle.string_comdat  len-2x n=34  ??_C@_0CD@HGBPPOCM@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@
+mangle.string_comdat  len-2x n=35  ??_C@_0CE@CALCELHA@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@
+mangle.string_comdat  len-2x n=36  ??_C@_0CF@ECDJPLBK@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@
+mangle.string_comdat  len-2x n=37  ??_C@_0CG@OPDMPIOM@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@
+mangle.string_comdat  len-2x n=38  ??_C@_0CH@LLEPKKMG@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@
+mangle.string_comdat  len-2x n=39  ??_C@_0CI@GAKABAEC@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@
+mangle.string_comdat  len-2x n=40  ??_C@_0CJ@IKKOLIMB@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@
+mangle.string_comdat  len-mix n=24  ??_C@_0BJ@OHLFAPE@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4?$AA@
+mangle.string_comdat  len-mix n=25  ??_C@_0BK@MGDIBHLD@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?$AA@
+mangle.string_comdat  len-mix n=26  ??_C@_0BL@EALCOCEM@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?$AA@
+mangle.string_comdat  len-mix n=27  ??_C@_0BM@HECNLGHF@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4?$AA@
+mangle.string_comdat  len-mix n=28  ??_C@_0BN@FMPNPCOD@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?$AA@
+mangle.string_comdat  len-mix n=29  ??_C@_0BO@CLEDHGFN@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?$AA@
+mangle.string_comdat  len-mix n=30  ??_C@_0BP@BOPGGHBD@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4?$AA@
+mangle.string_comdat  len-mix n=31  ??_C@_0CA@PIEGONFP@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?$AA@
+mangle.string_comdat  len-mix n=32  ??_C@_0CB@OJDADCOF@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@
+mangle.string_comdat  len-mix n=33  ??_C@_0CC@NLIOCPOJ@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@
+mangle.string_comdat  len-mix n=34  ??_C@_0CD@KFOLIOBF@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@
+mangle.string_comdat  len-mix n=35  ??_C@_0CE@HPGEDHAI@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@
+mangle.string_comdat  len-mix n=36  ??_C@_0CF@FKDOFCJ@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@
+mangle.string_comdat  len-mix n=37  ??_C@_0CG@DOFBGBGP@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@
+mangle.string_comdat  len-mix n=38  ??_C@_0CH@MPCPBFMF@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@
+mangle.string_comdat  len-mix n=39  ??_C@_0CI@OAMGBAAG@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@
+mangle.string_comdat  len-mix n=40  ??_C@_0CJ@JFGFDJMD@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@
+mangle.string_comdat  escape byte=0x23  REFUSE
+mangle.string_comdat  escape byte=0x25  REFUSE
+mangle.string_comdat  escape byte=0x26  REFUSE
+mangle.string_comdat  escape byte=0x2a  REFUSE
+mangle.string_comdat  escape byte=0x40  REFUSE
+mangle.string_comdat  escape byte=0x5e  REFUSE
+mangle.string_comdat  escape byte=0x7e  REFUSE
+mangle.string_comdat  escape byte=0x22  REFUSE
+mangle.string_comdat  escape byte=0x3f  REFUSE
+mangle.string_comdat  escape byte=0x5c  REFUSE
+mangle.string_comdat  escape byte=0x7f  REFUSE
+mangle.string_comdat  escape byte=0x80  REFUSE
+mangle.string_comdat  escape byte=0xff  REFUSE
+mangle.string_comdat  structural empty  REFUSE
+mangle.string_comdat  structural no-nul  REFUSE
+## summary  mangle.string_comdat  cells=94 admit=79 refuse=15 values={??_C@_00CNPNBAHC@?$AA@,??_C@_01MCMALHOG@a?$AA@,??_C@_02DFENNNBM@aa?$AA@,??_C@_03GINCELHE@aaa?$AA@,??_C@_04CLOGDNII@aaaa?$AA@,??_C@_05JPKOLHMJ@aaaaa?$AA@,??_C@_06JOMBIOEF@aaaaaa?$AA@,??_C@_07HKMOCOHH@aaaaaaa?$AA@,??_C@_08LCPNHAFH@aaaaaaaa?$AA@,??_C@_09IJFLGDMB@aaaaaaaaa?$AA@,??_C@_0BA@KJMMGOE@aaaaaaaaaaaaaaa?$AA@,??_C@_0BB@NLILOAEB@aaaaaaaaaaaaaaaa?$AA@,??_C@_0BC@HNOGKAAA@aaaaaaaaaaaaaaaaa?$AA@,??_C@_0BD@HMJLLMEG@aaaaaaaaaaaaaaaaaa?$AA@,??_C@_0BE@ODCFCFPP@aaaaaaaaaaaaaaaaaaa?$AA@,??_C@_0BF@FBAHJAEO@aaaaaaaaaaaaaaaaaaaa?$AA@,??_C@_0BG@ONNDDBOB@aaaaaaaaaaaaaaaaaaaaa?$AA@,??_C@_0BH@KLAGFLDJ@aaaaaaaaaaaaaaaaaaaaaa?$AA@,??_C@_0BI@CDEINELF@aaaaaaaaaaaaaaaaaaaaaaa?$AA@,??_C@_0BJ@EBPGCGJO@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@,??_C@_0BJ@MHMOFFDB@aaaaaaaaaaaaaaaaaaaaaaaa?$AA@,??_C@_0BJ@OHLFAPE@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4?$AA@,??_C@_0BK@CNPPJEIJ@aaaaaaaaaaaaaaaaaaaaaaaaa?$AA@,??_C@_0BK@FOKHAAI@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@,??_C@_0BK@MGDIBHLD@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?$AA@,??_C@_0BL@BMMCFKCP@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@,??_C@_0BL@EALCOCEM@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?$AA@,??_C@_0BL@OIKPJOPG@aaaaaaaaaaaaaaaaaaaaaaaaaa?$AA@,??_C@_0BM@CINAKCFB@aaaaaaaaaaaaaaaaaaaaaaaaaaa?$AA@,??_C@_0BM@HECNLGHF@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4?$AA@,??_C@_0BM@LJNBMHGO@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@,??_C@_0BN@FMPNPCOD@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?$AA@,??_C@_0BN@GAKCOLCG@aaaaaaaaaaaaaaaaaaaaaaaaaaaa?$AA@,??_C@_0BN@LIKPKFPF@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@,??_C@_0BO@CLEDHGFN@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?$AA@,??_C@_0BO@KOILHNPA@aaaaaaaaaaaaaaaaaaaaaaaaaaaaa?$AA@,??_C@_0BO@NPHDJBFL@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@,??_C@_0BP@BOPGGHBD@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4?$AA@,??_C@_0BP@MBPFCDIH@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?$AA@,??_C@_0BP@OOHKMDIA@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@,??_C@_0CA@PIEGONFP@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?$AA@,??_C@_0CA@PPEKMBIO@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?$AA@,??_C@_0CA@PPLLJEG@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?$AA@,??_C@_0CB@BIODNMIL@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@,??_C@_0CB@ODFGEFPK@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@,??_C@_0CB@OJDADCOF@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@,??_C@_0CC@CBGNBHKB@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@,??_C@_0CC@GIGOIBBJ@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@,??_C@_0CC@NLIOCPOJ@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@,??_C@_0CD@HGBPPOCM@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@,??_C@_0CD@KFOLIOBF@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@,??_C@_0CD@NNBGKEIP@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@,??_C@_0CE@BDMNCPD@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@,??_C@_0CE@CALCELHA@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@,??_C@_0CE@HPGEDHAI@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@,??_C@_0CF@ECDJPLBK@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@,??_C@_0CF@FIFDMFJC@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@,??_C@_0CF@FKDOFCJ@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@,??_C@_0CG@DOFBGBGP@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@,??_C@_0CG@GCLPPLEL@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@,??_C@_0CG@OPDMPIOM@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@,??_C@_0CH@JNIKHNAF@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@,??_C@_0CH@LLEPKKMG@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@,??_C@_0CH@MPCPBFMF@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@,??_C@_0CI@GAKABAEC@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@,??_C@_0CI@MBBCEBE@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@,??_C@_0CI@OAMGBAAG@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@,??_C@_0CJ@GGDAJPLP@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@,??_C@_0CJ@IKKOLIMB@?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1?1@,??_C@_0CJ@JFGFDJMD@a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1?4a?1@,??_C@_0CK@CHFOMEGE@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@,??_C@_0CL@DGBOKBGD@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@,??_C@_0CM@KIGLHEKF@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@,??_C@_0CN@NKPCGGPF@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@,??_C@_0L@JAAMPDKD@aaaaaaaaaa?$AA@,??_C@_0M@DDKJKEEH@aaaaaaaaaaa?$AA@,??_C@_0N@JEGNCHHB@aaaaaaaaaaaa?$AA@,??_C@_0O@FLHAHGGL@aaaaaaaaaaaaa?$AA@,??_C@_0P@KGNNJCEA@aaaaaaaaaaaaaa?$AA@}
+
+## surface  order.store_run
+##   site      codegen/order.rs
+##   boundary  which store runs the producer-order and layout rules admit — by producer count, by symbol count, and by how many symbol groups a value crosses before its first use
+##   cite      docs/ORDER.md; docs/SYMBOL.md §2.3; board #561, #582, #3746
+##   guards    HEAD_SLOTS_MAX MAX_MULTISYM_PRODUCERS MAX_SYMBOL_CROSSINGS
+order.store_run  len=4 nsym=1 shape=blocked nprod=0 tail=1  slots=,u=2
+order.store_run  len=4 nsym=1 shape=blocked nprod=0 tail=0  slots=,u=2
+order.store_run  len=4 nsym=1 shape=blocked nprod=1 tail=1  slots=0,u=2
+order.store_run  len=4 nsym=1 shape=blocked nprod=1 tail=0  slots=0,u=2
+order.store_run  len=4 nsym=1 shape=blocked nprod=2 tail=1  slots=0/1,u=2
+order.store_run  len=4 nsym=1 shape=blocked nprod=2 tail=0  slots=0/1,u=2
+order.store_run  len=4 nsym=1 shape=blocked nprod=3 tail=1  slots=0/1/1,u=1
+order.store_run  len=4 nsym=1 shape=blocked nprod=3 tail=0  slots=0/1/1,u=1
+order.store_run  len=4 nsym=1 shape=blocked nprod=4 tail=1  REFUSE store-order
+order.store_run  len=4 nsym=1 shape=blocked nprod=4 tail=0  REFUSE store-order
+order.store_run  len=4 nsym=1 shape=alt     nprod=0 tail=1  slots=,u=2
+order.store_run  len=4 nsym=1 shape=alt     nprod=0 tail=0  slots=,u=2
+order.store_run  len=4 nsym=1 shape=alt     nprod=1 tail=1  slots=0,u=2
+order.store_run  len=4 nsym=1 shape=alt     nprod=1 tail=0  slots=0,u=2
+order.store_run  len=4 nsym=1 shape=alt     nprod=2 tail=1  slots=0/1,u=2
+order.store_run  len=4 nsym=1 shape=alt     nprod=2 tail=0  slots=0/1,u=2
+order.store_run  len=4 nsym=1 shape=alt     nprod=3 tail=1  slots=0/1/1,u=1
+order.store_run  len=4 nsym=1 shape=alt     nprod=3 tail=0  slots=0/1/1,u=1
+order.store_run  len=4 nsym=1 shape=alt     nprod=4 tail=1  REFUSE store-order
+order.store_run  len=4 nsym=1 shape=alt     nprod=4 tail=0  REFUSE store-order
+order.store_run  len=4 nsym=2 shape=blocked nprod=0 tail=1  slots=,u=2
+order.store_run  len=4 nsym=2 shape=blocked nprod=0 tail=0  slots=,u=2
+order.store_run  len=4 nsym=2 shape=blocked nprod=1 tail=1  slots=0,u=2
+order.store_run  len=4 nsym=2 shape=blocked nprod=1 tail=0  slots=0,u=1
+order.store_run  len=4 nsym=2 shape=blocked nprod=2 tail=1  slots=0/1,u=2
+order.store_run  len=4 nsym=2 shape=blocked nprod=2 tail=0  slots=0/0,u=0
+order.store_run  len=4 nsym=2 shape=blocked nprod=3 tail=1  REFUSE store-order
+order.store_run  len=4 nsym=2 shape=blocked nprod=3 tail=0  REFUSE store-order
+order.store_run  len=4 nsym=2 shape=blocked nprod=4 tail=1  REFUSE store-order
+order.store_run  len=4 nsym=2 shape=blocked nprod=4 tail=0  REFUSE store-order
+order.store_run  len=4 nsym=2 shape=alt     nprod=0 tail=1  slots=,u=2
+order.store_run  len=4 nsym=2 shape=alt     nprod=0 tail=0  slots=,u=2
+order.store_run  len=4 nsym=2 shape=alt     nprod=1 tail=1  REFUSE layout-crossings
+order.store_run  len=4 nsym=2 shape=alt     nprod=1 tail=0  slots=0,u=0
+order.store_run  len=4 nsym=2 shape=alt     nprod=2 tail=1  REFUSE layout-crossings
+order.store_run  len=4 nsym=2 shape=alt     nprod=2 tail=0  slots=0/0,u=0
+order.store_run  len=4 nsym=2 shape=alt     nprod=3 tail=1  REFUSE store-order
+order.store_run  len=4 nsym=2 shape=alt     nprod=3 tail=0  REFUSE store-order
+order.store_run  len=4 nsym=2 shape=alt     nprod=4 tail=1  REFUSE store-order
+order.store_run  len=4 nsym=2 shape=alt     nprod=4 tail=0  REFUSE store-order
+order.store_run  len=4 nsym=3 shape=blocked nprod=0 tail=1  slots=,u=2
+order.store_run  len=4 nsym=3 shape=blocked nprod=0 tail=0  slots=,u=2
+order.store_run  len=4 nsym=3 shape=blocked nprod=1 tail=1  slots=0,u=2
+order.store_run  len=4 nsym=3 shape=blocked nprod=1 tail=0  slots=0,u=1
+order.store_run  len=4 nsym=3 shape=blocked nprod=2 tail=1  slots=0/1,u=2
+order.store_run  len=4 nsym=3 shape=blocked nprod=2 tail=0  slots=0/0,u=0
+order.store_run  len=4 nsym=3 shape=blocked nprod=3 tail=1  REFUSE store-order
+order.store_run  len=4 nsym=3 shape=blocked nprod=3 tail=0  REFUSE store-order
+order.store_run  len=4 nsym=3 shape=blocked nprod=4 tail=1  REFUSE store-order
+order.store_run  len=4 nsym=3 shape=blocked nprod=4 tail=0  REFUSE store-order
+order.store_run  len=4 nsym=3 shape=alt     nprod=0 tail=1  slots=,u=2
+order.store_run  len=4 nsym=3 shape=alt     nprod=0 tail=0  slots=,u=2
+order.store_run  len=4 nsym=3 shape=alt     nprod=1 tail=1  REFUSE layout-crossings
+order.store_run  len=4 nsym=3 shape=alt     nprod=1 tail=0  slots=0,u=0
+order.store_run  len=4 nsym=3 shape=alt     nprod=2 tail=1  REFUSE layout-crossings
+order.store_run  len=4 nsym=3 shape=alt     nprod=2 tail=0  slots=0/0,u=0
+order.store_run  len=4 nsym=3 shape=alt     nprod=3 tail=1  REFUSE store-order
+order.store_run  len=4 nsym=3 shape=alt     nprod=3 tail=0  REFUSE store-order
+order.store_run  len=4 nsym=3 shape=alt     nprod=4 tail=1  REFUSE store-order
+order.store_run  len=4 nsym=3 shape=alt     nprod=4 tail=0  REFUSE store-order
+order.store_run  len=6 nsym=1 shape=blocked nprod=0 tail=1  slots=,u=2
+order.store_run  len=6 nsym=1 shape=blocked nprod=0 tail=0  slots=,u=2
+order.store_run  len=6 nsym=1 shape=blocked nprod=1 tail=1  slots=0,u=2
+order.store_run  len=6 nsym=1 shape=blocked nprod=1 tail=0  slots=0,u=2
+order.store_run  len=6 nsym=1 shape=blocked nprod=2 tail=1  slots=0/1,u=2
+order.store_run  len=6 nsym=1 shape=blocked nprod=2 tail=0  slots=0/1,u=2
+order.store_run  len=6 nsym=1 shape=blocked nprod=3 tail=1  slots=0/1/2,u=2
+order.store_run  len=6 nsym=1 shape=blocked nprod=3 tail=0  slots=0/1/2,u=2
+order.store_run  len=6 nsym=1 shape=blocked nprod=4 tail=1  REFUSE store-order
+order.store_run  len=6 nsym=1 shape=blocked nprod=4 tail=0  REFUSE store-order
+order.store_run  len=6 nsym=1 shape=alt     nprod=0 tail=1  slots=,u=2
+order.store_run  len=6 nsym=1 shape=alt     nprod=0 tail=0  slots=,u=2
+order.store_run  len=6 nsym=1 shape=alt     nprod=1 tail=1  slots=0,u=2
+order.store_run  len=6 nsym=1 shape=alt     nprod=1 tail=0  slots=0,u=2
+order.store_run  len=6 nsym=1 shape=alt     nprod=2 tail=1  slots=0/1,u=2
+order.store_run  len=6 nsym=1 shape=alt     nprod=2 tail=0  slots=0/1,u=2
+order.store_run  len=6 nsym=1 shape=alt     nprod=3 tail=1  slots=0/1/2,u=2
+order.store_run  len=6 nsym=1 shape=alt     nprod=3 tail=0  slots=0/1/2,u=2
+order.store_run  len=6 nsym=1 shape=alt     nprod=4 tail=1  REFUSE store-order
+order.store_run  len=6 nsym=1 shape=alt     nprod=4 tail=0  REFUSE store-order
+order.store_run  len=6 nsym=2 shape=blocked nprod=0 tail=1  slots=,u=2
+order.store_run  len=6 nsym=2 shape=blocked nprod=0 tail=0  slots=,u=2
+order.store_run  len=6 nsym=2 shape=blocked nprod=1 tail=1  slots=0,u=2
+order.store_run  len=6 nsym=2 shape=blocked nprod=1 tail=0  slots=0,u=2
+order.store_run  len=6 nsym=2 shape=blocked nprod=2 tail=1  slots=0/1,u=2
+order.store_run  len=6 nsym=2 shape=blocked nprod=2 tail=0  slots=0/1,u=1
+order.store_run  len=6 nsym=2 shape=blocked nprod=3 tail=1  REFUSE store-order
+order.store_run  len=6 nsym=2 shape=blocked nprod=3 tail=0  REFUSE store-order
+order.store_run  len=6 nsym=2 shape=blocked nprod=4 tail=1  REFUSE store-order
+order.store_run  len=6 nsym=2 shape=blocked nprod=4 tail=0  REFUSE store-order
+order.store_run  len=6 nsym=2 shape=alt     nprod=0 tail=1  slots=,u=2
+order.store_run  len=6 nsym=2 shape=alt     nprod=0 tail=0  slots=,u=2
+order.store_run  len=6 nsym=2 shape=alt     nprod=1 tail=1  REFUSE layout-crossings
+order.store_run  len=6 nsym=2 shape=alt     nprod=1 tail=0  slots=0,u=0
+order.store_run  len=6 nsym=2 shape=alt     nprod=2 tail=1  REFUSE layout-crossings
+order.store_run  len=6 nsym=2 shape=alt     nprod=2 tail=0  slots=0/0,u=0
+order.store_run  len=6 nsym=2 shape=alt     nprod=3 tail=1  REFUSE store-order
+order.store_run  len=6 nsym=2 shape=alt     nprod=3 tail=0  REFUSE store-order
+order.store_run  len=6 nsym=2 shape=alt     nprod=4 tail=1  REFUSE store-order
+order.store_run  len=6 nsym=2 shape=alt     nprod=4 tail=0  REFUSE store-order
+order.store_run  len=6 nsym=3 shape=blocked nprod=0 tail=1  slots=,u=2
+order.store_run  len=6 nsym=3 shape=blocked nprod=0 tail=0  slots=,u=2
+order.store_run  len=6 nsym=3 shape=blocked nprod=1 tail=1  slots=0,u=2
+order.store_run  len=6 nsym=3 shape=blocked nprod=1 tail=0  slots=0,u=1
+order.store_run  len=6 nsym=3 shape=blocked nprod=2 tail=1  slots=0/1,u=2
+order.store_run  len=6 nsym=3 shape=blocked nprod=2 tail=0  slots=0/0,u=0
+order.store_run  len=6 nsym=3 shape=blocked nprod=3 tail=1  REFUSE store-order
+order.store_run  len=6 nsym=3 shape=blocked nprod=3 tail=0  REFUSE store-order
+order.store_run  len=6 nsym=3 shape=blocked nprod=4 tail=1  REFUSE store-order
+order.store_run  len=6 nsym=3 shape=blocked nprod=4 tail=0  REFUSE store-order
+order.store_run  len=6 nsym=3 shape=alt     nprod=0 tail=1  slots=,u=2
+order.store_run  len=6 nsym=3 shape=alt     nprod=0 tail=0  slots=,u=2
+order.store_run  len=6 nsym=3 shape=alt     nprod=1 tail=1  REFUSE layout-crossings
+order.store_run  len=6 nsym=3 shape=alt     nprod=1 tail=0  slots=0,u=0
+order.store_run  len=6 nsym=3 shape=alt     nprod=2 tail=1  REFUSE layout-crossings
+order.store_run  len=6 nsym=3 shape=alt     nprod=2 tail=0  slots=0/0,u=0
+order.store_run  len=6 nsym=3 shape=alt     nprod=3 tail=1  REFUSE store-order
+order.store_run  len=6 nsym=3 shape=alt     nprod=3 tail=0  REFUSE store-order
+order.store_run  len=6 nsym=3 shape=alt     nprod=4 tail=1  REFUSE store-order
+order.store_run  len=6 nsym=3 shape=alt     nprod=4 tail=0  REFUSE store-order
+## summary  order.store_run  cells=120 admit=72 refuse=48 values={slots=,slots=0,slots=0/0,slots=0/1,slots=0/1/1,slots=0/1/2,u=0,u=1,u=2}
+
+## surface  nonce.ds_form
+##   site      codegen/nonce_add_run.rs
+##   boundary  which 64-bit member-run displacements the `ld`/`std` DS form admits — past the field, misaligned, or at a mode whose register plan was never measured
+##   cite      docs/CODEGEN_W5_SCRATCH.md; board #263, #1638, #3746
+##   guards    DS_MAX
+nonce.ds_form  mode=O1 dst=-00008 src=-00008  REFUSE
+nonce.ds_form  mode=O1 dst=-00008 src=-00004  REFUSE
+nonce.ds_form  mode=O1 dst=-00008 src=+00000  REFUSE
+nonce.ds_form  mode=O1 dst=-00008 src=+00004  REFUSE
+nonce.ds_form  mode=O1 dst=-00008 src=+00008  REFUSE
+nonce.ds_form  mode=O1 dst=-00008 src=+00002  REFUSE
+nonce.ds_form  mode=O1 dst=-00008 src=+00006  REFUSE
+nonce.ds_form  mode=O1 dst=-00008 src=+04096  REFUSE
+nonce.ds_form  mode=O1 dst=-00008 src=+32744  REFUSE
+nonce.ds_form  mode=O1 dst=-00008 src=+32748  REFUSE
+nonce.ds_form  mode=O1 dst=-00008 src=+32752  REFUSE
+nonce.ds_form  mode=O1 dst=-00008 src=+32756  REFUSE
+nonce.ds_form  mode=O1 dst=-00008 src=+32760  REFUSE
+nonce.ds_form  mode=O1 dst=-00008 src=+32764  REFUSE
+nonce.ds_form  mode=O1 dst=-00004 src=-00008  REFUSE
+nonce.ds_form  mode=O1 dst=-00004 src=-00004  REFUSE
+nonce.ds_form  mode=O1 dst=-00004 src=+00000  REFUSE
+nonce.ds_form  mode=O1 dst=-00004 src=+00004  REFUSE
+nonce.ds_form  mode=O1 dst=-00004 src=+00008  REFUSE
+nonce.ds_form  mode=O1 dst=-00004 src=+00002  REFUSE
+nonce.ds_form  mode=O1 dst=-00004 src=+00006  REFUSE
+nonce.ds_form  mode=O1 dst=-00004 src=+04096  REFUSE
+nonce.ds_form  mode=O1 dst=-00004 src=+32744  REFUSE
+nonce.ds_form  mode=O1 dst=-00004 src=+32748  REFUSE
+nonce.ds_form  mode=O1 dst=-00004 src=+32752  REFUSE
+nonce.ds_form  mode=O1 dst=-00004 src=+32756  REFUSE
+nonce.ds_form  mode=O1 dst=-00004 src=+32760  REFUSE
+nonce.ds_form  mode=O1 dst=-00004 src=+32764  REFUSE
+nonce.ds_form  mode=O1 dst=+00000 src=-00008  REFUSE
+nonce.ds_form  mode=O1 dst=+00000 src=-00004  REFUSE
+nonce.ds_form  mode=O1 dst=+00000 src=+00000  e944000078ab00207d4a5a14f9430000e94400087d6a5a14f96300084e800020
+nonce.ds_form  mode=O1 dst=+00000 src=+00004  e944000478ab00207d4a5a14f9430000e944000c7d6a5a14f96300084e800020
+nonce.ds_form  mode=O1 dst=+00000 src=+00008  e944000878ab00207d4a5a14f9430000e94400107d6a5a14f96300084e800020
+nonce.ds_form  mode=O1 dst=+00000 src=+00002  REFUSE
+nonce.ds_form  mode=O1 dst=+00000 src=+00006  REFUSE
+nonce.ds_form  mode=O1 dst=+00000 src=+04096  e944100078ab00207d4a5a14f9430000e94410087d6a5a14f96300084e800020
+nonce.ds_form  mode=O1 dst=+00000 src=+32744  e9447fe878ab00207d4a5a14f9430000e9447ff07d6a5a14f96300084e800020
+nonce.ds_form  mode=O1 dst=+00000 src=+32748  e9447fec78ab00207d4a5a14f9430000e9447ff47d6a5a14f96300084e800020
+nonce.ds_form  mode=O1 dst=+00000 src=+32752  e9447ff078ab00207d4a5a14f9430000e9447ff87d6a5a14f96300084e800020
+nonce.ds_form  mode=O1 dst=+00000 src=+32756  REFUSE
+nonce.ds_form  mode=O1 dst=+00000 src=+32760  REFUSE
+nonce.ds_form  mode=O1 dst=+00000 src=+32764  REFUSE
+nonce.ds_form  mode=O1 dst=+00004 src=-00008  REFUSE
+nonce.ds_form  mode=O1 dst=+00004 src=-00004  REFUSE
+nonce.ds_form  mode=O1 dst=+00004 src=+00000  e944000078ab00207d4a5a14f9430004e94400087d6a5a14f963000c4e800020
+nonce.ds_form  mode=O1 dst=+00004 src=+00004  e944000478ab00207d4a5a14f9430004e944000c7d6a5a14f963000c4e800020
+nonce.ds_form  mode=O1 dst=+00004 src=+00008  e944000878ab00207d4a5a14f9430004e94400107d6a5a14f963000c4e800020
+nonce.ds_form  mode=O1 dst=+00004 src=+00002  REFUSE
+nonce.ds_form  mode=O1 dst=+00004 src=+00006  REFUSE
+nonce.ds_form  mode=O1 dst=+00004 src=+04096  e944100078ab00207d4a5a14f9430004e94410087d6a5a14f963000c4e800020
+nonce.ds_form  mode=O1 dst=+00004 src=+32744  e9447fe878ab00207d4a5a14f9430004e9447ff07d6a5a14f963000c4e800020
+nonce.ds_form  mode=O1 dst=+00004 src=+32748  e9447fec78ab00207d4a5a14f9430004e9447ff47d6a5a14f963000c4e800020
+nonce.ds_form  mode=O1 dst=+00004 src=+32752  e9447ff078ab00207d4a5a14f9430004e9447ff87d6a5a14f963000c4e800020
+nonce.ds_form  mode=O1 dst=+00004 src=+32756  REFUSE
+nonce.ds_form  mode=O1 dst=+00004 src=+32760  REFUSE
+nonce.ds_form  mode=O1 dst=+00004 src=+32764  REFUSE
+nonce.ds_form  mode=O1 dst=+00008 src=-00008  REFUSE
+nonce.ds_form  mode=O1 dst=+00008 src=-00004  REFUSE
+nonce.ds_form  mode=O1 dst=+00008 src=+00000  e944000078ab00207d4a5a14f9430008e94400087d6a5a14f96300104e800020
+nonce.ds_form  mode=O1 dst=+00008 src=+00004  e944000478ab00207d4a5a14f9430008e944000c7d6a5a14f96300104e800020
+nonce.ds_form  mode=O1 dst=+00008 src=+00008  e944000878ab00207d4a5a14f9430008e94400107d6a5a14f96300104e800020
+nonce.ds_form  mode=O1 dst=+00008 src=+00002  REFUSE
+nonce.ds_form  mode=O1 dst=+00008 src=+00006  REFUSE
+nonce.ds_form  mode=O1 dst=+00008 src=+04096  e944100078ab00207d4a5a14f9430008e94410087d6a5a14f96300104e800020
+nonce.ds_form  mode=O1 dst=+00008 src=+32744  e9447fe878ab00207d4a5a14f9430008e9447ff07d6a5a14f96300104e800020
+nonce.ds_form  mode=O1 dst=+00008 src=+32748  e9447fec78ab00207d4a5a14f9430008e9447ff47d6a5a14f96300104e800020
+nonce.ds_form  mode=O1 dst=+00008 src=+32752  e9447ff078ab00207d4a5a14f9430008e9447ff87d6a5a14f96300104e800020
+nonce.ds_form  mode=O1 dst=+00008 src=+32756  REFUSE
+nonce.ds_form  mode=O1 dst=+00008 src=+32760  REFUSE
+nonce.ds_form  mode=O1 dst=+00008 src=+32764  REFUSE
+nonce.ds_form  mode=O1 dst=+00002 src=-00008  REFUSE
+nonce.ds_form  mode=O1 dst=+00002 src=-00004  REFUSE
+nonce.ds_form  mode=O1 dst=+00002 src=+00000  REFUSE
+nonce.ds_form  mode=O1 dst=+00002 src=+00004  REFUSE
+nonce.ds_form  mode=O1 dst=+00002 src=+00008  REFUSE
+nonce.ds_form  mode=O1 dst=+00002 src=+00002  REFUSE
+nonce.ds_form  mode=O1 dst=+00002 src=+00006  REFUSE
+nonce.ds_form  mode=O1 dst=+00002 src=+04096  REFUSE
+nonce.ds_form  mode=O1 dst=+00002 src=+32744  REFUSE
+nonce.ds_form  mode=O1 dst=+00002 src=+32748  REFUSE
+nonce.ds_form  mode=O1 dst=+00002 src=+32752  REFUSE
+nonce.ds_form  mode=O1 dst=+00002 src=+32756  REFUSE
+nonce.ds_form  mode=O1 dst=+00002 src=+32760  REFUSE
+nonce.ds_form  mode=O1 dst=+00002 src=+32764  REFUSE
+nonce.ds_form  mode=O1 dst=+00006 src=-00008  REFUSE
+nonce.ds_form  mode=O1 dst=+00006 src=-00004  REFUSE
+nonce.ds_form  mode=O1 dst=+00006 src=+00000  REFUSE
+nonce.ds_form  mode=O1 dst=+00006 src=+00004  REFUSE
+nonce.ds_form  mode=O1 dst=+00006 src=+00008  REFUSE
+nonce.ds_form  mode=O1 dst=+00006 src=+00002  REFUSE
+nonce.ds_form  mode=O1 dst=+00006 src=+00006  REFUSE
+nonce.ds_form  mode=O1 dst=+00006 src=+04096  REFUSE
+nonce.ds_form  mode=O1 dst=+00006 src=+32744  REFUSE
+nonce.ds_form  mode=O1 dst=+00006 src=+32748  REFUSE
+nonce.ds_form  mode=O1 dst=+00006 src=+32752  REFUSE
+nonce.ds_form  mode=O1 dst=+00006 src=+32756  REFUSE
+nonce.ds_form  mode=O1 dst=+00006 src=+32760  REFUSE
+nonce.ds_form  mode=O1 dst=+00006 src=+32764  REFUSE
+nonce.ds_form  mode=O1 dst=+04096 src=-00008  REFUSE
+nonce.ds_form  mode=O1 dst=+04096 src=-00004  REFUSE
+nonce.ds_form  mode=O1 dst=+04096 src=+00000  e944000078ab00207d4a5a14f9431000e94400087d6a5a14f96310084e800020
+nonce.ds_form  mode=O1 dst=+04096 src=+00004  e944000478ab00207d4a5a14f9431000e944000c7d6a5a14f96310084e800020
+nonce.ds_form  mode=O1 dst=+04096 src=+00008  e944000878ab00207d4a5a14f9431000e94400107d6a5a14f96310084e800020
+nonce.ds_form  mode=O1 dst=+04096 src=+00002  REFUSE
+nonce.ds_form  mode=O1 dst=+04096 src=+00006  REFUSE
+nonce.ds_form  mode=O1 dst=+04096 src=+04096  e944100078ab00207d4a5a14f9431000e94410087d6a5a14f96310084e800020
+nonce.ds_form  mode=O1 dst=+04096 src=+32744  e9447fe878ab00207d4a5a14f9431000e9447ff07d6a5a14f96310084e800020
+nonce.ds_form  mode=O1 dst=+04096 src=+32748  e9447fec78ab00207d4a5a14f9431000e9447ff47d6a5a14f96310084e800020
+nonce.ds_form  mode=O1 dst=+04096 src=+32752  e9447ff078ab00207d4a5a14f9431000e9447ff87d6a5a14f96310084e800020
+nonce.ds_form  mode=O1 dst=+04096 src=+32756  REFUSE
+nonce.ds_form  mode=O1 dst=+04096 src=+32760  REFUSE
+nonce.ds_form  mode=O1 dst=+04096 src=+32764  REFUSE
+nonce.ds_form  mode=O1 dst=+32744 src=-00008  REFUSE
+nonce.ds_form  mode=O1 dst=+32744 src=-00004  REFUSE
+nonce.ds_form  mode=O1 dst=+32744 src=+00000  e944000078ab00207d4a5a14f9437fe8e94400087d6a5a14f9637ff04e800020
+nonce.ds_form  mode=O1 dst=+32744 src=+00004  e944000478ab00207d4a5a14f9437fe8e944000c7d6a5a14f9637ff04e800020
+nonce.ds_form  mode=O1 dst=+32744 src=+00008  e944000878ab00207d4a5a14f9437fe8e94400107d6a5a14f9637ff04e800020
+nonce.ds_form  mode=O1 dst=+32744 src=+00002  REFUSE
+nonce.ds_form  mode=O1 dst=+32744 src=+00006  REFUSE
+nonce.ds_form  mode=O1 dst=+32744 src=+04096  e944100078ab00207d4a5a14f9437fe8e94410087d6a5a14f9637ff04e800020
+nonce.ds_form  mode=O1 dst=+32744 src=+32744  e9447fe878ab00207d4a5a14f9437fe8e9447ff07d6a5a14f9637ff04e800020
+nonce.ds_form  mode=O1 dst=+32744 src=+32748  e9447fec78ab00207d4a5a14f9437fe8e9447ff47d6a5a14f9637ff04e800020
+nonce.ds_form  mode=O1 dst=+32744 src=+32752  e9447ff078ab00207d4a5a14f9437fe8e9447ff87d6a5a14f9637ff04e800020
+nonce.ds_form  mode=O1 dst=+32744 src=+32756  REFUSE
+nonce.ds_form  mode=O1 dst=+32744 src=+32760  REFUSE
+nonce.ds_form  mode=O1 dst=+32744 src=+32764  REFUSE
+nonce.ds_form  mode=O1 dst=+32748 src=-00008  REFUSE
+nonce.ds_form  mode=O1 dst=+32748 src=-00004  REFUSE
+nonce.ds_form  mode=O1 dst=+32748 src=+00000  e944000078ab00207d4a5a14f9437fece94400087d6a5a14f9637ff44e800020
+nonce.ds_form  mode=O1 dst=+32748 src=+00004  e944000478ab00207d4a5a14f9437fece944000c7d6a5a14f9637ff44e800020
+nonce.ds_form  mode=O1 dst=+32748 src=+00008  e944000878ab00207d4a5a14f9437fece94400107d6a5a14f9637ff44e800020
+nonce.ds_form  mode=O1 dst=+32748 src=+00002  REFUSE
+nonce.ds_form  mode=O1 dst=+32748 src=+00006  REFUSE
+nonce.ds_form  mode=O1 dst=+32748 src=+04096  e944100078ab00207d4a5a14f9437fece94410087d6a5a14f9637ff44e800020
+nonce.ds_form  mode=O1 dst=+32748 src=+32744  e9447fe878ab00207d4a5a14f9437fece9447ff07d6a5a14f9637ff44e800020
+nonce.ds_form  mode=O1 dst=+32748 src=+32748  e9447fec78ab00207d4a5a14f9437fece9447ff47d6a5a14f9637ff44e800020
+nonce.ds_form  mode=O1 dst=+32748 src=+32752  e9447ff078ab00207d4a5a14f9437fece9447ff87d6a5a14f9637ff44e800020
+nonce.ds_form  mode=O1 dst=+32748 src=+32756  REFUSE
+nonce.ds_form  mode=O1 dst=+32748 src=+32760  REFUSE
+nonce.ds_form  mode=O1 dst=+32748 src=+32764  REFUSE
+nonce.ds_form  mode=O1 dst=+32752 src=-00008  REFUSE
+nonce.ds_form  mode=O1 dst=+32752 src=-00004  REFUSE
+nonce.ds_form  mode=O1 dst=+32752 src=+00000  e944000078ab00207d4a5a14f9437ff0e94400087d6a5a14f9637ff84e800020
+nonce.ds_form  mode=O1 dst=+32752 src=+00004  e944000478ab00207d4a5a14f9437ff0e944000c7d6a5a14f9637ff84e800020
+nonce.ds_form  mode=O1 dst=+32752 src=+00008  e944000878ab00207d4a5a14f9437ff0e94400107d6a5a14f9637ff84e800020
+nonce.ds_form  mode=O1 dst=+32752 src=+00002  REFUSE
+nonce.ds_form  mode=O1 dst=+32752 src=+00006  REFUSE
+nonce.ds_form  mode=O1 dst=+32752 src=+04096  e944100078ab00207d4a5a14f9437ff0e94410087d6a5a14f9637ff84e800020
+nonce.ds_form  mode=O1 dst=+32752 src=+32744  e9447fe878ab00207d4a5a14f9437ff0e9447ff07d6a5a14f9637ff84e800020
+nonce.ds_form  mode=O1 dst=+32752 src=+32748  e9447fec78ab00207d4a5a14f9437ff0e9447ff47d6a5a14f9637ff84e800020
+nonce.ds_form  mode=O1 dst=+32752 src=+32752  e9447ff078ab00207d4a5a14f9437ff0e9447ff87d6a5a14f9637ff84e800020
+nonce.ds_form  mode=O1 dst=+32752 src=+32756  REFUSE
+nonce.ds_form  mode=O1 dst=+32752 src=+32760  REFUSE
+nonce.ds_form  mode=O1 dst=+32752 src=+32764  REFUSE
+nonce.ds_form  mode=O1 dst=+32756 src=-00008  REFUSE
+nonce.ds_form  mode=O1 dst=+32756 src=-00004  REFUSE
+nonce.ds_form  mode=O1 dst=+32756 src=+00000  REFUSE
+nonce.ds_form  mode=O1 dst=+32756 src=+00004  REFUSE
+nonce.ds_form  mode=O1 dst=+32756 src=+00008  REFUSE
+nonce.ds_form  mode=O1 dst=+32756 src=+00002  REFUSE
+nonce.ds_form  mode=O1 dst=+32756 src=+00006  REFUSE
+nonce.ds_form  mode=O1 dst=+32756 src=+04096  REFUSE
+nonce.ds_form  mode=O1 dst=+32756 src=+32744  REFUSE
+nonce.ds_form  mode=O1 dst=+32756 src=+32748  REFUSE
+nonce.ds_form  mode=O1 dst=+32756 src=+32752  REFUSE
+nonce.ds_form  mode=O1 dst=+32756 src=+32756  REFUSE
+nonce.ds_form  mode=O1 dst=+32756 src=+32760  REFUSE
+nonce.ds_form  mode=O1 dst=+32756 src=+32764  REFUSE
+nonce.ds_form  mode=O1 dst=+32760 src=-00008  REFUSE
+nonce.ds_form  mode=O1 dst=+32760 src=-00004  REFUSE
+nonce.ds_form  mode=O1 dst=+32760 src=+00000  REFUSE
+nonce.ds_form  mode=O1 dst=+32760 src=+00004  REFUSE
+nonce.ds_form  mode=O1 dst=+32760 src=+00008  REFUSE
+nonce.ds_form  mode=O1 dst=+32760 src=+00002  REFUSE
+nonce.ds_form  mode=O1 dst=+32760 src=+00006  REFUSE
+nonce.ds_form  mode=O1 dst=+32760 src=+04096  REFUSE
+nonce.ds_form  mode=O1 dst=+32760 src=+32744  REFUSE
+nonce.ds_form  mode=O1 dst=+32760 src=+32748  REFUSE
+nonce.ds_form  mode=O1 dst=+32760 src=+32752  REFUSE
+nonce.ds_form  mode=O1 dst=+32760 src=+32756  REFUSE
+nonce.ds_form  mode=O1 dst=+32760 src=+32760  REFUSE
+nonce.ds_form  mode=O1 dst=+32760 src=+32764  REFUSE
+nonce.ds_form  mode=O1 dst=+32764 src=-00008  REFUSE
+nonce.ds_form  mode=O1 dst=+32764 src=-00004  REFUSE
+nonce.ds_form  mode=O1 dst=+32764 src=+00000  REFUSE
+nonce.ds_form  mode=O1 dst=+32764 src=+00004  REFUSE
+nonce.ds_form  mode=O1 dst=+32764 src=+00008  REFUSE
+nonce.ds_form  mode=O1 dst=+32764 src=+00002  REFUSE
+nonce.ds_form  mode=O1 dst=+32764 src=+00006  REFUSE
+nonce.ds_form  mode=O1 dst=+32764 src=+04096  REFUSE
+nonce.ds_form  mode=O1 dst=+32764 src=+32744  REFUSE
+nonce.ds_form  mode=O1 dst=+32764 src=+32748  REFUSE
+nonce.ds_form  mode=O1 dst=+32764 src=+32752  REFUSE
+nonce.ds_form  mode=O1 dst=+32764 src=+32756  REFUSE
+nonce.ds_form  mode=O1 dst=+32764 src=+32760  REFUSE
+nonce.ds_form  mode=O1 dst=+32764 src=+32764  REFUSE
+nonce.ds_form  mode=Ox dst=-00008 src=-00008  REFUSE
+nonce.ds_form  mode=Ox dst=-00008 src=-00004  REFUSE
+nonce.ds_form  mode=Ox dst=-00008 src=+00000  REFUSE
+nonce.ds_form  mode=Ox dst=-00008 src=+00004  REFUSE
+nonce.ds_form  mode=Ox dst=-00008 src=+00008  REFUSE
+nonce.ds_form  mode=Ox dst=-00008 src=+00002  REFUSE
+nonce.ds_form  mode=Ox dst=-00008 src=+00006  REFUSE
+nonce.ds_form  mode=Ox dst=-00008 src=+04096  REFUSE
+nonce.ds_form  mode=Ox dst=-00008 src=+32744  REFUSE
+nonce.ds_form  mode=Ox dst=-00008 src=+32748  REFUSE
+nonce.ds_form  mode=Ox dst=-00008 src=+32752  REFUSE
+nonce.ds_form  mode=Ox dst=-00008 src=+32756  REFUSE
+nonce.ds_form  mode=Ox dst=-00008 src=+32760  REFUSE
+nonce.ds_form  mode=Ox dst=-00008 src=+32764  REFUSE
+nonce.ds_form  mode=Ox dst=-00004 src=-00008  REFUSE
+nonce.ds_form  mode=Ox dst=-00004 src=-00004  REFUSE
+nonce.ds_form  mode=Ox dst=-00004 src=+00000  REFUSE
+nonce.ds_form  mode=Ox dst=-00004 src=+00004  REFUSE
+nonce.ds_form  mode=Ox dst=-00004 src=+00008  REFUSE
+nonce.ds_form  mode=Ox dst=-00004 src=+00002  REFUSE
+nonce.ds_form  mode=Ox dst=-00004 src=+00006  REFUSE
+nonce.ds_form  mode=Ox dst=-00004 src=+04096  REFUSE
+nonce.ds_form  mode=Ox dst=-00004 src=+32744  REFUSE
+nonce.ds_form  mode=Ox dst=-00004 src=+32748  REFUSE
+nonce.ds_form  mode=Ox dst=-00004 src=+32752  REFUSE
+nonce.ds_form  mode=Ox dst=-00004 src=+32756  REFUSE
+nonce.ds_form  mode=Ox dst=-00004 src=+32760  REFUSE
+nonce.ds_form  mode=Ox dst=-00004 src=+32764  REFUSE
+nonce.ds_form  mode=Ox dst=+00000 src=-00008  REFUSE
+nonce.ds_form  mode=Ox dst=+00000 src=-00004  REFUSE
+nonce.ds_form  mode=Ox dst=+00000 src=+00000  REFUSE
+nonce.ds_form  mode=Ox dst=+00000 src=+00004  REFUSE
+nonce.ds_form  mode=Ox dst=+00000 src=+00008  REFUSE
+nonce.ds_form  mode=Ox dst=+00000 src=+00002  REFUSE
+nonce.ds_form  mode=Ox dst=+00000 src=+00006  REFUSE
+nonce.ds_form  mode=Ox dst=+00000 src=+04096  REFUSE
+nonce.ds_form  mode=Ox dst=+00000 src=+32744  REFUSE
+nonce.ds_form  mode=Ox dst=+00000 src=+32748  REFUSE
+nonce.ds_form  mode=Ox dst=+00000 src=+32752  REFUSE
+nonce.ds_form  mode=Ox dst=+00000 src=+32756  REFUSE
+nonce.ds_form  mode=Ox dst=+00000 src=+32760  REFUSE
+nonce.ds_form  mode=Ox dst=+00000 src=+32764  REFUSE
+nonce.ds_form  mode=Ox dst=+00004 src=-00008  REFUSE
+nonce.ds_form  mode=Ox dst=+00004 src=-00004  REFUSE
+nonce.ds_form  mode=Ox dst=+00004 src=+00000  REFUSE
+nonce.ds_form  mode=Ox dst=+00004 src=+00004  REFUSE
+nonce.ds_form  mode=Ox dst=+00004 src=+00008  REFUSE
+nonce.ds_form  mode=Ox dst=+00004 src=+00002  REFUSE
+nonce.ds_form  mode=Ox dst=+00004 src=+00006  REFUSE
+nonce.ds_form  mode=Ox dst=+00004 src=+04096  REFUSE
+nonce.ds_form  mode=Ox dst=+00004 src=+32744  REFUSE
+nonce.ds_form  mode=Ox dst=+00004 src=+32748  REFUSE
+nonce.ds_form  mode=Ox dst=+00004 src=+32752  REFUSE
+nonce.ds_form  mode=Ox dst=+00004 src=+32756  REFUSE
+nonce.ds_form  mode=Ox dst=+00004 src=+32760  REFUSE
+nonce.ds_form  mode=Ox dst=+00004 src=+32764  REFUSE
+nonce.ds_form  mode=Ox dst=+00008 src=-00008  REFUSE
+nonce.ds_form  mode=Ox dst=+00008 src=-00004  REFUSE
+nonce.ds_form  mode=Ox dst=+00008 src=+00000  REFUSE
+nonce.ds_form  mode=Ox dst=+00008 src=+00004  REFUSE
+nonce.ds_form  mode=Ox dst=+00008 src=+00008  REFUSE
+nonce.ds_form  mode=Ox dst=+00008 src=+00002  REFUSE
+nonce.ds_form  mode=Ox dst=+00008 src=+00006  REFUSE
+nonce.ds_form  mode=Ox dst=+00008 src=+04096  REFUSE
+nonce.ds_form  mode=Ox dst=+00008 src=+32744  REFUSE
+nonce.ds_form  mode=Ox dst=+00008 src=+32748  REFUSE
+nonce.ds_form  mode=Ox dst=+00008 src=+32752  REFUSE
+nonce.ds_form  mode=Ox dst=+00008 src=+32756  REFUSE
+nonce.ds_form  mode=Ox dst=+00008 src=+32760  REFUSE
+nonce.ds_form  mode=Ox dst=+00008 src=+32764  REFUSE
+nonce.ds_form  mode=Ox dst=+00002 src=-00008  REFUSE
+nonce.ds_form  mode=Ox dst=+00002 src=-00004  REFUSE
+nonce.ds_form  mode=Ox dst=+00002 src=+00000  REFUSE
+nonce.ds_form  mode=Ox dst=+00002 src=+00004  REFUSE
+nonce.ds_form  mode=Ox dst=+00002 src=+00008  REFUSE
+nonce.ds_form  mode=Ox dst=+00002 src=+00002  REFUSE
+nonce.ds_form  mode=Ox dst=+00002 src=+00006  REFUSE
+nonce.ds_form  mode=Ox dst=+00002 src=+04096  REFUSE
+nonce.ds_form  mode=Ox dst=+00002 src=+32744  REFUSE
+nonce.ds_form  mode=Ox dst=+00002 src=+32748  REFUSE
+nonce.ds_form  mode=Ox dst=+00002 src=+32752  REFUSE
+nonce.ds_form  mode=Ox dst=+00002 src=+32756  REFUSE
+nonce.ds_form  mode=Ox dst=+00002 src=+32760  REFUSE
+nonce.ds_form  mode=Ox dst=+00002 src=+32764  REFUSE
+nonce.ds_form  mode=Ox dst=+00006 src=-00008  REFUSE
+nonce.ds_form  mode=Ox dst=+00006 src=-00004  REFUSE
+nonce.ds_form  mode=Ox dst=+00006 src=+00000  REFUSE
+nonce.ds_form  mode=Ox dst=+00006 src=+00004  REFUSE
+nonce.ds_form  mode=Ox dst=+00006 src=+00008  REFUSE
+nonce.ds_form  mode=Ox dst=+00006 src=+00002  REFUSE
+nonce.ds_form  mode=Ox dst=+00006 src=+00006  REFUSE
+nonce.ds_form  mode=Ox dst=+00006 src=+04096  REFUSE
+nonce.ds_form  mode=Ox dst=+00006 src=+32744  REFUSE
+nonce.ds_form  mode=Ox dst=+00006 src=+32748  REFUSE
+nonce.ds_form  mode=Ox dst=+00006 src=+32752  REFUSE
+nonce.ds_form  mode=Ox dst=+00006 src=+32756  REFUSE
+nonce.ds_form  mode=Ox dst=+00006 src=+32760  REFUSE
+nonce.ds_form  mode=Ox dst=+00006 src=+32764  REFUSE
+nonce.ds_form  mode=Ox dst=+04096 src=-00008  REFUSE
+nonce.ds_form  mode=Ox dst=+04096 src=-00004  REFUSE
+nonce.ds_form  mode=Ox dst=+04096 src=+00000  REFUSE
+nonce.ds_form  mode=Ox dst=+04096 src=+00004  REFUSE
+nonce.ds_form  mode=Ox dst=+04096 src=+00008  REFUSE
+nonce.ds_form  mode=Ox dst=+04096 src=+00002  REFUSE
+nonce.ds_form  mode=Ox dst=+04096 src=+00006  REFUSE
+nonce.ds_form  mode=Ox dst=+04096 src=+04096  REFUSE
+nonce.ds_form  mode=Ox dst=+04096 src=+32744  REFUSE
+nonce.ds_form  mode=Ox dst=+04096 src=+32748  REFUSE
+nonce.ds_form  mode=Ox dst=+04096 src=+32752  REFUSE
+nonce.ds_form  mode=Ox dst=+04096 src=+32756  REFUSE
+nonce.ds_form  mode=Ox dst=+04096 src=+32760  REFUSE
+nonce.ds_form  mode=Ox dst=+04096 src=+32764  REFUSE
+nonce.ds_form  mode=Ox dst=+32744 src=-00008  REFUSE
+nonce.ds_form  mode=Ox dst=+32744 src=-00004  REFUSE
+nonce.ds_form  mode=Ox dst=+32744 src=+00000  REFUSE
+nonce.ds_form  mode=Ox dst=+32744 src=+00004  REFUSE
+nonce.ds_form  mode=Ox dst=+32744 src=+00008  REFUSE
+nonce.ds_form  mode=Ox dst=+32744 src=+00002  REFUSE
+nonce.ds_form  mode=Ox dst=+32744 src=+00006  REFUSE
+nonce.ds_form  mode=Ox dst=+32744 src=+04096  REFUSE
+nonce.ds_form  mode=Ox dst=+32744 src=+32744  REFUSE
+nonce.ds_form  mode=Ox dst=+32744 src=+32748  REFUSE
+nonce.ds_form  mode=Ox dst=+32744 src=+32752  REFUSE
+nonce.ds_form  mode=Ox dst=+32744 src=+32756  REFUSE
+nonce.ds_form  mode=Ox dst=+32744 src=+32760  REFUSE
+nonce.ds_form  mode=Ox dst=+32744 src=+32764  REFUSE
+nonce.ds_form  mode=Ox dst=+32748 src=-00008  REFUSE
+nonce.ds_form  mode=Ox dst=+32748 src=-00004  REFUSE
+nonce.ds_form  mode=Ox dst=+32748 src=+00000  REFUSE
+nonce.ds_form  mode=Ox dst=+32748 src=+00004  REFUSE
+nonce.ds_form  mode=Ox dst=+32748 src=+00008  REFUSE
+nonce.ds_form  mode=Ox dst=+32748 src=+00002  REFUSE
+nonce.ds_form  mode=Ox dst=+32748 src=+00006  REFUSE
+nonce.ds_form  mode=Ox dst=+32748 src=+04096  REFUSE
+nonce.ds_form  mode=Ox dst=+32748 src=+32744  REFUSE
+nonce.ds_form  mode=Ox dst=+32748 src=+32748  REFUSE
+nonce.ds_form  mode=Ox dst=+32748 src=+32752  REFUSE
+nonce.ds_form  mode=Ox dst=+32748 src=+32756  REFUSE
+nonce.ds_form  mode=Ox dst=+32748 src=+32760  REFUSE
+nonce.ds_form  mode=Ox dst=+32748 src=+32764  REFUSE
+nonce.ds_form  mode=Ox dst=+32752 src=-00008  REFUSE
+nonce.ds_form  mode=Ox dst=+32752 src=-00004  REFUSE
+nonce.ds_form  mode=Ox dst=+32752 src=+00000  REFUSE
+nonce.ds_form  mode=Ox dst=+32752 src=+00004  REFUSE
+nonce.ds_form  mode=Ox dst=+32752 src=+00008  REFUSE
+nonce.ds_form  mode=Ox dst=+32752 src=+00002  REFUSE
+nonce.ds_form  mode=Ox dst=+32752 src=+00006  REFUSE
+nonce.ds_form  mode=Ox dst=+32752 src=+04096  REFUSE
+nonce.ds_form  mode=Ox dst=+32752 src=+32744  REFUSE
+nonce.ds_form  mode=Ox dst=+32752 src=+32748  REFUSE
+nonce.ds_form  mode=Ox dst=+32752 src=+32752  REFUSE
+nonce.ds_form  mode=Ox dst=+32752 src=+32756  REFUSE
+nonce.ds_form  mode=Ox dst=+32752 src=+32760  REFUSE
+nonce.ds_form  mode=Ox dst=+32752 src=+32764  REFUSE
+nonce.ds_form  mode=Ox dst=+32756 src=-00008  REFUSE
+nonce.ds_form  mode=Ox dst=+32756 src=-00004  REFUSE
+nonce.ds_form  mode=Ox dst=+32756 src=+00000  REFUSE
+nonce.ds_form  mode=Ox dst=+32756 src=+00004  REFUSE
+nonce.ds_form  mode=Ox dst=+32756 src=+00008  REFUSE
+nonce.ds_form  mode=Ox dst=+32756 src=+00002  REFUSE
+nonce.ds_form  mode=Ox dst=+32756 src=+00006  REFUSE
+nonce.ds_form  mode=Ox dst=+32756 src=+04096  REFUSE
+nonce.ds_form  mode=Ox dst=+32756 src=+32744  REFUSE
+nonce.ds_form  mode=Ox dst=+32756 src=+32748  REFUSE
+nonce.ds_form  mode=Ox dst=+32756 src=+32752  REFUSE
+nonce.ds_form  mode=Ox dst=+32756 src=+32756  REFUSE
+nonce.ds_form  mode=Ox dst=+32756 src=+32760  REFUSE
+nonce.ds_form  mode=Ox dst=+32756 src=+32764  REFUSE
+nonce.ds_form  mode=Ox dst=+32760 src=-00008  REFUSE
+nonce.ds_form  mode=Ox dst=+32760 src=-00004  REFUSE
+nonce.ds_form  mode=Ox dst=+32760 src=+00000  REFUSE
+nonce.ds_form  mode=Ox dst=+32760 src=+00004  REFUSE
+nonce.ds_form  mode=Ox dst=+32760 src=+00008  REFUSE
+nonce.ds_form  mode=Ox dst=+32760 src=+00002  REFUSE
+nonce.ds_form  mode=Ox dst=+32760 src=+00006  REFUSE
+nonce.ds_form  mode=Ox dst=+32760 src=+04096  REFUSE
+nonce.ds_form  mode=Ox dst=+32760 src=+32744  REFUSE
+nonce.ds_form  mode=Ox dst=+32760 src=+32748  REFUSE
+nonce.ds_form  mode=Ox dst=+32760 src=+32752  REFUSE
+nonce.ds_form  mode=Ox dst=+32760 src=+32756  REFUSE
+nonce.ds_form  mode=Ox dst=+32760 src=+32760  REFUSE
+nonce.ds_form  mode=Ox dst=+32760 src=+32764  REFUSE
+nonce.ds_form  mode=Ox dst=+32764 src=-00008  REFUSE
+nonce.ds_form  mode=Ox dst=+32764 src=-00004  REFUSE
+nonce.ds_form  mode=Ox dst=+32764 src=+00000  REFUSE
+nonce.ds_form  mode=Ox dst=+32764 src=+00004  REFUSE
+nonce.ds_form  mode=Ox dst=+32764 src=+00008  REFUSE
+nonce.ds_form  mode=Ox dst=+32764 src=+00002  REFUSE
+nonce.ds_form  mode=Ox dst=+32764 src=+00006  REFUSE
+nonce.ds_form  mode=Ox dst=+32764 src=+04096  REFUSE
+nonce.ds_form  mode=Ox dst=+32764 src=+32744  REFUSE
+nonce.ds_form  mode=Ox dst=+32764 src=+32748  REFUSE
+nonce.ds_form  mode=Ox dst=+32764 src=+32752  REFUSE
+nonce.ds_form  mode=Ox dst=+32764 src=+32756  REFUSE
+nonce.ds_form  mode=Ox dst=+32764 src=+32760  REFUSE
+nonce.ds_form  mode=Ox dst=+32764 src=+32764  REFUSE
+## summary  nonce.ds_form  cells=392 admit=49 refuse=343 values={e944000078ab00207d4a5a14f9430000e94400087d6a5a14f96300084e800020,e944000078ab00207d4a5a14f9430004e94400087d6a5a14f963000c4e800020,e944000078ab00207d4a5a14f9430008e94400087d6a5a14f96300104e800020,e944000078ab00207d4a5a14f9431000e94400087d6a5a14f96310084e800020,e944000078ab00207d4a5a14f9437fe8e94400087d6a5a14f9637ff04e800020,e944000078ab00207d4a5a14f9437fece94400087d6a5a14f9637ff44e800020,e944000078ab00207d4a5a14f9437ff0e94400087d6a5a14f9637ff84e800020,e944000478ab00207d4a5a14f9430000e944000c7d6a5a14f96300084e800020,e944000478ab00207d4a5a14f9430004e944000c7d6a5a14f963000c4e800020,e944000478ab00207d4a5a14f9430008e944000c7d6a5a14f96300104e800020,e944000478ab00207d4a5a14f9431000e944000c7d6a5a14f96310084e800020,e944000478ab00207d4a5a14f9437fe8e944000c7d6a5a14f9637ff04e800020,e944000478ab00207d4a5a14f9437fece944000c7d6a5a14f9637ff44e800020,e944000478ab00207d4a5a14f9437ff0e944000c7d6a5a14f9637ff84e800020,e944000878ab00207d4a5a14f9430000e94400107d6a5a14f96300084e800020,e944000878ab00207d4a5a14f9430004e94400107d6a5a14f963000c4e800020,e944000878ab00207d4a5a14f9430008e94400107d6a5a14f96300104e800020,e944000878ab00207d4a5a14f9431000e94400107d6a5a14f96310084e800020,e944000878ab00207d4a5a14f9437fe8e94400107d6a5a14f9637ff04e800020,e944000878ab00207d4a5a14f9437fece94400107d6a5a14f9637ff44e800020,e944000878ab00207d4a5a14f9437ff0e94400107d6a5a14f9637ff84e800020,e944100078ab00207d4a5a14f9430000e94410087d6a5a14f96300084e800020,e944100078ab00207d4a5a14f9430004e94410087d6a5a14f963000c4e800020,e944100078ab00207d4a5a14f9430008e94410087d6a5a14f96300104e800020,e944100078ab00207d4a5a14f9431000e94410087d6a5a14f96310084e800020,e944100078ab00207d4a5a14f9437fe8e94410087d6a5a14f9637ff04e800020,e944100078ab00207d4a5a14f9437fece94410087d6a5a14f9637ff44e800020,e944100078ab00207d4a5a14f9437ff0e94410087d6a5a14f9637ff84e800020,e9447fe878ab00207d4a5a14f9430000e9447ff07d6a5a14f96300084e800020,e9447fe878ab00207d4a5a14f9430004e9447ff07d6a5a14f963000c4e800020,e9447fe878ab00207d4a5a14f9430008e9447ff07d6a5a14f96300104e800020,e9447fe878ab00207d4a5a14f9431000e9447ff07d6a5a14f96310084e800020,e9447fe878ab00207d4a5a14f9437fe8e9447ff07d6a5a14f9637ff04e800020,e9447fe878ab00207d4a5a14f9437fece9447ff07d6a5a14f9637ff44e800020,e9447fe878ab00207d4a5a14f9437ff0e9447ff07d6a5a14f9637ff84e800020,e9447fec78ab00207d4a5a14f9430000e9447ff47d6a5a14f96300084e800020,e9447fec78ab00207d4a5a14f9430004e9447ff47d6a5a14f963000c4e800020,e9447fec78ab00207d4a5a14f9430008e9447ff47d6a5a14f96300104e800020,e9447fec78ab00207d4a5a14f9431000e9447ff47d6a5a14f96310084e800020,e9447fec78ab00207d4a5a14f9437fe8e9447ff47d6a5a14f9637ff04e800020,e9447fec78ab00207d4a5a14f9437fece9447ff47d6a5a14f9637ff44e800020,e9447fec78ab00207d4a5a14f9437ff0e9447ff47d6a5a14f9637ff84e800020,e9447ff078ab00207d4a5a14f9430000e9447ff87d6a5a14f96300084e800020,e9447ff078ab00207d4a5a14f9430004e9447ff87d6a5a14f963000c4e800020,e9447ff078ab00207d4a5a14f9430008e9447ff87d6a5a14f96300104e800020,e9447ff078ab00207d4a5a14f9431000e9447ff87d6a5a14f96310084e800020,e9447ff078ab00207d4a5a14f9437fe8e9447ff87d6a5a14f9637ff04e800020,e9447ff078ab00207d4a5a14f9437fece9447ff87d6a5a14f9637ff44e800020,e9447ff078ab00207d4a5a14f9437ff0e9447ff87d6a5a14f9637ff84e800020}

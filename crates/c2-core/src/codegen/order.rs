@@ -490,6 +490,105 @@ pub fn is_source_order(stmts: &[Stmt]) -> Option<bool> {
     Some(store_order(stmts)?.iter().enumerate().all(|(q, &k)| q == k))
 }
 
+/// **SURFACE[order.store_run]** — the registered decision surface's domain
+/// (`crate::surface`, board **#3762**, lane `w-inlbudget`, closing two of the
+/// four rows board **#3746** named as real refusal boundaries with no
+/// enumerated domain).
+///
+/// Store runs built to walk the two constants that gate this module's answer
+/// on a run it did **not** measure, rather than the ones it did:
+///
+/// * [`MAX_MULTISYM_PRODUCERS`] — three producers through one symbol is inside
+///   [`MAX_MODELLED_PRODUCERS`] and answered; three producers through *two* is
+///   past this constant and refused. Both are enumerated, so the constant is
+///   the only thing separating the two lines;
+/// * [`MAX_SYMBOL_CROSSINGS`] — the `alt` layout puts one producer's first
+///   consumption behind an alternating base sequence, so `nsw` grows with the
+///   run's length and crosses the constant inside the domain rather than
+///   outside it.
+///
+/// [`HEAD_SLOTS_MAX`] is claimed here too, and **only because the control said
+/// so.** This lane's first draft argued it could not matter — `layout_slots`
+/// reads `u` only through `i.min(u)`, and a run with enough producers to see
+/// `u = 3` is already past [`MAX_MODELLED_PRODUCERS`] — and wrote it into
+/// `c2_core::surface::UNCOVERED` on that reasoning. Widening it 2 → 3 moves
+/// **47** domain lines: [`leading_unproduced`] is rendered in its own right,
+/// and [`store_order`]'s `for u in (0..=head_slots).rev()` search changes with
+/// the cap. `#3746`'s rule — measure the claim, never argue it — caught a wrong
+/// *non*-coverage claim, which is the direction nobody was watching.
+///
+/// The corpus reaches none of the multi-symbol rows: `schedule` has no caller
+/// under `crates/` and `leaf_store` consumes [`producers_lead`], which admits
+/// only single-symbol runs today.
+pub fn surface_rows() -> Vec<crate::surface::Row> {
+    /// `blocked` groups the bases (`AAABBB`), `alt` interleaves them
+    /// (`ABABAB`) — the second is what makes a producer's first consumption sit
+    /// behind a run of symbol changes.
+    fn bases(shape: &str, nsym: usize, len: usize) -> Vec<u32> {
+        (0..len)
+            .map(|i| match shape {
+                "blocked" => ((i * nsym) / len) as u32,
+                _ => (i % nsym) as u32,
+            })
+            .collect()
+    }
+
+    let mut rows = Vec::new();
+    for &len in &[4usize, 6] {
+        for nsym in 1..=3usize {
+            for shape in ["blocked", "alt"] {
+                for nprod in 0..=4usize {
+                    for &tail_produced in &[true, false] {
+                        let b = bases(shape, nsym, len);
+                        let stmts: Vec<Stmt> = (0..len)
+                            .map(|i| {
+                                let produced = if tail_produced {
+                                    i + nprod >= len
+                                } else {
+                                    i < nprod
+                                };
+                                Stmt {
+                                    producer: if nprod > 0 && produced {
+                                        Some((i % nprod.max(1)) as u32)
+                                    } else {
+                                        None
+                                    },
+                                    base: b[i],
+                                }
+                            })
+                            .collect();
+                        let outcome = match store_order(&stmts) {
+                            None => format!("{} store-order", crate::surface::REFUSE),
+                            Some(_) => match layout_slots(&stmts) {
+                                None => format!("{} layout-crossings", crate::surface::REFUSE),
+                                Some(v) => {
+                                    let slots = v
+                                        .iter()
+                                        .map(|s| s.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join("/");
+                                    let lead = leading_unproduced(&stmts)
+                                        .map_or("-".to_string(), |u| u.to_string());
+                                    format!("slots={slots},u={lead}")
+                                }
+                            },
+                        };
+                        rows.push(crate::surface::Row::new(
+                            format!(
+                                "len={len} nsym={nsym} shape={shape:<7} nprod={nprod} \
+                                 tail={}",
+                                tail_produced as u8
+                            ),
+                            outcome,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    rows
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
