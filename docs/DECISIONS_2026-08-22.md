@@ -1341,7 +1341,11 @@ established it from two independent directions.**
   comparator. **There is no third separable piece.** Everything remaining runs
   through `cand+0x0c`, which accumulates over code the scheduler produced, and
   `w-f0price` then made that blocker both larger and better specified:
-  **F0 ≥ 10 raw sub-lanes + 2 UNPRICED terms**, naming **1 of 34**
+  **F0 ≥ ~~10~~ 9 raw sub-lanes + 2 UNPRICED terms** (⛔ corrected 2026-08-28 by
+`w-floor`, board `#3751`: the published 10 is **one lane above its own
+addends** — sub-item 1 went UNPRICED and the total was not decremented;
+`1+1+1+1+1+3+1 = 9`. Every conclusion survives, since 9 still exceeds the
+8-as-ceiling), naming **1 of 34**
   post-allocator passes with **27 uncovered** and stage S7 unpriced entirely.
 - **Inliner.** `w-inlfit` read C8 end to end — the ceiling is 128 instructions
   and is command-line settable via `-vol#` — and then concluded, in
@@ -1403,6 +1407,26 @@ under two names, in two tracks, is the thing to avoid.
   shipped ~1,200 lines of allocator code, and that is the instrument working.
 - **A new count-bearing `gate.sh` row**, from anyone (`#3691`).
 - **Re-taking `#3534`.** `byte-owned` stays cited.
+
+
+
+> ### ⛔ AMENDED 2026-08-28 — two corrections to THIS decision, both found by the lanes it funded
+>
+> **1. `w-sched` was dispatched on a premise that was false.** §2 justifies it
+> as *"a **check of an existing read**, not a fresh one"* and cites `READ_PLAN`
+> **R7** as open. **R7 was already discharged on 2026-08-23** —
+> `docs/rungs/2026-08-23-w-read-r7.md`, outcome `built`, board `#3433`–`#3436`
+> — five days before this decision funded it again. `READ_PLAN` §3's row still
+> read as open and the coordinator did not check the rung index before
+> dispatching. **Sixth instance of a row re-entering the dispatch pool after
+> already being answered, and the first that cost a whole lane.** The row is
+> marked SPENT now. The lane produced substantial new findings anyway
+> (`#3725`–`#3730`) — that mitigates the waste and does not excuse the check.
+>
+> **2. F0's figure in §1 is wrong by one** and is struck in place above.
+>
+> Neither correction changes what this decision funded, and both are the kind
+> of thing this repo records beside rather than rewrites.
 
 **Board:** `#3724` this decision · `#3725`–`#3730` `w-sched` ·
 `#3731`–`#3736` `w-lowerband` · `#3737`–`#3742` `w-s7` ·
