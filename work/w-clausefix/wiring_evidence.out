@@ -1,0 +1,56 @@
+############################################################
+# w-clausefix -- WAS check_table.py INVOKED BY ANYTHING?  (#3785)
+#
+# Taken against master 4b79bf46a -- i.e. BEFORE this lane added
+# crates/c2-harness/tests/clause_table.rs -- so the answer is about the
+# tree the lane found, not the one it left.
+############################################################
+
+$ git grep -l -F check_table 4b79bf46a -- '*.rs' '*.sh' '*.py' '*.toml' 'Makefile*' 'justfile'
+4b79bf46a:work/w-inlfit/addr_align.py
+4b79bf46a:work/w-inlmetric/check_table.py
+
+$ git grep -l -F CLAUSES.tsv 4b79bf46a -- '*.rs' '*.sh' '*.py' '*.toml'
+4b79bf46a:work/w-inlfit/addr_align.py
+4b79bf46a:work/w-inlmetric/check_table.py
+
+# The two hits below are check_table.py and addr_align.py naming THEMSELVES
+# and each other. Neither is a caller.
+$ git grep -l -F check_table 4b79bf46a -- 'work/'
+4b79bf46a:work/w-inlfit/PREREG.md
+4b79bf46a:work/w-inlfit/addr_align.py
+4b79bf46a:work/w-inlmetric/CLAUSES.tsv
+4b79bf46a:work/w-inlmetric/POSITIVE_CONTROL.md
+4b79bf46a:work/w-inlmetric/PREREG.md
+4b79bf46a:work/w-inlmetric/check_table.py
+
+$ git grep -l -F check_table 4b79bf46a -- '*.md'   # named in PROSE only
+4b79bf46a:docs/ADOPTION_BRIEF_2026-08-28.md
+4b79bf46a:docs/BOARD.md
+4b79bf46a:docs/DECISIONS_2026-08-22.md
+4b79bf46a:docs/rungs/2026-08-26-w-inlmetric.md
+4b79bf46a:docs/rungs/2026-08-27-w-inlfit.md
+4b79bf46a:docs/whitebox/WB_INLINE_FINDINGS.md
+4b79bf46a:docs/whitebox/ref/P_INLINE.md
+4b79bf46a:work/w-inlfit/PREREG.md
+4b79bf46a:work/w-inlmetric/POSITIVE_CONTROL.md
+4b79bf46a:work/w-inlmetric/PREREG.md
+
+# COUNT, exactly: SEVEN docs/ markdown files plus THREE lane work/ notes name
+# it -- and ZERO cargo test targets, ZERO gate.sh rows, ZERO scripts run it.
+# The two .py hits above are check_table.py and addr_align.py naming
+# themselves and each other; neither is a caller.
+# check_table.py was written 2026-08-26 (w-inlmetric) and its GREEN was
+# quoted by w-inlfit on 2026-08-27. Nothing ran it in between.
+
+############################################################
+# AND AT THIS LANE'S TIP:
+############################################################
+$ git grep -l -F check_table HEAD -- '*.rs'
+HEAD:crates/c2-harness/tests/clause_table.rs
+
+$ git diff --stat master..HEAD -- scripts/     # no gate row added (#3691)
+  (empty above = scripts/ untouched)
+
+$ grep -n 'WANT_ROWS=' scripts/gate_identity_diff.sh
+64:WANT_ROWS=21

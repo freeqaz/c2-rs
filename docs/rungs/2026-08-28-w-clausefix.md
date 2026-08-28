@@ -190,8 +190,12 @@ caught. `#3470`: a clean report over zero rows is not clean.
 ## 6. Nothing invoked the checker (**#3785**)
 
 A `grep` over every `.rs`, `.sh`, `.py` and `.toml` in this repo on 2026-08-28:
-`check_table.py` is named in **seven `.md` files and nowhere else**. No
-`cargo test` target, no `scripts/gate.sh` row, no script. It was written
+`check_table.py` is named in **seven `docs/` markdown files and three lane
+`work/` notes, and nowhere else**. No `cargo test` target, no `scripts/gate.sh`
+row, no script — the only two `.py` hits are `check_table.py` and
+`addr_align.py` naming themselves and each other. Transcript:
+`work/w-clausefix/wiring_evidence.out`, taken against master `4b79bf46a` so it
+describes the tree the lane **found**, not the one it left. It was written
 2026-08-26 and its `GREEN` was quoted by two later lanes.
 
 That is `#3679`'s exact shape — *a `scripts/` entry no funnel invokes is not
