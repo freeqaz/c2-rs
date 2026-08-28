@@ -258,7 +258,7 @@ the instrument that states it.
 |---|---|
 | `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **60 targets, 1,982 tests passed, 0 failed**, `TEST_EXIT=0`, **0 `SKIP: toolchain absent`** — `work/w-doctrine/test_release.out` |
 | `scripts/gate.sh --jobs 16 --require-graded` (BASE `8213c7b77`) | `GATE: PASS`, 18/18 lanes graded, sweep 19,460/19,556, cross 90,424/90,812, **0 mismatches anywhere**, `GATE_EXIT=0` — `work/w-doctrine/gate_base.out` |
-| `scripts/gate.sh --jobs 16 --require-graded` (TIP) | `GATE: PASS`, same counts, **0 mismatches anywhere**, `GATE_EXIT=0` — `work/w-doctrine/gate_tip.out` |
+| `scripts/gate.sh --jobs 8 --require-graded` (TIP, re-run after §4.2's domain repair) | `GATE: PASS`, same counts, **0 mismatches anywhere**, `GATE_EXIT=0` — `work/w-doctrine/gate_tip.out` |
 | `scripts/gate_identity_diff.sh base tip` | **`IDENTITY DIFF: 0 lines over 21 rows — required-zero byte delta HOLDS`**, `21 base, 21 tip (enumerated, not asserted)` — `work/w-doctrine/identity_tip.txt` |
 | `scripts/gate_identity_diff.sh --self-test` | `SELF-TEST PASS` — enumeration 21, control silent, `#3515`'s signature found exactly (14 lines / 7 rows) and nonzero, truncation refused |
 | `scripts/board_audit.sh` | 0 uncited, 0 unresolved anchors, 0 raw line anchors, 0 duplicates |
