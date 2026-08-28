@@ -16,10 +16,11 @@ use crate::codegen::encode::{
     encode_stfd,
     encode_stwu,
     mop_lwz,
+    mop_mflr,
     mop_mtlr,
     mop_stw,
 };
-use crate::codegen::mop;
+use crate::codegen::mop::{self, MachineOp};
 use crate::codegen::select::out_of_class;
 
 // ---------------------------------------------------------------------------
@@ -52,8 +53,17 @@ pub const FRAME_MAX_SAVED_NO_SPILL: u8 = 17;
 pub const FRAME_PAGE: u32 = 4096;
 
 // ---------------------------------------------------------------------------
-// The frame's six fixed instructions — four composed, two still literal
+// The frame's six fixed instructions — ALL SIX composed, none literal
 // ---------------------------------------------------------------------------
+//
+// **2026-08-28, lane `w-encarms` — the last two folded and the armed refusal
+// fired as designed.** `w-mopfold`'s note below priced the residue exactly
+// right: the blocker was never a disagreement between two rules, it was two
+// **missing rows** in `mop::OPCODES` and one missing arm in `mop::plan`. This
+// lane read arms `10bfa76a` (form 54, `mfspr`) and `10bfa285` (form 7, `bl`) in
+// the pinned image, transcribed the three rows c2 already carries, and the
+// three `word_seam::EXCEPTIONS` are gone. Zero emitted bytes moved — every one
+// of the six is `mop::const_word` of the same composition.
 //
 // **2026-08-26, lane `w-mopfold` — four of these six stopped being literals.**
 // Board **#3637** found eleven live instruction-word productions outside
@@ -70,11 +80,15 @@ pub const FRAME_PAGE: u32 = 4096;
 // byte moved. The historical literals are pinned in `word_seam`'s inventory,
 // which is where a regression in this direction goes red.
 //
-// **The two that did NOT fold are `FRAME_MFLR_R12` and `FRAME_STWUX`, and the
+// ~~**The two that did NOT fold are `FRAME_MFLR_R12` and `FRAME_STWUX`, and the
 // reason is a missing table row rather than a disagreement** — see their own
 // notes below. `word_seam` carries them as inventoried exceptions and *arms*
 // the refusal: the day `mfspr` or `stwux` is transcribed into `mop::OPCODES`,
-// the seam test turns red on these two and asks for this fold to finish.
+// the seam test turns red on these two and asks for this fold to finish.~~
+// STRUCK 2026-08-28 by `w-encarms`, which is the day. Kept, struck rather than
+// deleted, because the sentence is the record of a refusal that was priced,
+// armed, and then discharged by the lane it was aimed at — which is the only
+// evidence that arming a refusal does anything.
 
 /// `stw r12,-8(r1)` — spill the just-`mflr`'d link register into the caller's
 /// frame. The LR slot is the topmost doubleword of *this* function's frame
@@ -87,16 +101,16 @@ pub(crate) const FRAME_LR_LOAD: u32 = mop::const_word(mop_lwz(12, 1, -8));
 
 /// `mflr r12` (`mfspr r12,8`).
 ///
-/// **Still a literal, and this one is NOT a duplicate.** `mop::OPCODES` has no
-/// `mfspr` row and `mop::plan` has no arm for its form, so nothing in this port
-/// can compose this word — there is no second rule here to disagree with.
-/// c2 does carry the row (`docs/whitebox/ref/ENCODE_OPCODES.txt`: opcode
-/// `0x00e6`, base `7c0002a6`, **form 54**, arm `10bfa76a`), so finishing the
-/// fold is a *transcription*, not a derivation — but a transcription is an
-/// **adoption**, it moves `DISCLOSURE.md`'s `W-MOP-2`/`W-MOP-3` counts, and
-/// form 54's field placement is not among the 27 arms lane `w-read-r2` read.
-/// Priced and declined by `w-mopfold`; see `word_seam`'s inventory row.
-pub(crate) const FRAME_MFLR_R12: u32 = 0x7D88_02A6;
+/// **2026-08-28, lane `w-encarms` — the fold is finished.** `w-mopfold` left
+/// this a literal and named the exact price: `mop::OPCODES` had no `mfspr` row
+/// and `mop::plan` no form-54 arm, so it was a *missing transcription*, never a
+/// disagreement, and `word_seam::EXCEPTIONS` carried it armed. This lane read
+/// arm `10bfa76a` in the pinned image, transcribed the row (`0x00e6`, base
+/// `7c0002a6`, form **54**) and adopted the arm — `DISCLOSURE.md`
+/// `W-ENCARMS-1`. **Not one emitted byte moved**: `mop::const_word` evaluates
+/// the same composition at compile time and yields the identical `0x7D88_02A6`,
+/// which `word_seam`'s inventory re-derives on every test run.
+pub(crate) const FRAME_MFLR_R12: u32 = mop::const_word(mop_mflr(12));
 
 /// `mtlr r12` (`mtspr 8,r12`).
 pub(crate) const FRAME_MTLR_R12: u32 = mop::const_word(mop_mtlr(12));
@@ -107,13 +121,15 @@ pub(crate) const FRAME_MTLR_R12: u32 = mop::const_word(mop_mtlr(12));
 /// the measured word beside the threshold that gates it is what stops the next
 /// implementer from guessing it.
 ///
-/// **Still a literal, and not a duplicate either** — same reason as
-/// [`FRAME_MFLR_R12`], one step closer to foldable: c2's row is opcode
-/// `0x017f`, base `7c00016e`, **form 61**, and this port *already* has a field
-/// plan for form 61 (it emits `stdx`). So `stwux` needs one transcribed row and
-/// no new arm, which makes it the cheapest of the three refusals — and still an
-/// adoption this lane may not make.
-pub const FRAME_STWUX: u32 = 0x7C21_616E;
+/// **2026-08-28, lane `w-encarms` — folded, and it was the cheapest of the
+/// three**: c2's row is opcode `0x017f`, base `7c00016e`, **form 61**, and this
+/// port already had the form-61 plan (it emits `stdx`), so this needed one
+/// transcribed row and no new arm. `DISCLOSURE.md` `W-ENCARMS-1`. The
+/// composition reproduces `0x7C21_616E` exactly — `7c00016e | 1<<21 | 1<<16 |
+/// 12<<11` — and `word_seam` re-derives it every run.
+pub const FRAME_STWUX: u32 = mop::const_word(
+    MachineOp::new(mop::op::STWUX).d0(1).s(1).d1(12),
+);
 
 /// `lwz r1,0(r1)` — deallocate through the back chain, used when `+F` does not
 /// fit an `addi` immediate.

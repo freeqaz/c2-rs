@@ -316,6 +316,20 @@ pub mod op {
     // form 62 — the split SPR field
     pub const MTSPR: C2Op = C2Op(0x00F8);
 
+    /// `mfspr` — form **54**, arm `10bfa76a`, the mirror of [`MTSPR`].
+    ///
+    /// Adopted by lane `w-encarms` (wave 18); `DISCLOSURE.md` `W-ENCARMS-1`.
+    /// `frame.rs`'s `mflr r12` was a literal until this row existed, because
+    /// `mtspr`'s form 62 is a *different* form and cannot stand in for it —
+    /// `word_seam`'s `EXCEPTIONS` carried the refusal, armed, until now.
+    pub const MFSPR: C2Op = C2Op(0x00E6);
+
+    /// `stwux` — form **61**, arm `10bfa1a1`, the form the port already places
+    /// for `stdx`. One transcribed row and no new arm.
+    ///
+    /// Adopted by lane `w-encarms` (wave 18); `DISCLOSURE.md` `W-ENCARMS-1`.
+    pub const STWUX: C2Op = C2Op(0x017F);
+
     // forms 1 / 4 / 5 / 6 / 55 — branches
     pub const B: C2Op = C2Op(0x001F);
     pub const BC: C2Op = C2Op(0x0021);
@@ -328,6 +342,18 @@ pub mod op {
     /// to compose it from a primary, a `BO`, an extended opcode and a literal
     /// `1`; four facts where c2 has one row.
     pub const BCTRL: C2Op = C2Op(0x002A);
+
+    /// `bl` — form **7**, arm `10bfa285`. **Not `b` with a link bit**: c2 files
+    /// it as its own opcode on its own form, and its base word already carries
+    /// `LK` (`48000001`).
+    ///
+    /// Adopted by lane `w-encarms` (wave 18); `DISCLOSURE.md` `W-ENCARMS-1`.
+    /// Read at `0x10bfa285`: with a `NULL` relocation sink the arm stores the
+    /// base word alone; otherwise it requests `REL24` and ORs
+    /// `(−pc) & 0x03fffffe`. See [`plan`]'s form-7 note for the one-bit
+    /// difference between that mask and this port's field, and the domain row
+    /// in [`surface_rows`] that fences it.
+    pub const BL: C2Op = C2Op(0x002B);
 
     // forms 14 / 15 / 16 — compares
     pub const CMP: C2Op = C2Op(0x002D);
@@ -387,7 +413,7 @@ pub static OPCODES: &[OpRow] = OPCODE_ROWS;
 /// run, so the **85** that every sentence in this file leans on cannot go stale
 /// the way *"71"* did for four days.
 ///
-/// COUNT[rs-array:crates/c2-core/src/codegen/mop.rs:OPCODE_ROWS] = 85
+/// COUNT[rs-array:crates/c2-core/src/codegen/mop.rs:OPCODE_ROWS] = 88
 const OPCODE_ROWS: &[OpRow] = &[
     row(op::ADD, "add", 0x7c00_0214, 49),
     row(op::ADDE, "adde", 0x7c00_0114, 49),
@@ -462,7 +488,10 @@ const OPCODE_ROWS: &[OpRow] = &[
     row(op::STDX, "stdx", 0x7c00_012a, 61),
     row(op::STFSX, "stfsx", 0x7c00_052e, 28),
     row(op::MTSPR, "mtspr", 0x7c00_03a6, 62),
+    row(op::MFSPR, "mfspr", 0x7c00_02a6, 54),
+    row(op::STWUX, "stwux", 0x7c00_016e, 61),
     row(op::B, "b", 0x4800_0000, 6),
+    row(op::BL, "bl", 0x4800_0001, 7),
     row(op::BC, "bc", 0x4000_0000, 5),
     row(op::BCLR, "bclr", 0x4c00_0020, 4),
     row(op::BCCTR, "bcctr", 0x4c00_0420, 4),
@@ -911,6 +940,37 @@ pub const fn plan(form: Form) -> Option<FieldPlan> {
         // `mtspr`'s base word is `7c0003a6` with the field zero (§8.1 residual
         // 5). `9 << 11` would be a legal-looking `mtspr` naming SPR 288.
         62 => fp3(f(S, 21, 5), f(D1, 16, 5), f(D2, 11, 5)),
+        // `10bfa76a` — `mfspr`, the MIRROR of form 62 and read at that address
+        // by lane `w-encarms`, instruction by instruction:
+        //
+        //     cmp BYTE [esi+0x8],7      ; kind(D0) == 7 -> the SPR is an imm
+        //     eax = [[eax+0x1c]+0x28]   ; RT = reg(S)
+        //     esi = kind==7 ? [esi+0x18] : [[esi+0x1c]+0x28]
+        //     ecx = (esi & 0x1f) | (eax << 5)
+        //     ecx <<= 10 ; ecx |= (esi & 0x3e0) ; ecx <<= 6
+        //
+        // The last three lines are `RT<<21 | (spr & 0x1f)<<16 | (spr>>5)<<11`,
+        // the SAME low-half-first split §5.7 gives for form 62 — which is why
+        // this plan is form 62's, and why `mtspr` still could not stand in for
+        // it: the port needs the ROW (`mfspr`'s base word is `7c0002a6`, not
+        // `7c0003a6`) and c2 needs the form to reach a different arm.
+        54 => fp3(f(S, 21, 5), f(D1, 16, 5), f(D2, 11, 5)),
+        // `10bfa285` — `bl`. Read by lane `w-encarms` at that address:
+        //
+        //     cmp DWORD [ebp+0xc],0 ; je 0x10bfae1b   ; NULL sink -> base alone
+        //     mov ecx,edi ; call 0x10bf976d           ; request REL24
+        //     mov eax,[ebp+0x8] ; neg eax             ; -pc
+        //     and eax,0x3fffffe ; jmp 0x10bfae19      ; or ebx,eax ; store
+        //
+        // **c2's mask is `0x03fffffe`, one bit wider than the `LI` field**,
+        // which is bits 6..29 (`0x03fffffc`); bit 1 is the `AA` bit's
+        // neighbour. The two masks are the same function only while `pc` is a
+        // multiple of 4 — a caller precondition, not a property of the field,
+        // exactly as `Slot::DispWord`'s own note says of the arithmetic shift.
+        // This plan spells the FIELD (`((disp >> 2) & 0xffffff) << 2`), and the
+        // half-word domain where the two diverge is a registered decision
+        // surface row rather than a silent coincidence — see [`surface_rows`].
+        7 => fp1(f(DispWord, 2, 24)),
         // `10bfa2a5` — `blr`/`bctr`/`bctrl`: `or ebx,0x2800000`, i.e. BO = 20
         // supplied by the ARM, no operand read at all. The port used to bake
         // this into a literal `4e800020`; it is #3379's `BO_ALWAYS` residual
@@ -1908,6 +1968,14 @@ mod ops_tests {
         // the two numbers being equal until today was a coincidence: `mtlr` and
         // `mtctr` are two encoders over one `MTSPR` row, as `blr`/`bctrl` are
         // two over form 55.
-        assert_eq!(encoders, 86, "the encoder population moved; update the sweeps too");
+        //
+        // **86 -> 87 on 2026-08-28, lane `w-encarms`**: `encode_mflr`/`mop_mflr`
+        // are new, for the same reason and in the same shape as the `mtlr` pair
+        // above — `frame::FRAME_MFLR_R12` was the literal `0x7D88_02A6`, the
+        // last of board **#3637**'s duplicate word productions that a *missing
+        // table row* was blocking rather than a disagreement. Again an encoder
+        // the file was missing, not an encoder the port gained: `mflr` and
+        // `mfspr` are one row, as `mtlr`/`mtctr` are one row.
+        assert_eq!(encoders, 87, "the encoder population moved; update the sweeps too");
     }
 }

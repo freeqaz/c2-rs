@@ -461,6 +461,18 @@ pub fn encode_mtlr(rs: u8) -> [u8; 4] {
     mop_mtlr(rs).word()
 }
 
+/// `mflr rD` — `mfspr rD,8`: the prologue's link-register save.
+///
+/// The same shape as [`encode_mtlr`] and for the same reason — lane
+/// `w-encarms` needed the `const fn` [`mop_mflr`] for `frame::FRAME_MFLR_R12`,
+/// and this twin exists so `mflr` is shaped like every other instruction in the
+/// file. It has no caller today either; `S1c` (i) asks for one twin per
+/// encoder, and the honest state of an encoder whose only consumer is a `const`
+/// is that it has none.
+pub fn encode_mflr(rd: u8) -> [u8; 4] {
+    mop_mflr(rd).word()
+}
+
 /// `mtlr rS` — `mtspr 8,rS`: the epilogue's link-register restore, the same
 /// opcode and the same split field as [`mop_mtctr`] one SPR number over.
 ///
@@ -475,6 +487,30 @@ pub fn encode_mtlr(rs: u8) -> [u8; 4] {
 /// `const fn` because its one caller is a `const`. Evidence: `7d8803a6` is
 /// `mtlr r12` in every framed epilogue this project has captured, and
 /// `word_seam`'s inventory pins the historical literal against it.
+/// `mflr rD` — `mfspr rD,8`, the **mirror** of [`mop_mtlr`].
+///
+/// **Added by lane `w-encarms` (wave 18) so `frame.rs` stops spelling this
+/// instruction as the literal `0x7D88_02A6`.** `w-mopfold` folded four of
+/// `frame.rs`'s six fixed words and priced this one as a *refusal*, because
+/// `mop::OPCODES` had no `mfspr` row and `mop::plan` no form-54 arm — a missing
+/// transcription rather than a disagreement, and `word_seam::EXCEPTIONS`
+/// carried it armed. Both halves exist now: the row (`0x00e6`, base
+/// `7c0002a6`, form **54**) and the arm `10bfa76a`, read at that address by
+/// this lane. `DISCLOSURE.md` `W-ENCARMS-1`.
+///
+/// The SPR split is the same low-half-first shape as `mtspr`'s and it is
+/// c2's arm, not this port's convention, that does it — which is exactly why
+/// the baked `0x7D88_02A6` could not show which half was which.
+#[inline(always)]
+pub const fn mop_mflr(rd: u8) -> MachineOp {
+    // PROV[S] PowerPC ISA — `SPR` 8 is `LR`. Not from c2; the same fact `mop_mtlr` uses one instruction over.
+    const SPR_LR: u32 = 8;
+    MachineOp::new(op::MFSPR)
+        .s(rd)
+        .imm_d1(SPR_LR & 0x1F)
+        .imm_d2(SPR_LR >> 5)
+}
+
 #[inline(always)]
 pub const fn mop_mtlr(rs: u8) -> MachineOp {
     // PROV[S] PowerPC ISA — `SPR` 8 is `LR`. Not from c2; the neighbouring `SPR_CTR` is the same fact one number over.
