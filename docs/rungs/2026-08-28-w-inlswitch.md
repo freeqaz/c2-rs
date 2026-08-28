@@ -113,6 +113,18 @@ the defect in its own header.
 > shell passed the command what I wrote"* — and neither is visible in an exit
 > code. The lane's sequencer now uses the bracket trick and a deadline that
 > reports `TIMEOUT` as an outcome distinct from success.
+>
+> **And a third, which is the one worth carrying forward.** The bracket-tricked
+> waiter `pgrep -f '[c]argo test --workspace --release'` is correct about
+> self-matching and **wrong about scope in a five-lane wave**: four peers run
+> the identical command line in their own worktrees, so the predicate stayed
+> true long after this lane's suite was the only thing left to wait for. It was
+> caught by reading `/proc/<pid>/cwd` for every match — **the reported elapsed
+> time went DOWN between two polls**, which is only possible if the poll had
+> silently switched to a different process. Fixed by waiting on a PID, which is
+> `CLAUDE.md`'s own FIX 1 and has no pattern to be wrong about. **In a
+> worktree-per-lane protocol, a correct `pgrep -f` predicate is still a
+> repo-wide one.**
 
 ## Found and not taken
 
