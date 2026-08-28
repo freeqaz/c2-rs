@@ -173,6 +173,10 @@ is absent; `defB` = the same for table **B** via `FUN_10b5ba71`. `live` =
 | `+0x6c` | `-inlipfw#` | `0x10c45dd8` | 0 | 0 | `0x10c3f57c` | `0x10b5fe15` |
 
 **24 named, 24 with at least one live reader — 24 of 24, denominator 24.**
+The read census, taken from `inlswitch.out` rather than by hand: **58 read
+instructions over all 46 fields, 39 of them over the 24 switches**, split
+`FUN_10b5fcd8` **25** · `FUN_10bb7aa3` **5** · `FUN_10ba24c4` **4** ·
+`FUN_10ba2948` **3** · `FUN_10b5dc6c` **2**.
 **P2 is refuted twice over**: not only is it not "at most 11", it is *all of
 them*, and the sub-prediction ("at most 6 tied to a named decision") is
 refuted too — **§3.1 names the decision for all 24**, at the level of the
@@ -189,7 +193,9 @@ carry in A; this page does not claim it.
 
 ### 3.1 What each reader decides `[R]`
 
-29 of the 32 distinct reader instructions live in **`FUN_10b5fcd8`**, which is
+**39 read instructions serve the 24 switches** (58 over all 46 fields, both
+counted by the instrument, not by hand), and **25 of the 39 live in
+`FUN_10b5fcd8`**, which is
 `P_INLINE` §5's POGO cost model. It accumulates a score in `esi` and returns
 `esi < -inlS#`. Reading the arithmetic, not naming it:
 
@@ -239,10 +245,10 @@ carry in A; this page does not claim it.
   `FUN_10b5dc6c` at `0x10b5dca9` compares a byte counter against it and bails
   when it exceeds — a **depth/multiplicity cap**, A **32**, B **15**.
 
-Four switches (`-inlfcsw#`, `-inlflcsw#`, `-inlcsw#`, `-inldasw#`,
-`-inlcasw#` — five, in fact) additionally have readers in `FUN_10bb7aa3`,
-`FUN_10ba24c4` and `FUN_10ba2948`, which are outside the inliner band and were
-not read. **Named as not reached.**
+Five switches — `-inlfcsw#`, `-inlflcsw#`, `-inlcsw#`, `-inldasw#`,
+`-inlcasw#` — additionally have readers in `FUN_10bb7aa3` (5), `FUN_10ba24c4`
+(4) and `FUN_10ba2948` (3), **12 of the 39 reads**, all outside the inliner
+band and none of them opened. **Named as not reached.**
 
 ### 3.2 …and every one of them is DEAD on this workload `[O]`
 
@@ -600,8 +606,9 @@ Ranked, sized, with what stopped each.
    not 104, and `-inlfcsw#`'s is **32–56**. Read but not graded against an obj,
    because the fields are POGO-dead here.
 3. **The three non-band reader functions** — `FUN_10bb7aa3`, `FUN_10ba24c4`,
-   `FUN_10ba2948` — hold 17 of the 32 reads and were not opened. They are
-   outside `0x10b5b86d`–`0x10b62b00`.
+   `FUN_10ba2948` — hold **12 of the 39** switch reads (5 + 4 + 3) and were
+   not opened. They are outside `0x10b5b86d`–`0x10b62b00`. The remaining 2 are
+   `FUN_10b5dc6c`'s reads of `-inlmlsa#`.
 4. **`FUN_10b5e9a5`** (`0x10b5e9a5`, 607 B), `FUN_10b5da2f`'s sole caller: what
    it does with the returned 0/1 is unread, so §6's test is characterized
    without its consumer.

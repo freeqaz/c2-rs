@@ -122,8 +122,9 @@ Ranked, sized, with what stopped each. Full list at
    (`+32/+24`, `+24/+16`, `+16`, `−8`, `−16`, `−24`). So `-inlT#`'s effective
    default is a **range, 80–136**, not the 104 the sweep installs. Read, not
    graded, because the field is POGO-dead here.
-3. **17 of the 32 switch reads are outside the band** — `FUN_10bb7aa3`,
-   `FUN_10ba24c4`, `FUN_10ba2948` — and were not opened.
+3. **12 of the 39 switch reads are outside the band** — `FUN_10bb7aa3` (5),
+   `FUN_10ba24c4` (4), `FUN_10ba2948` (3) — and were not opened. 25 of the 39
+   are in `FUN_10b5fcd8` and 2 in `FUN_10b5dc6c`.
 4. **`FUN_10b5e9a5`**, `FUN_10b5da2f`'s sole caller: what it does with the
    returned 0/1 is unread, so §6's test is characterized without its consumer.
 5. **The 13 dead parameter fields** `+0x84`…`+0xb4`, fed from

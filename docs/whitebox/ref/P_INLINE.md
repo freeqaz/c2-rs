@@ -1072,8 +1072,9 @@ into the live record at `0x10c3f510`:
 #### 6.8.3 All 24 have a reader, all 24 are dead here `[R]` `[O]`
 
 **24 of 24** have at least one read of their live field — the prereg predicted
-at most 11, and at most 6 tied to a named decision. 29 of the 32 distinct read
-instructions are inside **`FUN_10b5fcd8`**, §5's POGO cost model, which
+at most 11, and at most 6 tied to a named decision. **39 read instructions
+serve the 24 switches** (58 over all 46 fields), and **25 of the 39** are
+inside **`FUN_10b5fcd8`**, §5's POGO cost model, which
 accumulates a score and returns `score < -inlS#`. The decisions, in arithmetic:
 
 * **`-inlS#`** (`+0x00`, A **60** / B **2**) is the **accept threshold** —
