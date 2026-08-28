@@ -1,0 +1,9 @@
+table    : work/w-inlmetric/CLAUSES.tsv
+rows     : 24
+  state    : {'absent': 17, 'fitted': 2, 'R-derived': 2, 'unexercisable': 3}
+  exercised: {'yes': 9, 'not-separable': 6, 'no': 6, 'unexercisable': 3}
+listing  : ~/ghidra-projects/export/c2/objdump_intel.asm
+  ALIGN  : 424,232 instruction starts, 24 of 24 rows graded
+  DECODE : 24 of 24 rows carry an `asm` cell and were graded
+
+CONFORMANCE-CHECK: GREEN  (0 failure(s) over 24 rows)
