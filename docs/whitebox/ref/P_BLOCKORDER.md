@@ -182,6 +182,16 @@ Per-function driver **`FUN_10b7e6af`** @ `0x10b7e6af`, in order:
 `FUN_10c12099`, `FUN_10b821c3`, `FUN_10c275a7`, and finally **`FUN_10b3421b`**
 → `FUN_10b338f5`, the emit walk of §1.
 
+> **AMENDED 2026-08-28 by `w-s7` — the list is right and it is not a sequence.**
+> The first four are behind `test [eax+0x20],0x1000` at `0x10b7e03a` and the
+> fifth behind POGO; **five of the ten run on this project's configurations**
+> (`../WB_S7_FINDINGS.md` §1.1, board **#3738**). And **order is not frozen at
+> `FUN_10b3421b`** as this ordering invites: four of its depth-1 callees splice
+> before the walk — `FUN_10b33dd8` (`0x10bd3824` + `0x10bd5516`),
+> `FUN_10b33647` (`0x10bd3815` + `0x10bd5516`), `FUN_10b33f96`, `FUN_10c1da6f`.
+> The freeze point is **`FUN_10b338f5`**, which reaches no author at all —
+> which is §1's own read, one level down. Board **#3742**.
+
 The scheduler re-links the list in scheduled order through `FUN_10be626c` @
 `0x10be626c` (`P_DAG.md`), so it is **a second author of order** and it runs
 four times per function. `WB_DAGCLIENTS_FINDINGS.md` names two more in
@@ -399,7 +409,7 @@ list. The jump-table path makes the join concrete — the emitted table base is 
 | # | open |
 |---|---|
 | 1 | **Whether the tree's arm order is a REORDER or a MATERIALIZATION.** Every arm in this lane's grid is a `return CONST` leaf (two words), the same shape `WB_REGALLOC_FINDINGS.md` §7.6 used. The read says the switch module splices the switch **body** in unchanged (`FUN_10bd3835` at `reader.c`'s `0x3b` arm) and that its five expanders insert only compare/branch/table tuples — **none of them moves an arm block**. So the tree order may be arms *materialized* in traversal order rather than blocks *moved*. This grid cannot separate those, and a grid of call-bearing arms would. **Named, not resolved.** |
-| 2 | **`FUN_10b35c78`** @ `0x10b35c78` (`fg.c` band) runs inside `FUN_10b7e032` **before** `FUN_10b36169`, and is unread. It is the standing candidate for open #1. |
+| 2 | ~~**`FUN_10b35c78`** @ `0x10b35c78` (`fg.c` band) runs inside `FUN_10b7e032` **before** `FUN_10b36169`, and is unread. It is the standing candidate for open #1.~~ — **READ 2026-08-28 by `w-s7`** ([`../WB_S7_FINDINGS.md`](../WB_S7_FINDINGS.md) §2, board **#3737**). It is a **genuine move**: one linear pass over the tuple list, and at every kind-`0x1b` label it drains the chain at `tuple+0x2c` with `FUN_10bd3852` (unlink) then `FUN_10bd3815` (insert-after), then clears the head. **And it cannot be open #1's mechanism**, because it does not run: both its callers (`0x10b7e032`, `0x10c21b03`) sit inside `0x10b7e032`'s `sym+0x20 & 0x1000` gate, measured **clear on 2,946 of 2,946 functions over 384 fixtures** at the workload's own mode. Open #1 stays open with one candidate eliminated. |
 | 3 | **The author population is not closed** (§2.1), and cannot be closed by R3's argument. Any "pass X owns block order" claim needs a different argument. |
 | 4 | **Non-`switch` block order is inherited, not re-derived here.** `CFG_SHAPE.md` §3.4 (10 of 11 cells), board **#2352** (`if-2`/`if-n`, 9 cells) and **#1906** (loops) stand; §1 explains *why* they are source order — nothing reorders — but this lane compiled no new `if` or loop cell. |
 | 5 | **Code motion still moves blocks.** `CFG_SHAPE.md` §3.4.1's `?d_join` tail-merges and hoists, inverting the layout. §1 says why that is possible at all — order is list order, so any splice moves it — but the *decision* to tail-merge is not read here. |

@@ -288,6 +288,20 @@ F0's eight sub-items name 1 of the 34.**
 
 `FUN_10b7e032` @ `0x10b7e032`, read whole:
 
+> ⛔ **AMENDED 2026-08-28 by `w-s7` — the annotation `/* the EH gate — /EHsc */`
+> below is STRUCK, and the whole block is UNREACHED on this project's
+> configurations.** The bit is not `/EHsc`: the workload compiles at
+> `/O1 /EHsc /GR` and it is **clear on 2,946 of 2,946 functions over 384
+> fixtures**, by this repo's own `w-restim` measurement (`sched0`'s site
+> `0x10b7e00c` is inside the block `0x10b7dfea` skips when the bit is set, and
+> `sched0` fired on every function). It is a route selector over two complete
+> unwind paths, read from the IL — c2 **never sets it**. So the mode-0 merger
+> call, `0x10c21b03`, `0x10be46f0` and `FUN_10b35c78` all execute **zero**
+> times here: `0x10b35c78`'s only callers are `0x10b7e032` and `0x10c21b03`,
+> and `0x10c21b03`'s only caller is `0x10b7e032` — both inside the gate.
+> [`WB_S7_FINDINGS.md`](WB_S7_FINDINGS.md) §1.2, §4; board **#3737**,
+> **#3738**, **#3741**.
+
 ```c
 if ((*(uint *)(*param_1 + 0x20) & 0x1000) != 0) {      /* the EH gate — /EHsc */
     FUN_10c21b03(param_1); FUN_10be46f0((int)param_1);
@@ -328,6 +342,21 @@ the scheduler's bulk relink `0x10be626c`. Partitioning the 34 (`--splice`):
 | **A** direct caller of a splice | **4** | 1,674 | **CAN move tuples**: `0x10c21b03` (S7), `0x10be6382` (S1/S6), `0x10b3668d` (S3, in the band), `0x10b35c78` (S7) |
 | **B** reaches one transitively | 18 | 4,068 | MAY move tuples |
 | **C** reaches none | 12 | 4,972 | cannot reorder\* |
+
+> ⛔ **AMENDED 2026-08-28 by lane `w-s7` — THE PREMISE IS FALSE AND THE AUTHOR
+> SET ABOVE IS 4 OF 11. This table stays as written and reproducible
+> (`--splice` is unchanged); do not quote its bracket.**
+> [`WB_S7_FINDINGS.md`](WB_S7_FINDINGS.md) §3, board **#3739**/**#3740**.
+> The splice band read whole is `0x10bd3815`..`0x10bd3901`, **eight** primitives
+> — the set above names three of them plus the scheduler relink and omits
+> `0x10bd3824` INSERT BEFORE and `0x10bd3815` INSERT AFTER, whose *pointer* form
+> is dominant (506 and 201 address-takes against 207 and 131 calls), so no call
+> graph sees them. And two functions splice **inline**: `0x10bd5516`, **401
+> direct call sites**, rewires `tuple+0`/`tuple+0x10` and never calls
+> `0x10bd3852` — which board **#3463** had already numbered on **2026-08-23**,
+> four days before this page. Re-partitioned by `--authors`: **A = 14 · B = 17 ·
+> C = 3, bracket 14–31 of 34**, and **nine of the twelve group-C rows can
+> reorder.**
 
 > **\* The bracket is the honest form and group C is the soft edge.** Group C is
 > sound only under the premise that no pass rewires `tuple+0`/`tuple+0x10`
@@ -396,12 +425,23 @@ The 10 is a floor **inside a boundary that is itself too small**. Against the
 pipeline measured in §4:
 
 * **34** depth-1 passes downstream of the allocator; F0 names **1**;
-* **27 of 34** are `cover=none` — unmentioned anywhere in this repository;
+* **27 of 34** are `cover=none` — ~~unmentioned anywhere in this repository~~
+  **STRUCK 2026-08-28 (`w-s7`, board #3742): the count is right, the gloss is
+  wrong.** `cover` is `paged > labelled > cited > none`, `cited` needs an
+  `ADDR.tsv` row, and `ADDR.tsv` scans for **bare hex**.
+  `ref/P_BLOCKORDER.md` §3 names **all ten of S7's passes** by `FUN_` name —
+  and §4.1 above cites that very section. Measured: **17** of the 27 are
+  mentioned in some repo `.md`, **8** in a page other than this one;
 * the order-changing subset is bracketed at **4–22 of 34**, and **2 of the 4
   confirmed splicers sit in stages F0 prices at 1 lane and 0 lanes**;
 * **stage S7 (`0x10b7e032`, 10 passes, 2,489 B) has no sub-item at all**, and
-  it contains a live merger run, a direct tuple splicer that is another read's
-  named open question, and the emit walk.
+  it contains ~~a live merger run~~, a direct tuple splicer that is another
+  read's named open question, and the emit walk. — **AMENDED 2026-08-28
+  (`w-s7`, #3737/#3738): the merger run is NOT live and neither is the
+  splicer.** S7 is **5 passes / 1,027 B reached** of its ten on this project's
+  configurations; the merger run, `0x10c21b03`, `0x10be46f0` and `0x10b35c78`
+  are all behind `sym+0x20 & 0x1000`, measured clear on 2,946 of 2,946
+  functions. The stage still has no sub-item and that observation stands.
 
 **So: F0 is more expensive than both published numbers, and the number is not
 the deliverable.** Anyone re-pricing F0 should re-run
