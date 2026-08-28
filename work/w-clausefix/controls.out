@@ -1,0 +1,115 @@
+############################################################
+# w-clausefix -- CONTROL TRANSCRIPTS (PREREG SS6)
+# Every RED was watched BEFORE the GREEN in CTL-4 was quoted.
+# Order below is the order they were run.
+############################################################
+
+=== CTL-1  ALIGN goes RED on a planted ONE-BYTE shift ===
+$ python3 work/w-inlmetric/check_table.py --plant C16=10b60a64
+table    : work/w-inlmetric/CLAUSES.tsv
+rows     : 24
+  state    : {'absent': 17, 'fitted': 2, 'R-derived': 2, 'unexercisable': 3}
+  exercised: {'yes': 9, 'not-separable': 6, 'no': 6, 'unexercisable': 3}
+listing  : ~/ghidra-projects/export/c2/objdump_intel.asm
+  ALIGN  : 424,232 instruction starts, 24 of 24 rows graded
+  DECODE : 24 of 24 rows carry an `asm` cell and were graded
+planted  : {'C16': '10b60a64'}
+  FAIL C16(PLANTED): ALIGN 0x10b60a64 is +1 INTO the instruction at 0x10b60a63 -- caller-huge decline: 35000 < DAT_10c3f5cc
+
+CONFORMANCE-CHECK: RED  (1 failure(s) over 24 rows)
+exit=1
+
+=== CTL-2  DECODE goes RED where ALIGN stays GREEN ==========
+# C10's addr moved to a DIFFERENT REAL instruction boundary in the SAME
+# function (0x10b60a25, 'mov eax,[edi+0x4c]'). This is exactly the C10/C15
+# defect class: aligned, right function, wrong instruction. ALIGN cannot
+# see it; DECODE is the only check that can.
+$ python3 work/w-inlmetric/check_table.py --plant C10=10b60a25
+table    : work/w-inlmetric/CLAUSES.tsv
+rows     : 24
+  state    : {'absent': 17, 'fitted': 2, 'R-derived': 2, 'unexercisable': 3}
+  exercised: {'yes': 9, 'not-separable': 6, 'no': 6, 'unexercisable': 3}
+listing  : ~/ghidra-projects/export/c2/objdump_intel.asm
+  ALIGN  : 424,232 instruction starts, 24 of 24 rows graded
+  DECODE : 24 of 24 rows carry an `asm` cell and were graded
+planted  : {'C10': '10b60a25'}
+  FAIL C10(PLANTED): DECODE 0x10b60a25 is 'mov eax,DWORD PTR [edi+0x4c]', table records 'and eax,0x2000'
+
+CONFORMANCE-CHECK: RED  (1 failure(s) over 24 rows)
+exit=1
+
+=== CTL-2b  the ORIGINAL C15 defect, replanted ==============
+# 0x10b609bd is aligned and inside FUN_10b60930 -- ADDRESS green,
+# ALIGN green, DECODE red. This is the row #3721's eight did not name.
+$ python3 work/w-inlmetric/check_table.py --plant C15=10b609bd
+table    : work/w-inlmetric/CLAUSES.tsv
+rows     : 24
+  state    : {'absent': 17, 'fitted': 2, 'R-derived': 2, 'unexercisable': 3}
+  exercised: {'yes': 9, 'not-separable': 6, 'no': 6, 'unexercisable': 3}
+listing  : ~/ghidra-projects/export/c2/objdump_intel.asm
+  ALIGN  : 424,232 instruction starts, 24 of 24 rows graded
+  DECODE : 24 of 24 rows carry an `asm` cell and were graded
+planted  : {'C15': '10b609bd'}
+  FAIL C15(PLANTED): DECODE 0x10b609bd is 'cmp ecx,ebx', table records 'cmp edx,0xff'
+
+CONFORMANCE-CHECK: RED  (1 failure(s) over 24 rows)
+exit=1
+
+=== CTL-3  SKIP is LOUD and the row count survives it =======
+$ C2RS_OBJDUMP_ASM=/nonexistent/objdump.asm python3 work/w-inlmetric/check_table.py
+table    : work/w-inlmetric/CLAUSES.tsv
+rows     : 24
+  state    : {'absent': 17, 'fitted': 2, 'R-derived': 2, 'unexercisable': 3}
+  exercised: {'yes': 9, 'not-separable': 6, 'no': 6, 'unexercisable': 3}
+listing  : /nonexistent/objdump.asm
+  ALIGN  : SKIP -- listing absent, so 0 of 24 rows were checked for instruction alignment
+  DECODE : SKIP -- listing absent, so 0 of 24 rows were checked against their `asm` cell
+           regenerate per docs/whitebox/C2_MAP_METHOD.md, or set C2RS_OBJDUMP_ASM
+
+CONFORMANCE-CHECK: GREEN (ALIGN+DECODE SKIPPED)  (0 failure(s) over 24 rows)
+exit=0
+
+=== CTL-3b  SKIP does NOT hide a real defect ================
+# The ADDRESS/WITNESS/ABSENCE half still grades all 24 with no listing.
+$ C2RS_OBJDUMP_ASM=/nonexistent/objdump.asm ... --plant C16=10b5c06b
+table    : work/w-inlmetric/CLAUSES.tsv
+rows     : 24
+  state    : {'absent': 17, 'fitted': 2, 'R-derived': 2, 'unexercisable': 3}
+  exercised: {'yes': 9, 'not-separable': 6, 'no': 6, 'unexercisable': 3}
+listing  : /nonexistent/objdump.asm
+  ALIGN  : SKIP -- listing absent, so 0 of 24 rows were checked for instruction alignment
+  DECODE : SKIP -- listing absent, so 0 of 24 rows were checked against their `asm` cell
+           regenerate per docs/whitebox/C2_MAP_METHOD.md, or set C2RS_OBJDUMP_ASM
+planted  : {'C16': '10b5c06b'}
+  FAIL C16(PLANTED): ADDRESS 0x10b5c06b is in FUN_10b5c06b, table claims FUN_10b60930
+
+CONFORMANCE-CHECK: RED (ALIGN+DECODE SKIPPED)  (1 failure(s) over 24 rows)
+exit=1
+
+=== CTL-4  the REPAIRED table, all five checks ==============
+$ python3 work/w-inlmetric/check_table.py
+table    : work/w-inlmetric/CLAUSES.tsv
+rows     : 24
+  state    : {'absent': 17, 'fitted': 2, 'R-derived': 2, 'unexercisable': 3}
+  exercised: {'yes': 9, 'not-separable': 6, 'no': 6, 'unexercisable': 3}
+listing  : ~/ghidra-projects/export/c2/objdump_intel.asm
+  ALIGN  : 424,232 instruction starts, 24 of 24 rows graded
+  DECODE : 24 of 24 rows carry an `asm` cell and were graded
+
+CONFORMANCE-CHECK: GREEN  (0 failure(s) over 24 rows)
+exit=0
+
+=== the folded shim still resolves w-inlfit SS4's citation ===
+$ python3 work/w-inlfit/addr_align.py
+addr_align.py: FOLDED into work/w-inlmetric/check_table.py (check 2, ALIGN) by w-clausefix, 2026-08-28 -- delegating.
+
+table    : work/w-inlmetric/CLAUSES.tsv
+rows     : 24
+  state    : {'absent': 17, 'fitted': 2, 'R-derived': 2, 'unexercisable': 3}
+  exercised: {'yes': 9, 'not-separable': 6, 'no': 6, 'unexercisable': 3}
+listing  : ~/ghidra-projects/export/c2/objdump_intel.asm
+  ALIGN  : 424,232 instruction starts, 24 of 24 rows graded
+  DECODE : 24 of 24 rows carry an `asm` cell and were graded
+
+CONFORMANCE-CHECK: GREEN  (0 failure(s) over 24 rows)
+exit=0

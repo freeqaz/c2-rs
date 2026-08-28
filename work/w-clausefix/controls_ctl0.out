@@ -1,0 +1,57 @@
+############################################################
+# w-clausefix -- CTL-0: RE-DERIVE #3721 ON THIS TREE
+#
+# The pre-repair table -- byte-identical to master 4b79bf46a's, kept at
+# work/w-clausefix/clauses_pre_repair.tsv so this control is reproducible
+# without a git checkout -- graded by the FOLDED checker. It carries no
+# `asm` column, so DECODE is vacuous on it: ADDRESS and ALIGN speak here.
+#
+# F1 of the prereg: 'fewer than eight rows are misaligned on this tree'.
+# F1 does NOT fire. #3721's eight reproduce exactly, on an independent
+# implementation of the boundary set, in this worktree.
+############################################################
+
+$ python3 work/w-inlmetric/check_table.py work/w-clausefix/clauses_pre_repair.tsv
+table    : work/w-clausefix/clauses_pre_repair.tsv
+rows     : 24
+  state    : {'absent': 17, 'fitted': 2, 'R-derived': 2, 'unexercisable': 3}
+  exercised: {'yes': 9, 'not-separable': 6, 'no': 6, 'unexercisable': 3}
+listing  : ~/ghidra-projects/export/c2/objdump_intel.asm
+  ALIGN  : 424,232 instruction starts, 24 of 24 rows graded
+  DECODE : 0 of 24 rows carry an `asm` cell and were graded
+  FAIL C2: ALIGN 0x10b626d8 is +1 INTO the instruction at 0x10b626d7 -- caller instruction count seeded: DAT_10c3f5cc = (ush
+  FAIL C3: ALIGN 0x10b626f4 is +1 INTO the instruction at 0x10b626f3 -- growth budget B = clamp(2 x caller_instrs, 1000, 350
+  FAIL C4: ALIGN 0x10b6276a is +6 INTO the instruction at 0x10b62764 -- driver entry FUN_10b61ee1(fn, level=1, budget=B, 0, 
+  FAIL C14: ALIGN 0x10b609ae is +1 INTO the instruction at 0x10b609ad -- depth cap: 0x10 < level - DAT_10c3f50c => decline (1
+  FAIL C16: ALIGN 0x10b609ee is +3 INTO the instruction at 0x10b609eb -- caller-huge decline: 35000 < DAT_10c3f5cc
+  FAIL C17: ALIGN 0x10b60a04 is +2 INTO the instruction at 0x10b60a02 -- budget accept/decline: budget < instrs && instrs > 0
+  FAIL C18: ALIGN 0x10b6249b is +1 INTO the instruction at 0x10b6249a -- the 40-instruction test, SECOND copy: cmp WORD [call
+  FAIL C19: ALIGN 0x10b624a2 is +1 INTO the instruction at 0x10b624a1 -- the charge: *budget -= WORD[callee+0x50]; DAT_10c3f5
+
+CONFORMANCE-CHECK: RED  (8 failure(s) over 24 rows)
+exit=1
+
+############################################################
+# AND WHAT THE ALIGN CHECK STILL CANNOT SEE, on the same table:
+#   C10  0x10b609d3  aligned, in FUN_10b60930 -> 'call 0x10b5e64d'
+#   C15  0x10b609bd  aligned, in FUN_10b60930 -> 'cmp ecx,ebx'
+# Neither row appears above. Both are wrong. The content-defect set is
+# TEN of 24, not eight -- which is why check 3, DECODE, exists.
+############################################################
+
+############################################################
+# THE BOUNDARY SET: a latent defect in the check being folded in.
+#
+# addr_align.py matched '^[0-9a-f]{8}:	' and counted 425,871 starts.
+# check_table.py requires a THIRD tab-separated field (the mnemonic) and
+# counts 424,232. The 1,639-line difference is objdump's BYTE-CONTINUATION
+# lines for instructions longer than 7 bytes, e.g.
+#     10b6276b:<TAB>63 c4 10
+# which is the tail of the 10-byte 'mov ds:0x10c46330,0x10c46334' at
+# 0x10b62764. addr_align.py would have called an address landing there
+# ALIGNED. It is mid-instruction.
+#
+# DID IT MATTER? No: NONE of the 24 original addresses landed on a
+# continuation line, so #3721's set of eight is unaffected and stands.
+# Reported because the next table it grades may not be so lucky.
+############################################################
