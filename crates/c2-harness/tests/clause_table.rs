@@ -103,7 +103,32 @@ fn run_checker(root: &Path, args: &[&str]) -> (bool, String) {
 /// so that shrinking the table is a *code* change somebody reviews rather than
 /// a silent narrowing of what "GREEN" covers — `#3748`'s degenerate re-bless.
 const ROWS: usize = 24;
-const SPLIT: &str = "{'absent': 17, 'fitted': 2, 'R-derived': 2, 'unexercisable': 3}";
+/// **MOVED 2026-08-28 at the wave-18 merge**, from
+/// `{'absent': 17, 'fitted': 2, 'R-derived': 2, 'unexercisable': 3}`.
+///
+/// This is the first time the split has moved for the reason it is supposed to
+/// move: the port acquired a counterpart. Lane `w-inlbudget` adopted
+/// `P_INLINE.md` §6.6.2's budget model into `splice.rs`, so **C3** (the growth
+/// budget's clamp) and **C19** (the charge) each gained an `R-derived`
+/// counterpart with a cited, address-backed witness — `INLINE_BUDGET_FLOOR`
+/// and `INLINE_CHARGE_EXEMPT_MAX`.
+///
+/// **C2 did NOT move, and its token did.** The ABSENCE check flagged C2 on a
+/// *parameter name* of `BudgetModel::seed`, and flagged C19 on a *substring*
+/// of an unrelated field name. Neither match is a counterpart, and `splice.rs`
+/// says so at the site: *"the port has no honest caller instruction count to
+/// pass"*. So on this check's first real firing it produced **one true
+/// positive (C3), one right-answer-wrong-reason (C19), and one false positive
+/// (C2)** — the mention-vs-counterpart blindness `#3641` names, which
+/// `token_in_crates`'s own doc comment declares KNOWN AND NOT FIXED and leaves
+/// to `w-inlmetric` to define. C2's token was re-pointed at a non-colliding
+/// one; its `absent` verdict is unchanged and still true.
+///
+/// **Tokens are named here by clause id and never spelled**, per this file's
+/// own rule above — spelling one in this comment makes the ABSENCE screen find
+/// it in `crates/` and turns the row red. That happened at this merge, to the
+/// person writing this sentence.
+const SPLIT: &str = "{'absent': 15, 'R-derived': 4, 'fitted': 2, 'unexercisable': 3}";
 
 #[test]
 fn the_clause_table_is_green_and_grades_all_twenty_four_rows() {
