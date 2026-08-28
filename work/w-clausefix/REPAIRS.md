@@ -260,3 +260,39 @@ P-A explains both rows with one number; the duplicate explains neither.
 C18/C19, the byte-identity claim, the "wrong function" claim, the count of
 copies, and the completeness of "eight".
 
+
+---
+
+## Appendix — the FOURTEEN rows that were NOT repaired, and why each is correct
+
+The claim *"the other fourteen are correct"* is worth as little as the claim
+*"eight are wrong"* if nobody shows it. Each row below was checked the same
+way as the ten: aligned per the objdump boundary set, inside its `owner`
+function per `FUNCS.tsv`, **and** decoding to something its `clause` names.
+
+**Five of the fourteen — C1, C5, C6, C20, C21, at four distinct addresses,
+because C5 and C6 share one — cite function ENTRIES**, so their `asm` witness is
+`push ebp`, and DECODE-green on them is a statement about the address, not about
+the clause. That weakness is real, is recorded in the table header so nobody
+reads it as clause-confirmation, and is §8 item 4 of the rung.
+
+| row | `addr` | decode | why it is correct |
+|---|---|---|---|
+| **C1** | `0x10b62675` | `push ebp` | **Entry**, and the clause says *pass entry*. The test it names is four instructions in, at `0x10b6267b cmp DWORD PTR ds:0x10c40ec4,ebp` with `ebp` zeroed at `0x10b62676`; `jne 0x10b626c1` takes the work path when it is non-zero. Weak `asm` witness (`push ebp`) by construction. |
+| **C5** | `0x10b600e6` | `push ebp` | **Entry** of the collector. Correct as a citation of the function; the `asm` cell pins the address and not the clause. |
+| **C6** | `0x10b600e6` | `push ebp` | Same **entry** as C5 — two clauses citing one function, which the table already allows. |
+| **C7** | `0x10b5e4d7` | `mov DWORD PTR ds:0x10c46318,0x3e8` | `0x3e8` = **1000**, the clause's second arm, stored on the `k > 6` branch taken from `0x10b5e4d2 cmp ecx,0x6` / `jle`. The first arm `0x10 << k` is at `0x10b5e4e3`–`0x10b5e4e8`. The address cites the arm the clause states last; both are real and in `FUN_10b5e4cc`. |
+| **C8** | `0x10b5fc8a` | `cmp eax,DWORD PTR ds:0x10c46318` | Exact. `eax` is `movzx eax,WORD PTR [esi+0x50]` at `0x10b5fc86`, and the `jl 0x10b5fcb9` at `0x10b5fc90` is the clause's `jl = candidate`. Verified clean by `w-inlfit` too. |
+| **C9** | `0x10b5fc7e` | `cmp DWORD PTR ds:0x10c2e310,ebx` | Exact. `ebx` is zero and the `jne 0x10b5fcb9` at `0x10b5fc84` jumps **past** C8's size test — the clause's SKIPPED, at an address. |
+| **C11** | `0x10b5c06b` | `mov eax,DWORD PTR [ecx+0x20]` | Head of the legality block, and all four masks are within eleven instructions: `0x400` at `0x10b5c06e`, `0x1000` at `0x10b5c080`, `0x40` at `0x10b5c08f`, `0x100` at `0x10b5c093`, every one `jne 0x10b5c0a4` = `xor eax,eax; ret` = refuse. |
+| **C12** | `0x10b5c06b` | `mov eax,DWORD PTR [ecx+0x20]` | Same block head. `0x80000` at `0x10b5c078` and `0x200` at `0x10b5c087`, on `ecx = [ecx+0x4c]` loaded at `0x10b5c075`. Both refuse to the same `0x10b5c0a4`. |
+| **C13** | `0x10b5c06b` | `mov eax,DWORD PTR [ecx+0x20]` | Same block head. The fall-through at `0x10b5c09a`–`0x10b5c0a0` is `movzx eax,cl` / `shr eax,0x6` / `and eax,0x1` — bit 6 returned as the verdict, which is REQUIRE rather than refuse, exactly as the clause distinguishes. |
+| **C20** | `0x10b620fc` | `push ebp` | **Entry** of the expander. The recursion edge `w-inlfit` §3 reads is at `0x10b62402`, inside `FUN_10b61ee1`, not here — the clause cites the expander, and does so correctly. |
+| **C21** | `0x10b5fcd8` | `push ebp` | **Entry** of the POGO model. Its `entered only when` guard is the caller's, at `0x10b60a40 cmp DWORD PTR [ebp-0x4],ebx` — which is the instruction C15 was wrongly citing at `0x10b609bd`, an earlier test of the same value. |
+| **C22** | `0x10b600c8` | `mov eax,ds:0x10c3f550` | Exact, and every term is present: `K` = `DAT_10c3f550`, `add eax,esi` makes `K + cost`, `cdq` / `idiv ecx` divides by the site count, `sub esi,eax` at `0x10b600d2` is the `-=`. |
+| **C23** | `0x10b5b86d` | `cmp DWORD PTR ds:0x10c6f1c8,0x0` | Exact: the `cmp` is the selector, `mov esi,0x10c45ed0` at `0x10b5b876` is the default and `mov esi,0x10c45e18` at `0x10b5b87d` the alternative, copied `0x2e` dwords to `0x10c3f510`. |
+| **C24** | `0x10b9bf6c` | `mov WORD PTR [esi+0x50],ax` | Exact, and it is a **store** — the write of the field C8/C17/C18/C19 later read. `[esi+0x4c]` is written three instructions later at `0x10b9bf78`, which is the other field this table depends on. |
+
+**14 rows, all verified, none moved.** With the ten repaired above that
+is 24 of 24 accounted for, which is the only form in which "the table is
+correct" means anything.
