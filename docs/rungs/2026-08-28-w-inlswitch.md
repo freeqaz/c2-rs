@@ -106,6 +106,14 @@ the flags as separate argv entries, `-Gy` **is** passed at every ordering.
 `work/w-inlswitch/cl_argv_modes.out` uses zsh's explicit `${=m}` and carries
 the defect in its own header.
 
+> The same defect class bit this lane a second time, in process management
+> rather than measurement: a `pgrep -f 'w-inlswitch/finish.sh'` reported the
+> script **still alive** after it had been killed, because the pattern was
+> present in the checking shell's own argv. Both are one assumption — *"the
+> shell passed the command what I wrote"* — and neither is visible in an exit
+> code. The lane's sequencer now uses the bracket trick and a deadline that
+> reports `TIMEOUT` as an outcome distinct from success.
+
 ## Found and not taken
 
 Ranked, sized, with what stopped each. Full list at
