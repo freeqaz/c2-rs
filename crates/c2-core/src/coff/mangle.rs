@@ -181,3 +181,69 @@ pub fn string_comdat_name(bytes: &[u8]) -> Option<String> {
         text
     ))
 }
+
+/// **SURFACE[mangle.string_comdat]** — the registered decision surface's domain
+/// (`crate::surface`, board **#3762**, lane `w-inlbudget`, closing one of the
+/// four rows board **#3746** named as *"a real refusal boundary … not
+/// enumerated yet"*).
+///
+/// Three families, and the third is the one the registry exists for:
+///
+/// * **length**, from 0 to 44 source bytes, which walks
+///   [`LITERAL_TEXT_BYTE_LIMIT`] from both sides. The `?$AA` for the trailing
+///   NUL is what the boundary decides, and §5's CORRECTION is that the limit
+///   counts **source** bytes and not escaped output — so a second family of
+///   literals whose every byte escapes to *two* characters is enumerated
+///   beside it, because a limit read as an output budget would cut those in
+///   the middle and this domain would show it;
+/// * **escape coverage**, one row per byte outside the measured escape set,
+///   each of which must stay a refusal. `escape_literal_byte`'s set is a
+///   *measured* set, not a derived one, so widening it is exactly the kind of
+///   quiet accept `#3723` is about;
+/// * the two **structural** refusals — an empty slice and a slice with no
+///   trailing NUL — which are not length boundaries at all and which a domain
+///   over lengths alone would never reach.
+///
+/// The corpus reaches almost none of this: the workload's literals are paths
+/// and format strings, and no fixture compiles a 44-character all-`/` string.
+pub(crate) fn surface_rows() -> Vec<crate::surface::Row> {
+    fn row(point: String, bytes: &[u8]) -> crate::surface::Row {
+        let outcome = match string_comdat_name(bytes) {
+            Some(n) => n,
+            None => crate::surface::REFUSE.to_string(),
+        };
+        crate::surface::Row::new(point, outcome)
+    }
+
+    let mut rows = Vec::new();
+    // Family 1 — one source byte per escaped character.
+    for n in 0..=44usize {
+        let mut b = vec![b'a'; n];
+        b.push(0);
+        rows.push(row(format!("len-1x n={n:02}"), &b));
+    }
+    // Family 2 — TWO escaped characters per source byte (`/` is `?1`). §5's
+    // CORRECTION is precisely that this family is cut at the same *source*
+    // count as family 1 and not at half of it.
+    for n in 24..=40usize {
+        let mut b = vec![b'/'; n];
+        b.push(0);
+        rows.push(row(format!("len-2x n={n:02}"), &b));
+    }
+    // Family 3 — a mixed stream, so the boundary is not being read off a
+    // single repeated byte.
+    for n in 24..=40usize {
+        let mut b: Vec<u8> = (0..n).map(|i| [b'a', b'/', b'.'][i % 3]).collect();
+        b.push(0);
+        rows.push(row(format!("len-mix n={n:02}"), &b));
+    }
+    // Family 4 — every byte outside the measured escape set refuses.
+    for &c in &[b'#', b'%', b'&', b'*', b'@', b'^', b'~', b'"', b'?', b'\\', 0x7Fu8, 0x80, 0xFF] {
+        let b = [b'a', b'b', c, 0];
+        rows.push(row(format!("escape byte=0x{c:02x}"), &b));
+    }
+    // Family 5 — the structural refusals.
+    rows.push(row("structural empty".into(), &[]));
+    rows.push(row("structural no-nul".into(), b"abc"));
+    rows
+}

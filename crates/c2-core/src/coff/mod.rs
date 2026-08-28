@@ -24,7 +24,11 @@ mod dyninit;
 mod ehscope;
 mod function;
 mod label;
-mod mangle;
+// `pub(crate)` so that `crate::surface`'s registry can name
+// `mangle::surface_rows` — the row generator lives in the module it
+// characterizes (`crate::surface`'s header says why) and the registry has to be
+// able to point at it. Nothing else in the module's API changed.
+pub(crate) mod mangle;
 mod order;
 mod pdata;
 mod provide;

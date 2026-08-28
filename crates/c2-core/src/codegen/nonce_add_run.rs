@@ -107,6 +107,49 @@ pub fn nonce_add_run_text(n: &NonceAddRun, mode: OptMode) -> Result<Vec<u8>, Bac
     Ok(ops_to_bytes(&ops))
 }
 
+/// **SURFACE[nonce.ds_form]** — the registered decision surface's domain
+/// (`crate::surface`, board **#3762**, lane `w-inlbudget`, closing one of the
+/// four rows board **#3746** named as a real refusal boundary with no
+/// enumerated domain).
+///
+/// The `ld`/`std` **DS form** encodes a signed 16-bit displacement with its low
+/// two bits implied zero, so [`DS_MAX`] is a property of the *instruction
+/// encoding* and not of this fixture class — which is exactly why it deserves a
+/// domain rather than a comment. Three ways out of the class are enumerated
+/// together, because they are three different refusals and a run that fails two
+/// of them at once must still be attributed to the first:
+///
+/// * a displacement past `DS_MAX - ELEM` (the second element of the pair has to
+///   fit too),
+/// * a displacement that is not a multiple of four,
+/// * a mode other than `/O1`, where the class's register plan does not hold
+///   (board **#263**, **#1638**).
+///
+/// The corpus reaches a handful of small offsets and nothing else: no fixture
+/// carries a 32 KB member offset.
+pub fn surface_rows() -> Vec<crate::surface::Row> {
+    const OFFS: &[i32] = &[
+        -8, -4, 0, 4, 8, 2, 6, 0x1000, 0x7FE8, 0x7FEC, 0x7FF0, 0x7FF4, 0x7FF8, 0x7FFC,
+    ];
+    let mut rows = Vec::new();
+    for mode in [OptMode::O1, OptMode::Ox] {
+        for &dst in OFFS {
+            for &src in OFFS {
+                let n = NonceAddRun { dst_off: dst, src_off: src };
+                let outcome = match nonce_add_run_text(&n, mode) {
+                    Err(_) => crate::surface::REFUSE.to_string(),
+                    Ok(t) => t.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+                };
+                rows.push(crate::surface::Row::new(
+                    format!("mode={mode:?} dst={dst:+06} src={src:+06}"),
+                    outcome,
+                ));
+            }
+        }
+    }
+    rows
+}
+
 #[cfg(test)]
 mod tests {
     use crate::codegen::encode::encode_rldicl;

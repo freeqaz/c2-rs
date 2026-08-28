@@ -1,0 +1,17 @@
+C1 — the model's own default, flipped:
+  BUDGET_C2.divide := false: RED — 316 domain line(s) moved
+  BUDGET_C2.site_level_delta := 2: RED — 166 domain line(s) moved
+C2 — every const this lane claims as a surface guard:
+  INLINE_BUDGET_FLOOR 1000->1001: RED — 21 domain line(s) moved
+  INLINE_BUDGET_CEILING 35000->35001: RED — 5 domain line(s) moved
+  INLINE_LEVEL_DEPTH_CAP 16->17: RED — 40 domain line(s) moved
+  INLINE_CHARGE_EXEMPT_MAX 40->41: RED — 6 domain line(s) moved
+  LITERAL_TEXT_BYTE_LIMIT 32->33: RED — 32 domain line(s) moved
+  MAX_MULTISYM_PRODUCERS 2->3: RED — 17 domain line(s) moved
+  MAX_SYMBOL_CROSSINGS 2->3: RED — 5 domain line(s) moved
+  HEAD_SLOTS_MAX 2->3: RED — 47 domain line(s) moved
+  DS_MAX 0x7FF8->0x7FFC: RED — 16 domain line(s) moved
+CONTROL: the unmutated tree must be GREEN
+  restored tree: GREEN
+
+CONTROLS: every claimed guard was watched RED, and the tree restores GREEN
