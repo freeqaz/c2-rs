@@ -1,0 +1,2 @@
+count-bearing rows: 21 base, 21 tip (enumerated, not asserted)
+IDENTITY DIFF: 0 lines over 21 rows — required-zero byte delta HOLDS

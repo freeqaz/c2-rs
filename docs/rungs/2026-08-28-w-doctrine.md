@@ -213,7 +213,58 @@ with no dishonesty required.
 
 ## 5. Gate evidence
 
-*(§5 is completed at the tip — see the transcript files named in each row.)*
+### 5.1 This lane's own tree
+
+| lane | result |
+|---|---|
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **60 targets, 1,982 tests passed, 0 failed**, `TEST_EXIT=0`, **0 `SKIP: toolchain absent`** — `work/w-doctrine/test_release.out` |
+| `scripts/gate.sh --jobs 16 --require-graded` (BASE `8213c7b77`) | `GATE: PASS`, 18/18 lanes graded, sweep 19,460/19,556, cross 90,424/90,812, **0 mismatches anywhere**, `GATE_EXIT=0` — `work/w-doctrine/gate_base.out` |
+| `scripts/gate.sh --jobs 16 --require-graded` (TIP) | `GATE: PASS`, same counts, **0 mismatches anywhere**, `GATE_EXIT=0` — `work/w-doctrine/gate_tip.out` |
+| `scripts/gate_identity_diff.sh base tip` | **`IDENTITY DIFF: 0 lines over 21 rows — required-zero byte delta HOLDS`**, `21 base, 21 tip (enumerated, not asserted)` — `work/w-doctrine/identity_tip.txt` |
+| `scripts/gate_identity_diff.sh --self-test` | `SELF-TEST PASS` — enumeration 21, control silent, `#3515`'s signature found exactly (14 lines / 7 rows) and nonzero, truncation refused |
+| `scripts/board_audit.sh` | 0 uncited, 0 unresolved anchors, 0 raw line anchors, 0 duplicates |
+| `scripts/prose_audit.py` | `VERDICT: CLEAN over 661 checked claims` |
+| `scripts/tracked_artifact_audit.sh` | `examined 9871 tracked files across 5 classes; 0 violation(s)` |
+| `scripts/provenance_census.py --since 8213c7b77` | **+6 new constants, 6 already tagged**; `→untag 0`, `reclass 0`, decomposition identity holds 6 of 6 |
+| fixtures, `c2rs census` | unchanged — `Fixtures: none`, `Census: +0` |
+
+**`HATCH-RED REFUSED` at both ends, identically**, for the pre-existing
+`HATCH-STALE` reason (board `#1389`) present on the untouched base. That row is
+one of the two `n/a`-mismatch rows `gate_identity_diff.sh` excludes by name, so
+it is outside the 21 and outside the claim.
+
+### 5.2 **The demonstration — one tree, three verdicts**
+
+`bc658b2e0` is `w-regsel`'s C6 planted on this lane's tip, one line for one line
+(`crates/c2-core/src/codegen/alloc.rs | 2 +-`). It is a **committed** probe and
+not a working-tree edit, because `gate.sh` refuses a dirty tree in those words —
+*"a gate run is evidence about the tree it graded"* — and it is **reverted in
+the commit immediately after**, with the reason in that commit's message so
+nobody rebuilds on it.
+
+On that one tree:
+
+```text
+  scripts/gate.sh --require-graded
+      GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them
+      graded a corpus, 90424 of 90812 case-lane cells, 0 mismatches anywhere
+      GATE_EXIT=0
+
+  scripts/gate_identity_diff.sh gate_base.out gate_c6.out
+      count-bearing rows: 21 base, 21 tip (enumerated, not asserted)
+      IDENTITY DIFF: 0 lines over 21 rows — required-zero byte delta HOLDS
+
+  cargo test -p c2-core --lib surface::tests::the_decision_surface_domain
+      FAILED
+      THE DECISION-SURFACE DOMAIN MOVED — 127 line(s) of 1102 differ from
+      crates/c2-core/src/surface/DOMAIN.txt.
+```
+
+**That is `#3723`, closed.** The criterion decision 20 grades construct rungs on
+says `PASS` and `0 lines`; the instrument this lane built says the port's
+refusal boundary moved on 126 cells the corpus never reaches, and names them.
+Transcripts: `work/w-doctrine/gate_c6.out`, `work/w-doctrine/identity_c6.txt`,
+`work/w-doctrine/c6_e1_red.txt`.
 
 ---
 
