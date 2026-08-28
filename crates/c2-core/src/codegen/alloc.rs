@@ -1312,7 +1312,7 @@ pub fn allocate(producers: &[Producer], pool_floor: u8) -> Option<Vec<(u32, u8)>
     // missing explanation.
     let assign = super::regalloc::select_sequence(
         &super::regalloc::GPR_DEFAULT,
-        super::regalloc::RegSet::range_inclusive(pool_floor, VOLATILE_GPR_TOP),
+        super::regalloc::RegSet::range_inclusive(0, 31),
         &super::regalloc::Costs::ZERO,
         producers.len(),
     )?;
