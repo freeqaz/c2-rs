@@ -29,6 +29,18 @@ fifteen, `w-dagorder`'s twenty and R4's own `scripts/globregs_c2.py` all write
 sequence by construction. Split them — `int x, y;` then `y = p[1]; x = p[0];` —
 and the observable moves.
 
+**The absence was SEARCHED FOR, not asserted.** The brief's standing rule —
+*"before you assert that no cell exists, search for one"*, five for five on
+board `#3505` — was applied. `grep -rlE '^\s*int [a-z][a-z0-9]*, *[a-z][a-z0-9]* *;'`
+over `docs/whitebox/grids/`, `scripts/*.py` and `fixtures/cpp/` returns exactly
+**three** hits outside this lane — `il_this_straightline.cpp:75`,
+`wfr_argreg_types.cpp:26`, `wsl_store_load.cpp:126` — and **all three are
+struct MEMBER declarations, not locals**, so none of them separates the two
+orders. `wb-live`'s cells take their values as **formals**; `wb-regalloc`'s use
+`int s = …; int i = …;`; `wb-dagorder`'s grid contains the pattern zero times.
+**No cell anywhere in this repo, grid or fixture, separated declaration order
+from definition order for a local before this lane.**
+
 **The rule that survives: the earliest-DEFINED candidate is coloured first.**
 `[O]`, 46 of 48 cells, and **exact on all 42 straight-line cells at both
 optimisation profiles**. Seven rival orders refuted by cell count.
