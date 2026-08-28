@@ -53,6 +53,18 @@ the reference set is enumerated — this repo's most repeated defect
 | **E3** | Ghidra's decompiler, `decomp_all.c` (control-flow-driven, not linear) | the whole export | **0** `ushort` assignments at `+0x50` image-wide; **11** `ushort` read expressions |
 | **E5** | [`work/w-lowerband/bytescan.py`](../../work/w-lowerband/bytescan.py) | **all 1,232,384 raw bytes of `.text`**, decode-independent, **2,136** encoding patterns | **exactly one** 16-bit-store encoding present |
 | **E4** | [`work/w-lowerband/fieldmap.py`](../../work/w-lowerband/fieldmap.py) | 67 functions referencing `+0x50`, 207 referencing `+0x4c` | **29** touch both; the struct filter in §1.3 |
+| **E4b** | [`work/w-lowerband/dwordwrites.py`](../../work/w-lowerband/dwordwrites.py) | all **17** dword stores/RMWs at `+0x50` | **0** are on this record; **0** left needing a hand read |
+
+**E4b is P1 form (b) taken to the end**, because a 32-bit store writes `SIZE`
+without appearing in any 16-bit enumeration. **Its control went RED on the
+first run and the miss is reported rather than repaired away**: the signature
+recognises functions that *build* the record (the `.gl` reader touches `+0x37`
+thirteen times) and does **not** recognise functions that merely *consume* it
+(candidacy and the charge touch only `+0x4c` and `+0x50`). That bounds the
+filter to the **writer** question — which is the question — and the bound is
+printed in its own output. `+0x30` was dropped from the signature as far too
+common a displacement to discriminate; it had been the sole reason all seven of
+the first run's flags fired.
 
 **E5 exists because a linear disassembler can desynchronise.** `objdump`
 sweeps `.text` from the section start, and `c2.dll` has a ~150 KB data block at
