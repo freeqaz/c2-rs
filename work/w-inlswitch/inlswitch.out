@@ -1,0 +1,643 @@
+image   : compilers/X360/16.00.11886.00/c2.dll  base 0x10b00000
+listing : ~/ghidra-projects/export/c2/objdump_intel.asm  424232 decoded instruction starts
+raw .data ends at 0x10c3cc00 -- everything at or above this VA is BSS, ZERO AT LOAD
+
+CONTROLS -- watched before any verdict from this script is quoted (#3336)
+
+  C1 GREEN  DAT_10c46318: 2 writers ['0x10b5e4d7', '0x10b5e4e8'], 1 reader ['0x10b5fc8a']
+            expected writers 0x10b5e4d7/0x10b5e4e8, reader 0x10b5fc8a (P_INLINE SS6.6.1, established independently of this script)  -> GREEN
+  C2 RED    planted address 0xdeadbe00: 0 hits, 0 required  -> RED as required (no false positives)
+  C3 RED    immediate-store harvest: 484 in the descriptor window 0x10c29000..0x10c2a800, 16 in the same-sized band 0x10b5b000..0x10b5c800
+            -> collapses; the window discriminates
+
+  CONTROLS: GREEN
+
+scatter FUN_0x10b5b88f: 37 of 46 parameter fields are fed from a switch value word
+  source block 0x10c45d80..0x10c45e10  (37 words, CONTIGUOUS)
+table A (FUN_0x10b5bc6e, base 0x10c45e18): 33 default stores, 33 of them zero-guarded
+table B (FUN_0x10b5ba71, base 0x10c45ed0): 33 default stores, 33 of them zero-guarded
+live record 0x10c3f510, 46 dwords, filled by `rep movsd` at 0x10b5b88a
+
+  off switch        record      value word    defA  defB  live         rd  readers
+----------------------------------------------------------------------------------
+0x000 -inlS#        0x10c46cb0  0x10c45e10      60     2  0x10c3f510    3  0x10b5fd29 0x10b5fe6b 0x10b600d6
+0x004 -inlT#        0x10c46cbc  0x10c45e0c     104    20  0x10c3f514    1  0x10b5ff90
+0x008 -inlfcsw#     0x10c46cc8  0x10c45e08      32     5  0x10c3f518    2  0x10b5fde8 0x10bb7cdb
+0x00c -inlflcsw#    0x10c46cd4  0x10c45e04       0     0  0x10c3f51c    3  0x10b5fddc 0x10ba274b 0x10bb7ccf
+0x010 -inlld#       0x10c46ce0  0x10c45dd0       3     3  0x10c3f520    1  0x10b5ff5f
+0x014 -inld#        0x10c46cec  0x10c45dcc       7     7  0x10c3f524    1  0x10b5ff7e
+0x018 -inlniln#     0x10c46cf8  0x10c45dc8       1     1  0x10c3f528    1  0x10b5ff10
+0x01c -inlnild#     0x10c46d04  0x10c45dc4       2     2  0x10c3f52c    1  0x10b5ff19
+0x020 -inlnoln#     0x10c46d10  0x10c45dc0       2     2  0x10c3f530    1  0x10b5ff2e
+0x024 -inlnold#     0x10c46d1c  0x10c45dbc       3     3  0x10c3f534    1  0x10b5ff37
+0x028 -inlnlw       0x10c46d34  0x10c45db8       0     0  0x10c3f538    1  0x10b5fee1
+0x02c -inlocsa1#    0x10c46d40  0x10c45e00      96    15  0x10c3f53c    1  0x10b6007a
+0x030 -inlocsa2#    0x10c46d4c  0x10c45dfc       0     0  0x10c3f540    1  0x10b6008f
+0x034 -inlocsa3#    0x10c46d58  0x10c45df8       0     0  0x10c3f544    1  0x10b600a1
+0x038 -inlocsa4#    0x10c46d64  0x10c45df4      96    15  0x10c3f548    1  0x10b600b3
+0x03c -inlcrmax#    0x10c46d70  0x10c45db4      10    10  0x10c3f54c    1  0x10b600bb
+0x040 -inlfcsa#     0x10c46d7c  0x10c45df0       5     5  0x10c3f550    1  0x10b600c8
+0x044 (no switch)   -           -               -4    -1  0x10c3f554    1  0x10b60049
+0x048 -inluserinl#  0x10c46d88  0x10c45dec       8     2  0x10c3f558    1  0x10b6003d
+0x04c -inlnobr#     0x10c46d28  0x10c45dd4      48     3  0x10c3f55c    1  0x10b5fd89
+0x050 (no switch)   -           -                4     1  0x10c3f560    4  0x10b5e859 0x10bb7bcf 0x10bb7c89 0x10bbb1b4
+0x054 (no switch)   -           -                4     1  0x10c3f564    2  0x10b5e841 0x10bb7c8e
+0x058 (no switch)   -           -                1     1  0x10c3f568    1  0x10b5febd
+0x05c -inlmlsa#     0x10c46d94  0x10c45de8      32    15  0x10c3f56c    2  0x10b5dca9 0x10b5dcd6
+0x060 -inlcsw#      0x10c46da0  0x10c45de4       0     0  0x10c3f570    4  0x10b5fdba 0x10ba2772 0x10ba2bfe 0x10bb7cee
+0x064 -inldasw#     0x10c46db8  0x10c45ddc       0     0  0x10c3f574    4  0x10b5fdc4 0x10ba2765 0x10ba2bef 0x10bb7ce2
+0x068 -inlcasw#     0x10c46dac  0x10c45de0       0     0  0x10c3f578    4  0x10b5fdd0 0x10ba2758 0x10ba2be1 0x10bb7cf9
+0x06c -inlipfw#     0x10c46dc4  0x10c45dd8       0     0  0x10c3f57c    1  0x10b5fe15
+0x070 (no switch)   -           -                2     2  0x10c3f580    4  0x10b5f630 0x10b5f63a 0x10b5f681 0x10b5f6cc
+0x074 (no switch)   -           -                3     3  0x10c3f584    2  0x10b5f5c7 0x10b5f5d1
+0x078 (no switch)   -           -                3     3  0x10c3f588    1  0x10b5e955
+0x07c (no switch)   -           -               32     6  0x10c3f58c    3  0x10b5fe0e 0x10ba277f 0x10bb7cc5
+0x080 (no switch)   -           -               16     4  0x10c3f590    1  0x10b6002e
+0x084 (no switch)   -           0x10c45db0       ?     ?  0x10c3f594    0  
+0x088 (no switch)   -           0x10c45dac       ?     ?  0x10c3f598    0  
+0x08c (no switch)   -           0x10c45da8       ?     ?  0x10c3f59c    0  
+0x090 (no switch)   -           0x10c45da4       ?     ?  0x10c3f5a0    0  
+0x094 (no switch)   -           0x10c45da0       ?     ?  0x10c3f5a4    0  
+0x098 (no switch)   -           0x10c45d9c       ?     ?  0x10c3f5a8    0  
+0x09c (no switch)   -           0x10c45d98       ?     ?  0x10c3f5ac    0  
+0x0a0 (no switch)   -           0x10c45d94       ?     ?  0x10c3f5b0    0  
+0x0a4 (no switch)   -           0x10c45d90       ?     ?  0x10c3f5b4    0  
+0x0a8 (no switch)   -           0x10c45d8c       ?     ?  0x10c3f5b8    0  
+0x0ac (no switch)   -           0x10c45d88       ?     ?  0x10c3f5bc    0  
+0x0b0 (no switch)   -           0x10c45d84       ?     ?  0x10c3f5c0    0  
+0x0b4 (no switch)   -           0x10c45d80       ?     ?  0x10c3f5c4    0  
+
+switch-fed fields      : 24 of 46
+  of which `-inl*`     : 24
+  with >=1 live reader : 24 of 24 (-inl* only: 24 of 24)
+fields with NO switch  : 9 (0x044 0x050 0x054 0x058 0x070 0x074 0x078 0x07c 0x080)
+fed from a word with no descriptor name: 13 (0x084 0x088 0x08c 0x090 0x094 0x098 0x09c 0x0a0 0x0a4 0x0a8 0x0ac 0x0b0 0x0b4)
+
+
+=== READERS IN CONTEXT ===
+Every live-record read, with its owner function and +-3 instructions.  This is the evidence behind every 'what it decides' sentence in WB_INLSWITCH_FINDINGS.md.
+
+--- +0x000  -inlS#  live 0x10c3f510  defA=60 defB=2
+    FUN_10b5fcd8
+        10b5fd1f  mov    ecx,edi
+        10b5fd21  call   0x10b5c0a7
+        10b5fd26  mov    DWORD PTR [ebp-0x8],eax
+     >> 10b5fd29  cmp    eax,DWORD PTR ds:0x10c3f510
+        10b5fd2f  jle    0x10b5fd53
+        10b5fd31  mov    esi,DWORD PTR [edi+0x7a]
+        10b5fd34  add    esi,DWORD PTR ds:0x10c3f5c8
+    FUN_10b5fcd8
+        10b5fe65  idiv   ecx
+        10b5fe67  mov    ecx,esi
+        10b5fe69  sub    ecx,eax
+     >> 10b5fe6b  mov    eax,ds:0x10c3f510
+        10b5fe70  add    eax,0x5
+        10b5fe73  cmp    ecx,eax
+        10b5fe75  jge    0x10b5fe8e
+    FUN_10b5fcd8
+        10b600d0  idiv   ecx
+        10b600d2  sub    esi,eax
+        10b600d4  xor    eax,eax
+     >> 10b600d6  cmp    esi,DWORD PTR ds:0x10c3f510
+        10b600dc  setl   al
+        10b600df  pop    esi
+        10b600e0  pop    edi
+
+--- +0x004  -inlT#  live 0x10c3f514  defA=104 defB=20
+    FUN_10b5fcd8
+        10b5ff8a  add    eax,edx
+        10b5ff8c  xor    edx,edx
+        10b5ff8e  div    ecx
+     >> 10b5ff90  mov    esi,DWORD PTR ds:0x10c3f514
+        10b5ff96  cmp    eax,esi
+        10b5ff98  jl     0x10b5ffdf
+        10b5ff9a  mov    ecx,DWORD PTR [ebp+0x8]
+
+--- +0x008  -inlfcsw#  live 0x10c3f518  defA=32 defB=5
+    FUN_10b5fcd8
+        10b5fddc  imul   edx,DWORD PTR ds:0x10c3f51c
+        10b5fde3  add    ecx,edx
+        10b5fde5  mov    edx,DWORD PTR [eax+0x4]
+     >> 10b5fde8  imul   edx,DWORD PTR ds:0x10c3f518
+        10b5fdef  add    ecx,edx
+        10b5fdf1  sub    esi,ecx
+        10b5fdf3  mov    cl,BYTE PTR [edi+0xae]
+    FUN_10bb7aa3
+        10bb7ccf  imul   eax,DWORD PTR ds:0x10c3f51c
+        10bb7cd6  add    ecx,eax
+        10bb7cd8  mov    eax,DWORD PTR [esi+0x4]
+     >> 10bb7cdb  imul   eax,DWORD PTR ds:0x10c3f518
+        10bb7ce2  mov    edx,DWORD PTR ds:0x10c3f574
+        10bb7ce8  imul   edx,DWORD PTR [ebp-0x24]
+        10bb7cec  add    ecx,eax
+
+--- +0x00c  -inlflcsw#  live 0x10c3f51c  defA=0 defB=0
+    FUN_10b5fcd8
+        10b5fdd0  imul   edx,DWORD PTR ds:0x10c3f578
+        10b5fdd7  add    ecx,edx
+        10b5fdd9  mov    edx,DWORD PTR [eax+0x10]
+     >> 10b5fddc  imul   edx,DWORD PTR ds:0x10c3f51c
+        10b5fde3  add    ecx,edx
+        10b5fde5  mov    edx,DWORD PTR [eax+0x4]
+        10b5fde8  imul   edx,DWORD PTR ds:0x10c3f518
+    FUN_10ba24c4
+        10ba2744  xor    eax,eax
+        10ba2746  cmp    DWORD PTR [esi+0x10],eax
+        10ba2749  je     0x10ba2753
+     >> 10ba274b  cmp    DWORD PTR ds:0x10c3f51c,eax
+        10ba2751  jne    0x10ba2789
+        10ba2753  cmp    DWORD PTR [esi+0x14],eax
+        10ba2756  je     0x10ba2760
+    FUN_10bb7aa3
+        10bb7cc2  imul   ecx,eax
+        10bb7cc5  imul   ecx,DWORD PTR ds:0x10c3f58c
+        10bb7ccc  mov    eax,DWORD PTR [esi+0x10]
+     >> 10bb7ccf  imul   eax,DWORD PTR ds:0x10c3f51c
+        10bb7cd6  add    ecx,eax
+        10bb7cd8  mov    eax,DWORD PTR [esi+0x4]
+        10bb7cdb  imul   eax,DWORD PTR ds:0x10c3f518
+
+--- +0x010  -inlld#  live 0x10c3f520  defA=3 defB=3
+    FUN_10b5fcd8
+        10b5ff58  push   edx
+        10b5ff59  push   eax
+        10b5ff5a  call   0x10c289e0
+     >> 10b5ff5f  mov    ecx,DWORD PTR ds:0x10c3f520
+        10b5ff65  jmp    0x10b5ff84
+        10b5ff67  push   ecx
+        10b5ff68  mov    eax,esi
+
+--- +0x014  -inld#  live 0x10c3f524  defA=7 defB=7
+    FUN_10b5fcd8
+        10b5ff77  push   edx
+        10b5ff78  push   eax
+        10b5ff79  call   0x10c289e0
+     >> 10b5ff7e  mov    ecx,DWORD PTR ds:0x10c3f524
+        10b5ff84  lea    edx,[ecx-0x1]
+        10b5ff87  imul   edx,esi
+        10b5ff8a  add    eax,edx
+
+--- +0x018  -inlniln#  live 0x10c3f528  defA=1 defB=1
+    FUN_10b5fcd8
+        10b5ff05  ja     0x10b5ff10
+        10b5ff07  cmp    DWORD PTR [ebp-0x18],0x2a05f200
+        10b5ff0e  jb     0x10b5ff21
+     >> 10b5ff10  mov    eax,ds:0x10c3f528
+        10b5ff15  imul   eax,esi
+        10b5ff18  cdq    
+        10b5ff19  idiv   DWORD PTR ds:0x10c3f52c
+
+--- +0x01c  -inlnild#  live 0x10c3f52c  defA=2 defB=2
+    FUN_10b5fcd8
+        10b5ff10  mov    eax,ds:0x10c3f528
+        10b5ff15  imul   eax,esi
+        10b5ff18  cdq    
+     >> 10b5ff19  idiv   DWORD PTR ds:0x10c3f52c
+        10b5ff1f  jmp    0x10b5ff90
+        10b5ff21  cmp    ebx,ecx
+        10b5ff23  ja     0x10b5ff2e
+
+--- +0x020  -inlnoln#  live 0x10c3f530  defA=2 defB=2
+    FUN_10b5fcd8
+        10b5ff23  ja     0x10b5ff2e
+        10b5ff25  cmp    DWORD PTR [ebp-0x18],0x1dcd6500
+        10b5ff2c  jb     0x10b5ff3f
+     >> 10b5ff2e  mov    eax,ds:0x10c3f530
+        10b5ff33  imul   eax,esi
+        10b5ff36  cdq    
+        10b5ff37  idiv   DWORD PTR ds:0x10c3f534
+
+--- +0x024  -inlnold#  live 0x10c3f534  defA=3 defB=3
+    FUN_10b5fcd8
+        10b5ff2e  mov    eax,ds:0x10c3f530
+        10b5ff33  imul   eax,esi
+        10b5ff36  cdq    
+     >> 10b5ff37  idiv   DWORD PTR ds:0x10c3f534
+        10b5ff3d  jmp    0x10b5ff90
+        10b5ff3f  cmp    ebx,ecx
+        10b5ff41  ja     0x10b5ff48
+
+--- +0x028  -inlnlw  live 0x10c3f538  defA=0 defB=0
+    FUN_10b5fcd8
+        10b5fed7  xor    ecx,ecx
+        10b5fed9  mov    DWORD PTR [ebp-0x18],eax
+        10b5fedc  mov    edi,0x5f5e100
+     >> 10b5fee1  cmp    DWORD PTR ds:0x10c3f538,ecx
+        10b5fee7  je     0x10b5ff3f
+        10b5fee9  cmp    ebx,0x2
+        10b5feec  jb     0x10b5ff00
+
+--- +0x02c  -inlocsa1#  live 0x10c3f53c  defA=96 defB=15
+    FUN_10b5fcd8
+        10b60072  cmp    ecx,0x1
+        10b60075  jne    0x10b600bb
+        10b60077  mov    eax,DWORD PTR [ebx+0x14]
+     >> 10b6007a  sub    esi,DWORD PTR ds:0x10c3f53c
+        10b60080  mov    edx,DWORD PTR [ebx+0x10]
+        10b60083  test   eax,eax
+        10b60085  jne    0x10b6008f
+
+--- +0x030  -inlocsa2#  live 0x10c3f540  defA=0 defB=0
+    FUN_10b5fcd8
+        10b60085  jne    0x10b6008f
+        10b60087  cmp    edx,0x17d7840
+        10b6008d  jb     0x10b600d4
+     >> 10b6008f  sub    esi,DWORD PTR ds:0x10c3f540
+        10b60095  test   eax,eax
+        10b60097  jne    0x10b600a1
+        10b60099  cmp    edx,0x2faf080
+
+--- +0x034  -inlocsa3#  live 0x10c3f544  defA=0 defB=0
+    FUN_10b5fcd8
+        10b60097  jne    0x10b600a1
+        10b60099  cmp    edx,0x2faf080
+        10b6009f  jb     0x10b600d4
+     >> 10b600a1  sub    esi,DWORD PTR ds:0x10c3f544
+        10b600a7  test   eax,eax
+        10b600a9  jne    0x10b600b3
+        10b600ab  cmp    edx,0x5f5e100
+
+--- +0x038  -inlocsa4#  live 0x10c3f548  defA=96 defB=15
+    FUN_10b5fcd8
+        10b600a9  jne    0x10b600b3
+        10b600ab  cmp    edx,0x5f5e100
+        10b600b1  jb     0x10b600d4
+     >> 10b600b3  sub    esi,DWORD PTR ds:0x10c3f548
+        10b600b9  jmp    0x10b600d4
+        10b600bb  cmp    ecx,DWORD PTR ds:0x10c3f54c
+        10b600c1  jge    0x10b600d4
+
+--- +0x03c  -inlcrmax#  live 0x10c3f54c  defA=10 defB=10
+    FUN_10b5fcd8
+        10b600b1  jb     0x10b600d4
+        10b600b3  sub    esi,DWORD PTR ds:0x10c3f548
+        10b600b9  jmp    0x10b600d4
+     >> 10b600bb  cmp    ecx,DWORD PTR ds:0x10c3f54c
+        10b600c1  jge    0x10b600d4
+        10b600c3  cmp    ecx,0x1
+        10b600c6  jle    0x10b600d4
+
+--- +0x040  -inlfcsa#  live 0x10c3f550  defA=5 defB=5
+    FUN_10b5fcd8
+        10b600c1  jge    0x10b600d4
+        10b600c3  cmp    ecx,0x1
+        10b600c6  jle    0x10b600d4
+     >> 10b600c8  mov    eax,ds:0x10c3f550
+        10b600cd  add    eax,esi
+        10b600cf  cdq    
+        10b600d0  idiv   ecx
+
+--- +0x044  (no switch)  live 0x10c3f554  defA=-4 defB=-1
+    FUN_10b5fcd8
+        10b6003d  sub    esi,DWORD PTR ds:0x10c3f558
+        10b60043  test   BYTE PTR [ebx+0x1c],0x2
+        10b60047  je     0x10b6004f
+     >> 10b60049  sub    esi,DWORD PTR ds:0x10c3f554
+        10b6004f  mov    eax,DWORD PTR [ecx+0x20]
+        10b60052  test   eax,0x2000
+        10b60057  jne    0x10b600d4
+
+--- +0x048  -inluserinl#  live 0x10c3f558  defA=8 defB=2
+    FUN_10b5fcd8
+        10b60035  sub    esi,eax
+        10b60037  test   BYTE PTR [ebp+0x8],0x80
+        10b6003b  je     0x10b60043
+     >> 10b6003d  sub    esi,DWORD PTR ds:0x10c3f558
+        10b60043  test   BYTE PTR [ebx+0x1c],0x2
+        10b60047  je     0x10b6004f
+        10b60049  sub    esi,DWORD PTR ds:0x10c3f554
+
+--- +0x04c  -inlnobr#  live 0x10c3f55c  defA=48 defB=3
+    FUN_10b5fcd8
+        10b5fd7e  add    esi,edx
+        10b5fd80  test   BYTE PTR [edi+0xb1],0x80
+        10b5fd87  je     0x10b5fd8f
+     >> 10b5fd89  sub    esi,DWORD PTR ds:0x10c3f55c
+        10b5fd8f  cmp    DWORD PTR ds:0x10c2e310,0x0
+        10b5fd96  je     0x10b60004
+        10b5fd9c  mov    edx,DWORD PTR [ebx+0x1c]
+
+--- +0x050  (no switch)  live 0x10c3f560  defA=4 defB=1
+    FUN_10b5e6a5
+        10b5e853  or     eax,0xfffffffe
+        10b5e856  inc    eax
+        10b5e857  je     0x10b5e861
+     >> 10b5e859  mov    eax,ds:0x10c3f560
+        10b5e85e  add    DWORD PTR [esi+0xc],eax
+        10b5e861  cmp    BYTE PTR [edi+0x8],0x7
+        10b5e865  mov    eax,DWORD PTR [ebp-0x4]
+    FUN_10bb7aa3
+        10bb7bc6  call   0x10bdebe4
+        10bb7bcb  test   eax,eax
+        10bb7bcd  je     0x10bb7bdc
+     >> 10bb7bcf  mov    eax,ds:0x10c3f560
+        10bb7bd4  sub    DWORD PTR [ebp-0x2c],eax
+        10bb7bd7  jmp    0x10bb7c97
+        10bb7bdc  mov    eax,DWORD PTR [ebp-0x10]
+    FUN_10bb7aa3
+        10bb7c80  mov    eax,DWORD PTR [eax+0x4]
+        10bb7c83  mov    ecx,DWORD PTR [ebp-0x8]
+        10bb7c86  add    ebx,DWORD PTR [eax+ecx*4]
+     >> 10bb7c89  mov    eax,ds:0x10c3f560
+        10bb7c8e  sub    eax,DWORD PTR ds:0x10c3f564
+        10bb7c94  add    DWORD PTR [ebp-0xc],eax
+        10bb7c97  xor    ecx,ecx
+    FUN_10bbb042
+        10bbb1aa  jmp    0x10bbb15a
+        10bbb1ac  mov    ecx,DWORD PTR [ebp+0x8]
+        10bbb1af  call   0x10b26ca4
+     >> 10bbb1b4  imul   eax,DWORD PTR ds:0x10c3f560
+        10bbb1bb  mov    ecx,DWORD PTR [ebp-0x8]
+        10bbb1be  lea    eax,[eax+ecx*1+0x1]
+        10bbb1c2  mov    ecx,DWORD PTR [esi]
+
+--- +0x054  (no switch)  live 0x10c3f564  defA=4 defB=1
+    FUN_10b5e6a5
+        10b5e83b  jne    0x10b5e841
+        10b5e83d  test   al,0x18
+        10b5e83f  je     0x10b5e859
+     >> 10b5e841  mov    eax,ds:0x10c3f564
+        10b5e846  jmp    0x10b5e85e
+        10b5e848  mov    eax,DWORD PTR [ebp-0x10]
+        10b5e84b  and    eax,0x80000001
+    FUN_10bb7aa3
+        10bb7c83  mov    ecx,DWORD PTR [ebp-0x8]
+        10bb7c86  add    ebx,DWORD PTR [eax+ecx*4]
+        10bb7c89  mov    eax,ds:0x10c3f560
+     >> 10bb7c8e  sub    eax,DWORD PTR ds:0x10c3f564
+        10bb7c94  add    DWORD PTR [ebp-0xc],eax
+        10bb7c97  xor    ecx,ecx
+        10bb7c99  lea    edx,[ebp-0x40]
+
+--- +0x058  (no switch)  live 0x10c3f568  defA=1 defB=1
+    FUN_10b5fcd8
+        10b5feb7  div    ecx
+        10b5feb9  movzx  eax,al
+        10b5febc  cdq    
+     >> 10b5febd  idiv   DWORD PTR ds:0x10c3f568
+        10b5fec3  mov    ecx,DWORD PTR [ebx+0x14]
+        10b5fec6  add    esi,eax
+        10b5fec8  mov    eax,DWORD PTR [ebx+0x10]
+
+--- +0x05c  -inlmlsa#  live 0x10c3f56c  defA=32 defB=15
+    FUN_10b5dc6c
+        10b5dca0  je     0x10b5dcb1
+        10b5dca2  inc    BYTE PTR [ebp-0x1]
+        10b5dca5  movzx  eax,BYTE PTR [ebp-0x1]
+     >> 10b5dca9  cmp    eax,DWORD PTR ds:0x10c3f56c
+        10b5dcaf  jg     0x10b5dcd6
+        10b5dcb1  mov    esi,DWORD PTR [esi]
+        10b5dcb3  cmp    esi,ebx
+    FUN_10b5dc6c
+        10b5dcd3  pop    ebx
+        10b5dcd4  leave  
+        10b5dcd5  ret    
+     >> 10b5dcd6  mov    eax,ds:0x10c3f56c
+        10b5dcdb  inc    eax
+        10b5dcdc  jmp    0x10b5dcd1
+        10b5dcde  push   ecx
+
+--- +0x060  -inlcsw#  live 0x10c3f570  defA=0 defB=0
+    FUN_10b5fcd8
+        10b5fdab  cmp    esi,0x384
+        10b5fdb1  jg     0x10b6000f
+        10b5fdb7  mov    ecx,DWORD PTR [eax+0x1c]
+     >> 10b5fdba  imul   ecx,DWORD PTR ds:0x10c3f570
+        10b5fdc1  mov    edx,DWORD PTR [eax+0x18]
+        10b5fdc4  imul   edx,DWORD PTR ds:0x10c3f574
+        10b5fdcb  add    ecx,edx
+    FUN_10ba24c4
+        10ba276b  jne    0x10ba2789
+        10ba276d  cmp    DWORD PTR [esi+0x1c],eax
+        10ba2770  je     0x10ba277a
+     >> 10ba2772  cmp    DWORD PTR ds:0x10c3f570,eax
+        10ba2778  jne    0x10ba2789
+        10ba277a  cmp    DWORD PTR [esi+0x20],eax
+        10ba277d  je     0x10ba27d5
+    FUN_10ba2948
+        10ba2bf6  jne    0x10ba2c07
+        10ba2bf8  cmp    DWORD PTR [esi+0x1c],0x0
+        10ba2bfc  je     0x10ba2c29
+     >> 10ba2bfe  cmp    DWORD PTR ds:0x10c3f570,0x0
+        10ba2c05  je     0x10ba2c29
+        10ba2c07  lea    edi,[ecx*4+0x24]
+        10ba2c0e  push   0x4
+    FUN_10bb7aa3
+        10bb7ce2  mov    edx,DWORD PTR ds:0x10c3f574
+        10bb7ce8  imul   edx,DWORD PTR [ebp-0x24]
+        10bb7cec  add    ecx,eax
+     >> 10bb7cee  mov    eax,ds:0x10c3f570
+        10bb7cf3  imul   eax,DWORD PTR [ebp-0x20]
+        10bb7cf7  add    ecx,eax
+        10bb7cf9  mov    eax,ds:0x10c3f578
+
+--- +0x064  -inldasw#  live 0x10c3f574  defA=0 defB=0
+    FUN_10b5fcd8
+        10b5fdb7  mov    ecx,DWORD PTR [eax+0x1c]
+        10b5fdba  imul   ecx,DWORD PTR ds:0x10c3f570
+        10b5fdc1  mov    edx,DWORD PTR [eax+0x18]
+     >> 10b5fdc4  imul   edx,DWORD PTR ds:0x10c3f574
+        10b5fdcb  add    ecx,edx
+        10b5fdcd  mov    edx,DWORD PTR [eax+0x14]
+        10b5fdd0  imul   edx,DWORD PTR ds:0x10c3f578
+    FUN_10ba24c4
+        10ba275e  jne    0x10ba2789
+        10ba2760  cmp    DWORD PTR [esi+0x18],eax
+        10ba2763  je     0x10ba276d
+     >> 10ba2765  cmp    DWORD PTR ds:0x10c3f574,eax
+        10ba276b  jne    0x10ba2789
+        10ba276d  cmp    DWORD PTR [esi+0x1c],eax
+        10ba2770  je     0x10ba277a
+    FUN_10ba2948
+        10ba2be7  jne    0x10ba2c07
+        10ba2be9  cmp    DWORD PTR [esi+0x18],0x0
+        10ba2bed  je     0x10ba2bf8
+     >> 10ba2bef  cmp    DWORD PTR ds:0x10c3f574,0x0
+        10ba2bf6  jne    0x10ba2c07
+        10ba2bf8  cmp    DWORD PTR [esi+0x1c],0x0
+        10ba2bfc  je     0x10ba2c29
+    FUN_10bb7aa3
+        10bb7cd6  add    ecx,eax
+        10bb7cd8  mov    eax,DWORD PTR [esi+0x4]
+        10bb7cdb  imul   eax,DWORD PTR ds:0x10c3f518
+     >> 10bb7ce2  mov    edx,DWORD PTR ds:0x10c3f574
+        10bb7ce8  imul   edx,DWORD PTR [ebp-0x24]
+        10bb7cec  add    ecx,eax
+        10bb7cee  mov    eax,ds:0x10c3f570
+
+--- +0x068  -inlcasw#  live 0x10c3f578  defA=0 defB=0
+    FUN_10b5fcd8
+        10b5fdc4  imul   edx,DWORD PTR ds:0x10c3f574
+        10b5fdcb  add    ecx,edx
+        10b5fdcd  mov    edx,DWORD PTR [eax+0x14]
+     >> 10b5fdd0  imul   edx,DWORD PTR ds:0x10c3f578
+        10b5fdd7  add    ecx,edx
+        10b5fdd9  mov    edx,DWORD PTR [eax+0x10]
+        10b5fddc  imul   edx,DWORD PTR ds:0x10c3f51c
+    FUN_10ba24c4
+        10ba2751  jne    0x10ba2789
+        10ba2753  cmp    DWORD PTR [esi+0x14],eax
+        10ba2756  je     0x10ba2760
+     >> 10ba2758  cmp    DWORD PTR ds:0x10c3f578,eax
+        10ba275e  jne    0x10ba2789
+        10ba2760  cmp    DWORD PTR [esi+0x18],eax
+        10ba2763  je     0x10ba276d
+    FUN_10ba2948
+        10ba2bda  jne    0x10ba2c29
+        10ba2bdc  cmp    DWORD PTR [esi+0x14],ecx
+        10ba2bdf  je     0x10ba2be9
+     >> 10ba2be1  cmp    DWORD PTR ds:0x10c3f578,ecx
+        10ba2be7  jne    0x10ba2c07
+        10ba2be9  cmp    DWORD PTR [esi+0x18],0x0
+        10ba2bed  je     0x10ba2bf8
+    FUN_10bb7aa3
+        10bb7cee  mov    eax,ds:0x10c3f570
+        10bb7cf3  imul   eax,DWORD PTR [ebp-0x20]
+        10bb7cf7  add    ecx,eax
+     >> 10bb7cf9  mov    eax,ds:0x10c3f578
+        10bb7cfe  imul   eax,DWORD PTR [ebp-0x28]
+        10bb7d02  add    edx,ebx
+        10bb7d04  add    edx,ecx
+
+--- +0x06c  -inlipfw#  live 0x10c3f57c  defA=0 defB=0
+    FUN_10b5fcd8
+        10b5fe08  mov    eax,DWORD PTR [eax+0x8]
+        10b5fe0b  imul   edx,ecx
+        10b5fe0e  imul   edx,DWORD PTR ds:0x10c3f58c
+     >> 10b5fe15  imul   eax,DWORD PTR ds:0x10c3f57c
+        10b5fe1c  add    edx,eax
+        10b5fe1e  sub    esi,edx
+        10b5fe20  mov    ecx,esi
+
+--- +0x070  (no switch)  live 0x10c3f580  defA=2 defB=2
+    FUN_10b5f3f4
+        10b5f624  cmp    ecx,DWORD PTR [eax+0xb4]
+        10b5f62a  jg     0x10b5f645
+        10b5f62c  or     BYTE PTR [esi+0x19],0x4
+     >> 10b5f630  mov    ax,ds:0x10c3f580
+        10b5f636  mov    WORD PTR [esi+0x29],ax
+        10b5f63a  mov    ax,ds:0x10c3f580
+        10b5f640  jmp    0x10b5f6f4
+    FUN_10b5f3f4
+        10b5f62c  or     BYTE PTR [esi+0x19],0x4
+        10b5f630  mov    ax,ds:0x10c3f580
+        10b5f636  mov    WORD PTR [esi+0x29],ax
+     >> 10b5f63a  mov    ax,ds:0x10c3f580
+        10b5f640  jmp    0x10b5f6f4
+        10b5f645  lea    ecx,[eax+0xba]
+        10b5f64b  cmp    WORD PTR [ecx],0x0
+    FUN_10b5f3f4
+        10b5f676  push   DWORD PTR [ebp+0x8]
+        10b5f679  mov    ecx,DWORD PTR [ebp-0x20]
+        10b5f67c  call   0x10b5f3f4
+     >> 10b5f681  mov    ecx,DWORD PTR ds:0x10c3f580
+        10b5f687  add    DWORD PTR [ebp-0x4],eax
+        10b5f68a  add    ecx,eax
+        10b5f68c  mov    WORD PTR [esi+0x29],cx
+    FUN_10b5f3f4
+        10b5f6c3  push   eax
+        10b5f6c4  push   DWORD PTR [ebp+0x8]
+        10b5f6c7  call   0x10b5f3f4
+     >> 10b5f6cc  mov    ecx,DWORD PTR ds:0x10c3f580
+        10b5f6d2  add    ecx,eax
+        10b5f6d4  add    DWORD PTR [ebp-0x4],eax
+        10b5f6d7  mov    WORD PTR [esi+0x27],cx
+
+--- +0x074  (no switch)  live 0x10c3f584  defA=3 defB=3
+    FUN_10b5f3f4
+        10b5f5bf  jne    0x10b5f5dc
+        10b5f5c1  mov    al,BYTE PTR [edi+0x34]
+        10b5f5c4  mov    BYTE PTR [esi+0x18],al
+     >> 10b5f5c7  mov    ax,ds:0x10c3f584
+        10b5f5cd  mov    WORD PTR [esi+0x29],ax
+        10b5f5d1  mov    ax,ds:0x10c3f584
+        10b5f5d7  jmp    0x10b5f6f4
+    FUN_10b5f3f4
+        10b5f5c4  mov    BYTE PTR [esi+0x18],al
+        10b5f5c7  mov    ax,ds:0x10c3f584
+        10b5f5cd  mov    WORD PTR [esi+0x29],ax
+     >> 10b5f5d1  mov    ax,ds:0x10c3f584
+        10b5f5d7  jmp    0x10b5f6f4
+        10b5f5dc  mov    al,BYTE PTR [edi+0xa]
+        10b5f5df  and    al,0x1f
+
+--- +0x078  (no switch)  live 0x10c3f588  defA=3 defB=3
+    FUN_10b5e6a5
+        10b5e94b  shl    edx,cl
+        10b5e94d  test   edx,0x380
+        10b5e953  je     0x10b5e95c
+     >> 10b5e955  mov    eax,ds:0x10c3f588
+        10b5e95a  add    DWORD PTR [esi],eax
+        10b5e95c  mov    ebx,DWORD PTR [ebx+0xc]
+        10b5e95f  jmp    0x10b5e98f
+
+--- +0x07c  (no switch)  live 0x10c3f58c  defA=32 defB=6
+    FUN_10b5fcd8
+        10b5fe05  mov    edx,DWORD PTR [eax+0x20]
+        10b5fe08  mov    eax,DWORD PTR [eax+0x8]
+        10b5fe0b  imul   edx,ecx
+     >> 10b5fe0e  imul   edx,DWORD PTR ds:0x10c3f58c
+        10b5fe15  imul   eax,DWORD PTR ds:0x10c3f57c
+        10b5fe1c  add    edx,eax
+        10b5fe1e  sub    esi,edx
+    FUN_10ba24c4
+        10ba2778  jne    0x10ba2789
+        10ba277a  cmp    DWORD PTR [esi+0x20],eax
+        10ba277d  je     0x10ba27d5
+     >> 10ba277f  cmp    DWORD PTR ds:0x10c3f58c,eax
+        10ba2785  je     0x10ba27d5
+        10ba2787  xor    eax,eax
+        10ba2789  cmp    DWORD PTR [esp+0x18],eax
+    FUN_10bb7aa3
+        10bb7cbe  inc    eax
+        10bb7cbf  mov    ecx,DWORD PTR [esi+0x20]
+        10bb7cc2  imul   ecx,eax
+     >> 10bb7cc5  imul   ecx,DWORD PTR ds:0x10c3f58c
+        10bb7ccc  mov    eax,DWORD PTR [esi+0x10]
+        10bb7ccf  imul   eax,DWORD PTR ds:0x10c3f51c
+        10bb7cd6  add    ecx,eax
+
+--- +0x080  (no switch)  live 0x10c3f590  defA=16 defB=4
+    FUN_10b5fcd8
+        10b60027  inc    edx
+        10b60028  mov    eax,DWORD PTR [eax+0x20]
+        10b6002b  imul   eax,edx
+     >> 10b6002e  imul   eax,DWORD PTR ds:0x10c3f590
+        10b60035  sub    esi,eax
+        10b60037  test   BYTE PTR [ebp+0x8],0x80
+        10b6003b  je     0x10b60043
+
+
+
+=== THE POGO MODE PAIR ===
+DAT_10c3de20 is what `w-lowerband` SS7 filed as `389 refs, 10 writers, three values`.
+DAT_10c6f1c8 is the word that selects the parameter table at 0x10b5e50f.
+
+DAT_10c3de20 (effective mode): 389 references, 19 WRITE instructions in 13 distinct owner functions
+    0x10b9c739  FUN_10b9c70a     mov  ds:0x10c3de20,eax
+    0x10b9e069  FUN_10b9df2f     mov  DWORD PTR ds:0x10c3de20,esi
+    0x10b9e07d  FUN_10b9df2f     mov  ds:0x10c3de20,eax
+    0x10b9e1c0  FUN_10b9df2f     mov  DWORD PTR ds:0x10c3de20,esi
+    0x10b9e2bb  FUN_10b9e1d2     mov  DWORD PTR ds:0x10c3de20,0x2
+    0x10b9e3c7  FUN_10b9e38b     and  DWORD PTR ds:0x10c3de20,0x0
+    0x10ba199b  FUN_10ba1430     and  DWORD PTR ds:0x10c3de20,0x0
+    0x10ba1a40  FUN_10ba19b9     mov  DWORD PTR ds:0x10c3de20,edi
+    0x10ba1b8f  FUN_10ba19b9     mov  DWORD PTR ds:0x10c3de20,edi
+    0x10ba1c08  FUN_10ba19b9     mov  DWORD PTR ds:0x10c3de20,edi
+    0x10ba1cc5  FUN_10ba1c2d     and  DWORD PTR ds:0x10c3de20,0x0
+    0x10ba1e8b  FUN_10ba1e82     and  DWORD PTR ds:0x10c3de20,0x0
+    0x10ba3a0f  FUN_10ba39f7     mov  ds:0x10c3de20,eax
+    0x10ba41b7  FUN_10ba4109     and  DWORD PTR ds:0x10c3de20,0x0
+    0x10bb6e80  FUN_10bb6cbd     and  DWORD PTR ds:0x10c3de20,0x0
+    0x10bdd693  FUN_10bdd590     mov  DWORD PTR ds:0x10c3de20,esi
+    0x10bdd6c4  FUN_10bdd590     mov  ds:0x10c3de20,eax
+    0x10bdf1ba  FUN_10bdf155     mov  DWORD PTR ds:0x10c3de20,ebp
+    0x10bdf2fa  FUN_10bdf155     mov  ds:0x10c3de20,eax
+
+DAT_10c6f1c8 (requested mode): 308 references, 5 WRITE instructions in 2 distinct owner functions
+    0x10b84b47  FUN_10b848dc     mov  DWORD PTR ds:0x10c6f1c8,ebx
+    0x10b84b58  FUN_10b848dc     mov  DWORD PTR ds:0x10c6f1c8,ebx
+    0x10b84b80  FUN_10b848dc     mov  DWORD PTR ds:0x10c6f1c8,edi
+    0x10bae7ce  FUN_10bae79c     mov  DWORD PTR ds:0x10c6f1c8,ebx
+    0x10bae8db  FUN_10bae79c     mov  DWORD PTR ds:0x10c6f1c8,ebx
+

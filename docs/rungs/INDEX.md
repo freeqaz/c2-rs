@@ -339,6 +339,7 @@ the header block this table is read from.
 | 2026-08-28 | w-doctrine | [w-doctrine](2026-08-28-w-doctrine.md) | 6 | +0 (no acceptance predicate moved, no emit widened, no `.text` |
 | 2026-08-28 | w-floor | [w-floor](2026-08-28-w-floor.md) | 11 | +0 — zero `crates/` bytes, zero `scripts/` bytes, zero gate rows |
 | 2026-08-28 | W-GLOBOBJ | [w-globobj](2026-08-28-w-globobj.md) | 8 | +0 — nothing is admitted, no crates/ file is touched |
+| 2026-08-28 | w-inlswitch | [w-inlswitch](2026-08-28-w-inlswitch.md) | 19 | 707728/2417794 → 707728/2417794 (29.27% → 29.27%), +0 |
 | 2026-08-28 | w-lowerband | [w-lowerband](2026-08-28-w-lowerband.md) | 10 | 707728/2417794 → 707728/2417794 (29.27% → 29.27%), +0 |
 | 2026-08-28 | w-s7 | [w-s7](2026-08-28-w-s7.md) | 9 | unchanged → unchanged, +0 |
 | 2026-08-28 | w-sched-r7 | [w-sched-r7](2026-08-28-w-sched-r7.md) | 9 | +0 — no `crates/` or `fixtures/` file is touched |
