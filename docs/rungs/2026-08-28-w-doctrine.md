@@ -20,8 +20,9 @@
                fail here and grades nothing. Every part must be watched RED on a
                planted defect, and **E1 must be watched red on C6
                specifically**; a part never observed failing does not ship.
-               Registered in PREREG §4 before the first edit. Seven planted,
-               seven red — §4
+               Registered in PREREG §4 before the first edit. Nine planted,
+               nine red — §4, and two of the four surfaces' coverage claims were
+               FALSE until the control set executed them — §4.2
     Byte delta: REQUIRED-ZERO, measured — §5
 
 ---
@@ -32,7 +33,7 @@
 |---|---|
 | make `#3723` **enforceable rather than advisory** | **Built**, as four `cargo test` assertions over a committed artifact plus one over the rung docs. No new script, no new gate row, nothing that needs remembering to run |
 | *what is the checkable form?* — deliberately not answered for me | **A registry of decision surfaces whose domains run past what the corpus exercises, rendered to a committed baseline.** §2 |
-| **watch it FAIL first** (`#3336`) | **Seven planted defects, seven watched red**, §4. Transcript at `work/w-doctrine/controls_red.txt` |
+| **watch it FAIL first** (`#3336`) | **Nine planted defects, nine watched red**, §4. And the control set did more than confirm: it **refuted two of the lane's own coverage claims** — §4.2. Transcript at `work/w-doctrine/controls_red.txt` |
 | **reconstruct C6 and show the check going RED** | **Done, one line for one line.** `THE DECISION-SURFACE DOMAIN MOVED — 127 line(s) of 1102 differ`, §4.1 |
 | …while the byte delta and the identity diff stay green | **Measured**, §5.2 |
 | do not change `gate.sh`'s verdict, do not add a count-bearing row | **None added.** 21 rows at both ends, enumerated by the diff script |
@@ -90,7 +91,7 @@ a shared file:
 |---|---|---|---:|---:|
 | `alloc.allocate` | `codegen/alloc.rs` | which registers a store run's producers get, and where the allocation refuses | 256 | 190 |
 | `regalloc.select` | `codegen/regalloc.rs` | c2's minimum-cost selector over an ordered list, across **all four** entries of `ORDERS` | 224 | 50 |
-| `frame.out_of_class` | `codegen/frame.rs` | which frame layouts each of the **three** prologue emitters admits, and the named reason for the rest | 504 | 417 |
+| `frame.out_of_class` | `codegen/frame.rs` | which frame layouts each of the **three** prologue emitters admits, and the named reason for the rest | 504 | 453 |
 | `reach.branch` | `codegen/reach.rs` | direct / expanded / refused, per branch form and displacement | 75 | 36 |
 
 **The domains run past what the corpus reaches, and that is the whole
@@ -185,6 +186,8 @@ here while every emitted-byte test stays green, so the green half is evidence.
 | **CZ** | **the reach domain collapsed to one cell AND the baseline re-blessed** | **1 of 671** | **E3 alone, with E1 GREEN** |
 | CU | a new unregistered boundary-named const | 1 of 671 | E4 |
 | CD | a dated construct rung with no `Fail axis:` | (harness) | E5 |
+| CM | `FRAME_MIN_OUT_SLOTS` `8` → `16` | 28 of 671 | E1 (after §4.2's repair) |
+| CS-2 | CS re-run after §4.2's repair — the sharp control must stay sharp | **1 of 671** | **E1 alone** |
 
 **C6′ verbatim, quoted from the run:**
 
@@ -208,6 +211,42 @@ against itself and cannot see that the domain stopped grading anything. E3's
 floors are the only thing left and they fire. That is not a contrived failure: a
 lane that shrinks a domain and re-blesses in the same motion has performed CZ,
 with no dishonesty required.
+
+### 4.2 **Two of the four surfaces' guard claims were FALSE, and the control set found them**
+
+`Surface::guards` is a **claim** — *this surface's domain exercises this
+boundary constant* — and E4 reads it as the coverage numerator. The field's own
+doc says *"an entry here that the domain does not reach is a false coverage
+claim and the control set is what keeps it honest."* Executed against all seven
+guards, two were exactly that:
+
+```text
+  POOL_TOP             re-spelled as a literal `9`   ->  0 lines moved
+  FRAME_MIN_OUT_SLOTS  widened 8 -> 16               ->  0 lines moved
+```
+
+**They are the two different ways a coverage claim goes wrong and they need
+different repairs**, which is why they are worth separating:
+
+* **`POOL_TOP` is not an independent boundary at all.** Since `w-regsel` it is
+  `GPR_DEFAULT.regs[0]` — a derived alias with **no production use outside tests
+  and comments**. There is nothing for a domain to reach. It moves to
+  `UNCOVERED` with the measurement as its reason, ratchet 12 → 13, and the thing
+  it aliases is covered by `regalloc.select`.
+* **`FRAME_MIN_OUT_SLOTS` is a real boundary the DOMAIN was too narrow to
+  see.** At the domain's original `locals = 20_000` the floor shifts the frame
+  by 64 bytes and lands on the same side of every threshold. Repaired by
+  choosing `locals = 20_360`, which straddles the `_RtlCheckStack12` threshold
+  *through* the floor — 20,448 admitted at a floor of 8, 20,512 refused at 16.
+  Control **CM** then moves **7 lines**, and control **CS-2** confirms the
+  repair did not cost the sharp control: `670 passed; 1 failed`, E1 alone.
+
+**This is the lane's instrument catching the lane's own false claim, and it is
+the reason a coverage list has to be executed rather than written.** A registry
+that reports coverage it does not have is `#3470` with one extra step: the
+number goes **up** and the grading does not. It is folded into `#3746` rather
+than given a row of its own, because it is that row's own subject measured on
+the instrument that states it.
 
 ---
 

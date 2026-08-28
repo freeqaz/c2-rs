@@ -18,7 +18,7 @@
 ##   site      codegen/alloc.rs
 ##   boundary  which registers a store run's producers get, and on which (producer count, pool floor) the allocation REFUSES
 ##   cite      docs/ALLOC.md; board #543, #541; the C6 control that motivated #3723
-##   guards    MAX_MODELLED_PRODUCERS VOLATILE_GPR_TOP POOL_TOP
+##   guards    MAX_MODELLED_PRODUCERS VOLATILE_GPR_TOP
 alloc.allocate  kind=const n=1 floor=00  r11
 alloc.allocate  kind=const n=1 floor=01  r11
 alloc.allocate  kind=const n=1 floor=02  r11
@@ -514,510 +514,510 @@ regalloc.select  order=fpr-default allowed=28..=31 n=4  31,30,29,28
 ##   cite      docs/CODEGEN_FRAMED_CALLS.md §1.2; the helper thresholds 3 (GPR) and 4 (FPR)
 ##   guards    FRAME_MAX_SAVED_NO_SPILL FRAME_MIN_OUT_SLOTS
 frame.out_of_class  emitter=base gprs=00 fprs=0 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=base gprs=00 fprs=0 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=base gprs=00 fprs=0 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=base gprs=00 fprs=0 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=0 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=base gprs=00 fprs=0 locals=20360 out=0  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=0 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=base gprs=00 fprs=1 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=base gprs=00 fprs=1 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=base gprs=00 fprs=1 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=base gprs=00 fprs=1 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=1 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=base gprs=00 fprs=1 locals=20360 out=0  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=1 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=base gprs=00 fprs=2 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=base gprs=00 fprs=2 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=base gprs=00 fprs=2 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=base gprs=00 fprs=2 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=2 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=base gprs=00 fprs=2 locals=20360 out=0  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=2 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=base gprs=00 fprs=3 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=base gprs=00 fprs=3 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=base gprs=00 fprs=3 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=base gprs=00 fprs=3 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=00 fprs=3 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=base gprs=00 fprs=3 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=base gprs=00 fprs=3 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=base gprs=00 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=00 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=00 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=00 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=00 fprs=4 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=00 fprs=4 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=00 fprs=4 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=base gprs=00 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=00 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=00 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=00 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=00 fprs=5 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=00 fprs=5 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=00 fprs=5 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=base gprs=01 fprs=0 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=base gprs=01 fprs=0 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=base gprs=01 fprs=0 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=base gprs=01 fprs=0 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=01 fprs=0 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=base gprs=01 fprs=0 locals=20360 out=0  probes=4
+frame.out_of_class  emitter=base gprs=01 fprs=0 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=base gprs=01 fprs=1 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=base gprs=01 fprs=1 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=base gprs=01 fprs=1 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=base gprs=01 fprs=1 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=01 fprs=1 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=base gprs=01 fprs=1 locals=20360 out=0  probes=4
+frame.out_of_class  emitter=base gprs=01 fprs=1 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=base gprs=01 fprs=2 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=base gprs=01 fprs=2 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=base gprs=01 fprs=2 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=base gprs=01 fprs=2 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=01 fprs=2 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=base gprs=01 fprs=2 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=base gprs=01 fprs=2 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=base gprs=01 fprs=3 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=base gprs=01 fprs=3 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=base gprs=01 fprs=3 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=base gprs=01 fprs=3 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=01 fprs=3 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=base gprs=01 fprs=3 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=base gprs=01 fprs=3 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=base gprs=01 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=01 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=01 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=01 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=01 fprs=4 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=01 fprs=4 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=01 fprs=4 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=base gprs=01 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=01 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=01 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=01 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=01 fprs=5 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=01 fprs=5 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=01 fprs=5 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=base gprs=02 fprs=0 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=base gprs=02 fprs=0 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=base gprs=02 fprs=0 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=base gprs=02 fprs=0 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=02 fprs=0 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=base gprs=02 fprs=0 locals=20360 out=0  probes=4
+frame.out_of_class  emitter=base gprs=02 fprs=0 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=base gprs=02 fprs=1 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=base gprs=02 fprs=1 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=base gprs=02 fprs=1 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=base gprs=02 fprs=1 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=02 fprs=1 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=base gprs=02 fprs=1 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=base gprs=02 fprs=1 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=base gprs=02 fprs=2 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=base gprs=02 fprs=2 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=base gprs=02 fprs=2 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=base gprs=02 fprs=2 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=02 fprs=2 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=base gprs=02 fprs=2 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=base gprs=02 fprs=2 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=base gprs=02 fprs=3 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=base gprs=02 fprs=3 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=base gprs=02 fprs=3 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=base gprs=02 fprs=3 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=base gprs=02 fprs=3 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=base gprs=02 fprs=3 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=base gprs=02 fprs=3 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=base gprs=02 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=02 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=02 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=02 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=02 fprs=4 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=02 fprs=4 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=02 fprs=4 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=base gprs=02 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=02 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=02 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=base gprs=02 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=02 fprs=5 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=02 fprs=5 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=base gprs=02 fprs=5 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=base gprs=03 fprs=0 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=0 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=0 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=0 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=0 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=0 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=0 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=03 fprs=1 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=1 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=1 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=1 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=1 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=1 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=1 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=03 fprs=2 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=2 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=2 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=2 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=2 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=2 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=2 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=03 fprs=3 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=3 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=3 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=3 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=3 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=3 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=3 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=03 fprs=4 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=4 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=4 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=4 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=4 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=4 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=4 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=03 fprs=5 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=5 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=5 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=03 fprs=5 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=5 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=5 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=03 fprs=5 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=04 fprs=0 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=0 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=0 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=0 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=0 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=0 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=0 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=04 fprs=1 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=1 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=1 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=1 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=1 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=1 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=1 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=04 fprs=2 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=2 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=2 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=2 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=2 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=2 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=2 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=04 fprs=3 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=3 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=3 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=3 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=3 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=3 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=3 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=04 fprs=4 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=4 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=4 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=4 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=4 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=4 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=4 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=04 fprs=5 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=5 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=5 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=04 fprs=5 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=5 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=5 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=04 fprs=5 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=17 fprs=0 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=0 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=0 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=0 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=0 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=0 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=0 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=17 fprs=1 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=1 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=1 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=1 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=1 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=1 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=1 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=17 fprs=2 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=2 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=2 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=2 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=2 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=2 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=2 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=17 fprs=3 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=3 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=3 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=3 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=3 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=3 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=3 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=17 fprs=4 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=4 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=4 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=4 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=4 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=4 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=4 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=17 fprs=5 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=5 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=5 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=17 fprs=5 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=5 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=5 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=17 fprs=5 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=18 fprs=0 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=0 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=0 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=0 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=0 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=0 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=0 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=18 fprs=1 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=1 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=1 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=1 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=1 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=1 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=1 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=18 fprs=2 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=2 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=2 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=2 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=2 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=2 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=2 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=18 fprs=3 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=3 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=3 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=3 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=3 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=3 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=3 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=18 fprs=4 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=4 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=4 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=4 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=4 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=4 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=4 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=base gprs=18 fprs=5 locals=00000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=5 locals=00000 out=8  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=5 locals=20000 out=0  REFUSE frame-savegprlr-helper
-frame.out_of_class  emitter=base gprs=18 fprs=5 locals=20000 out=8  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=5 locals=00000 out=20  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=5 locals=20360 out=0  REFUSE frame-savegprlr-helper
+frame.out_of_class  emitter=base gprs=18 fprs=5 locals=20360 out=20  REFUSE frame-savegprlr-helper
 frame.out_of_class  emitter=clsC gprs=00 fprs=0 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=0 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=0 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=0 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=00 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=1 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=1 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=1 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=00 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=2 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=2 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=2 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=00 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=3 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=3 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=3 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=00 fprs=4 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=4 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=4 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=4 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=4 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=4 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=4 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=00 fprs=5 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=5 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=5 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=00 fprs=5 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=5 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=5 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=00 fprs=5 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=01 fprs=0 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=0 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=0 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=0 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=01 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=1 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=1 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=1 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=01 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=2 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=2 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=2 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=01 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=3 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=3 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=3 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=01 fprs=4 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=4 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=4 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=4 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=4 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=4 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=4 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=01 fprs=5 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=5 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=5 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=01 fprs=5 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=5 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=5 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=01 fprs=5 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=02 fprs=0 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=0 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=0 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=0 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=02 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=1 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=1 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=1 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=02 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=2 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=2 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=2 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=02 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=3 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=3 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=3 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=02 fprs=4 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=4 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=4 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=4 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=4 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=4 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=4 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=02 fprs=5 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=5 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=5 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsC gprs=02 fprs=5 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=5 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=5 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsC gprs=02 fprs=5 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsC gprs=03 fprs=0 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=clsC gprs=03 fprs=0 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=clsC gprs=03 fprs=0 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=clsC gprs=03 fprs=0 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=03 fprs=0 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=clsC gprs=03 fprs=0 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=03 fprs=0 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=03 fprs=1 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=clsC gprs=03 fprs=1 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=clsC gprs=03 fprs=1 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=clsC gprs=03 fprs=1 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=03 fprs=1 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=clsC gprs=03 fprs=1 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=03 fprs=1 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=03 fprs=2 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=clsC gprs=03 fprs=2 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=clsC gprs=03 fprs=2 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=clsC gprs=03 fprs=2 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=03 fprs=2 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=clsC gprs=03 fprs=2 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=03 fprs=2 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=03 fprs=3 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=clsC gprs=03 fprs=3 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=clsC gprs=03 fprs=3 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=clsC gprs=03 fprs=3 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=03 fprs=3 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=clsC gprs=03 fprs=3 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=03 fprs=3 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=03 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=03 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=03 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=03 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=03 fprs=4 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=03 fprs=4 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=03 fprs=4 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsC gprs=03 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=03 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=03 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=03 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=03 fprs=5 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=03 fprs=5 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=03 fprs=5 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsC gprs=04 fprs=0 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=clsC gprs=04 fprs=0 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=clsC gprs=04 fprs=0 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=clsC gprs=04 fprs=0 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=04 fprs=0 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=clsC gprs=04 fprs=0 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=04 fprs=0 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=04 fprs=1 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=clsC gprs=04 fprs=1 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=clsC gprs=04 fprs=1 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=clsC gprs=04 fprs=1 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=04 fprs=1 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=clsC gprs=04 fprs=1 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=04 fprs=1 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=04 fprs=2 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=clsC gprs=04 fprs=2 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=clsC gprs=04 fprs=2 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=clsC gprs=04 fprs=2 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=04 fprs=2 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=clsC gprs=04 fprs=2 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=04 fprs=2 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=04 fprs=3 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=clsC gprs=04 fprs=3 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=clsC gprs=04 fprs=3 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=clsC gprs=04 fprs=3 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=04 fprs=3 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=clsC gprs=04 fprs=3 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=04 fprs=3 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=04 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=04 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=04 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=04 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=04 fprs=4 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=04 fprs=4 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=04 fprs=4 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsC gprs=04 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=04 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=04 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=04 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=04 fprs=5 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=04 fprs=5 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=04 fprs=5 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsC gprs=17 fprs=0 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=clsC gprs=17 fprs=0 locals=00000 out=8  probes=0
-frame.out_of_class  emitter=clsC gprs=17 fprs=0 locals=20000 out=0  probes=4
-frame.out_of_class  emitter=clsC gprs=17 fprs=0 locals=20000 out=8  probes=4
+frame.out_of_class  emitter=clsC gprs=17 fprs=0 locals=00000 out=20  probes=0
+frame.out_of_class  emitter=clsC gprs=17 fprs=0 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=17 fprs=0 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=17 fprs=1 locals=00000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=17 fprs=1 locals=00000 out=8  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=17 fprs=1 locals=20000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=17 fprs=1 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=1 locals=00000 out=20  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=1 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=17 fprs=1 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=17 fprs=2 locals=00000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=17 fprs=2 locals=00000 out=8  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=17 fprs=2 locals=20000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=17 fprs=2 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=2 locals=00000 out=20  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=2 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=17 fprs=2 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=17 fprs=3 locals=00000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=17 fprs=3 locals=00000 out=8  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=17 fprs=3 locals=20000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=17 fprs=3 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=3 locals=00000 out=20  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=17 fprs=3 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=17 fprs=3 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=17 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=17 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=17 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=17 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=17 fprs=4 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=17 fprs=4 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=17 fprs=4 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsC gprs=17 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=17 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=17 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=17 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=17 fprs=5 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=17 fprs=5 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=17 fprs=5 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsC gprs=18 fprs=0 locals=00000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=18 fprs=0 locals=00000 out=8  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=18 fprs=0 locals=20000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=18 fprs=0 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=0 locals=00000 out=20  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=0 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=18 fprs=0 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=18 fprs=1 locals=00000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=18 fprs=1 locals=00000 out=8  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=18 fprs=1 locals=20000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=18 fprs=1 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=1 locals=00000 out=20  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=1 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=18 fprs=1 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=18 fprs=2 locals=00000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=18 fprs=2 locals=00000 out=8  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=18 fprs=2 locals=20000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=18 fprs=2 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=2 locals=00000 out=20  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=2 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=18 fprs=2 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=18 fprs=3 locals=00000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=18 fprs=3 locals=00000 out=8  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=18 fprs=3 locals=20000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsC gprs=18 fprs=3 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=3 locals=00000 out=20  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsC gprs=18 fprs=3 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsC gprs=18 fprs=3 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsC gprs=18 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=18 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=18 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=18 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=18 fprs=4 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=18 fprs=4 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=18 fprs=4 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsC gprs=18 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=18 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=18 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsC gprs=18 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=18 fprs=5 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=18 fprs=5 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsC gprs=18 fprs=5 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsCleaf gprs=00 fprs=0 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=0 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=0 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=0 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=00 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=1 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=1 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=1 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=00 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=2 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=2 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=2 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=00 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=3 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=3 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=3 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=00 fprs=4 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=4 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=4 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=4 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=4 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=4 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=4 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=00 fprs=5 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=5 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=5 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=00 fprs=5 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=5 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=5 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=00 fprs=5 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=01 fprs=0 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=0 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=0 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=0 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=01 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=1 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=1 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=1 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=01 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=2 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=2 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=2 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=01 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=3 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=3 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=3 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=01 fprs=4 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=4 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=4 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=4 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=4 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=4 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=4 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=01 fprs=5 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=5 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=5 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=01 fprs=5 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=5 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=5 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=01 fprs=5 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=02 fprs=0 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=0 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=0 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=0 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=02 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=1 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=1 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=1 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=02 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=2 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=2 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=2 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=02 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=3 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=3 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=3 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=02 fprs=4 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=4 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=4 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=4 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=4 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=4 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=4 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=02 fprs=5 locals=00000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=5 locals=00000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=5 locals=20000 out=0  REFUSE frame-gpr-helper-class-without-a-helper
-frame.out_of_class  emitter=clsCleaf gprs=02 fprs=5 locals=20000 out=8  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=5 locals=00000 out=20  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=5 locals=20360 out=0  REFUSE frame-gpr-helper-class-without-a-helper
+frame.out_of_class  emitter=clsCleaf gprs=02 fprs=5 locals=20360 out=20  REFUSE frame-gpr-helper-class-without-a-helper
 frame.out_of_class  emitter=clsCleaf gprs=03 fprs=0 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=0 locals=00000 out=20  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=0 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=0 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=03 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-leaf-with-saved-fprs
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=1 locals=00000 out=20  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=1 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=1 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=03 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-leaf-with-saved-fprs
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=2 locals=00000 out=20  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=2 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=2 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=03 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-leaf-with-saved-fprs
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=3 locals=00000 out=20  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=3 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=3 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=03 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=4 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=4 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=4 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsCleaf gprs=03 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=03 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=5 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=5 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=03 fprs=5 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsCleaf gprs=04 fprs=0 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=0 locals=00000 out=20  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=0 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=0 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=04 fprs=1 locals=00000 out=0  REFUSE frame-gpr-helper-leaf-with-saved-fprs
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=1 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=1 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=1 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=1 locals=00000 out=20  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=1 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=1 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=04 fprs=2 locals=00000 out=0  REFUSE frame-gpr-helper-leaf-with-saved-fprs
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=2 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=2 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=2 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=2 locals=00000 out=20  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=2 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=2 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=04 fprs=3 locals=00000 out=0  REFUSE frame-gpr-helper-leaf-with-saved-fprs
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=3 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=3 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=3 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=3 locals=00000 out=20  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=3 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=3 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=04 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=4 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=4 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=4 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsCleaf gprs=04 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=04 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=5 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=5 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=04 fprs=5 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsCleaf gprs=17 fprs=0 locals=00000 out=0  probes=0
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=0 locals=00000 out=8  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=0 locals=20000 out=0  REFUSE frame-gpr-helper-leaf-with-a-local
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=0 locals=20000 out=8  REFUSE frame-gpr-helper-leaf-with-a-local
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=0 locals=00000 out=20  REFUSE frame-gpr-helper-leaf-with-outgoing-slots
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=0 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=0 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=17 fprs=1 locals=00000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=1 locals=00000 out=8  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=1 locals=20000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=1 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=1 locals=00000 out=20  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=1 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=1 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=17 fprs=2 locals=00000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=2 locals=00000 out=8  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=2 locals=20000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=2 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=2 locals=00000 out=20  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=2 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=2 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=17 fprs=3 locals=00000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=3 locals=00000 out=8  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=3 locals=20000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=3 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=3 locals=00000 out=20  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=3 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=3 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=17 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=4 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=4 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=4 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsCleaf gprs=17 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=17 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=5 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=5 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=17 fprs=5 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsCleaf gprs=18 fprs=0 locals=00000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=0 locals=00000 out=8  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=0 locals=20000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=0 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=0 locals=00000 out=20  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=0 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=0 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=18 fprs=1 locals=00000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=1 locals=00000 out=8  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=1 locals=20000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=1 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=1 locals=00000 out=20  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=1 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=1 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=18 fprs=2 locals=00000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=2 locals=00000 out=8  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=2 locals=20000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=2 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=2 locals=00000 out=20  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=2 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=2 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=18 fprs=3 locals=00000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=3 locals=00000 out=8  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=3 locals=20000 out=0  REFUSE frame-allocator-spill
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=3 locals=20000 out=8  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=3 locals=00000 out=20  REFUSE frame-allocator-spill
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=3 locals=20360 out=0  REFUSE frame-rtlcheckstack12
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=3 locals=20360 out=20  REFUSE frame-rtlcheckstack12
 frame.out_of_class  emitter=clsCleaf gprs=18 fprs=4 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=4 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=4 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=4 locals=20000 out=8  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=4 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=4 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=4 locals=20360 out=20  REFUSE frame-savefpr-helper
 frame.out_of_class  emitter=clsCleaf gprs=18 fprs=5 locals=00000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=5 locals=00000 out=8  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=5 locals=20000 out=0  REFUSE frame-savefpr-helper
-frame.out_of_class  emitter=clsCleaf gprs=18 fprs=5 locals=20000 out=8  REFUSE frame-savefpr-helper
-## summary  frame.out_of_class  cells=504 admit=87 refuse=417 values={probes=0,probes=4}
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=5 locals=00000 out=20  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=5 locals=20360 out=0  REFUSE frame-savefpr-helper
+frame.out_of_class  emitter=clsCleaf gprs=18 fprs=5 locals=20360 out=20  REFUSE frame-savefpr-helper
+## summary  frame.out_of_class  cells=504 admit=51 refuse=453 values={probes=0,probes=4}
 
 ## surface  reach.branch
 ##   site      codegen/reach.rs

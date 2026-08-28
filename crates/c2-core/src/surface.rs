@@ -132,7 +132,7 @@ pub const SURFACES: &[Surface] = &[
         boundary: "which registers a store run's producers get, and on which \
                    (producer count, pool floor) the allocation REFUSES",
         cite: "docs/ALLOC.md; board #543, #541; the C6 control that motivated #3723",
-        guards: &["MAX_MODELLED_PRODUCERS", "VOLATILE_GPR_TOP", "POOL_TOP"],
+        guards: &["MAX_MODELLED_PRODUCERS", "VOLATILE_GPR_TOP"],
         rows: crate::codegen::alloc::surface_rows,
         min_cells: 256,
         min_refusals: 100,
@@ -193,6 +193,7 @@ pub const UNCOVERED: &[(&str, &str)] = &[
     ("MAX_MULTISYM_PRODUCERS", "a real refusal boundary in the multi-symbol run path; not enumerated yet"),
     ("MAX_OBJECTS_PER_SECTION", "a COFF layout cap; not enumerated yet"),
     ("MAX_SYMBOL_CROSSINGS", "a real refusal boundary in the symbol-binding path; not enumerated yet"),
+    ("POOL_TOP", "MEASURED, not assumed: a DERIVED alias of `GPR_DEFAULT.regs[0]` with no production use outside tests. Re-spelling it as a literal `9` moves ZERO domain lines, so naming it a guard was a false coverage claim. What it aliases — the order's head — is covered by `regalloc.select`"),
     ("R_BOUND", "FALSE POSITIVE of the name screen — a REGISTER NUMBER whose name ends in `_BOUND`"),
     ("TOP", "FALSE POSITIVE of the name screen — a loop-top byte OFFSET named `TOP`"),
 ];
@@ -202,7 +203,7 @@ pub const UNCOVERED: &[(&str, &str)] = &[
 /// thing that ever actually happens (`#3689`).
 ///
 /// PROV[N] an instrument ceiling; reaches no emitted byte.
-pub const UNCOVERED_RATCHET: usize = 12;
+pub const UNCOVERED_RATCHET: usize = 13;
 
 /// Render the whole registry to the canonical text that `surface/DOMAIN.txt`
 /// holds.

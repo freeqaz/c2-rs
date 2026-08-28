@@ -202,3 +202,98 @@ that state, so E1 compares equal and is green. E3's cell and refusal floors
 are the only thing left, and they fire. A baseline check with no floors
 would have passed a domain that had quietly stopped grading anything —
 #3470's shape, and the one this repo has now shipped nine times.
+=================================================================
+CONTROL CM — FRAME_MIN_OUT_SLOTS widened 8 -> 16 — the ABI floor on the outgoing-parameter area. THE GUARD CLAIM THAT WAS FALSE UNTIL THE DOMAIN WAS REPAIRED (see the note below this table)
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/frame.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- the WHOLE c2-core suite (the 'byte' half) ---
+test result: FAILED. 643 passed; 28 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.39s
+--- which tests went RED ---
+test codegen::alloc_init_or_fail::tests::the_body_is_the_reference_obj_word_for_word ... FAILED
+test codegen::calls::tests::a_guarded_call_sequence_matches_the_reference_bytes ... FAILED
+test codegen::calls::tests::framed_call_text_matches_reference_body ... FAILED
+test codegen::close_call_chain::tests::the_frame_is_ninety_six ... FAILED
+test codegen::close_call_chain::tests::the_text_is_byte_identical_to_the_reference_obj ... FAILED
+test codegen::ctor_forward_call::tests::nothing_sits_between_the_call_and_the_epilogue ... FAILED
+test codegen::ctor_forward_call::tests::the_nine_words_are_the_reference_obj ... FAILED
+test codegen::frame::tests::frame_helper_and_probe_thresholds_are_where_the_captures_put_them ... FAILED
+test codegen::frame::tests::frame_prologue_and_epilogue_match_the_reference_words ... FAILED
+test codegen::frame::tests::frame_size_fits_every_captured_witness ... FAILED
+test codegen::frontier_bytes::mmio_tests::mmiogetinfo_eighty_four_bytes_reconstruct_from_the_encoders ... FAILED
+test codegen::guard_chain_shared_tail::tests::body_matches_the_reference_obj_word_for_word ... FAILED
+test codegen::guard_chain_shared_tail::tests::the_five_formal_byte_store_body_matches_its_reference_obj ... FAILED
+test codegen::guard_ret_chain::tests::sub_shape_g_is_mmiogetinfo_word_for_word ... FAILED
+test codegen::guard_ret_chain::tests::sub_shape_s_is_mmiosetinfo_word_for_word ... FAILED
+test codegen::if_call_join::tests::the_body_is_the_bytes_c2_emitted_for_negate_test ... FAILED
+test codegen::if_call_join::tests::the_literals_are_two_immediate_fields ... FAILED
+test codegen::osf_handle_guard::tests::the_body_is_the_reference_obj_word_for_word ... FAILED
+test codegen::xlrc_create_guard::tests::body_matches_the_reference_words ... FAILED
+test codegen::xlrc_create_guard::tests::the_frame_is_the_published_rule_at_six_saved_gprs ... FAILED
+--- the surface instrument's own verdict ---
+test surface::tests::bless_the_domain_baseline ... ignored, regenerates the committed baseline; run deliberately
+test surface::tests::every_boundary_named_const_is_covered_by_a_surface_or_listed_uncovered ... ok
+test surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary ... ok
+test surface::tests::every_surface_marker_names_a_registered_surface_and_back ... ok
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+test surface::tests::the_rendered_domain_is_deterministic_and_committable ... ok
+
+=================================================================
+CONTROL CS-2 — FRAME_MAX_SAVED_NO_SPILL 17 -> 31, RE-RUN after the frame domain was repaired — CS must still be red, and still alone
+-----------------------------------------------------------------
+--- planted diff ---
+ crates/c2-core/src/codegen/frame.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+--- the WHOLE c2-core suite (the 'byte' half) ---
+test result: FAILED. 670 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.40s
+--- which tests went RED ---
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+--- the surface instrument's own verdict ---
+test surface::tests::bless_the_domain_baseline ... ignored, regenerates the committed baseline; run deliberately
+test surface::tests::every_boundary_named_const_is_covered_by_a_surface_or_listed_uncovered ... ok
+test surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary ... ok
+test surface::tests::every_surface_marker_names_a_registered_surface_and_back ... ok
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+test surface::tests::the_rendered_domain_is_deterministic_and_committable ... ok
+
+=================================================================
+ADDENDUM — TWO OF THE FOUR GUARD CLAIMS WERE FALSE, AND THE CONTROL
+SET IS WHAT FOUND THEM.
+
+`Surface::guards` is a **claim**: *this surface's domain exercises this
+boundary constant*. `surface.rs` says at the field that "an entry here
+that the domain does not reach is a false coverage claim and the control
+set is what keeps it honest". Run against the four surfaces' seven
+guards, the control set found **two** entries that were exactly that:
+
+  POOL_TOP              re-spelled as a literal `9`      -> 0 lines moved
+  FRAME_MIN_OUT_SLOTS   widened 8 -> 16                  -> 0 lines moved
+
+Neither was a slip of the pen. They are the two failure modes a coverage
+claim has, and they need different repairs:
+
+  * **POOL_TOP is not an independent boundary at all.** Since `w-regsel`
+    it is `GPR_DEFAULT.regs[0]` — a derived alias with no production use
+    outside tests and comments. There is nothing for a domain to reach.
+    Moved to `UNCOVERED` with the measurement as its reason; the thing it
+    aliases, the order's head, is covered by `regalloc.select`. Ratchet
+    12 -> 13.
+  * **FRAME_MIN_OUT_SLOTS was a real boundary the DOMAIN was too narrow
+    to see.** At `locals = 20_000` the floor moves the frame by 64 bytes
+    and lands on the same side of every threshold, so raising it moved
+    nothing. Repaired by choosing `locals = 20_360`, which straddles the
+    `_RtlCheckStack12` threshold *through* the floor: at 8 the frame is
+    20,448 and admitted, at 16 it is 20,512 and refused.
+
+CONTROL CM (after the repair): the widening now moves **7 lines**, and 28
+of 671 crate tests go red as well — this one was never a silent boundary,
+which is precisely why it needed measuring rather than assuming.
+CONTROL CS-2 (after the repair): FRAME_MAX_SAVED_NO_SPILL 17 -> 31 is
+still `670 passed; 1 failed`, still E1 alone. The repair did not cost the
+sharp control.
+
+**This is the lane's own instrument catching the lane's own false claim,
+and it is the reason a `guards` list has to be executed rather than
+written.** A registry that reports coverage it does not have is #3470
+with an extra step: the number goes UP and the grading does not.

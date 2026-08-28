@@ -643,8 +643,17 @@ pub fn surface_rows() -> Vec<crate::surface::Row> {
     for (ename, refuses) in emitters {
         for saved_gprs in [0u8, 1, 2, 3, 4, 17, 18] {
             for saved_fprs in 0..=5u8 {
-                for locals in [0u32, 20_000] {
-                    for out_slots in [0u8, 8] {
+                // `20_360` straddles the `_RtlCheckStack12` threshold *through*
+                // [`FRAME_MIN_OUT_SLOTS`]: at the shipped floor of 8 the frame
+                // sizes to 20,448 and is admitted, and at a floor of 16 it
+                // sizes to 20,512 and is refused. That is deliberate. With the
+                // domain's earlier `20_000` **the floor was not reachable at
+                // all** — raising it 8 -> 16 moved not one line — so naming it a
+                // guard was a false coverage claim, and this is the repair.
+                // `out_slots = 20` sits above the floor so the cells that
+                // depend on it and the cells that do not are both enumerated.
+                for locals in [0u32, 20_360] {
+                    for out_slots in [0u8, 20] {
                         let l = FrameLayout { locals, out_slots, saved_gprs, saved_fprs };
                         let outcome = match refuses(&l) {
                             Some(ctx) => format!("{} {ctx}", crate::surface::REFUSE),
