@@ -2800,7 +2800,7 @@ mod tests {
         let eh = v.marks["eh"];
         assert_eq!((eh.read, eh.obj, eh.inferred), (27, 14, 0));
         let gr = v.marks["globregs"];
-        assert_eq!((gr.read, gr.obj, gr.inferred), (45, 2, 1));
+        assert_eq!((gr.read, gr.obj, gr.inferred), (49, 21, 4));
     }
 
     /// §0's fifth property: no key may be a ratio over zero, and the renderer

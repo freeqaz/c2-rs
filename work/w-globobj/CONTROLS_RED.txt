@@ -1,0 +1,17 @@
+--- planted defect 1 ---
+  image: gate-B non-promotable set re-derives to P_GLOBREGS §3's FAIL
+  SELFTEST FAIL
+--- planted defect 2 ---
+  promotion: prologue saves BEFORE the stwu are not frame traffic FAIL
+  SELFTEST FAIL
+--- planted defect 3 ---
+  REJECT two locals sharing a register                       FAIL
+  SELFTEST FAIL
+--- planted defect 4 ---
+  image: callee-saved run is r31..r14 DESCENDING             FAIL
+  SELFTEST FAIL
+--- planted defect 5 ---
+  2 cells graded, 0 unscoreable                              FAIL
+  DECL REFUTED by exactly 1 cell                             FAIL
+  USE REFUTED by exactly 1 cell                              FAIL
+  SELFTEST FAIL

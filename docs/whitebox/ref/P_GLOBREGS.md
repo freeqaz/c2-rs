@@ -27,6 +27,34 @@ read to policy level, plus 7 functions outside the target's subtree that the
 target's own deliverable turned out to depend on.** Not covered: the twelve
 bitset primitives; `regasg.c`; the POGO variants.
 
+**Amended by lane `w-globobj`, 2026-08-28** (wave 18 L3, decision 22 §2),
+prereg [`work/w-globobj/PREREG.md`](../../../work/w-globobj/PREREG.md),
+grade [`../WB_GLOBOBJ_FINDINGS.md`](../WB_GLOBOBJ_FINDINGS.md), board
+**#3774**–**#3779**. Grids `../grids/w-globobj/`, instrument
+`../scripts/grade_globobj.py` (`--selftest`, answer key decoded from the pinned
+image). **48 order cells, 46 promotion verdicts, 16 shape cells, at both `/O1`
+and `/Ox`; 0 scored `U`.** Every `[O]` below names its witness.
+
+> ### ⚠ THE COVERAGE STATEMENT ABOVE WAS RE-CHECKED AND IT STANDS — but it is not the interesting denominator
+>
+> `w-globobj` verified R4's *"6 of 18 callees read to policy level, plus 7
+> functions outside the target's subtree"* against this tree and found it
+> unchanged: the twelve bitset primitives, `regasg.c` and the POGO variants
+> are still uncovered, and the three functions that decide the order are still
+> not callees of the target.
+>
+> **The denominator that actually explains this page's `agreement` strength is
+> a different one.** `[globregs]` was the weakest of the ten subsystems at
+> **2 of 48 marks (4.2 %)** — and `w-globobj` classified all 48 *before*
+> compiling a cell (`work/w-globobj/MARKS.tsv`): **28 are unobservable
+> in an obj BY CONSTRUCTION**, because this page is predominantly a
+> **structure** read (record layout, link direction, write-site attribution)
+> and a structure read has no obj form. **A low `agreement` here is a correct
+> reading of the page's KIND, not a measure of how much is unverified**, and
+> the reachable ceiling is roughly **20 of 48**. §10 carries the classification
+> and names, for every mark it did not convert, whether it is unobservable or
+> merely uncompiled.
+
 ---
 
 ## 0. THE HEADLINE — the tie tier is **not** a hash-bucket walk, and the read plan's entry point does not contain the answer
@@ -55,6 +83,32 @@ this lane's own prereg as MISSES.
 > missing input to the already-read comparator"* is wrong twice over: the mint
 > order is in a different function, and it is not the comparator's missing
 > input. **The missing input was `+0x44`.** §8.
+
+> ### ⛔ 3. `w-globobj`, 2026-08-28 — THE SEPARATOR IS BUILT, AND THE ORDER IS **DEFINITION** ORDER
+>
+> §7.1 closes with *"the separator remains unbuilt"*. It is built and it cost
+> one line of C. **Every register-order cell this repo had ever compiled welded
+> the DECLARATION order and the DEFINITION order together** — `wb-live`'s ten,
+> `wb-regalloc`'s fifteen, `w-dagorder`'s twenty and R4's own
+> `scripts/globregs_c2.py` all write `int x = …; int y = …;` or use formals, in
+> which the two orders are the same sequence by construction. Declare first and
+> assign in the other order and the observable moves.
+>
+> **`[O]` — the earliest-DEFINED candidate is coloured first**, exact on all
+> **42 straight-line cells** at both `/O1` and `/Ox`, **46 of 48 overall**,
+> **0 `U`**. Witness `../grids/w-globobj/order_grid.cpp`,
+> `order_lr_grid.cpp` and `order_loop_grid.cpp`, graded by
+> `../scripts/grade_globobj.py --order` against a colouring run **decoded from
+> the pinned image**, transcript `work/w-globobj/GRADE.txt`.
+> **Declaration order moves the map by ZERO cells; use order by ZERO cells.**
+> Seven rivals refuted by cell count: `REVDEF` 46, `REVDECL` 32, `DECL` 24,
+> `USE` 24, `LASTUSE` 24, **`LIVELEN` 14**, `USECOUNT` 6.
+>
+> The two `DEF` counterexamples are a **single `for` loop** (`ob_loop_y`, both
+> profiles), where a loop-weighted use lifts the later-defined candidate above
+> the earlier-defined one — so **`cand+0x0c` is reachable and is not merely a
+> re-expression of definition position**. §7.1 carries what that does and does
+> not settle, including the depth-2 anomaly this lane cannot explain.
 
 ---
 
@@ -239,6 +293,67 @@ pinned image:
 A symbol failing gate B gets `sym+0x34 = 0` at `0x10b5524f` and takes no
 further part — no index, no version, no candidate.
 
+> ## ✅ §3 MEETS AN OBJ — `w-globobj`, 2026-08-28. The policy's CONSEQUENCE is `[O]`; the gate's internal ORDER is unobservable
+>
+> **Witness: `../grids/w-globobj/promote_grid.cpp` (16 cells) and
+> `promote2_grid.cpp` (7 cells), 46 verdicts, identical at `/O1` and `/Ox`,
+> graded by `../scripts/grade_globobj.py --promote`.** The readout is frame
+> traffic: a promoted local needs no stack slot, and the prologue's own
+> `stw r12,-8(r1)` / `std r31,-16(r1)` saves sit **before** the `stwu` and are
+> excluded by construction, not by a heuristic. Controls fired both ways —
+> `pc_int` PROMOTED, `pc_vol` MEMORY.
+>
+> | **PROMOTED** `[O]` | **MEMORY** `[O]` |
+> |---|---|
+> | `int`, `unsigned char`, `short`, `long long`, `int*`, `bool`, `enum`, `float`, `double` | `volatile int` |
+> | `struct{int a;}`; `struct{int a,b;}` and `struct{int a,b,c,d;}` assigned **member-wise** | `struct{int a,b;}` as a **whole-object copy** (`S2 v = *p;`) |
+> | `union{int a; float b;}` | an `int` whose **address escapes** |
+> | `int[2]`, `int[4]`, `int[8]`, `int[12]` | function-`static int` |
+>
+> ### ⛔ "AGGREGATES ARE REJECTED" IS DEAD, and the lane's own prereg predicted it
+>
+> `w-globobj` predicted `int[4]`, `union` and `struct{int a,b;}` MEMORY. Arrays
+> and unions came back **PROMOTED**. The deciding pair is `pa_struct2cpy`
+> (`S2 v = *p;` → **MEMORY**, `ld 11, 0(3)` / `std 11, 80(1)`) against
+> **`pa_struct2mem`** (`S2 v; v.a = p->a; v.b = p->b;` → **PROMOTED**) — same
+> type, same TU, same profile. **`pc_struct2`'s MEMORY verdict is a front-end
+> whole-object-copy artifact and carries NO information about `FUN_10b550e5`.**
+>
+> The reading that replaces it was already on this page and unremarked: gate A's
+> `0x10b55156`–`0x10b55173` indexes **sub-symbols**, not the aggregate — *"only
+> sub-symbols with `t+0x20 == 4` are indexed"*. **An aggregate is promoted
+> member by member when the front end hands c2 member-wise assignments, and is
+> not when it hands c2 one wide copy.** `[I]` on the mechanism; `[O]` on the
+> two verdicts.
+>
+> ### §3's headline negative SURVIVES at the observable
+>
+> *"No size threshold, no use-count threshold … a port therefore needs no
+> fitted constant for F1."* `pa_arr12` puts **twelve** `int` locals into
+> `r31 … r20` — twelve consecutive entries of the image-decoded run, in
+> definition order, **with no frame traffic at all**. `[O]` to twelve
+> simultaneously live candidates. Above that the frame-traffic readout cannot
+> separate *"never promoted"* from *"promoted then spilled"*, and this page
+> makes no threshold claim in either direction there.
+>
+> ### What is NOT converted, and it is `CONSTR`
+>
+> **The ORDER of the gate's own tests** (`0x10b5511a` before `0x10b55129`
+> before `0x10b55134` …) is **unobservable in an obj by construction**: the two
+> bodies that would have to differ do not exist, because a gate-A rejection and
+> a gate-B rejection produce the identical `sym+0x34 = 0` and the identical
+> stack slot. Registered before the first cell was compiled, prereg §4.
+>
+> ### Re-derived, but deliberately NOT upgraded
+>
+> `grade_globobj.py` decodes the 30-byte table at `0x10b18b28` out of the pinned
+> image and independently reproduces the block above — **classes `0x00`, `0x12`,
+> `0x13`, `0x18`, `0x1d` not promotable, the other 25 promotable.** A planted
+> one-byte stride shift makes that assertion fail
+> (`work/w-globobj/CONTROLS_RED.txt`, defect 1). **It stays `[R]`**: a
+> second read of the same bytes is a second read, not an obj, and the lane
+> registered in advance that it would not upgrade a mark on a re-derivation.
+
 > **What the policy does NOT contain, stated so absence does not read as
 > coverage:** no size threshold, no use-count threshold, no live-range-length
 > test, and **no compilation-mode flag**. `DAT_10c2e2cf` is consulted at
@@ -316,6 +431,30 @@ Three things a port has to carry:
    started with the set, continued with `NULL`. Nesting two walks of different
    sets is therefore impossible, which is why step 3 caches before it iterates.
 
+> ## ✅ §5 MEETS AN OBJ — `w-globobj`, 2026-08-28. Clause 1 is `[O]`; clause 2 is NOT separated
+>
+> `work/w-globobj/MARKS.tsv` filed this section `UNCOMP` — *a cell could
+> exist, this lane does not build it* — **and named the cell.** The cell cost
+> three lines, so the lane built it and refuted its own filing inside the wave.
+>
+> **Witness: `../grids/w-globobj/merge_grid.cpp`, `vm_merge3`, both profiles.**
+> Three arms of an `if / else if / else` each define one symbol:
+>
+> ```
+> 001c  lwz 31, 0(3)      /* arm 1 */
+> 002c  lwz 31, 4(3)      /* arm 2 */
+> 0034  lwz 31, 8(3)      /* arm 3 */
+> ```
+>
+> Three loads **straight into `r31`**, and **no reconciling copy at the join**.
+> **One candidate spans the merge**, so clause 1 — *"the merge is keyed on the
+> symbol; two definitions of the same symbol merge"* — holds at the obj. `[O]`
+>
+> **Clause 2 — REUSE an existing version number vs MINT a fresh one — is not
+> separated by this cell and is not claimed.** Both branches of §5 emit one
+> colour in this shape, so the obj cannot tell them apart here; §10.2 names it
+> as merely uncompiled and states the shape that would decide it. `[R]`
+
 ---
 
 ## 6. The mint order — `FUN_10b55dbe`, and what "symbol-arena order" means
@@ -339,6 +478,28 @@ empty.** The third is the one with a consequence a port can use:
 > **A promotable symbol that the renamer never reached mints no candidate and
 > consumes no id.** Eligibility is necessary and not sufficient; *appearing in
 > a real tuple* is the sufficient condition.
+
+> ## ✅ "A SYMBOL WITH *k* VERSIONS MINTS *k* CANDIDATES" IS `[O]` — `w-globobj`, 2026-08-28
+>
+> §1 step 3 and §8 consequence 3 lean the whole explanation of
+> `codegen/alloc.rs`'s ten refuted allocation keys on *"a variable is not a
+> candidate"*. **Witness: `../grids/w-globobj/version_grid.cpp`, both
+> profiles.**
+>
+> * **`vc_three`** redefines ONE local three times with disjoint ranges and its
+>   values land in **`r31`, then `r28`, then `r28`** — *one source symbol
+>   holding two different colours*, which a one-candidate-per-symbol model
+>   cannot produce, because a candidate has exactly one colour. `[O]`
+> * **The sharper half: `vc_three` and `vc_three_distinct`** — three genuinely
+>   distinct locals in the identical shape — have **BYTE-IDENTICAL `.text`, 26
+>   words, at both `/O1` and `/Ox`.** So do `vc_reuse` / `vc_distinct`, 19
+>   words. **The allocator cannot tell a redefined variable from distinct
+>   variables.** `[O]`
+>
+> What this does **not** show is the *count*: `vc_three`'s three versions
+> produce two distinct colours, not three, because versions 2 and 3 do not
+> interfere and may share. **The claim converted is "*k* versions are *k*
+> independently-coloured candidates", not "*k* distinct registers."** `[I]`
 
 ### 6.3 The order, stated
 
@@ -445,6 +606,65 @@ loop). The arithmetic consequence would be:
 >   them.** Prereg §7 item 1 registered exactly this in advance: the observable
 >   is a many-to-one image of the claim.
 
+> ## ✅ 7.1 REVISITED — `w-globobj`, 2026-08-28. The separator is built; the ORDER is `[O]`, the ATTRIBUTION to `+0x44` is still not
+>
+> **What is now `[O]`, with its witness.** The *"separator remains unbuilt"*
+> sentence above is superseded. `../grids/w-globobj/order_grid.cpp` separates
+> **declaration**, **definition** and **use** order as three independent axes —
+> which no previous grid did, because they all welded the first two together —
+> and the answer is unambiguous over **48 graded cells, 0 `U`, both profiles**:
+>
+> > **The earliest-DEFINED candidate is coloured first.** Exact on all 42
+> > straight-line cells; **46 of 48** overall. `DECL` refuted by 24 cells,
+> > `USE` by 24, `LASTUSE` by 24, `LIVELEN` by 14, `USECOUNT` by 6, `REVDECL`
+> > by 32, `REVDEF` by 46.
+>
+> **That is exactly the composition §7.1 predicts and this page never stated.**
+> Blocks forward × tuples backward, counter not reset, value taken at the last
+> visit ⇒ in a single-block body a candidate's last visit is its **earliest
+> tuple**, which for a local is its **definition**; sorted `+0x44` DESC ⇒
+> earliest-defined first. The observable matches the composition.
+>
+> ### ⛔ `LIVELEN` REFUTED BY 14 CELLS — and that bears on [`P_REGALLOC.md`](P_REGALLOC.md):71
+>
+> `../grids/w-globobj/order_lr_grid.cpp` holds the definition order fixed and
+> moves the **last use**, which changes the live interval and leaves the
+> definition ordinal alone. `ol_dxy_ylate` defines `x` first and gives `y` a
+> live range three calls longer; **`x` is still coloured first.**
+>
+> `P_REGALLOC`:71 reads the accumulator as `cand[0x0c] += cand[0x18] * n_live`
+> where live, `-= n_live` where not. **Under EITHER sign of `cand+0x18` that is
+> monotone in live extent and therefore predicts `LIVELEN`** — with `+0x18 > 0`
+> a longer-lived candidate accumulates more; with `+0x18 == 0` it is *not*-live
+> at fewer points and so is less negative. Both give longer-lived first. **The
+> published formula, as published, predicts an order refuted by 14 cells.**
+> `[I]`, filed here rather than on that page, which `w-globobj` did not own.
+>
+> ### ⛔ AND `DEF` IS NOT UNIVERSAL — a single loop breaks it, a nested one does not
+>
+> `../grids/w-globobj/order_loop_grid.cpp`, `ob_loop_y`: `x` defined first, `y`
+> used inside a `for` loop ⇒ **`y` coloured first** (`y→r30`, `x→r28`), at both
+> profiles. **So `cand+0x0c` IS reachable and it responds to a loop-weighted use
+> count** — it is not merely a re-expression of definition position, which
+> removes one of the two explanations of the 42 straight-line cells.
+>
+> **The anomaly, stated as an anomaly:** `ob_loop2_y`, the same shape at loop
+> depth **2**, does **not** reproduce it — `x` is coloured first at both
+> profiles. A deeper loop moving the key *less* than a shallower one is not a
+> behaviour this lane has a model for. **`[R]` on the loop weighting; both
+> disagreeing cells are committed.**
+>
+> ### WHAT IS STILL NOT SETTLED — and it is `UNCOMP`, not `CONSTR`
+>
+> Whether the 42 straight-line cells are decided by **`+0x44`** or by a
+> **`+0x0c` that is itself definition-ordered** is **not** separated. The above
+> narrows it hard — `+0x0c` demonstrably moves on something that is not
+> definition position, and it is not monotone in live extent — but narrowing is
+> not closing. The cell that would close it needs two candidates whose `+0x0c`
+> tie is **witnessed rather than assumed**, and `w-globobj` neither built it nor
+> can name the two bodies that would make it impossible. **It is therefore filed
+> as merely uncompiled**, per §10's rule.
+
 ---
 
 ## 8. What this decides for `codegen::alloc`'s ten refuted keys
@@ -484,6 +704,9 @@ refuted allocation keys, "wrong on 5 to 42 each"**, and `alloc.rs:29-36`'s
 >    candidates (§1 step 3), each with its own `+0x44`. Every one of the ten
 >    keys is one-candidate-per-variable by construction and is therefore wrong
 >    in kind, not merely mis-fitted, on any body where a value is redefined.
+>    *(**`[O]` since `w-globobj`, 2026-08-28** — §6.2's box: `vc_three` gives
+>    ONE symbol TWO colours, and `vc_three` / `vc_three_distinct` are
+>    byte-identical. This clause is now measured, not read.)*
 >
 > **And the 52,416-configuration null is explained too, which is the sharper
 > half.** That search ranged over *priority functions* — candidates for
@@ -493,6 +716,22 @@ refuted allocation keys, "wrong on 5 to 42 each"**, and `alloc.rs:29-36`'s
 > accumulated. **No member of that family could have expressed it**, so the
 > null was structurally guaranteed rather than evidence about priority
 > functions. Board **#3413**.
+
+> ### ⚠ §8 AMENDED BY `w-globobj`, 2026-08-28 — two of the three clauses moved, in opposite directions
+>
+> * **Clause 3 is now `[O]`** — see the inline note above.
+> * **Clause 2's parenthetical is superseded but its verdict is NOT.** The
+>   *"later block outranks an earlier one"* form is still **UNGRADED**; what
+>   changed is that the *unbuilt separator* it blamed has been built (§0.3), the
+>   composite order is `[O]` as **definition order**, and a **single `for` loop**
+>   moves it (§7.1) — so `cand+0x0c` is reachable and the residue is now
+>   *"`+0x44` or a definition-ordered `+0x0c`"*, not *"no cell reached the
+>   tier"*.
+> * **The 52,416-configuration argument below is UNCHANGED and this lane adds
+>   to it**: `LIVELEN` and `USECOUNT`, the two source-level quantities a
+>   priority function is most likely to be, are refuted by 14 and 6 cells
+>   respectively — and [`P_REGALLOC.md`](P_REGALLOC.md):71's accumulator, under
+>   either sign of `cand+0x18`, predicts `LIVELEN`. §7.1.
 
 **The fence on that, stated in the lane's own voice.** This says the ten keys
 were fitting the wrong variable and names the right one. It does **not** say
@@ -524,3 +763,63 @@ mystery — but it is not a key a port can drop in today.
 * **The IL-record side.** Which IL constructs create which symbol kinds is read
   **R5**'s subject (`FUN_10bc2d7a`) and is an open cross-reference from here,
   not a claim.
+
+> **`w-globobj`, 2026-08-28 — three of these are now closed or narrowed.**
+> *"The FPR path — blind, and said so"*: `pc_float` and `pc_double` are
+> **PROMOTED** `[O]`, so gate B admits the FPR classes at the observable; the
+> FPR *order* remains `w-regcells`'s. *"The `> 1024`-candidate regime"*: still
+> open, but `pa_arr12` establishes that **12** simultaneously live candidates
+> colour with no spill, so the ladder to it is a one-line edit. *"Whether the
+> arena serial equals symbol creation order"*: unchanged and **unobservable**,
+> see §10.
+
+---
+
+## 10. THE EVIDENCE-TIER CLASSIFICATION — what an obj can decide here, and what it cannot
+
+Added by lane **`w-globobj`**, 2026-08-28. The full assignment is
+[`work/w-globobj/MARKS.tsv`](../../../work/w-globobj/MARKS.tsv),
+**committed before any deciding cell was compiled** (`7495010c6`), under a rule
+that binds it:
+
+> **`CONSTR` is a claim about the corpus, not about an instrument's index.**
+> Before a mark is filed unobservable, the two obj bodies that would have to
+> differ must be stated, and why they cannot exist. If they cannot be stated,
+> it is merely **uncompiled**. Board `#3505` is five for five on lanes that got
+> this backwards, and `w-regcells` found 213 cells for a claim that said none
+> existed.
+
+**Opening census of this page's 48 marks: 28 `CONSTR`, 13 `OBS`, 5 `UNCOMP`,
+2 already `[O]`.** One `UNCOMP` — the merge at joins — was converted inside the
+same wave, which is the filing working as intended rather than a defect in it.
+
+### 10.1 Unobservable in an obj BY CONSTRUCTION — 28 of 48
+
+**This page is predominantly a STRUCTURE read, not a POLICY read**, and that is
+what its `agreement` strength was measuring. Three families:
+
+| family | marks | why no cell can exist |
+|---|---:|---|
+| **record layout** — `sym+0x34`, `aux+0x00/0x0c/0x10/0x14`, `DAT_10c6f844`'s chunk chain, `DAT_10c400d0`, `0x10b54bf0`'s link direction, `0x10bd2343`'s 32 slots at stride `0x60`, `0x10bd7cf0`'s arity | 17 | a list's *prev* pointer, a chunk's slot count and a table's arity produce **identical output for every input**; nothing in an obj is a function of them except through an order, and that order is §7.1's subject |
+| **write-site attribution** — *"`+0x44` written at `0x10b55fac` and only there"*, *"`0x10b54d32` writes it never"*, the destructor's `memset`, the arena's `memset` | 6 | **no obj can name the instruction that wrote a compiler-internal field.** The *behaviour* is §7.1's `[O]`; the *addresses* are `[R]` permanently and correctly |
+| **the candidate `id` and everything feeding only it** — §6.3's order, `sym+0x1c`'s survival of recycling, §6.4's wrinkle, `0x10b54bad`'s head insert, `aux+0x0c`'s descending order | 5 | [`P_REGALLOC.md`](P_REGALLOC.md) §4: the id-keyed bucket walk is the **THIRD** tier, reached only on an exact tie in `+0x0c` **and** `+0x44`. Two bodies differing only in mint order but agreeing on both keys would need identical live intervals **and** identical definition ordinals — i.e. be the same body. Registered in prereg §5.5, and **48 cells produced no exact tie to withdraw it on** |
+
+### 10.2 Merely UNCOMPILED — 4 of 48, each with the cell that would decide it
+
+| mark | the cell |
+|---|---|
+| `0x10b2dfe2` / `0x10b2e4ae` — the split path copies the parent's `+0x44` | force a **spill and split**: ≥ 19 simultaneously live candidates. `pa_arr12` reaches 12 with no spill, so `pa_arr20` is the whole cell |
+| `aux+0x18` — the partner symbol at `0x10b55aa2` | **unknown**, and that is precisely why it is `UNCOMP` and not `CONSTR` |
+| §4 — versioning on first encounter in **either** operand list | a cell separating `T->[0x28]` from `T->[0x2c]`; §9 records that which is the def list is unread, so the cell cannot be written yet |
+| §5's **reuse-vs-fresh-mint** at a join | a join where one arm's version bitset already meets the phi set. `vm_merge3` shows one colour survives the join but not which branch of §5 produced it |
+
+Plus the methodological one: §7.1's *"`+0x44` or a definition-ordered
+`+0x0c`"*.
+
+### 10.3 The consequence for reading this page's `agreement` number
+
+`subsys.rs`:809 already says a mark is a page annotation, not a site.
+`w-globobj` sharpens it: **for a page that is mostly a structure read, a low
+`agreement` is a correct reading of the page's KIND, and no amount of obj work
+will ever move 28 of these 48 marks.** The reachable ceiling is about
+**20 of 48 ≈ 42 %**. Watch the `OBS` bucket's fill rate, not the ratio.
