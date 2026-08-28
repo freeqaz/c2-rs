@@ -405,7 +405,7 @@ has ever compiled and measured"*. The cheap way to break it is one
 >
 > ```
 > command -v wibo            -> (not on PATH)
-> readlink -f ../wibo        -> /home/free/code/milohax/wibo
+> readlink -f ../wibo        -> <milohax>/wibo   (the sibling checkout)
 > ls -la ../wibo/build/release/wibo  -> -rwxr-xr-x 5204048 Aug  5 01:18
 > ```
 >
