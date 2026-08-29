@@ -1,0 +1,8 @@
+{"tag": "A_O1_k35", "family": "A", "linkage": "static", "k": 35, "callee_count": 260, "form": "escape", "caller_count": 23}
+{"tag": "A_O1_k36", "family": "A", "linkage": "static", "k": 36, "callee_count": 267, "form": "escape", "caller_count": 23}
+{"tag": "A_O1_k34", "family": "A", "linkage": "static", "k": 34, "callee_count": 253, "form": "escape", "caller_count": 23}
+{"tag": "A_O1_k37", "family": "A", "linkage": "static", "k": 37, "callee_count": 274, "form": "escape", "caller_count": 23}
+{"tag": "B_O1_k11", "family": "B", "linkage": "extern", "k": 11, "callee_count": 92, "form": "direct", "caller_count": 23}
+{"tag": "B_O1_k12", "family": "B", "linkage": "extern", "k": 12, "callee_count": 99, "form": "direct", "caller_count": 23}
+{"tag": "B_O1_k10", "family": "B", "linkage": "extern", "k": 10, "callee_count": 85, "form": "direct", "caller_count": 23}
+{"tag": "B_O1_k13", "family": "B", "linkage": "extern", "k": 13, "callee_count": 106, "form": "direct", "caller_count": 23}
