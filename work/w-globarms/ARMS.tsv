@@ -1,0 +1,30 @@
+# ARMS.tsv — gate A's twelve arms, classified.
+#
+# The classification was REGISTERED IN ADVANCE in work/w-globarms/PREREG.md §4,
+# commit a0e5b58a3, before the image was opened and before any cell was
+# compiled. THIS FILE IS THE OUTCOME, not the registration: it carries what the
+# read and the 38 cells did to each prediction. Where the outcome differs from
+# the prereg the row says so and the findings score it as a MISS.
+#
+# bucket:
+#   OBS    = a real obj decides it; this lane names the witness cell
+#   CONSTR = unobservable in an obj BY CONSTRUCTION. The rule that binds this
+#            column, inherited verbatim from w-globobj §3 and board #3505:
+#            **before an arm is filed CONSTR the two obj bodies that would have
+#            to differ must be stated, and why they cannot exist. If they
+#            cannot be stated it is UNCOMP, however unlikely a cell looks.**
+#   UNCOMP = a cell could exist; this lane did not build it. Names the cell.
+#
+arm	addr	kinds reaching it	what it decides	prereg §4	outcome	witness-or-reason
+A1	0x10b5511a	0x10	skip the slot WITHOUT the reject tail: +0x34 is left alone and DAT_10c2e454 is not charged	CONSTR	CONSTR	kind 0x10 is the symbol table's SENTINEL record, minted once at 0x10bd339c by the symtab constructor FUN_10bd3225 and parked at symtab+0x3c. The two bodies that would have to differ are one in which the sentinel is promoted and one in which it is skipped; the sentinel has no source form at all, exists once per compilation, and is in no tuple. Sharper than the prereg's reason, same verdict.
+A2	0x10b55125	all	sym+0x40 &= ~1, unconditionally	CONSTR	CONSTR	there is no body in which this does not happen: the write is on the straight-line path with no predicate. A body where sym+0x40 bit 0 survives cannot be constructed because nothing chooses.
+A3	0x10b55129	all	only a GROUP LEADER is considered; a non-leader is skipped without the reject tail	CONSTR	CONSTR	FUN_10bd2913 sets [sym+0x08] = sym at 0x10bd2a20 for every symbol it makes, and FUN_10bd33cb/FUN_10bd2af2 set +0x08 to the leader for a clone or a member. A non-leader IS processed - through its leader's +0x0c chain at 0x10b551ca - so the two bodies that would have to differ (member handled directly vs through the leader) emit the same obj. The CONSEQUENCE (a member-wise aggregate promotes member by member) is [O] via ga_structmix / ga_struct4.
+A4	0x10b55134	3	dispatch kind 3 to the A11/A12 sub-gate	OBS	OBS	ga_temp, ga_temp3, both profiles. kind 3 is the compiler-generated TEMPORARY (constructor FUN_10bd28a2, which builds a symbol from a bare type word and allocates it out of the kind-0xf pool). f1(x)'s unnamed result survives the call to g1(y) in r30/r29 with no frame traffic, so a kind-3 symbol reaches A11/A12 and is admitted.
+A5	0x10b55138	0,1,2	REJECT kinds below 3	CONSTR	CONSTR	kind 1 is a physical register (WB_LIVE_FINDINGS:254, DISCLOSURE W-STAGETAP-4) and kind 2 is the CANDIDATE record itself (FUN_10b54d32 writes +0x04 = 2 at 0x10b54d6c - P_GLOBREGS §2's own row). Neither is in the symbol arena FUN_10b550e5 walks and neither has a source form. Two bodies differing only in whether a candidate record was itself re-promoted do not exist.
+A6	0x10b5513e	4,5	ELIGIBLE; joins the DAT_10c2e3e8 aliasing set iff sym+0x05 & 2	OBS	OBS	ga_int / ga_vol / ga_escape / ga_param / ga_ref, and the deciding pair gb_pair_yescape vs gb_pair_xescape - two int locals in one body, one address escaping, and the register map swaps with it. Kinds 4 and 5 are exactly linkage 1 and linkage 3, the two classes P_SYMBOL §3 records as producing NO COFF RECORD, i.e. the ordinary autos.
+A7	0x10b55142	6	REJECT kind 6	CONSTR	CONSTR	kind 6 is written only by FUN_10c05f44 (five sites) and FUN_10c0c251, in the by-name symbol region that WB_S7_FINDINGS:450 shows creating __C_specific_handler. A runtime-helper symbol created by name has no counterfactual: the two bodies would have to be one where a helper name is enregistered and one where it is not, and c2 never materialises one as a value.
+A8	0x10b5514a	7,8	ELIGIBLE, and ALWAYS joins the aliasing set	OBS-confounded	OBS-confounded	ga_extern, ga_fstatic, ga_lstatic are MEMORY at both profiles - but a symbol with a COFF record must be observable to another TU across an opaque call FOR LANGUAGE REASONS, so the verdict does not attribute to A8. Recorded as measured and NOT banked. What IS unconfounded is the read: linkage 2,4,6,7 - the classes that DO get a COFF record - are the only ones that reach A8/A9.
+A9	0x10b5514e	9,0xb..0xf	REJECT everything that is not 10	CONSTR	CONSTR	kind 0xb is a FUNCTION symbol ([gl+0x30]==3) and kind 9 is a linkage-4/7 symbol at a storage kind outside {1,2,4}. gb_fnaddr2 uses a function's address twice and c2 emits two direct bl - it never materialises the symbol as a value, so the two bodies that would have to differ (a function symbol coloured vs not) cannot both exist. Every rejecting arm branches to the SAME address 0x10b552b8 and produces the SAME state, so no obj can say which arm rejected.
+A10	0x10b55156	0xa	kind 10 needs (*(sym))+0x37 & 0x400 set and & 0x200000 clear; then indexes only sub-symbols with t+0x20 == 4	UNCOMP	UNCOMP	kind 0xa is [gl+0x30]==4, extern/alias, and 0x400 is P_SYMBOL's FUNCTION-TYPE bit - so A10 admits an extern symbol only when it is a function. This lane could not construct a C++ body that produces a kind-0xa symbol WITH sub-symbols, which is what the t+0x20==4 width test needs to bite. THE CELL: an aggregate that is itself an undefined external and is assigned member-wise across a call. Filed UNCOMP, not CONSTR, because the shape is nameable and this lane simply did not build it.
+A11	0x10b551b3	3	kind 3 needs sym+0x14 == 0	OBS-partial	OBS-partial	ga_temp / ga_temp3 show a kind-3 symbol admitted, so the arm is reached and its ACCEPT side is [O]. Its REJECT side is not: no source construct is known that makes sym+0x14 nonzero on a temp.
+A12	0x10b551bc	3	kind 3 needs sym+0x07 & 0x40 clear	UNCOMP	UNCOMP	same accept-side witness as A11. The reject side needs a temp with sym+0x07 bit 6 set and this lane did not read what sets it. UNCOMP, and the prereg said so at p=0.45.
