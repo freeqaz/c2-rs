@@ -270,8 +270,13 @@ pub const SURFACES: &[Surface] = &[
         // the contraction RULE, which is not spelled as a `const` at all.
         guards: &[],
         rows: crate::codegen::leaf::float::contraction_surface_rows,
+        // 101 cells / 9 refusals at this tip. The floors sit one step below,
+        // as every other row's do: they are E3's "a check over zero cells is
+        // green and says nothing" guard, not a second copy of the count —
+        // `DOMAIN.txt` is where the exact numbers live and E1 is what pins
+        // them.
         min_cells: 96,
-        min_refusals: 6,
+        min_refusals: 8,
     },
 ];
 
