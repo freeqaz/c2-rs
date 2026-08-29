@@ -1325,7 +1325,7 @@ inliner consults, not an inliner flag.** 109 of the 112 reads are
 #### 6.9.1 What sets it: `-Fl#`, a 200-entry repeatable file list `[R]`
 
 `0x10c45fa0` is the value word of **`-Fl#`**, descriptor `0x10c46ec0`, kind
-**`0x2601`** — the *only* row of that kind in c2's whole option table. Kind
+**`0x2601`** — the *only* row of that kind among the option table's **148** rows. Kind
 `0x26` is one of the four `FUN_10c1f572` arms §6.8.6's lane listed as unread;
 it is read here, at `0x10c1f703`:
 
