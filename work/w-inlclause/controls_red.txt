@@ -1,0 +1,42 @@
+=== read_state.py: one plant per rule ===============================
+  C7=read=R3                                               RED (3 FAIL line(s)) -- GRAMMAR: R3 with a live readcite and a real blocker
+  C7=readcite=nope.md#0x1                                  RED (1 FAIL line(s)) -- CITE: the cited path does not exist
+  C7=readcite=docs/whitebox/ref/P_INLINE.md#0xdeadbeef     RED (1 FAIL line(s)) -- CITE: the path exists and the anchor does not
+  C14=read=R2                                              RED (1 FAIL line(s)) -- GRAMMAR: state R-derived may not carry read R2
+  C7=blocker=because                                       RED (1 FAIL line(s)) -- VALUE: a free-text blocker
+  C7=blocker=none                                          RED (1 FAIL line(s)) -- GRAMMAR: R1 + absent + no blocker is an unadopted derivable clause
+  C21=blocker=none                                         RED (1 FAIL line(s)) -- GRAMMAR: an unexercisable row must carry n-a
+  CONTROL: the unplanted table must be GREEN
+    unplanted: READ-STATE: GREEN  (0 failure(s) over 24 rows)
+
+=== read_scan.py: a planted address that pins nothing ===============
+planted  : {'C7': ['deadbeef']}
+C7(PLANTED)         1  unread       unread   (none)
+PIN-SCAN: 12 of 15 rows have at least one clause-pinning address cited in the frozen corpus as dispatched
+PIN-SCAN: 14 of 15 rows once this lane's own read is included
+
+=== check_table.py: w-inlmetric's own control, re-watched on this tip
+planted  : {'C16': '10b5c06b'}
+  FAIL C16(PLANTED): ADDRESS 0x10b5c06b is in FUN_10b5c06b, table claims FUN_10b60930
+  FAIL C16(PLANTED): DECODE 0x10b5c06b is 'mov eax,DWORD PTR [ecx+0x20]', table records 'cmp DWORD PTR ds:0x10c3f5cc,0x88b8'
+CONFORMANCE-CHECK: RED  (2 failure(s) over 24 rows)
+CONFORMANCE-CHECK: GREEN  (0 failure(s) over 24 rows)
+
+=== the adopted clause: mutate its constant, the domain must move ===
+  INLINE_MAXLEVEL_UNBOUNDED: i64 = 255           RED -- 10 domain line(s) moved
+  max_level: 2, ..BUDGET_C2                      RED -- 13 domain line(s) moved
+  CONTROL: the restored tree must be GREEN
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 682 filtered out; finished in 0.00s
+  restored tree: byte-identical to the pre-mutation backup
+
+=== the Fail axis: field, watched RED on THIS rung (#3744) ============
+  the graded population is now 2 (w-inlbudget's and this one), not 1.
+  $ # delete the `Fail axis:` block from docs/rungs/2026-08-29-w-inlclause.md
+  $ cargo test -p c2-harness --release --test rung_registry
+  fail-axis: 341 rung docs examined, 9 declare a construct rung,
+             2 dated at or after 2026-08-28 (the graded population), 1 violation(s)
+  2026-08-29-w-inlclause.md declares `Kind: construct rung` and carries no `Fail axis:` header field
+  test result: FAILED. 3 passed; 1 failed
+  $ # restore, then `touch` (#3767 -- cp preserves the backup's older mtime)
+  test result: ok. 4 passed; 0 failed
+  restore byte-identical to the backup

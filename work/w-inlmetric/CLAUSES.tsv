@@ -40,28 +40,83 @@
 # exercised   yes | no | not-separable | unexercisable  -- by the 878-TU workload,
 #             measured on the 100-TU hold-out's 8,936 graded callees where possible.
 #
-id	clause	addr	owner	state	witness	exercised	note	asm
-C1	pass entry per function; whole pass skipped when DAT_10c40ec4 == 0	10b62675	10b62675	absent	none:DAT_10c40ec4	yes	the port has no inline PASS at all; splice/elide are emit-time rules inside lowering	push ebp
-C2	caller instruction count seeded: DAT_10c3f5cc = (ushort)[fn+0x50]	10b62703	10b62675	absent	none:caller_instr_seed	not-separable	F7: caller 48 B vs 5,640 B gives identical verdicts on 12 cells	mov ds:0x10c3f5cc,eax
-C3	growth budget B = clamp(2 x caller_instrs, 1000, 35000)	10b62708	10b62675	R-derived	crates/c2-core/src/splice.rs:INLINE_BUDGET_FLOOR	not-separable	P_INLINE SS3.1 records this READ, NOT CONFIRMED; no DISCLOSURE row proposes it	add eax,eax
-C4	driver entry FUN_10b61ee1(fn, level=1, budget=B, 0, 100000000, 0)	10b6276e	10b62675	absent	none:inline_driver	not-separable	no depth/budget parameters exist to pass	call 0x10b61ee1
-C5	site collector: one linear scan; instruction kind 0x0f is a call site	10b600e6	10b600e6	absent	none:site_collector	yes	the port reaches sites through Terminator::TailCall / Selected, not a tuple scan	push ebp
-C6	site collector: EH-region nesting + conditional/EH flag into bit 1	10b600e6	10b600e6	absent	none:eh_region_nesting	yes	the port REFUSES a conditional site (splice S1/S3) rather than flagging it; F8 = 6 cells	push ebp
-C7	ceiling VALUE: DAT_10c46318 = 0x10 << DAT_10c2ea98, or 1000 at k >= 7	10b5e4d7	10b5e4cc	absent	none:DAT_10c46318	yes	16<<3 = 128 INSTRUCTIONS does not compose into the measured byte brackets (SS4.2)	mov DWORD PTR ds:0x10c46318,0x3e8
-C8	candidacy SIZE TEST: cmp WORD [sym+0x50], DAT_10c46318; jl = candidate	10b5fc8a	10b5fb5f	fitted	crates/c2-core/src/splice.rs:INLINE_UNBOUNDED_BYTES	yes	port tests LOWERED BYTES (64/128/80) where c2 tests a pre-codegen COUNT; 3 constants, all obj-fitted	cmp eax,DWORD PTR ds:0x10c46318
-C9	favour-speed bit 0x10c2e310 non-zero => the size test is SKIPPED	10b5fc7e	10b5fb5f	absent	none:favor_speed	no	the workload is pinned to /O1, so the bit is single-valued; GRID-I moved it at /O2 on 60 cells	cmp DWORD PTR ds:0x10c2e310,ebx
-C10	__forceinline: test [sym+0x4c], 0x2000 bypasses every size and budget test	10b60a28	10b60930	absent	none:FN_FLAG_FORCEINLINE	yes	F4 inlines a 980-byte callee; the port has NO accept path, only refusals	and eax,0x2000
-C11	legality: refuse on [sym+0x20] & {0x400, 0x1000, 0x40, 0x100}	10b5c06b	10b5c06b	absent	none:SYM20_MASK	no	no workload witness isolates any of these four bits	mov eax,DWORD PTR [ecx+0x20]
-C12	legality: refuse on [sym+0x4c] & {0x80000, 0x200}	10b5c06b	10b5c06b	absent	none:SYM4C_REFUSE	no	no workload witness isolates either bit	mov eax,DWORD PTR [ecx+0x20]
-C13	legality: REQUIRE bit 6 of [sym+0x4c]	10b5c06b	10b5c06b	R-derived	crates/c2-il/src/func/gl.rs:FN_FLAG_INLINABLE	yes	0x40 = bit 6; gl.rs's own comment records the two derivations meeting from opposite sides	mov eax,DWORD PTR [ecx+0x20]
-C14	depth cap: 0x10 < level - DAT_10c3f50c => decline (16 levels)	10b60a1c	10b60930	absent	none:INLINE_MAX_DEPTH	no	no cell nests 16 deep; comdat.rs:503 records the port's boolean is NOT a depth counter, on purpose	cmp ecx,0x10
-C15	maxlevel != 0xff && maxlevel < level => decline	10b60a2f	10b60930	absent	none:maxlevel	no	#pragma inline_depth appears in 0 of the 100 hold-out TUs, so maxlevel is 0xff throughout	cmp edx,0xff
-C16	caller-huge decline: 35000 < DAT_10c3f5cc	10b60a63	10b60930	absent	none:CALLER_HUGE	no	would need a caller of 35,000 instructions	cmp DWORD PTR ds:0x10c3f5cc,0x88b8
-C17	budget accept/decline: budget < instrs && instrs > 0x28 => DECLINE	10b60a73	10b60930	absent	none:budget_decline	not-separable	F7 again: the budget is not reachable from the flag/size space anyone has swept	cmp DWORD PTR [ebp+0x10],eax
-C18	the 40-instruction test, SECOND copy: cmp WORD [callee+0x50], 0x28	10b625b6	10b6242a	absent	none:FORTY_INSTRS	not-separable	two copies of one constant, charge-side and decline-side; neither has a port counterpart	cmp eax,0x28
-C19	the charge: *budget -= WORD[callee+0x50]; DAT_10c3f5cc += same	10b625bb	10b6242a	R-derived	crates/c2-core/src/splice.rs:INLINE_CHARGE_EXEMPT_MAX	not-separable	nothing in the port accumulates growth	sub DWORD PTR [edi],eax
-C20	the expansion recurses back into the driver for the inlined body	10b620fc	10b620fc	fitted	crates/c2-core/src/splice.rs:S6-chain	yes	#1020: c2 CLOSES THE CHAIN, measured on 150 workload relocation witnesses; the port's splice is a fixpoint too	push ebp
-C21	POGO profitability model, entered only when a profile record exists	10b5fcd8	10b5fcd8	unexercisable	none:pogo_cost_model	unexercisable	no PGO build exists here; /GL and profile-guided appear in 0 dc3 source files	push ebp
-C22	POGO per-site discount: cost -= (K + cost) / n_sites	10b600c8	10b5fcd8	unexercisable	none:site_discount	unexercisable	inside C21's model; the only site-count arithmetic in the image is this division	mov eax,ds:0x10c3f550
-C23	parameter-table selection between DAT_10c45e18 / DAT_10c45ed0	10b5b86d	10b5b86d	unexercisable	none:DAT_10c45e18	unexercisable	both 46-dword tables sit above the image's raw .data: zero at load, written at run time, unquotable	cmp DWORD PTR ds:0x10c6f1c8,0x0
-C24	the tested quantity WORD [sym+0x50] is the .gl SIZE field, arriving verbatim	10b9bf6c	10b9b8e9	R-derived	crates/c2-il/src/func/gl.rs:GL_SIZE_ESCAPE_PAYLOAD	yes	DISCLOSURE W-GLATTRS-1. The port DECODES the field c2 tests and then DISCARDS it -- read, not consulted	mov WORD PTR [esi+0x50],ax
+# ==========================================================================
+# READ COLUMNS, lane w-inlclause 2026-08-29, under work/w-inlclause/PREREG.md.
+# Board #3796-#3801. Graded by work/w-inlclause/read_state.py.
+#
+# `state` says whether the PORT has a counterpart. It says nothing about
+# whether THIS PROJECT has read the clause well enough to build one, and on
+# 2026-08-29 all fifteen `absent` rows were carrying one word for two
+# situations a reader would act on differently:
+#
+#     "nobody has read this"                   -> a read is the next step
+#     "it is read and the port cannot use it"  -> a read buys nothing
+#
+# THE ANSWER IS 13 UNADOPTED TO 2 UNREAD, not the large unread column the
+# word `absent` suggests. Measured by work/w-inlclause/read_scan.py, which
+# greps a frozen corpus of PROSE reads for the addresses that PIN each clause
+# -- which for eight of the fifteen is NOT the address the row cites.
+#
+# read        R1 | R2 | R3, orthogonal to `state`.
+#               R1  READ AND DERIVABLE. An address-cited read exists from
+#                   which a port counterpart could be written today with every
+#                   field carrying a PROV[R] address.
+#               R2  READ, NOT DERIVABLE. A read exists and a NAMED link
+#                   between c2's quantity and anything crates/ can compute is
+#                   missing. `blocker` names it.
+#               R3  UNREAD. Nothing in the corpus reads the clause beyond
+#                   restating it. R3 is NOT CHEAP: a universal negative over a
+#                   corpus is the easiest thing here to assert and the hardest
+#                   to check, so every R3 row owes a recorded search in
+#                   work/w-inlclause/UNREAD_EVIDENCE.md.
+#             Ties break AWAY from R1 -- it is the only value that licenses an
+#             adoption. THERE ARE NO R3 ROWS ON THIS TREE; C5 and C6 were the
+#             two, and w-inlclause read them (IMAGE_READ.md SS3-SS4).
+# readcite    path#anchor. The path must exist and the anchor must be present
+#             in it. `-` only for R3.
+# blocker     R1: none (adoptable) | emit-change (derivable, out of a
+#             byte-neutral lane's scope).   R2: the missing link, and FOUR of
+#             the six R2 rows name the SAME one -- `no-instr-count`, the port
+#             has no pre-codegen instruction count. That is one missing link,
+#             not six reasons.   unexercisable rows: n-a.
+#
+# THE SPLIT MOVED, absent 15 -> 12 / R-derived 4 -> 7, and only two of the
+# three moves were conversions in the usual sense:
+#   C14, C18   STALE. The port has carried counterparts since w-inlbudget
+#              (2026-08-28) -- INLINE_LEVEL_DEPTH_CAP and
+#              INLINE_CHARGE_EXEMPT_MAX, both PROV[R] at these rows' own
+#              addresses, and that rung names C14 and C18 in those words. The
+#              rows stayed `absent` because the ABSENCE screen checks ONE
+#              SPELLING: it is a NAME screen in the direction #3641 declares
+#              (a mention read as a counterpart) AND in the direction nobody
+#              had declared -- A COUNTERPART ADOPTED UNDER A DIFFERENT NAME IS
+#              INVISIBLE TO IT. C3 and C19 only converted last wave because
+#              the adopting lane happened to choose colliding tokens.
+#   C15        A real adoption, w-inlclause, byte-neutral by construction.
+# ==========================================================================
+#
+id	clause	addr	owner	state	witness	exercised	note	asm	read	readcite	blocker
+C1	pass entry per function; whole pass skipped when DAT_10c40ec4 == 0	10b62675	10b62675	absent	none:DAT_10c40ec4	yes	the port has no inline PASS at all; splice/elide are emit-time rules inside lowering	push ebp	R2	work/w-clausefix/REPAIRS.md#0x10b6267b	writer-unread
+C2	caller instruction count seeded: DAT_10c3f5cc = (ushort)[fn+0x50]	10b62703	10b62675	absent	none:caller_instr_seed	not-separable	F7: caller 48 B vs 5,640 B gives identical verdicts on 12 cells	mov ds:0x10c3f5cc,eax	R2	work/w-inlbudget/IMAGE_READ.md#0x10b62703	no-instr-count
+C3	growth budget B = clamp(2 x caller_instrs, 1000, 35000)	10b62708	10b62675	R-derived	crates/c2-core/src/splice.rs:INLINE_BUDGET_FLOOR	not-separable	P_INLINE SS3.1 records this READ, NOT CONFIRMED; no DISCLOSURE row proposes it	add eax,eax	R1	work/w-inlbudget/IMAGE_READ.md#0x10b62708	none
+C4	driver entry FUN_10b61ee1(fn, level=1, budget=B, 0, 100000000, 0)	10b6276e	10b62675	absent	none:inline_driver	not-separable	no depth/budget parameters exist to pass	call 0x10b61ee1	R2	docs/whitebox/ref/P_INLINE.md#0x10b6276e	no-instr-count
+C5	site collector: one linear scan; instruction kind 0x0f is a call site	10b600e6	10b600e6	absent	none:site_collector	yes	the port reaches sites through Terminator::TailCall / Selected, not a tuple scan	push ebp	R2	work/w-inlclause/IMAGE_READ.md#0x10b6020b	no-instr-stream
+C6	site collector: EH-region nesting + conditional/EH flag into bit 1	10b600e6	10b600e6	absent	none:eh_region_nesting	yes	the port REFUSES a conditional site (splice S1/S3) rather than flagging it; F8 = 6 cells	push ebp	R2	work/w-inlclause/IMAGE_READ.md#0x10b603ef	no-instr-stream
+C7	ceiling VALUE: DAT_10c46318 = 0x10 << DAT_10c2ea98, or 1000 at k >= 7	10b5e4d7	10b5e4cc	absent	none:DAT_10c46318	yes	16<<3 = 128 INSTRUCTIONS does not compose into the measured byte brackets (SS4.2)	mov DWORD PTR ds:0x10c46318,0x3e8	R1	docs/whitebox/ref/P_INLINE.md#0x10b5e4d7	emit-change
+C8	candidacy SIZE TEST: cmp WORD [sym+0x50], DAT_10c46318; jl = candidate	10b5fc8a	10b5fb5f	fitted	crates/c2-core/src/splice.rs:INLINE_UNBOUNDED_BYTES	yes	port tests LOWERED BYTES (64/128/80) where c2 tests a pre-codegen COUNT; 3 constants, all obj-fitted	cmp eax,DWORD PTR ds:0x10c46318	R2	docs/whitebox/ref/P_INLINE.md#0x10b5fc8a	unit-gap
+C9	favour-speed bit 0x10c2e310 non-zero => the size test is SKIPPED	10b5fc7e	10b5fb5f	absent	none:favor_speed	no	the workload is pinned to /O1, so the bit is single-valued; GRID-I moved it at /O2 on 60 cells	cmp DWORD PTR ds:0x10c2e310,ebx	R1	docs/whitebox/WB_INLINE_FINDINGS.md#0x10b8238d	emit-change
+C10	__forceinline: test [sym+0x4c], 0x2000 bypasses every size and budget test	10b60a28	10b60930	absent	none:FN_FLAG_FORCEINLINE	yes	c2 accepts at 0x10b60a3e, so it bypasses C15/C16/C17/POGO -- but NOT C14, which is upstream, and NOT the size test, which is FUN_10b5fb5f's (mask 0x2080 there, not 0x2000). Four 0x2000 sites in this subsystem; this clause names one	and eax,0x2000	R1	work/w-clausefix/REPAIRS.md#0x10b60a28	emit-change
+C11	legality: refuse on [sym+0x20] & {0x400, 0x1000, 0x40, 0x100}	10b5c06b	10b5c06b	absent	none:SYM20_MASK	no	no workload witness isolates any of these four bits	mov eax,DWORD PTR [ecx+0x20]	R1	work/w-clausefix/REPAIRS.md#0x10b5c08f	emit-change
+C12	legality: refuse on [sym+0x4c] & {0x80000, 0x200}	10b5c06b	10b5c06b	absent	none:SYM4C_REFUSE	no	no workload witness isolates either bit	mov eax,DWORD PTR [ecx+0x20]	R1	work/w-clausefix/REPAIRS.md#0x10b5c087	emit-change
+C13	legality: REQUIRE bit 6 of [sym+0x4c]	10b5c06b	10b5c06b	R-derived	crates/c2-il/src/func/gl.rs:FN_FLAG_INLINABLE	yes	0x40 = bit 6; gl.rs's own comment records the two derivations meeting from opposite sides	mov eax,DWORD PTR [ecx+0x20]	R1	work/w-clausefix/REPAIRS.md#0x10b5c09a	none
+C14	depth cap: 0x10 < level - DAT_10c3f50c => decline (16 levels)	10b60a1c	10b60930	R-derived	crates/c2-core/src/splice.rs:INLINE_LEVEL_DEPTH_CAP	no	STALE, not unconverted: w-inlbudget adopted this as INLINE_LEVEL_DEPTH_CAP + declines_at_depth and the rung named it C14; the row cited a DIFFERENT SPELLING, which the ABSENCE screen cannot see	cmp ecx,0x10	R1	work/w-clausefix/REPAIRS.md#0x10b60a1c	none
+C15	maxlevel != 0xff && maxlevel < level => decline	10b60a2f	10b60930	R-derived	crates/c2-core/src/splice.rs:INLINE_MAXLEVEL_UNBOUNDED	no	adopted by w-inlclause, byte-neutral BY CONSTRUCTION: the 0xff guard makes both arms vacuous and #pragma inline_depth is in 0 of 100 hold-out TUs. A SECOND arm at 0x10b60a21 (level-base > maxlevel) is covered by NO row of these 24	cmp edx,0xff	R1	work/w-clausefix/REPAIRS.md#0x10b60a2f	none
+C16	caller-huge decline: 35000 < DAT_10c3f5cc	10b60a63	10b60930	absent	none:CALLER_HUGE	no	would need a caller of 35,000 instructions	cmp DWORD PTR ds:0x10c3f5cc,0x88b8	R2	work/w-clausefix/REPAIRS.md#0x10b60a63	no-instr-count
+C17	budget accept/decline: budget < instrs && instrs > 0x28 => DECLINE	10b60a73	10b60930	absent	none:budget_decline	not-separable	F7 again: the budget is not reachable from the flag/size space anyone has swept	cmp DWORD PTR [ebp+0x10],eax	R2	work/w-clausefix/REPAIRS.md#0x10b60a73	no-instr-count
+C18	the 40-instruction test, SECOND copy: cmp WORD [callee+0x50], 0x28	10b625b6	10b6242a	R-derived	crates/c2-core/src/splice.rs:INLINE_CHARGE_EXEMPT_MAX	not-separable	STALE like C14: BudgetModel::charge tests callee_instrs > 40 at this very cmp, and INLINE_CHARGE_EXEMPT_MAX's PROV[R] cites 0x10b625b6. Same witness as C19 -- one constant, two clauses	cmp eax,0x28	R1	work/w-inlbudget/IMAGE_READ.md#0x10b625b6	none
+C19	the charge: *budget -= WORD[callee+0x50]; DAT_10c3f5cc += same	10b625bb	10b6242a	R-derived	crates/c2-core/src/splice.rs:INLINE_CHARGE_EXEMPT_MAX	not-separable	nothing in the port accumulates growth	sub DWORD PTR [edi],eax	R1	work/w-inlbudget/IMAGE_READ.md#0x10b625bb	none
+C20	the expansion recurses back into the driver for the inlined body	10b620fc	10b620fc	fitted	crates/c2-core/src/splice.rs:S6-chain	yes	#1020: c2 CLOSES THE CHAIN, measured on 150 workload relocation witnesses; the port's splice is a fixpoint too	push ebp	R2	docs/whitebox/ref/P_INLINE.md#0x10b62402	no-instr-count
+C21	POGO profitability model, entered only when a profile record exists	10b5fcd8	10b5fcd8	unexercisable	none:pogo_cost_model	unexercisable	no PGO build exists here; /GL and profile-guided appear in 0 dc3 source files	push ebp	R1	work/w-clausefix/REPAIRS.md#0x10b5fcd8	n-a
+C22	POGO per-site discount: cost -= (K + cost) / n_sites	10b600c8	10b5fcd8	unexercisable	none:site_discount	unexercisable	inside C21's model; the only site-count arithmetic in the image is this division	mov eax,ds:0x10c3f550	R1	work/w-clausefix/REPAIRS.md#0x10b600c8	n-a
+C23	parameter-table selection between DAT_10c45e18 / DAT_10c45ed0	10b5b86d	10b5b86d	unexercisable	none:DAT_10c45e18	unexercisable	both 46-dword tables sit above the image's raw .data: zero at load, written at run time, unquotable	cmp DWORD PTR ds:0x10c6f1c8,0x0	R1	work/w-clausefix/REPAIRS.md#0x10b5b86d	n-a
+C24	the tested quantity WORD [sym+0x50] is the .gl SIZE field, arriving verbatim	10b9bf6c	10b9b8e9	R-derived	crates/c2-il/src/func/gl.rs:GL_SIZE_ESCAPE_PAYLOAD	yes	DISCLOSURE W-GLATTRS-1. The port DECODES the field c2 tests and then DISCARDS it -- read, not consulted	mov WORD PTR [esi+0x50],ax	R1	work/w-clausefix/REPAIRS.md#0x10b9bf6c	none

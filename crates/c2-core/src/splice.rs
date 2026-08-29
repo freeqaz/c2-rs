@@ -235,6 +235,14 @@ pub struct BudgetModel {
     /// PROV[R] `cmp ecx,0x10` / `jg` at `0x10b60a1c`. See
     /// [`INLINE_LEVEL_DEPTH_CAP`].
     pub depth_cap: i64,
+    /// c2's second parameter to the accept/decline predicate — `[ebp+0xc]`,
+    /// loaded at `0x10b60a10`. **C15**, and it feeds *two* arms rather than
+    /// one; see [`BudgetModel::declines_at_depth`] and
+    /// [`BudgetModel::declines_at_maxlevel`].
+    ///
+    /// PROV[R] `cmp edx,0xff` at `0x10b60a2f` and `cmp ecx,edx` at
+    /// `0x10b60a21`. See [`INLINE_MAXLEVEL_UNBOUNDED`].
+    pub max_level: i64,
     /// A callee at or below this instruction count is **not charged to the
     /// local budget** — but *is* still added to the global growth total. C18.
     ///
@@ -266,6 +274,7 @@ pub const BUDGET_C2: BudgetModel = BudgetModel {
     divide_among_remaining_sites: true,
     site_level_delta: 1,
     depth_cap: INLINE_LEVEL_DEPTH_CAP,
+    max_level: INLINE_MAXLEVEL_UNBOUNDED,
     charge_exempt_at_or_below: INLINE_CHARGE_EXEMPT_MAX,
     forceinline_charged: false,
 };
@@ -297,13 +306,34 @@ pub const BUDGET_CHARGE_FORCEINLINE: BudgetModel =
 pub const BUDGET_FLAT_LEVEL: BudgetModel =
     BudgetModel { name: "flat-level", site_level_delta: 0, ..BUDGET_C2 };
 
+/// c2's `maxlevel` set to 2 — what `#pragma inline_depth(2)` hands the
+/// predicate. **Instrument only**, and it is the state that makes
+/// [`BudgetModel::max_level`] *reachable*: at the default
+/// [`INLINE_MAXLEVEL_UNBOUNDED`] both of C15's arms are vacuous, so a domain
+/// rendered over the default alone would cover the field's name and not its
+/// boundary — `#3746`'s *"a `guards` entry whose domain cannot reach its const
+/// is a false coverage claim"*, one field over.
+///
+/// `#pragma inline_depth` appears in **0 of the 100** hold-out TUs
+/// (`P_INLINE.md` §6.1, C15's `exercised` cell), so nothing in this project
+/// compiles in this state and nothing may select it.
+///
+/// PROV[N] a counterfactual; reaches no emitted byte.
+pub const BUDGET_MAXLEVEL_2: BudgetModel =
+    BudgetModel { name: "maxlevel-2", max_level: 2, ..BUDGET_C2 };
+
 /// **The enumerable parameter space** — decision 15's *"named, enumerable
 /// parameters whose DEFAULT reproduces c2 byte-exactly"*, `regalloc::ORDERS`'
 /// shape. Index 0 is the default.
 ///
 /// PROV[N] a list of the four models above, carrying no value of its own.
-pub const BUDGET_MODELS: &[BudgetModel] =
-    &[BUDGET_C2, BUDGET_UNDIVIDED, BUDGET_CHARGE_FORCEINLINE, BUDGET_FLAT_LEVEL];
+pub const BUDGET_MODELS: &[BudgetModel] = &[
+    BUDGET_C2,
+    BUDGET_UNDIVIDED,
+    BUDGET_CHARGE_FORCEINLINE,
+    BUDGET_FLAT_LEVEL,
+    BUDGET_MAXLEVEL_2,
+];
 
 /// §2.2's lower clamp on the growth budget, in c2's pre-codegen instruction
 /// units.
@@ -321,6 +351,21 @@ pub const INLINE_BUDGET_CEILING: i64 = 35_000;
 /// PROV[R] `DISCLOSURE W-INLBUDGET-1` — `cmp ecx,0x10` / `jg 0x10b609f3` at
 /// `0x10b60a1c`.
 pub const INLINE_LEVEL_DEPTH_CAP: i64 = 16;
+
+/// **C15's guard value.** c2's `maxlevel` parameter at this value switches both
+/// of its arms off: `cmp edx,0xff` / `je 0x10b60a3c` at `0x10b60a2f` jumps past
+/// the absolute test, and the relative test at `0x10b60a21` cannot fire because
+/// `level − base > 255` is unreachable wherever C14's `> 16` has not already
+/// declined.
+///
+/// **It is the value every compilation this project runs is in.**
+/// `#pragma inline_depth` appears in 0 of the 100 hold-out TUs, so nothing
+/// moves it, which is why adopting C15 changes no emitted byte *by
+/// construction* rather than by measurement — see
+/// [`BudgetModel::declines_at_maxlevel`].
+///
+/// PROV[R] `DISCLOSURE W-INLCLAUSE-1` — `cmp edx,0xff` at `0x10b60a2f`.
+pub const INLINE_MAXLEVEL_UNBOUNDED: i64 = 255;
 
 /// C18's exemption: a callee at or below this many instructions is not charged
 /// to the **local** budget. The global growth total is added regardless.
@@ -431,15 +476,68 @@ impl BudgetModel {
         })
     }
 
-    /// C14. `true` when c2 declines at this level.
+    /// **The base-relative depth arms — C14, and one clause the 24-row table
+    /// does not name.** `true` when c2 declines here.
     ///
-    /// A `level_base` of 0 means the cap does not bind at all — `je
-    /// 0x10b60a25` at `0x10b60a15` jumps past the whole comparison. That is the
-    /// state every compilation this project runs is in, because the base is
-    /// seeded to 0 at the pass entry and is only set non-zero for a function
-    /// carrying `[fn+0x4c] & 0x10` (`0x10b61f77`).
+    /// A `level_base` of 0 means neither arm binds — `je 0x10b60a25` at
+    /// `0x10b60a15` jumps past both comparisons. That is the state every
+    /// compilation this project runs is in, because the base is seeded to 0 at
+    /// the pass entry and is only set non-zero for a function carrying
+    /// `[fn+0x4c] & 0x10` (`0x10b61f77`).
+    ///
+    /// # There are TWO arms behind that `je`, and only one was modelled
+    ///
+    /// PROV[R] `DISCLOSURE W-INLCLAUSE-1` — `0x10b60a1c` and `0x10b60a21`,
+    /// re-derived in `work/w-inlclause/IMAGE_READ.md` §2:
+    ///
+    /// ```text
+    /// 10b60a1c:  cmp ecx,0x10     <- C14, `level - base > 16`
+    /// 10b60a1f:  jg  0x10b609f3      decline
+    /// 10b60a21:  cmp ecx,edx      <- `level - base > maxlevel` — NOT ANY CLAUSE
+    /// 10b60a23:  jg  0x10b609f3      decline
+    /// ```
+    ///
+    /// The second arm is covered by **no row of the 24**: C14 is the `0x10`
+    /// comparison and C15 is the *absolute* `level > maxlevel` test at
+    /// `0x10b60a2f`–`0x10b60a3a`, which is downstream of the `__forceinline`
+    /// bypass and guarded by `maxlevel != 0xff`. This one is neither. So the
+    /// port's model of c2's `base != 0` branch was **incomplete**: it admitted
+    /// where c2 declines, in a region no byte can reach.
+    ///
+    /// Novelty checked, not assumed — `0x10b60a21` appears in the frozen
+    /// corpus only as an unannotated listing line inside another row's context
+    /// window (`work/w-inlclause/read_scan.py`).
     pub fn declines_at_depth(&self, at: Expansion) -> bool {
-        at.level_base != 0 && at.level - at.level_base > self.depth_cap
+        if at.level_base == 0 {
+            return false;
+        }
+        let rel = at.level - at.level_base;
+        rel > self.depth_cap || rel > self.max_level
+    }
+
+    /// **C15.** `maxlevel != 0xff && maxlevel < level ⇒ decline`.
+    ///
+    /// PROV[R] `cmp edx,0xff` / `je 0x10b60a3c` at `0x10b60a2f` is the `!= 0xff`
+    /// guard; `cmp DWORD PTR [ebp+0x8],edx` / `jg 0x10b609f3` at `0x10b60a37` is
+    /// the comparison, written the other way round from the clause. `0x10b609f3`
+    /// is `xor eax,eax` into the epilogue — the DECLINE sink
+    /// (`IMAGE_READ.md` §1).
+    ///
+    /// # `forceinline` is a parameter because c2's bypass lands BETWEEN the arms
+    ///
+    /// `and eax,0x2000` at `0x10b60a28` / `jne 0x10b60a3c` skips exactly this
+    /// test and reaches `cmp eax,ebx` / `jne 0x10b60a59` = accept. It does
+    /// **not** skip [`declines_at_depth`], which is upstream at `0x10b60a1c`.
+    /// Modelling that as one flat "forceinline bypasses everything" would get
+    /// the precedence wrong, and precedence is a failure a byte delta cannot
+    /// see.
+    ///
+    /// **The port passes `false`** — it cannot read `[sym+0x4c] & 0x2000`, so it
+    /// evaluates the test rather than assuming the bypass. At
+    /// [`INLINE_MAXLEVEL_UNBOUNDED`] the guard makes that identically `false`
+    /// either way.
+    pub fn declines_at_maxlevel(&self, at: Expansion, forceinline: bool) -> bool {
+        !forceinline && self.max_level != INLINE_MAXLEVEL_UNBOUNDED && at.level > self.max_level
     }
 
     /// C18/C19's charge, as the pair of numbers c2 actually applies: what comes
@@ -499,6 +597,12 @@ pub fn port_enter_site(
     if model.declines_at_depth(next) {
         return Err("S6-budget-depth-cap");
     }
+    // C15, in c2's own order: the base-relative arms above are upstream of the
+    // `__forceinline` bypass at `0x10b60a28`, this one is downstream of it. The
+    // port cannot see that bit, so it passes `false` and takes the test.
+    if model.declines_at_maxlevel(next, false) {
+        return Err("S6-budget-maxlevel");
+    }
     Ok(next)
 }
 
@@ -540,7 +644,9 @@ pub fn surface_rows() -> Vec<crate::surface::Row> {
         }
         for n in 1..=6i64 {
             for i in 0..n {
-                for &(level, base) in &[(1i64, 0i64), (2, 0), (16, 0), (17, 0), (2, 1), (17, 1), (18, 1)] {
+                for &(level, base) in
+                    &[(1i64, 0i64), (2, 0), (16, 0), (17, 0), (2, 1), (5, 1), (17, 1), (18, 1)]
+                {
                     let at = Expansion { level, level_base: base, budget: NestedBudget::Parent };
                     let outcome = match port_enter_site(m, at, n, i) {
                         Ok(e) => format!("level={},budget=parent", e.level),
@@ -554,6 +660,37 @@ pub fn surface_rows() -> Vec<crate::surface::Row> {
                         outcome,
                     ));
                 }
+            }
+        }
+    }
+    // ---- C15, lane `w-inlclause` ------------------------------------------
+    //
+    // A SWEEP OVER `max_level` ITSELF, and it is not decoration: the guard in
+    // `declines_at_maxlevel` compares the field against
+    // `INLINE_MAXLEVEL_UNBOUNDED`, and `BUDGET_C2.max_level` IS that constant —
+    // so mutating the constant moves both sides of the comparison together and
+    // a domain rendered over the named models alone would not move one line.
+    // That is `#3746`'s false-coverage trap exactly ("a `guards` entry whose
+    // domain cannot reach its const"), and the only thing that escapes it is
+    // asking the predicate at values the constant does not follow.
+    //
+    // `forceinline` is swept because `port_enter_site` can only ever pass
+    // `false` — the port cannot read `[sym+0x4c] & 0x2000`. The bypass at
+    // `0x10b60a28` lands BETWEEN c2's two depth arms, and a domain that showed
+    // only the reachable half would hide that precedence.
+    for &ml in &[0i64, 2, 254, INLINE_MAXLEVEL_UNBOUNDED, 256] {
+        let m = BudgetModel { name: "sweep", max_level: ml, ..BUDGET_C2 };
+        for &level in &[1i64, 3, 255, 300] {
+            for fi in [false, true] {
+                let at = Expansion { level, level_base: 0, budget: NestedBudget::Parent };
+                rows.push(crate::surface::Row::new(
+                    format!("maxlevel={ml:03} level={level:03} forceinline={}", fi as u8),
+                    if m.declines_at_maxlevel(at, fi) {
+                        format!("{} C15-decline", crate::surface::REFUSE)
+                    } else {
+                        "admit".to_string()
+                    },
+                ));
             }
         }
     }
@@ -2016,7 +2153,12 @@ mod tests {
                     if is_this_module {
                         continue;
                     }
-                    for m in ["BUDGET_UNDIVIDED", "BUDGET_CHARGE_FORCEINLINE", "BUDGET_FLAT_LEVEL"] {
+                    for m in [
+                        "BUDGET_UNDIVIDED",
+                        "BUDGET_CHARGE_FORCEINLINE",
+                        "BUDGET_FLAT_LEVEL",
+                        "BUDGET_MAXLEVEL_2",
+                    ] {
                         if t.contains(m) {
                             offenders.push(format!("{rel}:{}: {t}", n + 1));
                         }
@@ -2222,6 +2364,80 @@ mod tests {
         }
         assert!(!m.declines_at_depth(Expansion { level: 17, level_base: 1, budget: NestedBudget::Parent }));
         assert!(m.declines_at_depth(Expansion { level: 18, level_base: 1, budget: NestedBudget::Parent }));
+    }
+
+    /// **C15, and the arm no clause names.** Lane `w-inlclause`,
+    /// `work/w-inlclause/IMAGE_READ.md` §2.
+    ///
+    /// The three assertions are three different statements and only the first
+    /// is C15:
+    ///
+    /// 1. the absolute arm (`0x10b60a2f`–`0x10b60a3a`) is **vacuous at c2's
+    ///    default**, which is why adopting it moved no byte;
+    /// 2. the `__forceinline` bypass (`0x10b60a28`) skips **only** that arm;
+    /// 3. the *relative* arm at `0x10b60a21` — `level − base > maxlevel`, which
+    ///    the 24-clause table does not cover — declines where the port used to
+    ///    admit, in the `base != 0` region no compilation here reaches.
+    #[test]
+    fn maxlevel_is_two_arms_the_bypass_reaches_one_and_the_default_switches_both_off() {
+        let c2 = &BUDGET_MODELS[0];
+        assert_eq!(c2.max_level, INLINE_MAXLEVEL_UNBOUNDED, "c2's read default");
+
+        // 1. Vacuous at the default, at every level, either way on the bypass.
+        for level in [1i64, 2, 255, 256, 100_000] {
+            let at = Expansion { level, level_base: 0, budget: NestedBudget::Parent };
+            for fi in [false, true] {
+                assert!(
+                    !c2.declines_at_maxlevel(at, fi),
+                    "the 0xff guard makes C15 vacuous — this is the byte-neutrality argument"
+                );
+            }
+        }
+
+        // 2. With maxlevel set, the arm fires — and `__forceinline` skips it.
+        let m2 = &BUDGET_MAXLEVEL_2;
+        let deep = Expansion { level: 3, level_base: 0, budget: NestedBudget::Parent };
+        assert!(m2.declines_at_maxlevel(deep, false), "3 > 2: c2 declines");
+        assert!(!m2.declines_at_maxlevel(deep, true), "`jne 0x10b60a3c` skips exactly this test");
+        assert_eq!(
+            port_enter_site(m2, Expansion { level: 2, level_base: 0, budget: NestedBudget::Parent }, 1, 0),
+            Err("S6-budget-maxlevel"),
+            "the port passes forceinline = false: it cannot read the bit"
+        );
+
+        // 3. The relative arm, which is upstream of the bypass and of the
+        //    `!= 0xff` guard, and which no clause of the 24 names.
+        let rel = Expansion { level: 6, level_base: 1, budget: NestedBudget::Parent };
+        assert!(
+            !c2.declines_at_depth(rel),
+            "level - base = 5, under both 16 and 255"
+        );
+        assert!(
+            m2.declines_at_depth(rel),
+            "0x10b60a21: level - base = 5 > maxlevel 2, and C14's 16 has NOT bound. \
+             The port admitted here before this lane read the second `jg`."
+        );
+    }
+
+    /// **`#3746`, one field over.** `INLINE_MAXLEVEL_UNBOUNDED` is both the
+    /// guard's comparand *and* `BUDGET_C2`'s field value, so mutating it moves
+    /// both sides together and every named model renders identically. The
+    /// sweep in [`surface_rows`] is what makes the constant reachable, and this
+    /// asserts that the sweep actually separates the sentinel from its
+    /// neighbours rather than merely mentioning it.
+    #[test]
+    fn the_maxlevel_sentinel_is_reachable_in_the_domain_and_not_merely_named() {
+        let rows = surface_rows();
+        let at = |ml: i64, level: i64| {
+            let key = format!("maxlevel={ml:03} level={level:03} forceinline=0");
+            rows.iter().find(|r| r.point == key).unwrap_or_else(|| panic!("no row {key}")).outcome.clone()
+        };
+        // At the sentinel the guard switches the whole clause off; one below and
+        // one above, the same level declines. If those three ever agree, the
+        // constant has stopped being a boundary and the domain will say so.
+        assert!(at(INLINE_MAXLEVEL_UNBOUNDED, 300).starts_with("admit"));
+        assert!(at(254, 300).starts_with(crate::surface::REFUSE));
+        assert!(at(256, 300).starts_with(crate::surface::REFUSE));
     }
 
     /// The registry's floors, restated where the generator lives, so that a
