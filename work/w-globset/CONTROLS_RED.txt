@@ -154,3 +154,27 @@ and every identity diff in this file is against THAT run.
 The general form, for the next lane: **gate.sh prints its tree hash twice and
 they are supposed to be equal.** Nothing compares them. A base run that
 overlaps authoring is silently a run of something else.
+
+===============================================================================
+WHY THE RAW GATE LOGS ARE NOT COMMITTED BESIDE THIS FILE
+===============================================================================
+
+`gate_base.txt`, `gate_base2.txt`, `gate_tip.txt`, `gate_c1.txt` and
+`tests_tip.out` are kept on disk in this lane's work directory and are
+DELIBERATELY UNTRACKED. They embed absolute machine paths (the worktree root,
+/tmp run dirs, the wibo and compiler locations), which CLAUDE.md forbids in a
+committed file — and `crates/c2-harness/tests/tracked_artifact_audit.rs`
+class 3 is what says so, out loud, on the commit that tried:
+
+    class 3  absolute paths, work/ SHELF   — examined 8326, violations 5
+        VIOLATION work/w-globset/gate_base.txt
+        VIOLATION work/w-globset/gate_base2.txt
+        VIOLATION work/w-globset/gate_c1.txt
+        VIOLATION work/w-globset/gate_tip.txt
+        VIOLATION work/w-globset/tests_tip.out
+
+Every number this lane quotes from them is transcribed above and every one is
+re-derivable: the base is `git switch --detach c5bfe89d9` plus
+`scripts/gate.sh --jobs 16 --require-graded`, the tip is the same command at
+this branch's tip, and the identity diff is
+`scripts/gate_identity_diff.sh BASE.txt TIP.txt`.
