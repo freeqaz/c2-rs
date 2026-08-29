@@ -102,7 +102,7 @@ not a clamp argument.
 
 | lane | result |
 |---|---|
-| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,770 targets run, 1,770 pass, 0 fail** (see below for the exact recipe) |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **62 test binaries · 2,002 targets · 1,999 pass · 1 fail · 2 ignored.** The one failure is `rung_registry::rung_index_is_generated_and_current` and it is red by construction — see the box below. Counts re-derived from the log by `grep 'test result:'`, summed; a rung that prints a pass count without a target count has printed nothing (`_TEMPLATE.md`) |
 | `c2rs selftest` | **392 PASS, 0 SKIP** — the worktree's toolchain resolves; `SKIP: toolchain absent` would have invalidated every row here |
 | `scripts/gate.sh --jobs 16 --require-graded` | **`GATE: PASS`**, unqualified — *"18/18 lanes ran and every one of them graded a corpus, the sweep graded **19,542 of 19,638** generated cases and the cross graded **91,900 of 92,288** case-lane cells, with **0 mismatches anywhere** (96 sweep cases carried ungraded — the reference rejects the source), and 18/18 lanes ran again through a DEBUG-profile `c2rs` for **7,056** more fixture-verdicts at **0 panics**"*. Graded tree `a00a40351045`, 808 files |
 | `scripts/expr_sweep.sh` | inside the gate row above |
