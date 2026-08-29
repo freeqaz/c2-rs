@@ -35,8 +35,12 @@ from the front end. **Its sole writer in the whole image is `0x10b9bf6c`**, the
 `.gl` reader in `FUN_10b9b8e9` (`p2symtab.c`) — subject to one named, unclosed
 blind spot (§ "Found and not taken" item 4). The unit is a **count of the front
 end's instructions**: c2 sums the field across the compiland into **64-bit**
-totals (`0x10b72eca`, `0x10b72f0f`) and the image prints that class of total as
-`" %I64u dynamic instrs"`. Caller and callee read one field of one struct type.
+totals (`0x10b72eca`, `0x10b72f0f`), compares it against a ceiling built as
+`0x10 << k`, and charges it against a growth budget in its own units — an
+additive per-function magnitude. **No string in the image is printed from it**;
+the two that say `instrs` belong to c2's *other* two counts, and this lane
+reached for both before checking, which is recorded rather than tidied away.
+Caller and callee read one field of one struct type.
 
 **Refuses.** Three things this lane could have claimed and does not:
 

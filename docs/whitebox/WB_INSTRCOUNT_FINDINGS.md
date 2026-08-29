@@ -28,7 +28,9 @@
 * **It is the `.gl` function record's `SIZE` field, arriving verbatim from the
   front end.** Its sole writer in the image is `0x10b9bf6c`, the `.gl` reader.
 * **The unit is the FRONT END's count**, not machine instructions and not
-  bytes. c2 never computes it; c2 only reads, sums and compares it.
+  bytes. c2 never computes it; c2 only reads, sums and compares it — and
+  **prints no string from it**: c2 has three instruction counts and the two
+  its diagnostics call `instrs` are the other two.
 * **The `ushort` at the seed is a no-op**; the real 16-bit ceiling is imposed
   by the IL encoding, and the `0x81..0xff` single-byte form makes a function
   read as **32,896..65,535** at the consumer — which is a live hazard, not a
@@ -310,15 +312,37 @@ is not mis-stated as inliner-only.
 ```
 
 `0x10c46398`/`0x10c4639c` and `0x10c2ebb8`/`0x10c2ebbc` are read together at
-`0x10b72f21`–`0x10b72f2d` and handed to `0x10bec828`. The image's own
-diagnostic vocabulary supplies the noun: **`" %I64u dynamic instrs"`**
-(`0x10b131d8`, referenced at `0x10b724be`).
+`0x10b72f21`–`0x10b72f2d` and handed to `0x10bec828`.
 
-> **`[R]` — c2 sums `WORD [sym+0x50]` over every function in the compiland into
-> a 64-bit total, and prints that class of total with the literal word
-> `instrs`. The field is a per-function INSTRUCTION COUNT in c2's own
-> vocabulary**, and it is summed at 64 bits precisely because a whole-program
-> total does not fit in the 16 bits each function's field carries.
+> **A tempting shortcut, chased and DROPPED.** The image carries
+> `" %I64u dynamic instrs"` (`0x10b131d8`), which would supply the noun
+> directly — but it is printed at `0x10b724be` from **`0x10c3dd88`/`0x10c3dd8c`,
+> a THIRD 64-bit pair**, written at `0x10b9d6df` from `FUN_10ba5def`, which
+> walks the **tuple stream** (`[esi+0x8]` kind bytes, `cmp al,0x15`,
+> `cmp al,0x12`) rather than reading `[sym+0x50]` at all. **It is a different
+> count and this page does not lean on it.** Second time this lane reached for
+> a diagnostic string and found it wired to another quantity; the first was
+> P2's miss in §3.1.
+
+What the accumulators *do* establish, without the string, is the property the
+unit claim actually needs: **`[sym+0x50]` is an additive per-function
+magnitude, summed across the compiland, and wide enough to need 64 bits in the
+sum** — not a flag, an index, or a bucket.
+
+> **`[R] + [I]` — `WORD [sym+0x50]` is a per-function INSTRUCTION COUNT.**
+> The `[R]` half is four facts: it is **summed** across the compiland at 64
+> bits (§3(c)); it is **compared against a ceiling built as `0x10 << k`** from
+> an option word (`0x10b5e4cc`), which is only meaningful for a count; it is
+> **charged against a growth budget** in the same units the budget is expressed
+> in (`0x10b625bb`); and c2's two *other* per-function counts, both of which
+> are reached by walking the tuple stream, are the ones its diagnostics call
+> `instrs` (`%d instrs` at `0x10b025ec`, `%I64u dynamic instrs` at
+> `0x10b131d8`). The `[I]` half is naming this one the same thing. **No string
+> in the image is printed from `[sym+0x50]`**, and this page says so rather
+> than borrowing a noun from a neighbouring quantity.
+>
+> The 64-bit sum is also the field's own bound restated: a whole-program total
+> does not fit in the 16 bits each function's field carries (§4).
 
 ### 3.1 The unit is the FRONT END's, and the `%d instrs` diagnostic reads a DIFFERENT field `[R]`
 
@@ -661,7 +685,7 @@ wave; this lane edits neither, per `WAVE20_BRIEF` §4.)*
 | | prediction | outcome |
 |---|---|---|
 | **P1** | one initializing writer, at most one further | **HIT** — exactly one (`0x10b9bf6c`), zero further, with three blind-spot classes searched and one (119 memcpy sites) left open and named |
-| **P2** | the unit is a front-end count, and the `%d instrs` diagnostic reads this field | **SPLIT: unit HIT, diagnostic MISS.** The diagnostic reads `[[sym+0x80]+0x8e]`, a different, 32-bit count. The unit claim survives on the two 64-bit `list.c` accumulators instead — better evidence than the one it replaced |
+| **P2** | the unit is a front-end count, and the `%d instrs` diagnostic reads this field | **SPLIT: unit HIT, diagnostic MISS — TWICE.** `%d instrs` reads `[[sym+0x80]+0x8e]` (32-bit, c2's own recount) and `%I64u dynamic instrs` reads a **third** pair fed by a tuple walk (`FUN_10ba5def`). **No string is printed from `[sym+0x50]` at all.** The unit claim stands on structure instead — summed at 64 bits, compared against `0x10 << k`, charged against a budget, linear in source statements — which is weaker rhetorically and stronger evidentially |
 | **P3** | the field is 16-bit at rest, so the seed's `ushort` is a no-op | **HIT**, and the real ceiling located upstream in `il-read-varint16`, with the `0x81..0xff` hazard quantified |
 | **P4a** | both F7 callers clamp to the budget floor | **FALSIFIED** — `B` measured 1,000 → 9,846. The sub-prediction that the published arithmetic was in the wrong unit is a **HIT** (it was emitted `.text` bytes ÷ 2) |
 | **P4b** | the budget is unreachable on a one-site grid | **HIT**, and strengthened into the first-site theorem: ≥ 7 charged sites are needed before caller size can matter at all |
