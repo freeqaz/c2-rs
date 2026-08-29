@@ -2,7 +2,7 @@
 
 > **Lane `w-instrcount`, 2026-08-29. Kind: characterization. Outcome: `built`.**
 > Prereg: [`work/w-instrcount/PREREG.md`](../../work/w-instrcount/PREREG.md),
-> frozen before the image was opened. Board **#3824**–**#3829**.
+> frozen before the image was opened. Board **#3824**–**#3830**.
 > Image: `compilers/X360/16.00.11886.00/c2.dll`, sha256
 > `c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258`.
 > Predicted reach **0**; census **+0**; byte delta **0 by construction** — this

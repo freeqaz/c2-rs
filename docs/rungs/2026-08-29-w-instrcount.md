@@ -33,7 +33,7 @@ omits (`0x10b626f5` loads `[fn+0x00]`, the symbol, before `0x10b626f7` loads the
 field). It is the `.gl` function record's **`SIZE`** field, arriving verbatim
 from the front end. **Its sole writer in the whole image is `0x10b9bf6c`**, the
 `.gl` reader in `FUN_10b9b8e9` (`p2symtab.c`) — subject to one named, unclosed
-blind spot (§ "Found and not taken" item 3). The unit is a **count of the front
+blind spot (§ "Found and not taken" item 4). The unit is a **count of the front
 end's instructions**: c2 sums the field across the compiland into **64-bit**
 totals (`0x10b72eca`, `0x10b72f0f`) and the image prints that class of total as
 `" %I64u dynamic instrs"`. Caller and callee read one field of one struct type.
@@ -66,7 +66,7 @@ of the brief's warning that overstating this list costs a wave.
 | clause | verdict | why |
 |---|---|---|
 | **C2** | **UNBLOCKED** | the producing field is the `.gl` `SIZE` the port already decodes and discards (`gl.rs:GL_SIZE_ESCAPE_PAYLOAD`, `DISCLOSURE` W-GLATTRS-1); load `0x10b626f5`/`0x10b626f7`, store `0x10b62703`, producer `0x10b9bf6c` |
-| **C16** | **UNBLOCKED** | seed (C2) + the ungated `add` at `0x10b625c1` + an immediate at `0x10b60a63`; and measured 6.1× slack on this corpus, so an adoption is byte-neutral by construction like C15 |
+| **C16** | **UNBLOCKED** | seed (C2) + the `add` at `0x10b625c1` — which, unlike the budget subtract one instruction above it, is **not** gated by the 40 test — + an immediate at `0x10b60a63`; and measured 6.1× slack on this corpus, so an adoption is byte-neutral by construction like C15 |
 | **C17** | **blocker removed, NOT adoptable** | both operands derivable, but `[ebp+0x10]` is the budget threaded through the driver's recursion and there is no driver |
 | **C4** | **NOT unblocked** | the budget *argument* is derivable now; the driver, site collector and per-site loop are not, and that is `no-instr-stream`'s absence |
 | **C20** | **NOT unblocked** | what stands between `fitted` and `R-derived` is the driver, exactly as for C4 |
@@ -115,7 +115,7 @@ its prereg scorecard, and that is §9 of the findings page.
 
 Ranked, with what each would unblock.
 
-0. **`FUN_10b5fb5f`'s SECOND gate** (`#3830`) — the item this lane would take
+1. **`FUN_10b5fb5f`'s SECOND gate** (`#3830`) — the item this lane would take
    next if it had another day. `0x10b5fc90`'s `jl` is **not** accept and
    over-ceiling is **not** refuse: both paths meet `0x10b5fcb9`, which needs
    `DAT_10c2e2fc != 0` or `[sym+0x4c] & 0x2080`, and the over-ceiling path gets
@@ -124,7 +124,7 @@ Ranked, with what each would unblock.
    parameter**. Two small reads: the three callers for `edi`, and
    `DAT_10c2e2fc`'s writer.
 
-   **And the reason it is item 0 rather than a finding is worth reading.** This
+   **And the reason it is ranked first as an OPEN item rather than reported as a finding is worth reading.** This
    lane's first hypothesis was that `0x2080`'s bit 7 marks a foldable body and
    so explains `P_INLINE` §2.1b's matched pair. **Its own data killed that
    inside an hour** — `w-sizebracket`'s raw `series.jsonl` has both cells at
@@ -134,30 +134,30 @@ Ranked, with what each would unblock.
    candidacy is identical across the pair**, so the separation is provably
    downstream of `0x10b5fc8a`, and this lane narrowed the search space rather
    than closing it.
-1. **The linkage arm at `0x10b60a81`** — `test DWORD PTR [edi+0x37],0x400`, then
+2. **The linkage arm at `0x10b60a81`** — `test DWORD PTR [edi+0x37],0x400`, then
    `call 0x10b5de82`, sitting between C17 and the POGO model and **covered by no
    clause row of the 24**. It is the last unread thing between the ceiling this
    project has read (`DAT_10c46318 = min(0x10<<k, 1000)`) and the two it has
    measured, and this lane hands it a ready-made grade: **static `[261,267]`,
    external `[93,99]`, in the read unit** (`#3828`). No single `0x10 << k` fits
    either, and no single value fits both.
-2. **Does the budget explain F6's site-count effect?** One caller, **≥ 8 call
+3. **Does the budget explain F6's site-count effect?** One caller, **≥ 8 call
    sites**, callees just under the ceiling, swept against caller size — the
    grid the first-site theorem says is necessary and 12 one-site cells could
    never be. 8–12 cells. It would either give C3 and C17 their **first `[O]`**
    (both are *READ, NOT CONFIRMED* today, and no `DISCLOSURE` row proposes
    either) or refute the budget as the mechanism behind `INLINE-P`'s fitted
    `n_sites` term. **This is the highest-value cheap thing on this page.**
-3. **Close the 119 `memcpy`/`memset` call sites.** Bounded and mechanical; it
+4. **Close the 119 `memcpy`/`memset` call sites.** Bounded and mechanical; it
    is the only thing between `#3825`'s census and a clean universal negative.
    Worth doing *because* `P_INLINE` §2.1a already published the negative once
    from a grep.
-4. **`FUN_10ba1eca`'s recount** — a second, 32-bit instruction count with its
+5. **`FUN_10ba1eca`'s recount** — a second, 32-bit instruction count with its
    own 150-instruction *"won't be inlined (too big)"* gate that this inliner
    does **not** consult, read by `0x10b9e5d8` and `0x10ba3b7b`. Anyone modelling
    c2's inlining end to end will meet it, and the `%d instrs` diagnostic prints
    it, which is exactly the trap this lane fell into and recorded (P2's miss).
-5. **`P_INLINE` §2.1b's matched pair.** Its headline — *"the `.gl` `SIZE` field
+6. **`P_INLINE` §2.1b's matched pair.** Its headline — *"the `.gl` `SIZE` field
    is NOT the value the decision tests"* — is right; its stated mechanism,
    *"reduced by whatever runs before the inliner"*, has **no writer in the image
    to be the reducer**. Both cells are `SIZE = 115`, both below every ceiling
