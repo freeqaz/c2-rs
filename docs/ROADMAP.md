@@ -12314,6 +12314,15 @@ matched paths named).
 
 ### 12.3 Where the tuples stand (all from `c2rs subsys` at `43367f507`)
 
+**⚠ The `agreement` column below is a LITERAL STRING COUNT over a markdown
+page**, not a differential — `count_marks()` at
+`crates/c2-harness/src/subsys.rs:857` returns the occurrences of `[R]`/`[O]`/`[I]`
+in the page body and nothing else. `c2rs subsys` prints that caveat itself; this
+table was built past it. **It is therefore writable by prose**: `w-dagprice`
+moved `[dag]` **14.0 % → 13.2 %**, *down*, by adding three `[R]` sentences while
+**settling** the band attribution (board **#3845**). A number a lane can move by
+writing a sentence may never rank a lane.
+
 | subsystem | read → ported | agreement `[O]` | movement, waves 13→19 |
 |---|---|---|---|
 | **[encode]** | 79 arms ⊇ **ported 30/79** (37.97 %) | 9/28 | the only fully-numeric row; 27→30 across three waves |
@@ -12324,7 +12333,7 @@ matched paths named).
 | [eh] | — | 14/41 | flat this era |
 | [coff] | — | 16/57 | flat this era |
 | [label] | — | 11/73 | flat this era |
-| **[dag]** | — | **7/50 (14.0 %)** | **the lowest row, and it gates the allocator** (P_REGALLOC §7: F5 is not separable from F0) |
+| **[dag]** | — | 7/50, and see the caveat above | **it gates the allocator** (P_REGALLOC §7: F5 is not separable from F0). Its real standing is `#3839`–`#3841`: of 83 `dag` functions **69 `gap` · 13 `no-ice-site` · 1 `in-anchor`**, `dag.c`'s 48-function band is 47 functions of extrapolation off a **single** ICE site, and the scheduler band's **extent** is refuted at both edges (denominator **60**, not 61) |
 | [symbol] | — | **4/52 (7.7 %)** | the lowest percentage; weak externals exercised on 675/871 TUs |
 
 `match` is **25/878 and did not move across all seven waves** — the expected
@@ -12403,11 +12412,29 @@ wave's numbers honest:**
   instruction count, and that one missing link blocks four `absent` rows and
   is also what pins C20 at `fitted`. The third depth arm (`0x10b60a21`) is
   modelled and wants a fixture.
-* **Globregs is one construct rung from a settable model.** The order key is
-  `[O]` exact 42/42 with seven rivals refuted; gate A's 12 arms are read
-  (w-globarms); what remains is expressing the candidate SET as a
-  `c2_core::surface`-registered parameter the way the order already is —
-  without inventing a `ported` numerator (decision 21 §4 stands).
+
+  > **READ, and the partition's MODEL is what broke** (`w-instrcount` +
+  > `w-clausegen`, board **#3847**). The count is the `.gl` record's SIZE
+  > field, `WORD [[fn]+0x50]`, sole writer `0x10b9bf6c`, in the **front end's**
+  > unit. It unblocks **C2 and C16**; C17 loses its blocker but stays
+  > unadoptable; **C20 is unchanged**. **C4 has TWO blockers and the `blocker`
+  > column holds one cell**, so the count is not fixable by changing a digit —
+  > shape is present and `PROV[R]`, the value `B` is closed by this read, and
+  > the **fan-out** wants the site stream. Nobody has checked which other rows
+  > are multiply blocked. **The actionable half: adopt the count without
+  > waiting for the collector** — with `B` a number, `S6-budget-divided`
+  > becomes a *computed* verdict at `n ≥ 2` instead of a blanket refusal, and
+  > it is byte-neutral because `S2` refuses a two-call body upstream anyway.
+* ~~**Globregs is one construct rung from a settable model.** … expressing the
+  candidate SET as a `c2_core::surface`-registered parameter **the way the
+  order already is**~~ — **DONE, and the struck clause was wrong** (board
+  **#3846**). `w-globset` shipped `codegen/globset.rs`: five named settable
+  parameters, byte delta 0, domain +97 lines under its own widening control.
+  **The order is NOT in the port either** — `subsys.rs:519` reads *"`P_GLOBREGS`
+  §2's order and tie key are read but unadopted"* — so this was `[globregs]`'s
+  **first** decision point, not its second. `[O]` exact 42/42 is a statement
+  about the page, not about `crates/`; **confusing a finished read with a
+  finished adoption is the exact distinction decision 22 exists to keep.**
 * **The encoder takes `mftb` and then rests.** One more cheap arm; after
   that the row's honest ceiling is near and further pushes are #3505 bait.
 
@@ -12418,6 +12445,17 @@ separable from it. A scheduler characterization lane is the largest single
 unlock in the tuple table — and the most expensive, which is why it should be
 priced as a read (read-before-probe) and dispatched deliberately, not squeezed
 into an adoption wave.
+
+  > **PRICED AND DECLINED, 2026-08-29** (`w-dagprice`, `#3838`–`#3844`).
+  > ~10.5 agent-lane hours of construction against **conversion 0** — zero
+  > three independent ways: no adoption path, the order channel is 8
+  > positions of 3,015 (`#3728`), and no tap site dereferences the DAG. Ten
+  > hours buys eight more `[R]` rows on a page that already has 43.
+  > **`[dag]` is not under-read**: of 15 candidate reads, 6 were rejected and
+  > five of those because the read is **already taken**. The binding
+  > constraint is a *population that reorders* (`WB_SCHEDCONF` §8.1, ≈1 day),
+  > not more reading. The lane pre-registered its own artifact test and
+  > measured **ρ = +0.000** — `#3505` did not fire on this one.
 
 **Stays paused, per decisions 11 and 15:** Phase 1, the one-arm byte-judged
 slice, 4a(ii)/I2, 4b/IR3, step 5. *"Before we resume the broader goal"* is the
