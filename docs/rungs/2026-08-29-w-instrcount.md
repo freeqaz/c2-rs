@@ -21,7 +21,7 @@
                `jsonl` beside them
 
 Charter: `docs/WAVE20_BRIEF_2026-08-29.md` §2 L2. Dispatched at master
-`c5bfe89d9`. Board **#3824**–**#3829** (**#3830** reserved and unspent).
+`c5bfe89d9`. Board **#3824**–**#3830**, all seven spent.
 
 ---
 
@@ -115,6 +115,16 @@ its prereg scorecard, and that is §9 of the findings page.
 
 Ranked, with what each would unblock.
 
+0. **`FUN_10b5fb5f`'s SECOND gate** (`#3830`) — the item this lane would take
+   next if it had another day. `0x10b5fc90`'s `jl` is **not** accept and
+   over-ceiling is **not** refuse: both paths meet `0x10b5fcb9`, which needs
+   `DAT_10c2e2fc != 0` or `[sym+0x4c] & 0x2080`, and the over-ceiling path gets
+   there through `test edi,eax` — **a caller-supplied `ATTR` mask, one of the
+   function's five parameters, i.e. a decision point c2 already exposes as a
+   parameter**. Three small reads (the three callers for `edi`,
+   `DAT_10c2e2fc`'s writer, `ATTR` bit 7) would settle a contradiction between
+   two `[O]` datasets that this lane could only report: external count **115**
+   inlined vs external count **99** kept.
 1. **The linkage arm at `0x10b60a81`** — `test DWORD PTR [edi+0x37],0x400`, then
    `call 0x10b5de82`, sitting between C17 and the POGO model and **covered by no
    clause row of the 24**. It is the last unread thing between the ceiling this
