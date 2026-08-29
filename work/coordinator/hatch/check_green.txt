@@ -1,0 +1,6 @@
+hatch: TARGET REPOSITORY  <REPO>   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <REPO>/work/w-front3/hatch.py
+hatch: COMMAND            check
+hatch: 0 of 8 edit(s) present, 8 pending, 0 undecidable
+crates/ diff: EMPTY
+hatch: CLEAN

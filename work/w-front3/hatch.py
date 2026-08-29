@@ -325,10 +325,34 @@ EDITS = [
     # The lift is spelled against the new text so a ladder run still climbs the
     # same rung, and it still lifts only the tail half — which is what the key
     # now means.
+    # RE-DERIVED A SECOND TIME 2026-08-29, coordinator, board **#3786**. The
+    # clause gained a FOURTH conjunct — `!lit_inserted`, from
+    # `lit_insert_at(&slots).is_some()` — at `530383eca` (2026-08-09), and the
+    # needle stopped matching there. **`hatch-red` had been `REFUSED` on every
+    # gate run for twenty days and 1,681 commits**, on this one key of eight;
+    # the other seven still resolve. Measured, not estimated:
+    # `git log -S "let lit_inserted = lit_insert_at"` names the commit and
+    # `git rev-list --count` the distance.
+    #
+    # **Fail-closed worked and visibility did not.** `gate.sh`'s own header says
+    # a drifted needle is `REFUSED`, not `FAIL` — correct, because drift is a
+    # property of the tree — and `REFUSED` exits 0 and only forfeits the
+    # unqualified headline. So the arm was dead, `GATE: PASS (HATCH-RED
+    # REFUSED)` was printed on every run of five straight waves, and every lane
+    # that quoted it read the qualifier as inherited noise. Same family as
+    # `#3689`, where a count printed on every run drifted 16→18 unread:
+    # **a thing being printed is not a thing being watched.** The enforcement
+    # is `crates/c2-harness/tests/hatch_needles.rs`, added with this commit —
+    # a `cargo test` target, NOT a gate row (`#3691`).
+    #
+    # The lift is re-spelled against the new text, exactly as `w-park` did at
+    # `#1920`. It still lifts only what the clause still refuses: `lit_inserted`
+    # ADMITS a case that used to be refused here, so the refusal's population
+    # shrank, and lifting the remainder is what the key has always meant.
     ("call-arg-lit-permuted",
      "crates/c2-il/src/func/body/shapes/calls.rs",
-     "    if !in_place && !one_moved_at_two && !permutation_decided_downstream {\n        return Err(refuse(\"call-arg-lit-permuted\"));\n    }",
-     "    if !in_place && !one_moved_at_two && !permutation_decided_downstream && !crate::front3_lift(\"call-arg-lit-permuted\") {\n        return Err(refuse(\"call-arg-lit-permuted\"));\n    }"),
+     "    if !in_place && !one_moved_at_two && !permutation_decided_downstream && !lit_inserted {\n        return Err(refuse(\"call-arg-lit-permuted\"));\n    }",
+     "    if !in_place && !one_moved_at_two && !permutation_decided_downstream && !lit_inserted && !crate::front3_lift(\"call-arg-lit-permuted\") {\n        return Err(refuse(\"call-arg-lit-permuted\"));\n    }"),
 
     # --- H:call-arg-outer-formal  (keygen_xbox) ---------------------------
     ("call-arg-outer-formal",
@@ -631,6 +655,30 @@ def check():
     if len(already) not in (0, want):
         raise SystemExit("hatch: PARTIAL — %d of %d edits present. The tree is "
                          "neither hatched nor clean; run `revert`." % (len(already), want))
+    # A CHECK THAT CANNOT FAIL IS NOT A CHECK. Board **#3787**, 2026-08-29.
+    #
+    # Until this commit `check` printed the `HATCH-DRIFT` line above, then
+    # printed `CLEAN`, then exited 0 — so a drifted needle was REPORTED and
+    # SIGNED OFF in the same breath. `call-arg-lit-permuted` drifted at
+    # `530383eca` on 2026-08-09 and sat undecidable for twenty days and 1,681
+    # commits with `apply` refusing on every gate run, because the only thing
+    # that could have said so said `CLEAN`.
+    #
+    # This is the failure the box's own conventions name: *before relying on
+    # any `--check` flag, watch it fail on deliberately broken input.* It was
+    # watched — one space inserted into the clause, `EXIT=0`,
+    # `1 undecidable`, `hatch: CLEAN` — and that transcript is what motivated
+    # these five lines. `crates/c2-harness/tests/hatch_needles.rs` runs this
+    # command so the verdict reaches a funnel (`#3679`: a `work/` script no
+    # funnel invokes is not enforcement).
+    if failures:
+        raise SystemExit(
+            "hatch: DRIFTED — %d of %d needle(s) do not resolve against this "
+            "tree, listed above. `apply` will REFUSE and every gate run will "
+            "print `HATCH-RED REFUSED` until they are re-spelled. Re-derive "
+            "the needle against the current clause text; do NOT retire the "
+            "key unless the refusal it lifts has actually been paid."
+            % (len(failures), want))
     print("hatch: %s" % ("APPLIED" if already else "CLEAN"))
 
 
