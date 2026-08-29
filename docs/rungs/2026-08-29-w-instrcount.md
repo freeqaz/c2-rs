@@ -109,6 +109,18 @@ not a clamp argument.
 | 878-TU workload scan | not run — no compiled file changed, so a scan would grade a byte-identical tree |
 | fixtures, `c2rs census` | +0 by construction |
 
+> **ONE TEST IS RED ON THIS BRANCH AND IT IS RED BY CONSTRUCTION — say it
+> loudly rather than let the coordinator find it.**
+> `rung_registry::rung_index_is_generated_and_current` FAILS, because
+> `docs/rungs/INDEX.md` is generated and this lane added a rung to the
+> directory it indexes. `WAVE20_BRIEF` §4 says INDEX.md is *"regenerated at
+> merge, never hand-resolved"*, and `git log -- docs/rungs/INDEX.md` confirms
+> that is the historical practice — every one of its recent commits is a
+> coordinator **merge** commit. **It will be red on all four wave-20 lanes
+> simultaneously**, and the fix is one command at the merge funnel:
+> `scripts/gen_rung_index.sh`. The other three tests in that binary pass
+> (`3 passed; 1 failed`), and nothing else in the workspace is red.
+
 **Byte delta 0, and here it is not a criterion that abstained — it is
 inapplicable.** `gate.sh` content-hashes `crates/ fixtures/ scripts/` and pinned
 this run's graded tree at `71224feee` (the prereg commit); every later commit in
