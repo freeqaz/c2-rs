@@ -1,0 +1,9 @@
+float f(float a, float b, float c, float d, float e) { return a + b + c + d * e; }
+float f(float a, float b, float c, float d, float e) { return a - b + c + d * e; }
+float f(float a, float b, float c, float d, float e) { return a * b + c + d * e; }
+float f(float a, float b, float c, float d, float e) { return a + b + c * d * e; }
+float f(float a, float b, float c, float d, float e) { return a + b + c * d + e; }
+float f(float a, float b, float c, float d, float e) { return a - b - c + d * e; }
+float f(float a, float b, float c, float d, float e) { return a + b + c - d * e; }
+double f(double a, double b, double c, double d) { return a + b + c * d; }
+float f(float a, float b, float c, float d, float e, float g) { return a * b + c + d + e * g; }

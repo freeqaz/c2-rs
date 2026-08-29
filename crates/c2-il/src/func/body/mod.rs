@@ -1,5 +1,8 @@
 pub(crate) mod chain;
-pub use self::chain::{chain_form, ChainForm};
+pub use self::chain::{
+    chain_form, fp_contract_instructions, fp_node_plan, ChainForm, FpNodePlan, FpValKind,
+    FP_EMPTY_STACK, FP_REASSOCIATED, FP_TWO_PRODUCTS,
+};
 pub use self::shapes::leaf_store::FP_SCRATCH;
 /// **DECODE, separated from ADMISSION** — lane `w-unfuse`, board **#3554**.
 /// Everything outside `body` reaches the parser through [`decode::Decoded`];

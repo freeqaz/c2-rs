@@ -1,0 +1,240 @@
+# workload objs: 861 present / 871 census TUs (10 with no obj under the reference build)
+#   no obj: src/system/decomp_pch.cpp
+#   no obj: src/system/negate_test.cpp
+#   no obj: src/system/synth_xbox/soundtouch/source/SoundStretch/WavFile.cpp
+#   no obj: src/system/synth_xbox/soundtouch/source/SoundTouch/BPMDetect.cpp
+#   no obj: src/system/synth_xbox/soundtouch/source/SoundTouch/cpu_detect_x86_gcc.cpp
+#   no obj: src/system/synth_xbox/soundtouch/source/SoundTouch/mmx_optimized.cpp
+#   no obj: src/system/synth_xbox/soundtouch/source/SoundTouch/PeakFinder.cpp
+#   no obj: src/system/synth_xbox/soundtouch/source/SoundTouch/sse_optimized.cpp
+#   no obj: src/system/synth_xbox/StreamReceiver360.cpp
+#   no obj: src/system/utl/Spew.cpp
+# executable .text words: 3217749
+# all-zero words (padding, or `emit 0`): 25002 (0.7770 %) -- EXCLUDED, see zero_ops
+# denominator (non-zero words): 3192747
+# attributed: 3192747 (100.0000 %)   unattributed: 0 over 0 distinct words
+# ported arms (work/w-encmap/armmap.txt): 27 of 79
+
+## THE ANSWER — of the unmapped arms, over this workload
+##   52 unmapped arms  (79 total - 27 ported)
+##   10 reached UNAMBIGUOUSLY (some word names this arm and no other)
+##   11 reached only AMBIGUOUSLY (every word that could be this arm could equally be another)
+##   31 NOT REACHED AT ALL — zero words in 861 workload objs
+##   unambiguous: 10bf9fd1 10bfa49a 10bfa76a 10bfa7d0 10bfa8ae 10bfa94b 10bfa98f 10bfa9f0 10bfaadd 10bfab48
+##   ambiguous  : 10bf9f5e 10bf9f91 10bfa1ad 10bfa26c 10bfa285 10bfa5a0 10bfa5b4 10bfa602 10bfa61e 10bfa646 10bfa741
+
+## SECOND PASS — the same words with §6's relocation prune applied.
+## CONDITIONED ON A [R] READING, not an obj-confirmed fact; kept separate
+## so a hypothesis is not laundered into a measurement.
+##   12 unmapped arms named UNIQUELY once the relocation prunes the candidates
+##   31 still not reached at all
+##   refined-unique: 10bf9fd1 10bfa285 10bfa49a 10bfa61e 10bfa76a 10bfa7d0 10bfa8ae 10bfa94b 10bfa98f 10bfa9f0 10bfaadd 10bfab48
+
+arm       ported  uniq_words     refined_uniq       any_words   reloc split           forms
+10bfa667       Y       522845           522845           522845   -=468471 REFLO=54374 21,45,46
+10bfa676       Y       460358           460358           460358   -=437199 REFLO=23159 27,58,71
+10bfa285       .            0           269999           269999   REL24=269999         7
+10bfa61e       .            0           102933           560797   -=457864 REFLO=102933 29
+10bfa263       Y        84137            84137            84137   REL24=43327 -=40810  6
+10bfa76a       .        79203            79203            79203   -=79203              54
+10bfa456       Y        70802            70802            74643   -=74643              22,49
+10bfa7a3       Y        68437            68437            68437   -=68437              62
+10bfa6dc       Y        62912            62912            62912   -=62912              42
+10bfa415       Y        48149            48149            48149   -=48149              16
+10bfa34f       Y        40037            40037            40037   -=40037              12,14
+10bfa3ba       Y        20273            20273            20273   -=20273              15
+10bfa4df       Y        14639            14639            14639   -=14639              25
+10bfa4ed       Y        13466            13466           733147   -=472418 REFHI=157796 REFLO=102933 51
+10bfa685       Y         8615             8615             8615   -=8615               41
+10bfa49a       .         7995             7995             7995   -=7995               24
+10bfa478       Y         7742             7742             7742   -=7742               23
+10bfa587       Y         6449             6449             6449   -=6449               38
+10bfa53b       Y         3376             3376           343868   -=343868             39
+10bfa17f       Y         2825             2825             2825   -=2825               26,50
+10bfad76       Y         1640             1640             1640   -=1640               68,69
+10bfa56b       Y         1432             1432            12025   -=12025              43
+10bfa1a1       Y         1368             1368             1368   -=1368               28,61
+10bfa7d0       .         1244             1244             1244   -=1244               108
+10bfa4c8       Y          685              685              685   -=685                47
+10bfa719       Y          540              540              540   -=540                56
+10bfa801       Y          272              272              272   -=272                64
+10bfa98f       .           50               50               50   -=50                 88
+10bfaadd       .           36               36               36   -=36                 103
+10bf9fd1       .           26               26               26   -=26                 81,82
+10bfa9f0       .           16               16               16   -=16                 92,94
+10bfa94b       .            9                9                9   -=9                  90
+10bfab48       .            4                4                4   -=4                  102,104
+10bfa8ae       .            1                1                1   -=1                  111
+10bfa5a0       .            0                0           719681   -=458952 REFHI=157796 REFLO=102933 33
+10bfa5b4       .            0                0           560797   -=457864 REFLO=102933 32
+10bfa646       .            0                0           560797   -=457864 REFLO=102933 34
+10bfa1ad       .            0                0           347806   -=347806             37
+10bfa549       Y            0                0           340492   -=340492             36
+10bfa26c       .            0                0           269999   REL24=269999         2
+10bfa2a5       Y            0                0           170049   -=170049             3,55
+10bfa2b0       Y            0                0           170049   -=170049             4
+10bfa602       .            0                0           158884   REFHI=157796 -=1088  30
+10bfa2c2       Y            0                0           148499   -=148499             1
+10bfa326       Y            0                0           148499   -=148499             5
+10bfa741       .            0                0             3841   -=3841               31
+10bf9f5e       .            0                0               10   -=10                 85
+10bf9f91       .            0                0               10   -=10                 78
+10bfa015       .            0                0                0                        79
+10bfa057       .            0                0                0                        84
+10bfa082       .            0                0                0                        80
+10bfa0b4       .            0                0                0                        75
+10bfa0d4       .            0                0                0                        76
+10bfa0f4       .            0                0                0                        83
+10bfa14e       .            0                0                0                        74
+10bfa18b       .            0                0                0                        77
+10bfa6a1       .            0                0                0                        40
+10bfa75c       .            0                0                0                        20,44
+10bfa79e       .            0                0                0                        57
+10bfa7f4       .            0                0                0                        63
+10bfa81d       .            0                0                0                        8,9,10,11,13,48,60
+10bfa827       .            0                0                0                        17
+10bfa83a       .            0                0                0                        19
+10bfa846       .            0                0                0                        18
+10bfa84e       .            0                0                0                        65
+10bfa902       .            0                0                0                        86
+10bfa9bd       .            0                0                0                        91
+10bfaa42       .            0                0                0                        101
+10bfaa7e       .            0                0                0                        93
+10bfabf0       .            0                0                0                        97
+10bfac3f       .            0                0                0                        99
+10bfac63       .            0                0                0                        105
+10bfaccd       .            0                0                0                        106
+10bfacee       .            0                0                0                        107
+10bfad3b       .            0                0                0                        66,67
+10bfadb7       .            0                0                0                        70
+10bfade3       .            0                0                0                        110
+10bfae00       .            0                0                0                        109
+10bfae1b       .            0                0                0                        0,72,73,112,113
+
+# primary-opcode census of the same words
+#   primary 31  x616507
+#   primary 14  x560797
+#   primary 32  x401561
+#   primary 18  x354136
+#   primary 36  x267010
+#   primary 19  x170049
+#   primary 15  x158884
+#   primary 16  x148499
+#   primary 37  x90136
+#   primary 21  x62912
+#   primary 58  x58109
+#   primary 62  x54945
+#   primary 10  x48149
+#   primary 48  x33463
+#   primary  0  x25002
+#   primary 52  x24764
+#   primary 59  x22017
+#   primary 11  x20273
+#   primary 63  x19227
+#   primary 38  x18422
+#   primary 34  x16504
+#   primary 24  x10593
+#   primary 50  x6562
+#   primary 13  x5315
+#   primary  7  x4546
+#   primary 54  x2964
+#   primary 12  x2932
+#   primary 42  x2860
+#   primary 40  x2715
+#   primary 44  x1957
+#   primary 30  x1640
+#   primary 25  x1051
+#   primary 33  x932
+#   primary  8  x673
+#   primary 20  x540
+#   primary 28  x306
+#   primary  3  x269
+#   primary 53  x102
+#   primary  4  x95
+#   primary 26  x70
+#   primary 35  x69
+#   primary 49  x46
+#   primary  5  x40
+#   primary 39  x31
+#   primary 45  x22
+#   primary 41  x19
+#   primary  6  x16
+#   primary 27  x5
+#   primary 55  x5
+#   primary 51  x4
+#   primary  2  x3
+#   primary 43  x1
+
+# top unattributed words
+
+# per-opcode counts (top 70)
+#   0x000b addi         form  51  arm 10bfa4ed  PORTED    x560797
+#   0x0270 li           form  33  arm 10bfa5a0  unmapped  x560797
+#   0x0281 lea          form  32  arm 10bfa5b4  unmapped  x560797
+#   0x0282 lea          form  32  arm 10bfa5b4  unmapped  x560797
+#   0x0283 loffs        form  34  arm 10bfa646  unmapped  x560797
+#   0x0287 lal          form  29  arm 10bfa61e  unmapped  x560797
+#   0x00d6 lwz          form  45  arm 10bfa667  PORTED    x401561
+#   0x011d or           form  39  arm 10bfa53b  PORTED    x337203
+#   0x0272 mr           form  36  arm 10bfa549  PORTED    x337203
+#   0x0277 nopmthigh    form  37  arm 10bfa1ad  unmapped  x337203
+#   0x0278 nopmtmed     form  37  arm 10bfa1ad  unmapped  x337203
+#   0x0279 nopmtlow     form  37  arm 10bfa1ad  unmapped  x337203
+#   0x027a nopstall     form  37  arm 10bfa1ad  unmapped  x337203
+#   0x027b nopalign     form  37  arm 10bfa1ad  unmapped  x337203
+#   0x027e nopcapenter  form  37  arm 10bfa1ad  unmapped  x337203
+#   0x027f nopcapexit   form  37  arm 10bfa1ad  unmapped  x337203
+#   0x002b bl           form   7  arm 10bfa285  unmapped  x269999
+#   0x028a bgip         form   2  arm 10bfa26c  unmapped  x269999
+#   0x017a stw          form  58  arm 10bfa676  PORTED    x267010
+#   0x000e addis        form  51  arm 10bfa4ed  PORTED    x158884
+#   0x0271 lis          form  33  arm 10bfa5a0  unmapped  x158884
+#   0x0286 lau          form  30  arm 10bfa602  unmapped  x158884
+#   0x0027 bclr         form   4  arm 10bfa2b0  PORTED    x157786
+#   0x0284 ret          form  55  arm 10bfa2a5  PORTED    x157786
+#   0x0285 blr          form  55  arm 10bfa2a5  PORTED    x157786
+#   0x028b bid          form   3  arm 10bfa2a5  PORTED    x157786
+#   0x0021 bc           form   5  arm 10bfa326  PORTED    x148499
+#   0x0288 bdnz         form   1  arm 10bfa2c2  PORTED    x148499
+#   0x0289 bdz          form   1  arm 10bfa2c2  PORTED    x148499
+#   0x017e stwu         form  58  arm 10bfa676  PORTED    x90136
+#   0x001f b            form   6  arm 10bfa263  PORTED    x84137
+#   0x00e6 mfspr        form  54  arm 10bfa76a  unmapped  x79203
+#   0x00f8 mtspr        form  62  arm 10bfa7a3  PORTED    x68437
+#   0x00a7 ld           form  46  arm 10bfa667  PORTED    x57669
+#   0x0151 std          form  71  arm 10bfa676  PORTED    x54834
+#   0x0030 cmpli        form  16  arm 10bfa415  PORTED    x48149
+#   0x00b1 lfs          form  21  arm 10bfa667  PORTED    x33463
+#   0x0134 rlwinm.      form  42  arm 10bfa6dc  PORTED    x31641
+#   0x0133 rlwinm       form  42  arm 10bfa6dc  PORTED    x31271
+#   0x002f cmpl         form  14  arm 10bfa34f  PORTED    x30742
+#   0x0181 subf         form  49  arm 10bfa456  PORTED    x27739
+#   0x0001 add          form  49  arm 10bfa456  PORTED    x26291
+#   0x015e stfs         form  27  arm 10bfa676  PORTED    x24764
+#   0x002e cmpi         form  15  arm 10bfa3ba  PORTED    x20273
+#   0x014d stb          form  58  arm 10bfa676  PORTED    x18422
+#   0x00a3 lbz          form  45  arm 10bfa667  PORTED    x16504
+#   0x0024 bcctrl       form   4  arm 10bfa2b0  PORTED    x10909
+#   0x002a bctrl        form  55  arm 10bfa2a5  PORTED    x10909
+#   0x0121 ori          form  43  arm 10bfa56b  PORTED    x10593
+#   0x0276 nop          form  37  arm 10bfa1ad  unmapped  x10593
+#   0x0280 rsttoc       form  37  arm 10bfa1ad  unmapped  x10593
+#   0x028e rldtoc       form  37  arm 10bfa1ad  unmapped  x10593
+#   0x028f retaddr      form  37  arm 10bfa1ad  unmapped  x10593
+#   0x0083 fmuls        form  23  arm 10bfa478  PORTED    x7618
+#   0x0147 srawi        form  41  arm 10bfa685  PORTED    x7118
+#   0x00ad lfd          form  21  arm 10bfa667  PORTED    x6562
+#   0x0079 fmadds       form  24  arm 10bfa49a  unmapped  x5927
+#   0x002d cmp          form  14  arm 10bfa34f  PORTED    x5772
+#   0x000d addic.       form  51  arm 10bfa4ed  PORTED    x5315
+#   0x0110 mulli        form  51  arm 10bfa4ed  PORTED    x4546
+#   0x007b fmr          form  25  arm 10bfa4df  PORTED    x4544
+#   0x004b divw         form  49  arm 10bfa456  PORTED    x4513
+#   0x0093 frsp         form  25  arm 10bfa4df  PORTED    x4309
+#   0x009f fsubs        form  22  arm 10bfa456  PORTED    x4177
+#   0x0067 fcfid        form  25  arm 10bfa4df  PORTED    x3953
+#   0x0187 subfe        form  49  arm 10bfa456  PORTED    x3837
+#   0x028c lcarry       form  31  arm 10bfa741  unmapped  x3837
+#   0x006a fcmpu        form  12  arm 10bfa34f  PORTED    x3523
+#   0x0032 cntlzw       form  38  arm 10bfa587  PORTED    x3500
+#   0x011e or.          form  39  arm 10bfa53b  PORTED    x3275

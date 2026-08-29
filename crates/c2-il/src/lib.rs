@@ -50,6 +50,12 @@ pub use func::{
     chain_form, gl_body_record_names, gl_gate_record_names, gl_narrow_record_names,
     gl_precise_record_names, slot_sources, ChainForm,
     EmitBinding, FP_SCRATCH,
+    // The FP multiply-add contraction rule — ONE implementation, three
+    // consumers: the IL parser's acceptance gate, the emitter, and the
+    // registered `float.contraction` decision surface. See `body::chain`'s
+    // block header for why it lives here and not beside the emitter.
+    fp_contract_instructions, fp_node_plan, FpNodePlan, FpValKind,
+    FP_EMPTY_STACK, FP_REASSOCIATED, FP_TWO_PRODUCTS,
     detect_token_width, gl_alias_table, gl_alias_table_shifted, gl_symbol_conflicts,
     ex_segments_body, ex_segments_gate,
     gl_symbol_index, GlAliasStats, GlAliasTable, is_empty_module, label_counter,

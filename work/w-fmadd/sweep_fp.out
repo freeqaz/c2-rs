@@ -1,0 +1,28 @@
+building the harness (no-op if current)
+   Compiling c2-il v0.1.0 (<WORKTREE>/crates/c2-il)
+   Compiling c2-core v0.1.0 (<WORKTREE>/crates/c2-core)
+   Compiling c2-reference v0.1.0 (<WORKTREE>/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (<WORKTREE>/crates/c2-harness)
+    Finished `release` profile [optimized] target(s) in 8.72s
+harness: <WORKTREE>/work/w-fmadd/sweep_fp/c2rs
+  pinned from <WORKTREE>/target/release/c2rs  built 2026-08-29 02:20:44
+  sha 58bd3d8792a7  tree f05e8d550-dirty
+C2RS_SWEEP_ONLY='fp': 8 of 63 fragments — THE TOTAL BELOW IS PARTIAL
+  fragment 30-fp-leaves                 144 cases
+  fragment 31-fp-params                 100 cases
+  fragment 32-fp-argreg                 739 cases
+  fragment 33-fp-tail                   900 cases
+  fragment 35-fp-multiarg              2313 cases
+  fragment 36-fp-contract                82 cases
+  fragment 81-fp-beside-framed           54 cases
+  fragment 99-chain-tail-fp-load        265 cases
+  8 fragments, 4597 cases total (4597 .cpp on disk)
+corpus: SHARED <REPO>/work/corpus/gen-e202d3cbb2405666
+  verified byte-identical to this tree's own generation in <WORKTREE>/work/expr-sweep/cases
+  (2 generation(s) present; each is immutable and safe to rm -rf when idle)
+sweeping 4597 of 4597 generated cases
+  grading at 12 job(s)
+MISMATCH  <REPO>/work/corpus/gen-e202d3cbb2405666/36-fp-contract-0003.cpp  |  float f(float a, float b, float c, float d) { return a + b + c * d; }
+MISMATCH  <REPO>/work/corpus/gen-e202d3cbb2405666/36-fp-contract-0044.cpp  |  double f(double a, double b, double c, double d) { return a + b + c * d; }
+checked=4597 mismatches=2 graded=4580 ungraded=17 unknown=0
+cache: hit=1 miss=4596 validated=0 cache-bad=0 (of 4597 cases)

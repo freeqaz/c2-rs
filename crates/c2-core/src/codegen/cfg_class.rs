@@ -588,7 +588,20 @@ pub fn lowering_of(func: &IlFunction, mode: OptMode) -> Option<Lowering> {
     // formals `float_leaf_text` declines. One cell in 1,820, in the unsound
     // direction, at zero cost to every other number — board **#3270**'s shape.
     if let Some(double) = func.float_leaf() {
-        return float_leaf_text(func, double).is_ok().then_some(Lowering::FloatLeaf);
+        // **`mode` is passed, and the first draft of this line hard-coded `Ox`
+        // with a comment saying the mode could not matter. `fm13` refutes it,
+        // and the grading test found it within the hour.** `FpTempPolicy` does
+        // pick *which* scratch register — but which register it picks decides
+        // whether the pool is exhausted: with thirteen live float formals there
+        // is one free slot, and `Carried`'s cursor reaches it only after the
+        // wrap while `FirstFree` restarts and finds it. So `float_leaf_text`
+        // ACCEPTS this body at `/O1` and REFUSES it at `/Ox`, and a hard-coded
+        // `Ox` here made the registry under-claim by exactly one cell at `/O1`
+        // — the same single cell, in the same file, that #3270 caught this
+        // function over-claiming.
+        return float_leaf_text(func, double, mode)
+            .is_ok()
+            .then_some(Lowering::FloatLeaf);
     }
     // The three predicate-shaped leaves are CALLED, not re-implemented: they
     // already return `Option<Result<…>>`, so asking them here is asking the
