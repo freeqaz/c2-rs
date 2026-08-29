@@ -450,25 +450,38 @@ full:
 10b625b9:  jbe  0x10b625bd                       ; <= 40: NOT charged to the budget
 10b625bb:  sub  DWORD PTR [edi],eax              ; *budget -= count
 10b625bd:  movzx eax,WORD PTR [esi+0x50]
-10b625c1:  add  DWORD PTR ds:0x10c3f5cc,eax      ; running total += count, UNGATED
+10b625c1:  add  DWORD PTR ds:0x10c3f5cc,eax      ; running total += count -- NOT
+                                                 ;   gated by the 40 test (only by
+                                                 ;   __forceinline, at 0x10b625a6)
 ```
 
-> **THE FIRST-SITE THEOREM `[R]`.** `B = clamp(2 × caller_count, 1000, 35000)`
-> so `B ≥ 1000` for every caller, including a caller of size zero. At the first
-> call site the budget is un-drained, so C17 compares `1000 ≤ B` against a
-> single callee's count. Candidacy (`0x10b5fc8a`, `jl`) has already refused any
-> callee whose count is `≥ DAT_10c46318`, and `DAT_10c46318 = min(0x10 << k,
-> 1000)` is **at most 1024** over every `k` (`0x10b5e4cc`–`0x10b5e4e8`).
-> **At the image's `.data` default `k = 3` the ceiling is 128, so the first
-> charged site of any caller is affordable with 7.9× to spare — and the
-> caller's own size, which only scales `B` upward from its floor, cannot
-> change that in either direction.**
+> **THE FIRST-SITE THEOREM `[R]` — stated so it does not lean on §2.5's
+> unsettled candidacy.** `B = clamp(2 × caller_count, 1000, 35000)`
+> (`0x10b62708`–`0x10b6271e`), so **`B ≥ 1000` for every caller, including a
+> caller of size zero**. At the first call site the budget is un-drained, so
+> C17's `cmp [ebp+0x10],eax` compares at least 1000 against one callee's count.
+> **Therefore C17 cannot decline the first site of any caller whose callee
+> counts below 1000 — and the caller's own size only scales `B` UPWARD from
+> that floor, so it cannot change the answer in either direction.**
 
-To make C17 bind at all, the accumulated charges must drive the remaining
-budget below a *candidate's* count: from `B = 1000` with candidates capped at
-127, that needs **at least ⌈(1000 − 127) / 127⌉ = 7** charged sites, and up to
-22 if the callees are small (a callee at 41 charges 41). **Every D cell has
-exactly one call site.**
+**On the D family that is arithmetic on measured numbers, not an argument.**
+The three callee counts are **183, 365 and 855** (§5.1), all below the floor
+`B = 1000`, so C17 passes at the single site in all 12 cells at `B = 1000` and
+equally at `B = 9,846`. The tightest cell, `k=120` at 855, still has **145** of
+headroom. No assumption about candidacy is needed.
+
+*(The looser general bound is worth having too, with its caveat: if candidacy
+did refuse everything at or above `DAT_10c46318 = min(0x10 << k, 1000) ≤ 1024`
+— `0x10b5e4cc`–`0x10b5e4e8`, `k = 3` in the image's raw `.data`, giving 128 —
+then the first charged site of any caller is affordable **7.9×** over. §2.5
+shows candidacy has an over-ceiling escape, so this bound is quoted as the
+typical case and not as a theorem.)*
+
+To make C17 bind at all, accumulated charges must drive the remaining budget
+below a later callee's count. From `B = 1000` against callees at the typical
+ceiling of 127 that is **at least ⌈(1000 − 127) / 127⌉ = 7** charged sites,
+and up to 22 if the callees are small (a callee at 41 charges 41). **Every D
+cell has exactly one call site.**
 
 And C16 needs a running total above 35,000. The largest D cell reaches
 **5,778** — **6.1× of slack**, and a caller would need ≈ 35,000 count units,
@@ -561,7 +574,7 @@ list costs a wave.
 | clause | before | **after this read** | why |
 |---|---|---|---|
 | **C2** — seed `DAT_10c3f5cc = [fn+0x50]` | `absent`, `no-instr-count` | **UNBLOCKED — derivable today** | The producing field is the `.gl` `SIZE` the port **already decodes** (`crates/c2-il/src/func/gl.rs`, `GL_SIZE_ESCAPE_PAYLOAD`, `DISCLOSURE` **W-GLATTRS-1**) and then discards, which is C24's own note. Every field of a counterpart carries a `PROV[R]` address: the load `0x10b626f5`+`0x10b626f7`, the store `0x10b62703`, the producer `0x10b9bf6c`. |
-| **C16** — decline when `35000 < DAT_10c3f5cc` | `absent`, `no-instr-count` | **UNBLOCKED — derivable today, and measured slack-bounded** | Both terms are now read: the seed (C2) and the ungated `add` at `0x10b625c1`. The threshold is an immediate at `0x10b60a63`. On this corpus the largest measured total is 5,778 against 35,000, so an adoption is **byte-neutral by construction**, like C15 — which is a reason to adopt it cheaply, not a reason to skip it. |
+| **C16** — decline when `35000 < DAT_10c3f5cc` | `absent`, `no-instr-count` | **UNBLOCKED — derivable today, and measured slack-bounded** | Both terms are now read: the seed (C2) and the `add` at `0x10b625c1`, which — unlike the budget subtract one instruction above it — is **not** gated by the 40 test, only by `__forceinline` at `0x10b625a6`. `CLAUSES.tsv` C19 states the two as one clause and records neither asymmetry. The threshold is an immediate at `0x10b60a63`. On this corpus the largest measured total is 5,778 against 35,000, so an adoption is **byte-neutral by construction**, like C15 — which is a reason to adopt it cheaply, not a reason to skip it. |
 | **C17** — `budget < instrs && instrs > 0x28` | `absent`, `no-instr-count` | **BLOCKER REMOVED, STILL NOT ADOPTABLE** | Both operands are now derivable (`B` from C3, already `R-derived`; `instrs` from the same field). But `[ebp+0x10]` is the budget **threaded through the driver's recursion**, and the port has no driver to thread it through. C17's binding blocker moves from `no-instr-count` to whatever C4's is. Also proven unreachable at one call site (§5.2). |
 | **C4** — driver entry `FUN_10b61ee1(fn,1,B,0,1e8,0)` | `absent`, `no-instr-count` | **NOT UNBLOCKED** | The budget **argument** is fully derivable now. C4's own note says the real absence: *"no depth/budget parameters exist to pass"* — there is no driver, no site collector and no per-site loop. That is `no-instr-stream`'s absence (C5/C6), not the count's. |
 | **C20** — the expansion recurses into the driver | `fitted`, `no-instr-count` | **NOT UNBLOCKED** | What stands between `fitted` and `R-derived` for C20 is the **driver**, exactly as for C4. Removing the count from its blocker column would be honest; promoting the row would not. |
