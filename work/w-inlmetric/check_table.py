@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_table.py -- grade the conformance table MECHANICALLY.
 
-PREREG SS6 (w-inlmetric). FIVE checks, each of which has caught a real defect
+PREREG SS6 (w-inlmetric). SIX checks, each of which has caught a real defect
 in this repo:
 
  1. ADDRESS  every `addr` must lie inside the function `owner` names, per
@@ -28,7 +28,13 @@ in this repo:
     `none:<token>` and that token must be ABSENT from `crates/`. An `absent`
     verdict that is merely unchecked is the failure mode this exists for.
 
-ADDRESS / WITNESS / ABSENCE need only the repo. ALIGN and DECODE need the
+ 6. CITES    the set of files under `crates/` citing `0x<addr>` must equal the
+    row's frozen `cites` cell. ADDED 2026-08-29 by `w-clausegen` under
+    `work/w-clausegen/PREREG.md` SS2, board `#3817`. **This closes check 5's
+    FALSE-NEGATIVE half**, and see the long note on `cites_in_crates` for why
+    an address is the handle and a name is not.
+
+ADDRESS / WITNESS / ABSENCE / CITES need only the repo. ALIGN and DECODE need the
 objdump listing, which is REGENERATED AND NEVER COMMITTED -- so an absent
 listing is a **SKIP**, never a failure, and the SKIP is printed loudly with the
 path it looked at and the number of rows it therefore did not grade (#3470: a
@@ -42,13 +48,25 @@ an address is mid-instruction is a stronger claim than one of them saying so.
 Exit 0 = GREEN (or GREEN-with-SKIP). Non-zero = RED. Read the verdict line,
 never the exit code.
 
-Usage: check_table.py [CLAUSES.tsv] [--plant ID=ADDR ...]
+Usage: check_table.py [CLAUSES.tsv] [--plant ID=ADDR ...] [--set ID.COL=VAL ...]
+                      [--rev REV]
 
   --plant  overwrite row ID's `addr` with ADDR before grading, so the RED path
            can be WATCHED rather than assumed. #3336: a control nobody has seen
            fail is decoration. Repeatable. `--plant C2=10b62704` shifts one byte
            (reddens ALIGN); `--plant C2=10b62708` moves to a different real
            boundary (ALIGN stays green, DECODE reddens).
+
+  --set    the same idea for any cell: `--set C1.cites=crates/c2-core/src/x.rs`
+           reddens CITES on C1 without touching the tracked table. Repeatable.
+
+  --rev    run checks 4/5/6 against `crates/` AS OF a git revision instead of
+           the working tree. This exists for ONE reason and it is the strongest
+           evidence this file carries: at `72caf2586`, C14 and C18 read `absent`
+           with tokens that were genuinely absent -- check 5 GREEN -- while
+           `splice.rs` cited each row's OWN address twice. Point this at that
+           commit's table and watch check 6 catch a false negative that really
+           happened, rather than one that was planted.
 
 Provenance: checks 1/4/5 are `w-inlmetric`'s. Check 2 is `w-inlfit`'s
 `work/w-inlfit/addr_align.py`, FOLDED IN HERE by `w-clausefix` on 2026-08-28
@@ -120,14 +138,86 @@ def containing(starts, a):
     return starts[i] if i >= 0 else None
 
 
-def token_in_file(path, tok):
+def grep_l(pat, rev, word=False):
+    """`git grep -l` for a FIXED string under `crates/`, at `rev` or the worktree.
+
+    `--untracked --exclude-standard` is meaningless (and rejected) with a rev,
+    so the worktree path keeps them and the rev path drops them.
+    """
+    cmd = ['git', '-C', REPO, 'grep', '-l']
+    cmd += ['--untracked', '--exclude-standard'] if rev is None else []
+    cmd += ['-F'] + (['-w'] if word else [])
+    cmd += ['--', pat] + ([rev] if rev else []) + ['--', 'crates/']
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    # With a rev, git prefixes each path `REV:`; strip it so the two modes
+    # produce comparable path sets.
+    out = []
+    for p in r.stdout.strip().split('\n'):
+        if not p:
+            continue
+        out.append(p[len(rev) + 1:] if rev and p.startswith(rev + ':') else p)
+    return out
+
+
+def token_in_file(path, tok, rev=None):
+    if rev:
+        r = subprocess.run(['git', '-C', REPO, 'show', f'{rev}:{path}'],
+                           capture_output=True, text=True)
+        return r.returncode == 0 and tok in r.stdout
     p = os.path.join(REPO, path)
     if not os.path.exists(p):
         return False
     return tok in open(p, encoding='utf-8', errors='replace').read()
 
 
-def token_in_crates(tok):
+def cites_in_crates(addr, rev=None):
+    """Which files under `crates/` cite `0x<addr>`? Sorted, repo-relative.
+
+    ---- CHECK 6, and WHY AN ADDRESS ------------------------------------------
+
+    Check 5 asks *"is this one spelling absent from `crates/`?"*. A counterpart
+    adopted under a DIFFERENT NAME answers yes, and the row stays `absent`
+    forever with nothing counting the miss. `#3641` and `token_in_crates`'s
+    docstring both describe the OTHER direction -- a mention read as a
+    counterpart, a false positive, which is noisy and therefore gets found.
+    This is the false NEGATIVE, which is silent. C14 and C18 sat in it for a
+    full wave; C3 and C19 converted in wave 18 only because the adopting lane
+    happened to choose colliding tokens.
+
+    **A name is a lane's free choice. An address is not.** `CLAUDE.md`
+    SS"Whitebox" requires a `DISCLOSURE` row naming the address in the same
+    commit that adopts a disassembly-derived constant into `crates/`, and
+    `PROV[R]` citation is what every adopting lane in this subsystem has in
+    fact done. So an adoption leaves an address fingerprint whatever it calls
+    itself, and that is the handle this check grabs.
+
+    **It is a FROZEN-SET DIFFER, not a judge.** It does not decide whether a
+    citation is a counterpart or a mention -- it decides whether the citation
+    footprint has CHANGED since a human last read it. Any difference from the
+    row's `cites` cell is RED, and the remedy is a reviewed one-cell edit by
+    the table's owner.
+
+    **Three blindnesses, declared here rather than discovered (`#3684`):**
+
+    1. It inherits `#3641` transposed: a mention cites an address too.
+       `clause_table.rs`'s own doc comment cites two of these addresses and
+       `subsys.rs` cites a third as a band boundary. Those are mentions and
+       this check reports them, by design -- a frozen mention is silent, a NEW
+       one is not.
+    2. It is blind to an adoption that cites no address at all. C24 is the
+       standing example: its counterpart is real and its address appears
+       nowhere in `crates/`. Sensitivity was MEASURED, not asserted, at
+       **6 of 9** rows that already have a counterpart
+       (`work/w-clausegen/RESULT.md`); it is not 9 of 9 and must never be
+       quoted as if it were.
+    3. Self-reference: editing `clause_table.rs`'s doc comment moves the set
+       for the rows it discusses. That is the instrument working on the file
+       most likely to talk about these clauses, not a defect to suppress.
+    """
+    return sorted(grep_l('0x' + addr, rev))
+
+
+def token_in_crates(tok, rev=None):
     """Where under `crates/` does `tok` appear as an IDENTIFIER? A list of paths.
 
     `--untracked --exclude-standard` is LOAD-BEARING and was added by
@@ -166,18 +256,25 @@ def token_in_crates(tok):
     instead of reading the module — the verdict is unchanged, the diagnosis is
     not.
     """
-    r = subprocess.run(['git', '-C', REPO, 'grep', '-l', '--untracked',
-                        '--exclude-standard', '-F', '-w', '--', tok, '--', 'crates/'],
-                       capture_output=True, text=True)
-    return [p for p in r.stdout.strip().split('\n') if p]
+    return grep_l(tok, rev, word=True)
 
 
 def main(argv):
-    plants, args, i = {}, [], 0
+    plants, sets, rev, args, i = {}, {}, None, [], 0
     while i < len(argv):
         if argv[i] == '--plant':
             rid, _, addr = argv[i + 1].partition('=')
             plants[rid] = addr
+            i += 2
+            continue
+        if argv[i] == '--set':
+            key, _, val = argv[i + 1].partition('=')
+            rid, _, col = key.partition('.')
+            sets.setdefault(rid, {})[col] = val
+            i += 2
+            continue
+        if argv[i] == '--rev':
+            rev = argv[i + 1]
             i += 2
             continue
         args.append(argv[i])
@@ -190,14 +287,19 @@ def main(argv):
         if r['id'] in plants:
             r['addr'] = plants[r['id']]
             r['id'] += '(PLANTED)'
+        if r['id'] in sets:
+            for col, val in sets[r['id']].items():
+                r[col] = val
+            r['id'] += '(PLANTED)'
 
     lst = listing()
     # Displayed home-relative: this output is COMMITTED as lane evidence, and an
     # absolute machine path in a tracked file is a class-3 violation of
     # scripts/tracked_artifact_audit.sh.
-    shown = LISTING.replace(os.path.expanduser('~'), '~', 1)
+    listing_shown = LISTING.replace(os.path.expanduser('~'), '~', 1)
 
     fails = []
+    cited_rows = 0
     for r in rows:
         rid = r['id']
         # 1. ADDRESS
@@ -234,14 +336,14 @@ def main(argv):
                 fails.append(f"{rid}: state {st} must cite path:token, got {w!r}")
             else:
                 p, tok = w.rsplit(':', 1)
-                if not token_in_file(p, tok):
+                if not token_in_file(p, tok, rev):
                     fails.append(f"{rid}: WITNESS {tok!r} NOT FOUND in {p}")
         elif st in ('absent', 'unexercisable'):
             if not w.startswith('none:'):
                 fails.append(f"{rid}: state {st} must cite none:<token>, got {w!r}")
             else:
                 tok = w[len('none:'):]
-                where = token_in_crates(tok)
+                where = token_in_crates(tok, rev)
                 if where:
                     # The paths are the whole point of printing this (#3788).
                     # A hit in a `src/` module is probably a counterpart; a hit
@@ -249,10 +351,16 @@ def main(argv):
                     # probably a MENTION, and this screen cannot tell them
                     # apart. Naming the files lets the reader do in seconds
                     # what cost a merge a full read of splice.rs.
-                    shown = ', '.join(where[:4]) + (' …' if len(where) > 4 else '')
+                    # NOTE: this used to be called `shown`, which is also the
+                    # name of the LISTING path printed after this loop -- so a
+                    # single ABSENCE failure silently rewrote the `listing :`
+                    # line to a list of source files. Found and fixed by
+                    # `w-clausegen`; a report that misnames its own inputs is
+                    # the `#3470` family, one level down.
+                    hits = ', '.join(where[:4]) + (' …' if len(where) > 4 else '')
                     fails.append(
                         f"{rid}: ABSENCE state {st} but token {tok!r} IS PRESENT in crates/ "
-                        f"as an identifier, in: {shown}. "
+                        f"as an identifier, in: {hits}. "
                         f"If you are a lane that just added it, this is NOT a defect in your "
                         f"code -- the table's `absent` verdict has gone stale and the remedy "
                         f"is a one-cell `state` edit by CLAUSES.tsv's owner. CHECK THE PATHS "
@@ -262,6 +370,41 @@ def main(argv):
         else:
             fails.append(f"{rid}: unknown state {st!r}")
 
+        # 6. CITES -- the address fingerprint, frozen. See `cites_in_crates`.
+        if 'cites' not in r:
+            fails.append(f"{rid}: no `cites` column -- check 6 cannot run, and a "
+                         f"check that cannot run is not a SKIP here: the column is "
+                         f"committed (`w-clausegen`, #3817)")
+            continue
+        frozen = [] if r['cites'].strip() in ('-', '') else \
+            sorted(x.strip() for x in r['cites'].split(',') if x.strip())
+        measured = cites_in_crates(r['addr'], rev)
+        if frozen:
+            cited_rows += 1
+        if frozen != measured:
+            added = [p for p in measured if p not in frozen]
+            gone = [p for p in frozen if p not in measured]
+            why = []
+            if added:
+                why.append(
+                    "A NEW citation of this clause's own address is how a counterpart "
+                    "adopted under a DIFFERENT NAME becomes visible -- check 5 cannot "
+                    "see one and stayed GREEN on C14/C18 for a full wave. READ THE "
+                    "FILE, then either move `state` or record the citation as a "
+                    "mention by updating the `cites` cell.")
+            if gone:
+                why.append(
+                    "A citation that DISAPPEARED means the code that cited this clause "
+                    "was deleted or renamed away from the address. If the row is not "
+                    "`absent`, its witness may now be the only thing holding it up.")
+            fails.append(
+                f"{rid}: CITES footprint for 0x{r['addr']} MOVED -- "
+                + (f"NEW: {', '.join(added)}. " if added else "")
+                + (f"GONE: {', '.join(gone)}. " if gone else "")
+                + f"State is {st!r}. " + ' '.join(why)
+                + " Do not regenerate the cell without reading it (#3641: this check "
+                  "cannot tell a mark from a mention either).")
+
     c = Counter(r['state'] for r in rows)
     e = Counter(r['exercised'] for r in rows)
     n = len(rows)
@@ -269,7 +412,10 @@ def main(argv):
     print(f"rows     : {n}")
     print("  state    :", dict(c))
     print("  exercised:", dict(e))
-    print(f"listing  : {shown}")
+    print(f"  CITES    : {cited_rows} of {n} rows have a non-empty frozen crates/ "
+          f"citation footprint, {n} of {n} compared"
+          + (f"  [at rev {rev}]" if rev else ""))
+    print(f"listing  : {listing_shown}")
     if lst is None:
         print(f"  ALIGN  : SKIP -- listing absent, so 0 of {n} rows were checked for "
               f"instruction alignment")
@@ -283,6 +429,8 @@ def main(argv):
         print(f"  DECODE : {withasm} of {n} rows carry an `asm` cell and were graded")
     if plants:
         print(f"planted  : {plants}")
+    if sets:
+        print(f"set      : {sets}")
     for f in fails:
         print("  FAIL " + f)
     skip = " (ALIGN+DECODE SKIPPED)" if lst is None else ""
