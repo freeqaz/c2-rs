@@ -128,7 +128,30 @@ const ROWS: usize = 24;
 /// own rule above — spelling one in this comment makes the ABSENCE screen find
 /// it in `crates/` and turns the row red. That happened at this merge, to the
 /// person writing this sentence.
-const SPLIT: &str = "{'absent': 15, 'R-derived': 4, 'fitted': 2, 'unexercisable': 3}";
+/// **MOVED AGAIN 2026-08-29**, from
+/// `{'absent': 15, 'R-derived': 4, 'fitted': 2, 'unexercisable': 3}`, by lane
+/// `w-inlclause` (board `#3796`–`#3801`).
+///
+/// **Two of the three moves are STALENESS, not conversion, and that is the
+/// finding.** C14 and C18 have had counterparts in the port since
+/// `w-inlbudget` landed on 2026-08-28 — each derived from a read, each
+/// `PROV[R]` at the row's own address, and that lane's rung names both by
+/// clause id. The rows stayed `absent` anyway, because the ABSENCE screen
+/// checks the **one spelling the table happens to cite**.
+///
+/// So the blindness this file's header declares has a second direction, and it
+/// was not declared anywhere: `#3641` and `token_in_crates`'s docstring both
+/// describe a **mention** being read as a counterpart — a false positive. The
+/// other half is a **counterpart adopted under a different name being read as
+/// absence** — a false negative, which is silent, which nothing counts, and
+/// which is why the column looked stuck. C3 and C19 converted at the wave-18
+/// merge only because the adopting lane's chosen tokens happened to collide
+/// with the table's.
+///
+/// The third move, **C15**, is an adoption in the ordinary sense: `w-inlclause`
+/// put c2's `0x10b60a2f` arm into `splice.rs` under a required-zero byte delta,
+/// byte-neutral because c2's own default switches the clause off.
+const SPLIT: &str = "{'absent': 12, 'R-derived': 7, 'fitted': 2, 'unexercisable': 3}";
 
 #[test]
 fn the_clause_table_is_green_and_grades_all_twenty_four_rows() {

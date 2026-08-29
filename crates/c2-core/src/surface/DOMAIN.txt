@@ -1132,6 +1132,7 @@ splice.budget  model=c2-read n=1 i=0 level=02 base=0  level=3,budget=parent
 splice.budget  model=c2-read n=1 i=0 level=16 base=0  level=17,budget=parent
 splice.budget  model=c2-read n=1 i=0 level=17 base=0  level=18,budget=parent
 splice.budget  model=c2-read n=1 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=c2-read n=1 i=0 level=05 base=1  level=6,budget=parent
 splice.budget  model=c2-read n=1 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=c2-read n=1 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=c2-read n=2 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1139,6 +1140,7 @@ splice.budget  model=c2-read n=2 i=0 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=2 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=2 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=2 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=2 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=2 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=2 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=2 i=1 level=01 base=0  level=2,budget=parent
@@ -1146,6 +1148,7 @@ splice.budget  model=c2-read n=2 i=1 level=02 base=0  level=3,budget=parent
 splice.budget  model=c2-read n=2 i=1 level=16 base=0  level=17,budget=parent
 splice.budget  model=c2-read n=2 i=1 level=17 base=0  level=18,budget=parent
 splice.budget  model=c2-read n=2 i=1 level=02 base=1  level=3,budget=parent
+splice.budget  model=c2-read n=2 i=1 level=05 base=1  level=6,budget=parent
 splice.budget  model=c2-read n=2 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=c2-read n=2 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=c2-read n=3 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1153,6 +1156,7 @@ splice.budget  model=c2-read n=3 i=0 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=3 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=3 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=3 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=3 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=3 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=3 i=1 level=01 base=0  REFUSE S6-budget-divided
@@ -1160,6 +1164,7 @@ splice.budget  model=c2-read n=3 i=1 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=3 i=1 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=3 i=1 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=3 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=3 i=1 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=3 i=1 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=3 i=1 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=3 i=2 level=01 base=0  level=2,budget=parent
@@ -1167,6 +1172,7 @@ splice.budget  model=c2-read n=3 i=2 level=02 base=0  level=3,budget=parent
 splice.budget  model=c2-read n=3 i=2 level=16 base=0  level=17,budget=parent
 splice.budget  model=c2-read n=3 i=2 level=17 base=0  level=18,budget=parent
 splice.budget  model=c2-read n=3 i=2 level=02 base=1  level=3,budget=parent
+splice.budget  model=c2-read n=3 i=2 level=05 base=1  level=6,budget=parent
 splice.budget  model=c2-read n=3 i=2 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=c2-read n=3 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=c2-read n=4 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1174,6 +1180,7 @@ splice.budget  model=c2-read n=4 i=0 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=1 level=01 base=0  REFUSE S6-budget-divided
@@ -1181,6 +1188,7 @@ splice.budget  model=c2-read n=4 i=1 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=1 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=1 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=1 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=1 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=1 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=2 level=01 base=0  REFUSE S6-budget-divided
@@ -1188,6 +1196,7 @@ splice.budget  model=c2-read n=4 i=2 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=2 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=2 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=4 i=2 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=2 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=2 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=4 i=3 level=01 base=0  level=2,budget=parent
@@ -1195,6 +1204,7 @@ splice.budget  model=c2-read n=4 i=3 level=02 base=0  level=3,budget=parent
 splice.budget  model=c2-read n=4 i=3 level=16 base=0  level=17,budget=parent
 splice.budget  model=c2-read n=4 i=3 level=17 base=0  level=18,budget=parent
 splice.budget  model=c2-read n=4 i=3 level=02 base=1  level=3,budget=parent
+splice.budget  model=c2-read n=4 i=3 level=05 base=1  level=6,budget=parent
 splice.budget  model=c2-read n=4 i=3 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=c2-read n=4 i=3 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=c2-read n=5 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1202,6 +1212,7 @@ splice.budget  model=c2-read n=5 i=0 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=1 level=01 base=0  REFUSE S6-budget-divided
@@ -1209,6 +1220,7 @@ splice.budget  model=c2-read n=5 i=1 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=1 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=1 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=1 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=1 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=1 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=2 level=01 base=0  REFUSE S6-budget-divided
@@ -1216,6 +1228,7 @@ splice.budget  model=c2-read n=5 i=2 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=2 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=2 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=2 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=2 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=2 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=3 level=01 base=0  REFUSE S6-budget-divided
@@ -1223,6 +1236,7 @@ splice.budget  model=c2-read n=5 i=3 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=3 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=3 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=3 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=5 i=3 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=3 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=3 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=5 i=4 level=01 base=0  level=2,budget=parent
@@ -1230,6 +1244,7 @@ splice.budget  model=c2-read n=5 i=4 level=02 base=0  level=3,budget=parent
 splice.budget  model=c2-read n=5 i=4 level=16 base=0  level=17,budget=parent
 splice.budget  model=c2-read n=5 i=4 level=17 base=0  level=18,budget=parent
 splice.budget  model=c2-read n=5 i=4 level=02 base=1  level=3,budget=parent
+splice.budget  model=c2-read n=5 i=4 level=05 base=1  level=6,budget=parent
 splice.budget  model=c2-read n=5 i=4 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=c2-read n=5 i=4 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=c2-read n=6 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1237,6 +1252,7 @@ splice.budget  model=c2-read n=6 i=0 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=1 level=01 base=0  REFUSE S6-budget-divided
@@ -1244,6 +1260,7 @@ splice.budget  model=c2-read n=6 i=1 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=1 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=1 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=1 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=1 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=1 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=2 level=01 base=0  REFUSE S6-budget-divided
@@ -1251,6 +1268,7 @@ splice.budget  model=c2-read n=6 i=2 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=2 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=2 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=2 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=2 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=2 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=3 level=01 base=0  REFUSE S6-budget-divided
@@ -1258,6 +1276,7 @@ splice.budget  model=c2-read n=6 i=3 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=3 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=3 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=3 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=3 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=3 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=3 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=4 level=01 base=0  REFUSE S6-budget-divided
@@ -1265,6 +1284,7 @@ splice.budget  model=c2-read n=6 i=4 level=02 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=4 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=4 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=4 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=c2-read n=6 i=4 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=4 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=4 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=c2-read n=6 i=5 level=01 base=0  level=2,budget=parent
@@ -1272,6 +1292,7 @@ splice.budget  model=c2-read n=6 i=5 level=02 base=0  level=3,budget=parent
 splice.budget  model=c2-read n=6 i=5 level=16 base=0  level=17,budget=parent
 splice.budget  model=c2-read n=6 i=5 level=17 base=0  level=18,budget=parent
 splice.budget  model=c2-read n=6 i=5 level=02 base=1  level=3,budget=parent
+splice.budget  model=c2-read n=6 i=5 level=05 base=1  level=6,budget=parent
 splice.budget  model=c2-read n=6 i=5 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=c2-read n=6 i=5 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided seed caller_instrs=000000  B=1000
@@ -1300,6 +1321,7 @@ splice.budget  model=undivided n=1 i=0 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=1 i=0 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=1 i=0 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=1 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=1 i=0 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=1 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=1 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=2 i=0 level=01 base=0  level=2,budget=parent
@@ -1307,6 +1329,7 @@ splice.budget  model=undivided n=2 i=0 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=2 i=0 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=2 i=0 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=2 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=2 i=0 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=2 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=2 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=2 i=1 level=01 base=0  level=2,budget=parent
@@ -1314,6 +1337,7 @@ splice.budget  model=undivided n=2 i=1 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=2 i=1 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=2 i=1 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=2 i=1 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=2 i=1 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=2 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=2 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=3 i=0 level=01 base=0  level=2,budget=parent
@@ -1321,6 +1345,7 @@ splice.budget  model=undivided n=3 i=0 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=3 i=0 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=3 i=0 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=3 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=3 i=0 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=3 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=3 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=3 i=1 level=01 base=0  level=2,budget=parent
@@ -1328,6 +1353,7 @@ splice.budget  model=undivided n=3 i=1 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=3 i=1 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=3 i=1 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=3 i=1 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=3 i=1 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=3 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=3 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=3 i=2 level=01 base=0  level=2,budget=parent
@@ -1335,6 +1361,7 @@ splice.budget  model=undivided n=3 i=2 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=3 i=2 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=3 i=2 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=3 i=2 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=3 i=2 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=3 i=2 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=3 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=4 i=0 level=01 base=0  level=2,budget=parent
@@ -1342,6 +1369,7 @@ splice.budget  model=undivided n=4 i=0 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=4 i=0 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=4 i=0 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=4 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=4 i=0 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=4 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=4 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=4 i=1 level=01 base=0  level=2,budget=parent
@@ -1349,6 +1377,7 @@ splice.budget  model=undivided n=4 i=1 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=4 i=1 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=4 i=1 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=4 i=1 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=4 i=1 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=4 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=4 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=4 i=2 level=01 base=0  level=2,budget=parent
@@ -1356,6 +1385,7 @@ splice.budget  model=undivided n=4 i=2 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=4 i=2 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=4 i=2 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=4 i=2 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=4 i=2 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=4 i=2 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=4 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=4 i=3 level=01 base=0  level=2,budget=parent
@@ -1363,6 +1393,7 @@ splice.budget  model=undivided n=4 i=3 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=4 i=3 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=4 i=3 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=4 i=3 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=4 i=3 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=4 i=3 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=4 i=3 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=5 i=0 level=01 base=0  level=2,budget=parent
@@ -1370,6 +1401,7 @@ splice.budget  model=undivided n=5 i=0 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=5 i=0 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=5 i=0 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=5 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=5 i=0 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=5 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=5 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=5 i=1 level=01 base=0  level=2,budget=parent
@@ -1377,6 +1409,7 @@ splice.budget  model=undivided n=5 i=1 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=5 i=1 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=5 i=1 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=5 i=1 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=5 i=1 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=5 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=5 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=5 i=2 level=01 base=0  level=2,budget=parent
@@ -1384,6 +1417,7 @@ splice.budget  model=undivided n=5 i=2 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=5 i=2 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=5 i=2 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=5 i=2 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=5 i=2 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=5 i=2 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=5 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=5 i=3 level=01 base=0  level=2,budget=parent
@@ -1391,6 +1425,7 @@ splice.budget  model=undivided n=5 i=3 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=5 i=3 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=5 i=3 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=5 i=3 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=5 i=3 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=5 i=3 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=5 i=3 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=5 i=4 level=01 base=0  level=2,budget=parent
@@ -1398,6 +1433,7 @@ splice.budget  model=undivided n=5 i=4 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=5 i=4 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=5 i=4 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=5 i=4 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=5 i=4 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=5 i=4 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=5 i=4 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=6 i=0 level=01 base=0  level=2,budget=parent
@@ -1405,6 +1441,7 @@ splice.budget  model=undivided n=6 i=0 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=6 i=0 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=6 i=0 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=6 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=6 i=0 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=6 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=6 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=6 i=1 level=01 base=0  level=2,budget=parent
@@ -1412,6 +1449,7 @@ splice.budget  model=undivided n=6 i=1 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=6 i=1 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=6 i=1 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=6 i=1 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=6 i=1 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=6 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=6 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=6 i=2 level=01 base=0  level=2,budget=parent
@@ -1419,6 +1457,7 @@ splice.budget  model=undivided n=6 i=2 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=6 i=2 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=6 i=2 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=6 i=2 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=6 i=2 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=6 i=2 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=6 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=6 i=3 level=01 base=0  level=2,budget=parent
@@ -1426,6 +1465,7 @@ splice.budget  model=undivided n=6 i=3 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=6 i=3 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=6 i=3 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=6 i=3 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=6 i=3 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=6 i=3 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=6 i=3 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=6 i=4 level=01 base=0  level=2,budget=parent
@@ -1433,6 +1473,7 @@ splice.budget  model=undivided n=6 i=4 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=6 i=4 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=6 i=4 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=6 i=4 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=6 i=4 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=6 i=4 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=6 i=4 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=6 i=5 level=01 base=0  level=2,budget=parent
@@ -1440,6 +1481,7 @@ splice.budget  model=undivided n=6 i=5 level=02 base=0  level=3,budget=parent
 splice.budget  model=undivided n=6 i=5 level=16 base=0  level=17,budget=parent
 splice.budget  model=undivided n=6 i=5 level=17 base=0  level=18,budget=parent
 splice.budget  model=undivided n=6 i=5 level=02 base=1  level=3,budget=parent
+splice.budget  model=undivided n=6 i=5 level=05 base=1  level=6,budget=parent
 splice.budget  model=undivided n=6 i=5 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=undivided n=6 i=5 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=charge-forceinline seed caller_instrs=000000  B=1000
@@ -1468,6 +1510,7 @@ splice.budget  model=charge-forceinline n=1 i=0 level=02 base=0  level=3,budget=
 splice.budget  model=charge-forceinline n=1 i=0 level=16 base=0  level=17,budget=parent
 splice.budget  model=charge-forceinline n=1 i=0 level=17 base=0  level=18,budget=parent
 splice.budget  model=charge-forceinline n=1 i=0 level=02 base=1  level=3,budget=parent
+splice.budget  model=charge-forceinline n=1 i=0 level=05 base=1  level=6,budget=parent
 splice.budget  model=charge-forceinline n=1 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=charge-forceinline n=1 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=charge-forceinline n=2 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1475,6 +1518,7 @@ splice.budget  model=charge-forceinline n=2 i=0 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=2 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=2 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=2 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=2 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=2 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=2 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=2 i=1 level=01 base=0  level=2,budget=parent
@@ -1482,6 +1526,7 @@ splice.budget  model=charge-forceinline n=2 i=1 level=02 base=0  level=3,budget=
 splice.budget  model=charge-forceinline n=2 i=1 level=16 base=0  level=17,budget=parent
 splice.budget  model=charge-forceinline n=2 i=1 level=17 base=0  level=18,budget=parent
 splice.budget  model=charge-forceinline n=2 i=1 level=02 base=1  level=3,budget=parent
+splice.budget  model=charge-forceinline n=2 i=1 level=05 base=1  level=6,budget=parent
 splice.budget  model=charge-forceinline n=2 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=charge-forceinline n=2 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=charge-forceinline n=3 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1489,6 +1534,7 @@ splice.budget  model=charge-forceinline n=3 i=0 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=3 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=3 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=3 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=3 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=3 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=3 i=1 level=01 base=0  REFUSE S6-budget-divided
@@ -1496,6 +1542,7 @@ splice.budget  model=charge-forceinline n=3 i=1 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=3 i=1 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=3 i=1 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=3 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=3 i=1 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=3 i=1 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=3 i=1 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=3 i=2 level=01 base=0  level=2,budget=parent
@@ -1503,6 +1550,7 @@ splice.budget  model=charge-forceinline n=3 i=2 level=02 base=0  level=3,budget=
 splice.budget  model=charge-forceinline n=3 i=2 level=16 base=0  level=17,budget=parent
 splice.budget  model=charge-forceinline n=3 i=2 level=17 base=0  level=18,budget=parent
 splice.budget  model=charge-forceinline n=3 i=2 level=02 base=1  level=3,budget=parent
+splice.budget  model=charge-forceinline n=3 i=2 level=05 base=1  level=6,budget=parent
 splice.budget  model=charge-forceinline n=3 i=2 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=charge-forceinline n=3 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=charge-forceinline n=4 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1510,6 +1558,7 @@ splice.budget  model=charge-forceinline n=4 i=0 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=4 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=1 level=01 base=0  REFUSE S6-budget-divided
@@ -1517,6 +1566,7 @@ splice.budget  model=charge-forceinline n=4 i=1 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=4 i=1 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=1 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=1 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=1 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=1 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=2 level=01 base=0  REFUSE S6-budget-divided
@@ -1524,6 +1574,7 @@ splice.budget  model=charge-forceinline n=4 i=2 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=4 i=2 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=2 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=4 i=2 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=2 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=2 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=4 i=3 level=01 base=0  level=2,budget=parent
@@ -1531,6 +1582,7 @@ splice.budget  model=charge-forceinline n=4 i=3 level=02 base=0  level=3,budget=
 splice.budget  model=charge-forceinline n=4 i=3 level=16 base=0  level=17,budget=parent
 splice.budget  model=charge-forceinline n=4 i=3 level=17 base=0  level=18,budget=parent
 splice.budget  model=charge-forceinline n=4 i=3 level=02 base=1  level=3,budget=parent
+splice.budget  model=charge-forceinline n=4 i=3 level=05 base=1  level=6,budget=parent
 splice.budget  model=charge-forceinline n=4 i=3 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=charge-forceinline n=4 i=3 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=charge-forceinline n=5 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1538,6 +1590,7 @@ splice.budget  model=charge-forceinline n=5 i=0 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=5 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=1 level=01 base=0  REFUSE S6-budget-divided
@@ -1545,6 +1598,7 @@ splice.budget  model=charge-forceinline n=5 i=1 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=5 i=1 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=1 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=1 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=1 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=1 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=2 level=01 base=0  REFUSE S6-budget-divided
@@ -1552,6 +1606,7 @@ splice.budget  model=charge-forceinline n=5 i=2 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=5 i=2 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=2 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=2 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=2 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=2 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=3 level=01 base=0  REFUSE S6-budget-divided
@@ -1559,6 +1614,7 @@ splice.budget  model=charge-forceinline n=5 i=3 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=5 i=3 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=3 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=3 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=5 i=3 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=3 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=3 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=5 i=4 level=01 base=0  level=2,budget=parent
@@ -1566,6 +1622,7 @@ splice.budget  model=charge-forceinline n=5 i=4 level=02 base=0  level=3,budget=
 splice.budget  model=charge-forceinline n=5 i=4 level=16 base=0  level=17,budget=parent
 splice.budget  model=charge-forceinline n=5 i=4 level=17 base=0  level=18,budget=parent
 splice.budget  model=charge-forceinline n=5 i=4 level=02 base=1  level=3,budget=parent
+splice.budget  model=charge-forceinline n=5 i=4 level=05 base=1  level=6,budget=parent
 splice.budget  model=charge-forceinline n=5 i=4 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=charge-forceinline n=5 i=4 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=charge-forceinline n=6 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1573,6 +1630,7 @@ splice.budget  model=charge-forceinline n=6 i=0 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=6 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=1 level=01 base=0  REFUSE S6-budget-divided
@@ -1580,6 +1638,7 @@ splice.budget  model=charge-forceinline n=6 i=1 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=6 i=1 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=1 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=1 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=1 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=1 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=2 level=01 base=0  REFUSE S6-budget-divided
@@ -1587,6 +1646,7 @@ splice.budget  model=charge-forceinline n=6 i=2 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=6 i=2 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=2 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=2 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=2 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=2 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=3 level=01 base=0  REFUSE S6-budget-divided
@@ -1594,6 +1654,7 @@ splice.budget  model=charge-forceinline n=6 i=3 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=6 i=3 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=3 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=3 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=3 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=3 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=3 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=4 level=01 base=0  REFUSE S6-budget-divided
@@ -1601,6 +1662,7 @@ splice.budget  model=charge-forceinline n=6 i=4 level=02 base=0  REFUSE S6-budge
 splice.budget  model=charge-forceinline n=6 i=4 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=4 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=4 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=charge-forceinline n=6 i=4 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=4 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=4 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=charge-forceinline n=6 i=5 level=01 base=0  level=2,budget=parent
@@ -1608,6 +1670,7 @@ splice.budget  model=charge-forceinline n=6 i=5 level=02 base=0  level=3,budget=
 splice.budget  model=charge-forceinline n=6 i=5 level=16 base=0  level=17,budget=parent
 splice.budget  model=charge-forceinline n=6 i=5 level=17 base=0  level=18,budget=parent
 splice.budget  model=charge-forceinline n=6 i=5 level=02 base=1  level=3,budget=parent
+splice.budget  model=charge-forceinline n=6 i=5 level=05 base=1  level=6,budget=parent
 splice.budget  model=charge-forceinline n=6 i=5 level=17 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=charge-forceinline n=6 i=5 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=flat-level seed caller_instrs=000000  B=1000
@@ -1636,6 +1699,7 @@ splice.budget  model=flat-level n=1 i=0 level=02 base=0  level=2,budget=parent
 splice.budget  model=flat-level n=1 i=0 level=16 base=0  level=16,budget=parent
 splice.budget  model=flat-level n=1 i=0 level=17 base=0  level=17,budget=parent
 splice.budget  model=flat-level n=1 i=0 level=02 base=1  level=2,budget=parent
+splice.budget  model=flat-level n=1 i=0 level=05 base=1  level=5,budget=parent
 splice.budget  model=flat-level n=1 i=0 level=17 base=1  level=17,budget=parent
 splice.budget  model=flat-level n=1 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=flat-level n=2 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1643,6 +1707,7 @@ splice.budget  model=flat-level n=2 i=0 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=2 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=2 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=2 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=2 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=2 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=2 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=2 i=1 level=01 base=0  level=1,budget=parent
@@ -1650,6 +1715,7 @@ splice.budget  model=flat-level n=2 i=1 level=02 base=0  level=2,budget=parent
 splice.budget  model=flat-level n=2 i=1 level=16 base=0  level=16,budget=parent
 splice.budget  model=flat-level n=2 i=1 level=17 base=0  level=17,budget=parent
 splice.budget  model=flat-level n=2 i=1 level=02 base=1  level=2,budget=parent
+splice.budget  model=flat-level n=2 i=1 level=05 base=1  level=5,budget=parent
 splice.budget  model=flat-level n=2 i=1 level=17 base=1  level=17,budget=parent
 splice.budget  model=flat-level n=2 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=flat-level n=3 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1657,6 +1723,7 @@ splice.budget  model=flat-level n=3 i=0 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=3 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=3 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=3 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=3 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=3 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=3 i=1 level=01 base=0  REFUSE S6-budget-divided
@@ -1664,6 +1731,7 @@ splice.budget  model=flat-level n=3 i=1 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=3 i=1 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=3 i=1 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=3 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=3 i=1 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=3 i=1 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=3 i=1 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=3 i=2 level=01 base=0  level=1,budget=parent
@@ -1671,6 +1739,7 @@ splice.budget  model=flat-level n=3 i=2 level=02 base=0  level=2,budget=parent
 splice.budget  model=flat-level n=3 i=2 level=16 base=0  level=16,budget=parent
 splice.budget  model=flat-level n=3 i=2 level=17 base=0  level=17,budget=parent
 splice.budget  model=flat-level n=3 i=2 level=02 base=1  level=2,budget=parent
+splice.budget  model=flat-level n=3 i=2 level=05 base=1  level=5,budget=parent
 splice.budget  model=flat-level n=3 i=2 level=17 base=1  level=17,budget=parent
 splice.budget  model=flat-level n=3 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=flat-level n=4 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1678,6 +1747,7 @@ splice.budget  model=flat-level n=4 i=0 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=4 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=1 level=01 base=0  REFUSE S6-budget-divided
@@ -1685,6 +1755,7 @@ splice.budget  model=flat-level n=4 i=1 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=4 i=1 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=1 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=1 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=1 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=1 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=2 level=01 base=0  REFUSE S6-budget-divided
@@ -1692,6 +1763,7 @@ splice.budget  model=flat-level n=4 i=2 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=4 i=2 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=2 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=4 i=2 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=2 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=2 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=4 i=3 level=01 base=0  level=1,budget=parent
@@ -1699,6 +1771,7 @@ splice.budget  model=flat-level n=4 i=3 level=02 base=0  level=2,budget=parent
 splice.budget  model=flat-level n=4 i=3 level=16 base=0  level=16,budget=parent
 splice.budget  model=flat-level n=4 i=3 level=17 base=0  level=17,budget=parent
 splice.budget  model=flat-level n=4 i=3 level=02 base=1  level=2,budget=parent
+splice.budget  model=flat-level n=4 i=3 level=05 base=1  level=5,budget=parent
 splice.budget  model=flat-level n=4 i=3 level=17 base=1  level=17,budget=parent
 splice.budget  model=flat-level n=4 i=3 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=flat-level n=5 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1706,6 +1779,7 @@ splice.budget  model=flat-level n=5 i=0 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=5 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=1 level=01 base=0  REFUSE S6-budget-divided
@@ -1713,6 +1787,7 @@ splice.budget  model=flat-level n=5 i=1 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=5 i=1 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=1 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=1 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=1 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=1 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=2 level=01 base=0  REFUSE S6-budget-divided
@@ -1720,6 +1795,7 @@ splice.budget  model=flat-level n=5 i=2 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=5 i=2 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=2 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=2 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=2 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=2 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=3 level=01 base=0  REFUSE S6-budget-divided
@@ -1727,6 +1803,7 @@ splice.budget  model=flat-level n=5 i=3 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=5 i=3 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=3 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=3 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=5 i=3 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=3 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=3 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=5 i=4 level=01 base=0  level=1,budget=parent
@@ -1734,6 +1811,7 @@ splice.budget  model=flat-level n=5 i=4 level=02 base=0  level=2,budget=parent
 splice.budget  model=flat-level n=5 i=4 level=16 base=0  level=16,budget=parent
 splice.budget  model=flat-level n=5 i=4 level=17 base=0  level=17,budget=parent
 splice.budget  model=flat-level n=5 i=4 level=02 base=1  level=2,budget=parent
+splice.budget  model=flat-level n=5 i=4 level=05 base=1  level=5,budget=parent
 splice.budget  model=flat-level n=5 i=4 level=17 base=1  level=17,budget=parent
 splice.budget  model=flat-level n=5 i=4 level=18 base=1  REFUSE S6-budget-depth-cap
 splice.budget  model=flat-level n=6 i=0 level=01 base=0  REFUSE S6-budget-divided
@@ -1741,6 +1819,7 @@ splice.budget  model=flat-level n=6 i=0 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=6 i=0 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=0 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=0 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=0 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=0 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=1 level=01 base=0  REFUSE S6-budget-divided
@@ -1748,6 +1827,7 @@ splice.budget  model=flat-level n=6 i=1 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=6 i=1 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=1 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=1 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=1 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=1 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=2 level=01 base=0  REFUSE S6-budget-divided
@@ -1755,6 +1835,7 @@ splice.budget  model=flat-level n=6 i=2 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=6 i=2 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=2 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=2 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=2 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=2 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=3 level=01 base=0  REFUSE S6-budget-divided
@@ -1762,6 +1843,7 @@ splice.budget  model=flat-level n=6 i=3 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=6 i=3 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=3 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=3 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=3 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=3 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=3 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=4 level=01 base=0  REFUSE S6-budget-divided
@@ -1769,6 +1851,7 @@ splice.budget  model=flat-level n=6 i=4 level=02 base=0  REFUSE S6-budget-divide
 splice.budget  model=flat-level n=6 i=4 level=16 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=4 level=17 base=0  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=4 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=flat-level n=6 i=4 level=05 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=4 level=17 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=4 level=18 base=1  REFUSE S6-budget-divided
 splice.budget  model=flat-level n=6 i=5 level=01 base=0  level=1,budget=parent
@@ -1776,9 +1859,239 @@ splice.budget  model=flat-level n=6 i=5 level=02 base=0  level=2,budget=parent
 splice.budget  model=flat-level n=6 i=5 level=16 base=0  level=16,budget=parent
 splice.budget  model=flat-level n=6 i=5 level=17 base=0  level=17,budget=parent
 splice.budget  model=flat-level n=6 i=5 level=02 base=1  level=2,budget=parent
+splice.budget  model=flat-level n=6 i=5 level=05 base=1  level=5,budget=parent
 splice.budget  model=flat-level n=6 i=5 level=17 base=1  level=17,budget=parent
 splice.budget  model=flat-level n=6 i=5 level=18 base=1  REFUSE S6-budget-depth-cap
-## summary  splice.budget  cells=672 admit=285 refuse=387 values={B=1000,B=1002,B=34998,B=35000,budget=parent,global=0,global=1,global=1000,global=39,global=40,global=41,level=1,level=16,level=17,level=18,level=2,level=3,local=0,local=1000,local=41}
+splice.budget  model=maxlevel-2 seed caller_instrs=000000  B=1000
+splice.budget  model=maxlevel-2 seed caller_instrs=000001  B=1000
+splice.budget  model=maxlevel-2 seed caller_instrs=000400  B=1000
+splice.budget  model=maxlevel-2 seed caller_instrs=000499  B=1000
+splice.budget  model=maxlevel-2 seed caller_instrs=000500  B=1000
+splice.budget  model=maxlevel-2 seed caller_instrs=000501  B=1002
+splice.budget  model=maxlevel-2 seed caller_instrs=017499  B=34998
+splice.budget  model=maxlevel-2 seed caller_instrs=017500  B=35000
+splice.budget  model=maxlevel-2 seed caller_instrs=020000  B=35000
+splice.budget  model=maxlevel-2 charge instrs=000000 forceinline=0  local=0,global=0
+splice.budget  model=maxlevel-2 charge instrs=000000 forceinline=1  local=0,global=0
+splice.budget  model=maxlevel-2 charge instrs=000001 forceinline=0  local=0,global=1
+splice.budget  model=maxlevel-2 charge instrs=000001 forceinline=1  local=0,global=0
+splice.budget  model=maxlevel-2 charge instrs=000039 forceinline=0  local=0,global=39
+splice.budget  model=maxlevel-2 charge instrs=000039 forceinline=1  local=0,global=0
+splice.budget  model=maxlevel-2 charge instrs=000040 forceinline=0  local=0,global=40
+splice.budget  model=maxlevel-2 charge instrs=000040 forceinline=1  local=0,global=0
+splice.budget  model=maxlevel-2 charge instrs=000041 forceinline=0  local=41,global=41
+splice.budget  model=maxlevel-2 charge instrs=000041 forceinline=1  local=0,global=0
+splice.budget  model=maxlevel-2 charge instrs=001000 forceinline=0  local=1000,global=1000
+splice.budget  model=maxlevel-2 charge instrs=001000 forceinline=1  local=0,global=0
+splice.budget  model=maxlevel-2 n=1 i=0 level=01 base=0  level=2,budget=parent
+splice.budget  model=maxlevel-2 n=1 i=0 level=02 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=1 i=0 level=16 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=1 i=0 level=17 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=1 i=0 level=02 base=1  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=1 i=0 level=05 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=1 i=0 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=1 i=0 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=2 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=2 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=2 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=2 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=2 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=2 i=0 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=2 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=2 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=2 i=1 level=01 base=0  level=2,budget=parent
+splice.budget  model=maxlevel-2 n=2 i=1 level=02 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=2 i=1 level=16 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=2 i=1 level=17 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=2 i=1 level=02 base=1  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=2 i=1 level=05 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=2 i=1 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=2 i=1 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=3 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=0 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=1 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=3 i=2 level=01 base=0  level=2,budget=parent
+splice.budget  model=maxlevel-2 n=3 i=2 level=02 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=3 i=2 level=16 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=3 i=2 level=17 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=3 i=2 level=02 base=1  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=3 i=2 level=05 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=3 i=2 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=3 i=2 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=4 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=0 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=1 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=2 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=2 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=2 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=2 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=2 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=2 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=2 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=4 i=3 level=01 base=0  level=2,budget=parent
+splice.budget  model=maxlevel-2 n=4 i=3 level=02 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=4 i=3 level=16 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=4 i=3 level=17 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=4 i=3 level=02 base=1  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=4 i=3 level=05 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=4 i=3 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=4 i=3 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=5 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=0 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=1 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=2 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=2 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=2 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=2 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=2 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=2 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=2 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=3 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=3 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=3 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=3 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=3 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=3 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=3 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=3 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=5 i=4 level=01 base=0  level=2,budget=parent
+splice.budget  model=maxlevel-2 n=5 i=4 level=02 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=5 i=4 level=16 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=5 i=4 level=17 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=5 i=4 level=02 base=1  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=5 i=4 level=05 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=5 i=4 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=5 i=4 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=6 i=0 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=0 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=0 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=0 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=0 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=0 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=0 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=0 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=1 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=1 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=1 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=1 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=1 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=1 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=1 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=1 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=2 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=2 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=2 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=2 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=2 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=2 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=2 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=2 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=3 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=3 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=3 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=3 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=3 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=3 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=3 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=3 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=4 level=01 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=4 level=02 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=4 level=16 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=4 level=17 base=0  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=4 level=02 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=4 level=05 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=4 level=17 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=4 level=18 base=1  REFUSE S6-budget-divided
+splice.budget  model=maxlevel-2 n=6 i=5 level=01 base=0  level=2,budget=parent
+splice.budget  model=maxlevel-2 n=6 i=5 level=02 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=6 i=5 level=16 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=6 i=5 level=17 base=0  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=6 i=5 level=02 base=1  REFUSE S6-budget-maxlevel
+splice.budget  model=maxlevel-2 n=6 i=5 level=05 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=6 i=5 level=17 base=1  REFUSE S6-budget-depth-cap
+splice.budget  model=maxlevel-2 n=6 i=5 level=18 base=1  REFUSE S6-budget-depth-cap
+splice.budget  maxlevel=000 level=001 forceinline=0  REFUSE C15-decline
+splice.budget  maxlevel=000 level=001 forceinline=1  admit
+splice.budget  maxlevel=000 level=003 forceinline=0  REFUSE C15-decline
+splice.budget  maxlevel=000 level=003 forceinline=1  admit
+splice.budget  maxlevel=000 level=255 forceinline=0  REFUSE C15-decline
+splice.budget  maxlevel=000 level=255 forceinline=1  admit
+splice.budget  maxlevel=000 level=300 forceinline=0  REFUSE C15-decline
+splice.budget  maxlevel=000 level=300 forceinline=1  admit
+splice.budget  maxlevel=002 level=001 forceinline=0  admit
+splice.budget  maxlevel=002 level=001 forceinline=1  admit
+splice.budget  maxlevel=002 level=003 forceinline=0  REFUSE C15-decline
+splice.budget  maxlevel=002 level=003 forceinline=1  admit
+splice.budget  maxlevel=002 level=255 forceinline=0  REFUSE C15-decline
+splice.budget  maxlevel=002 level=255 forceinline=1  admit
+splice.budget  maxlevel=002 level=300 forceinline=0  REFUSE C15-decline
+splice.budget  maxlevel=002 level=300 forceinline=1  admit
+splice.budget  maxlevel=254 level=001 forceinline=0  admit
+splice.budget  maxlevel=254 level=001 forceinline=1  admit
+splice.budget  maxlevel=254 level=003 forceinline=0  admit
+splice.budget  maxlevel=254 level=003 forceinline=1  admit
+splice.budget  maxlevel=254 level=255 forceinline=0  REFUSE C15-decline
+splice.budget  maxlevel=254 level=255 forceinline=1  admit
+splice.budget  maxlevel=254 level=300 forceinline=0  REFUSE C15-decline
+splice.budget  maxlevel=254 level=300 forceinline=1  admit
+splice.budget  maxlevel=255 level=001 forceinline=0  admit
+splice.budget  maxlevel=255 level=001 forceinline=1  admit
+splice.budget  maxlevel=255 level=003 forceinline=0  admit
+splice.budget  maxlevel=255 level=003 forceinline=1  admit
+splice.budget  maxlevel=255 level=255 forceinline=0  admit
+splice.budget  maxlevel=255 level=255 forceinline=1  admit
+splice.budget  maxlevel=255 level=300 forceinline=0  admit
+splice.budget  maxlevel=255 level=300 forceinline=1  admit
+splice.budget  maxlevel=256 level=001 forceinline=0  admit
+splice.budget  maxlevel=256 level=001 forceinline=1  admit
+splice.budget  maxlevel=256 level=003 forceinline=0  admit
+splice.budget  maxlevel=256 level=003 forceinline=1  admit
+splice.budget  maxlevel=256 level=255 forceinline=0  admit
+splice.budget  maxlevel=256 level=255 forceinline=1  admit
+splice.budget  maxlevel=256 level=300 forceinline=0  REFUSE C15-decline
+splice.budget  maxlevel=256 level=300 forceinline=1  admit
+## summary  splice.budget  cells=985 admit=381 refuse=604 values={B=1000,B=1002,B=34998,B=35000,admit,budget=parent,global=0,global=1,global=1000,global=39,global=40,global=41,level=1,level=16,level=17,level=18,level=2,level=3,level=5,level=6,local=0,local=1000,local=41}
 
 ## surface  mangle.string_comdat
 ##   site      coff/mangle.rs

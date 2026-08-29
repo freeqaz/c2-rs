@@ -120,7 +120,9 @@ both are considerably coarser than the image.
 10b60405:  ff 24 8d 0e 05 b6 10     jmp    DWORD PTR [ecx*4+0x10b6050e]    <- jump table
 ```
 
-Both tables are in the raw image and quotable. Decoded by
+The dispatch head is `0x10b603ef`–`0x10b60405`: `lea` to bias the opcode,
+`cmp ecx,0x12` to bound it, a byte index table and a dword jump table. Both
+tables are in the raw image and quotable. Decoded by
 `work/w-inlclause/jumptable.py` (std only, reads `c2.dll` directly):
 
 ```
