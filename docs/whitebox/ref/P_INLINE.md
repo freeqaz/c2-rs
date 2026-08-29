@@ -483,11 +483,11 @@ black-box fit, not a reading of this clause · `absent`: no counterpart in
 | C11 | legality: refuse on `[sym+0x20] & {0x400, 0x1000, 0x40, 0x100}` | `0x10b5c06b` | **absent** | — | **no** |
 | C12 | legality: refuse on `[sym+0x4c] & {0x80000, 0x200}` | `0x10b5c06b` | **absent** | — | **no** |
 | C13 | legality: **REQUIRE bit 6 of `[sym+0x4c]`** | `0x10b5c06b` | **`[R]`-derived** | `gl.rs:FN_FLAG_INLINABLE` (`0x40`) | yes |
-| C14 | depth cap: `0x10 < level - DAT_10c3f50c` ⇒ decline (16 levels) | `0x10b60a1c` | **absent** | — | **no** — no cell nests 16 deep |
-| C15 | `maxlevel != 0xff && maxlevel < level` ⇒ decline | `0x10b60a2f` | **absent** | — | **no** — `#pragma inline_depth` in 0/100 TUs |
+| C14 | depth cap: `0x10 < level - DAT_10c3f50c` ⇒ decline (16 levels) | `0x10b60a1c` | **[R]-derived** | `splice.rs:INLINE_LEVEL_DEPTH_CAP` | **no** — no cell nests 16 deep |
+| C15 | `maxlevel != 0xff && maxlevel < level` ⇒ decline | `0x10b60a2f` | **[R]-derived** | `splice.rs:INLINE_MAXLEVEL_UNBOUNDED` | **no** — `#pragma inline_depth` in 0/100 TUs |
 | C16 | caller-huge decline: `35000 < DAT_10c3f5cc` | `0x10b60a63` | **absent** | — | **no** |
 | C17 | budget accept/decline: `budget < instrs && instrs > 0x28` | `0x10b60a73` | **absent** | — | not separable (F7) |
-| C18 | the 40-instruction test, **second copy** | `0x10b625b6` | **absent** | — | not separable |
+| C18 | the 40-instruction test, **second copy** | `0x10b625b6` | **[R]-derived** | `splice.rs:INLINE_CHARGE_EXEMPT_MAX` | not separable |
 | C19 | the charge: `*budget -= WORD[callee+0x50]`, and the growth total | `0x10b625bb` | **`[R]`-derived** | `splice.rs:INLINE_CHARGE_EXEMPT_MAX` | not separable |
 | C20 | the expansion **recurses back into the driver** for the inlined body | `0x10b620fc` | **fitted** | `splice.rs:S6-chain` | yes (#1020, 150 witnesses) |
 | C21 | POGO profitability model, entered only on a profile record | `0x10b5fcd8` | **unexercisable** | — | unexercisable |
@@ -495,7 +495,17 @@ black-box fit, not a reading of this clause · `absent`: no counterpart in
 | C23 | parameter-table selection, `DAT_10c45e18` / `DAT_10c45ed0` | `0x10b5b86d` | **unexercisable** | — | unexercisable |
 | C24 | the tested quantity `WORD [sym+0x50]` **is the `.gl` `SIZE` field**, verbatim | `0x10b9bf6c` | **`[R]`-derived** | `gl.rs:GL_SIZE_ESCAPE_PAYLOAD` (`W-GLATTRS-1`) | yes (99 escaped records) |
 
-**Per-state split: `[R]`-derived 4 · fitted 2 · absent 15 · unexercisable 3.**
+**Per-state split: `[R]`-derived 7 · fitted 2 · absent 12 · unexercisable 3.**
+>
+> **Re-synced 2026-08-29 at the wave-19 merge, the THIRD time this page and
+> `CLAUSES.tsv` have had to be reconciled by hand.** `w-paramfill` synced it
+> to `absent 15 · R-derived 4` this same wave; `w-inlclause` then moved C14,
+> C15 and C18 and **could not edit this page**, because the wave assigned the
+> page and the table to different lanes. That seam split is the coordinator's
+> and it has now produced a divergence in each of two consecutive waves —
+> board **#3814** carries it. The table is the machine-checked side
+> (`check_table.py`, `crates/c2-harness/tests/clause_table.rs`); this page is
+> prose and nothing verifies it against the table.
 **Exercised: yes 9 · no 6 · not separable 6 · unexercisable 3.**
 
 > **RE-SYNCED to `CLAUSES.tsv` at master `12d3c0558`, by lane `w-paramfill`,
