@@ -23,13 +23,25 @@
 //!
 //! # What is asserted, and what is only printed
 //!
-//! The checker runs five checks. Three need nothing but the repo — **ADDRESS**
+//! The checker runs six checks. Four need nothing but the repo — **ADDRESS**
 //! (the `addr` is inside the `owner` function's `FUNCS.tsv` extent), **WITNESS**
-//! (a `fitted`/`R-derived` row's cited token is present at its cited path) and
+//! (a `fitted`/`R-derived` row's cited token is present at its cited path),
 //! **ABSENCE** (an `absent`/`unexercisable` row's token is absent from
-//! `crates/`). Two need the objdump listing — **ALIGN** (the `addr` starts an
-//! instruction) and **DECODE** (the instruction there is the one the `asm`
-//! column records).
+//! `crates/`) and **CITES** (the set of files under `crates/` citing the row's
+//! address equals its frozen `cites` cell). Two need the objdump listing —
+//! **ALIGN** (the `addr` starts an instruction) and **DECODE** (the instruction
+//! there is the one the `asm` column records).
+//!
+//! # Two graders, and the second one is why §6.1 can no longer drift
+//!
+//! **ADDED 2026-08-29, lane `w-clausegen`, board `#3817`–`#3823`.**
+//! `work/w-inlmetric/gen_table.py` renders `P_INLINE.md` §6.1 *from*
+//! `CLAUSES.tsv`, between two markers in the page. Everything this file already
+//! says about `check_table.py` — that a checker nobody invokes is not
+//! enforcement (`#3679`, `#3785`) — applied one level up and unnoticed: §6.1
+//! was hand-re-synced three times in three days and `check_table.py` printed
+//! GREEN through every one, because it grades the machine table and **cannot
+//! see the prose copy** (`#3814`). Both graders now run here.
 //!
 //! The listing is regenerated and never committed (`docs/whitebox/C2_MAP_METHOD.md`),
 //! so on a machine without it ALIGN and DECODE **SKIP**. That is correct and it
@@ -86,17 +98,22 @@ fn python3_is_usable() -> bool {
         .unwrap_or(false)
 }
 
-/// `(exit-0?, stdout+stderr)` from `check_table.py`, with any extra args.
-fn run_checker(root: &Path, args: &[&str]) -> (bool, String) {
+/// `(exit-0?, stdout+stderr)` from one of the two graders under
+/// `work/w-inlmetric/`, with any extra args.
+fn run_tool(root: &Path, tool: &str, args: &[&str]) -> (bool, String) {
     let out = Command::new("python3")
-        .arg(root.join("work/w-inlmetric/check_table.py"))
+        .arg(root.join("work/w-inlmetric").join(tool))
         .args(args)
         .current_dir(root)
         .output()
-        .unwrap_or_else(|e| panic!("failed to spawn python3 for check_table.py: {e}"));
+        .unwrap_or_else(|e| panic!("failed to spawn python3 for {tool}: {e}"));
     let mut s = String::from_utf8_lossy(&out.stdout).into_owned();
     s.push_str(&String::from_utf8_lossy(&out.stderr));
     (out.status.success(), s)
+}
+
+fn run_checker(root: &Path, args: &[&str]) -> (bool, String) {
+    run_tool(root, "check_table.py", args)
 }
 
 /// The 24 rows and the split three rungs quote. Kept here, in a compiled file,
@@ -151,7 +168,30 @@ const ROWS: usize = 24;
 /// The third move, **C15**, is an adoption in the ordinary sense: `w-inlclause`
 /// put c2's `0x10b60a2f` arm into `splice.rs` under a required-zero byte delta,
 /// byte-neutral because c2's own default switches the clause off.
+/// **DELIBERATELY NOT MOVED 2026-08-29 by lane `w-clausegen`** (board `#3817`),
+/// and the fact that it did not move is the lane's result.
+///
+/// That lane repaired the ABSENCE screen's false-negative half — a counterpart
+/// adopted under a different name used to be invisible — and the repaired screen
+/// flags **five** rows whose `absent`/`unexercisable` verdict sits beside a
+/// `crates/` citation of the clause's own address. **Not one `state` cell was
+/// edited.** A row that changes state because the screen changed is an
+/// *instrument* result, not a conversion, and `#3505` is six for six on lanes
+/// that moved a number by constructing one. The five rows are adjudicated by
+/// clause id in `work/w-clausegen/RESULT.md` for the wave that owns adoption;
+/// two of them (C4, C10) are the ones a reader should look at first.
+///
+/// So this constant is now load-bearing in **both** directions: it catches a
+/// silent shrink (`#3748`) *and* it catches an instrument lane quietly
+/// converting rows it was seamed not to touch.
 const SPLIT: &str = "{'absent': 12, 'R-derived': 7, 'fitted': 2, 'unexercisable': 3}";
+
+/// The count of generated lines `gen_table.py` splices into `P_INLINE.md` §6.1
+/// — the marker pair, the six-column header, 24 rows, the two count lines and
+/// the provenance line. Compiled in for the same reason as [`ROWS`]: a
+/// generator that silently emitted a shorter block would still print GREEN,
+/// because a shorter block is exactly what the page would then contain.
+const GENERATED_LINES: usize = 34;
 
 #[test]
 fn the_clause_table_is_green_and_grades_all_twenty_four_rows() {
@@ -164,7 +204,11 @@ fn the_clause_table_is_green_and_grades_all_twenty_four_rows() {
     // A MISSING INSTRUMENT IS A FAILURE, NOT A SKIP (`#1496`). If this were a
     // skip, deleting the checker would make the guard silently stop guarding —
     // which is the failure this whole target exists to end.
-    for f in ["work/w-inlmetric/check_table.py", "work/w-inlmetric/CLAUSES.tsv"] {
+    for f in [
+        "work/w-inlmetric/check_table.py",
+        "work/w-inlmetric/CLAUSES.tsv",
+        "work/w-inlmetric/gen_table.py",
+    ] {
         assert!(
             root.join(f).is_file(),
             "{f} DOES NOT EXIST — the inliner conformance instrument is gone. \
@@ -195,6 +239,16 @@ fn the_clause_table_is_green_and_grades_all_twenty_four_rows() {
     assert!(
         report.contains(SPLIT),
         "the conformance split MOVED. Expected {SPLIT}.\n{report}"
+    );
+
+    // THE SAME DENOMINATOR RULE FOR CHECK 6. `CITES` needs only the repo, so
+    // unlike ALIGN/DECODE it can never legitimately SKIP — but it *can* grade
+    // zero rows if the `cites` column is dropped, and it would print GREEN.
+    assert!(
+        report.contains(&format!("{ROWS} of {ROWS} compared")),
+        "the CITES line did not report comparing {ROWS} of {ROWS} rows. Check 6 is \
+         the false-negative half of the absence screen and a silent zero-row run \
+         of it is the `#3470` failure.\n{report}"
     );
 
     // ALIGN/DECODE SKIP without the uncommitted objdump listing, and the SKIP
@@ -251,4 +305,169 @@ fn the_clause_table_check_goes_red_on_a_planted_defect() {
     );
     assert!(!ok, "the checker printed RED and still exited 0");
     println!("control RED as expected:\n{report}");
+}
+
+/// **The control for check 6 (`CITES`), the false-negative half.**
+///
+/// `--set` overrides one cell without touching the tracked table. Planting a
+/// citation footprint on a row that has none must redden — otherwise the whole
+/// of `w-clausegen`'s deliverable 2 is a screen that cannot fire, which is
+/// `#3470` and is worse than shipping nothing.
+///
+/// The row is named by id and its address is not written here: this file's own
+/// doc comments are inside `crates/`, so an address literal added to them
+/// *changes the very footprint check 6 measures*. That is not a defect to
+/// suppress — see `cites_in_crates`' docstring — but it is a reason not to
+/// scatter address literals through a test that grades them.
+#[test]
+fn check_six_goes_red_on_a_planted_citation_footprint() {
+    if !python3_is_usable() {
+        println!("SKIP: python3 absent — cannot run the CITES control");
+        return;
+    }
+    let root = repo_root();
+    let (ok, report) = run_checker(
+        &root,
+        &["--set", "C1.cites=crates/c2-core/src/splice.rs"],
+    );
+    assert!(
+        report.contains("CONFORMANCE-CHECK: RED"),
+        "CHECK 6 CANNOT FAIL. A planted citation footprint was graded GREEN \
+         (exit-0 = {ok}), so the absence screen's false-negative half is still \
+         open and the green above means nothing.\n{report}"
+    );
+    assert!(
+        report.contains("C1(PLANTED): CITES"),
+        "check 6 went RED but not on the planted row — it is failing for some \
+         other reason and the control proves nothing.\n{report}"
+    );
+    assert!(!ok, "the checker printed RED and still exited 0");
+    println!("CITES control RED as expected:\n{report}");
+}
+
+/// **`P_INLINE.md` §6.1 is a RENDERING of `CLAUSES.tsv`, and this is what makes
+/// that true.**
+///
+/// Before this existed, the page and the table were the same instrument
+/// published twice; they diverged at each of three hand re-syncs in three days
+/// and `check_table.py` was GREEN through all three (`#3814`). Two copies of a
+/// fact is two chances to update one (`#3679`); this makes the second copy
+/// generated, so there is no second chance to miss.
+#[test]
+fn p_inline_section_six_one_is_generated_from_the_clause_table() {
+    if !python3_is_usable() {
+        println!("SKIP: python3 absent — cannot run gen_table.py");
+        return;
+    }
+    let root = repo_root();
+    let (ok, report) = run_tool(&root, "gen_table.py", &["--check"]);
+    assert!(
+        report.contains("TABLE-GEN: GREEN"),
+        "P_INLINE.md §6.1 has DRIFTED from work/w-inlmetric/CLAUSES.tsv \
+         (exit-0 = {ok}). Do not hand-edit between the markers — run \
+         `python3 work/w-inlmetric/gen_table.py --write`.\n{report}"
+    );
+    // Denominator beside numerator (`#3470`), twice: the row count the table
+    // was read at, and the line count the page was compared over. A generator
+    // that emitted an empty block would agree with a page containing an empty
+    // block, and print GREEN.
+    assert!(
+        report.contains(&format!("({ROWS} rows)")),
+        "the generator did not read {ROWS} rows from the table.\n{report}"
+    );
+    assert!(
+        report.contains(&format!("{GENERATED_LINES} generated lines match")),
+        "the generated block is not {GENERATED_LINES} lines. If a row or a count \
+         line was added or dropped on purpose, move GENERATED_LINES in the same \
+         commit — that is what it is compiled in for.\n{report}"
+    );
+    println!("{report}");
+}
+
+/// **The control for the generator, and it is watched RED on a MUTATED COPY.**
+///
+/// `gen_table.py` takes the page path positionally precisely so this can exist
+/// without touching the tracked file. A `--check` that has never been seen fail
+/// is decoration (`#3336`), and `#3787` is the cautionary case in this repo:
+/// `hatch.py check` printed the defect, printed `CLEAN`, and exited 0.
+///
+/// The mutation is one character inside the generated block, which is the
+/// hardest case — a whole-row deletion would also be caught by the line count.
+#[test]
+fn the_generator_goes_red_when_the_page_is_edited_by_hand() {
+    if !python3_is_usable() {
+        println!("SKIP: python3 absent — cannot run the generator control");
+        return;
+    }
+    let root = repo_root();
+    let page = root.join("docs/whitebox/ref/P_INLINE.md");
+    let text = std::fs::read_to_string(&page).expect("P_INLINE.md is readable");
+
+    // Mutate the FIRST generated row: flip one clause id. Chosen because it
+    // survives any future re-ordering of the columns.
+    let needle = "\n| C1 | ";
+    assert!(text.contains(needle), "the generated block has no C1 row");
+    let mutated = text.replacen(needle, "\n| C1x | ", 1);
+    assert_ne!(mutated, text, "the mutation did not change the page");
+
+    let tmp = std::env::temp_dir().join(format!(
+        "c2rs_clausegen_control_{}_{}.md",
+        std::process::id(),
+        GENERATED_LINES
+    ));
+    std::fs::write(&tmp, &mutated).expect("temp page is writable");
+    let (ok, report) = run_tool(&root, "gen_table.py", &["--check", tmp.to_str().unwrap()]);
+    let _ = std::fs::remove_file(&tmp);
+
+    assert!(
+        report.contains("TABLE-GEN: RED"),
+        "THE GENERATOR'S --check CANNOT FAIL. A hand-edited page was graded \
+         GREEN (exit-0 = {ok}), so §6.1 can still drift and the sibling test \
+         proves nothing.\n{report}"
+    );
+    assert!(
+        report.contains("C1x"),
+        "--check went RED but did not name the edited row, so it is failing for \
+         some other reason.\n{report}"
+    );
+    assert!(!ok, "--check printed RED and still exited 0");
+    println!("generator control RED as expected:\n{report}");
+}
+
+/// **The MARKERS are the seam, and a page that lost them must not read GREEN.**
+///
+/// This is the failure mode a naive `--check` has: if the markers vanish (a
+/// careless whole-section rewrite, a merge that drops a comment line), there is
+/// nothing to compare, and "nothing differs" is the same string as "everything
+/// matches". `gen_table.py` reports `MARKERS: MISSING` and RED; here it is
+/// watched doing so.
+#[test]
+fn the_generator_goes_red_when_the_page_loses_its_markers() {
+    if !python3_is_usable() {
+        println!("SKIP: python3 absent — cannot run the marker control");
+        return;
+    }
+    let root = repo_root();
+    let page = root.join("docs/whitebox/ref/P_INLINE.md");
+    let text = std::fs::read_to_string(&page).expect("P_INLINE.md is readable");
+    let stripped: String = text
+        .lines()
+        .filter(|l| !l.contains("GENERATED 6.1"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert_ne!(stripped.len(), text.len(), "no marker lines were found to strip");
+
+    let tmp = std::env::temp_dir()
+        .join(format!("c2rs_clausegen_markers_{}.md", std::process::id()));
+    std::fs::write(&tmp, &stripped).expect("temp page is writable");
+    let (ok, report) = run_tool(&root, "gen_table.py", &["--check", tmp.to_str().unwrap()]);
+    let _ = std::fs::remove_file(&tmp);
+
+    assert!(
+        report.contains("MARKERS: MISSING") && report.contains("TABLE-GEN: RED"),
+        "a page with no generated block was not RED (exit-0 = {ok}). \
+         'nothing to compare' must never render as 'nothing differs'.\n{report}"
+    );
+    assert!(!ok, "--check printed RED and still exited 0");
+    println!("marker control RED as expected:\n{report}");
 }
