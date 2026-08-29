@@ -12394,10 +12394,14 @@ wave's numbers honest:**
 **Then the adoption waves, where the value now is:**
 
 * **The inliner is the widest open front** (and the owner's named exemplar).
-  `absent 12`: 5 blocked on `no-instr-count` alone, 2 unread, the rest
-  individually named in `CLAUSES.tsv`. **The `no-instr-count` read is the
-  highest-fan-out single item on the board** — one characterization read
-  unblocks five clause conversions. The third depth arm (`0x10b60a21`) is
+  `absent 12` partitions by blocker, re-derived from `CLAUSES.tsv` at
+  `43367f507`: **`emit-change` 5** (C7, C9–C12 — derivable, but each is an
+  emit change needing a two-sided price, so none belongs to a byte-neutral
+  lane), **`no-instr-count` 4** (C2, C4, C16, C17), **`no-instr-stream` 2**
+  (C5, C6), **`writer-unread` 1** (C1). **`no-instr-count` is the
+  highest-fan-out single READ on the board** — the port has no pre-codegen
+  instruction count, and that one missing link blocks four `absent` rows and
+  is also what pins C20 at `fitted`. The third depth arm (`0x10b60a21`) is
   modelled and wants a fixture.
 * **Globregs is one construct rung from a settable model.** The order key is
   `[O]` exact 42/42 with seven rivals refuted; gate A's 12 arms are read
