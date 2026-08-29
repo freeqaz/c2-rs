@@ -1,0 +1,24 @@
+SUBJECT   the 12 scheduler functions: run=14  0x10c3d140..0x10c3d180  (private total 14)
+
+POSITIVE CONTROLS — TUs with an ICE anchor (extent is a fact):
+  dag.c        nfun=48   run=5    0x10c43590..0x10c435dc   private=13
+  color.c      nfun=71   run=6    0x10c435a4..0x10c435e8   private=16
+  inline.c     nfun=29   run=0    0x10c3f56c..0x10c3f588   private=2
+  reader.c     nfun=75   run=7    0x10c2f068..0x10c2f080   private=11
+  p2symtab.c   nfun=102  run=5    0x10c67da8..0x10c67dbc   private=34
+  except.c     nfun=17   run=5    0x10c40f70..0x10c40f80   private=5
+  emit.cpp     nfun=35   run=4    0x10c37c40..0x10c37c54   private=10
+  tuple.c      nfun=198  run=0    0x10c37bfc..0x10c37bfc   private=1
+  stack.c      nfun=1    run=0    -                        private=0
+  main.c       nfun=2    run=0    0x10c46678..0x10c46678   private=2
+
+NEGATIVE CONTROL — every sliding window of 12 consecutive functions:
+  N = 4905 windows
+    run >= 4   :   408 windows (8.32%)
+    run >= 8   :    83 windows (1.69%)
+    run >= 10  :    60 windows (1.22%)
+    run >= 12  :    54 windows (1.10%)
+    run >= 14  :    40 windows (0.82%)
+    run >= 15  :    39 windows (0.80%)
+  median run 0, mean 0.77, max 537
+  the 12's run of 14 is matched or beaten by 40 of 4905 windows (0.82%)

@@ -1,0 +1,63 @@
+SUBJECT  the 12: run=14 0x10c3d140..0x10c3d180
+
+POSITIVE CONTROL, REPAIRED — full nearest-anchor partition per TU
+  (>= 12 functions, so the subject's k is not an advantage)
+  smdmisc.c                        nfun=65   run=537  0x10c67514..0x10c67d7c   private=571
+  inline.c                         nfun=274  run=75   0x10c3f42c..0x10c3f5d0   private=103
+  hash.c                           nfun=75   run=63   0x10c45e20..0x10c45f50   private=81
+  sizeopt.c                        nfun=117  run=33   0x10c3d0ac..0x10c3d138   private=34
+  p2symtab.c                       nfun=285  run=19   0x10c3dd1c..0x10c3de24   private=66
+  misc.c                           nfun=168  run=19   0x10c46b38..0x10c46bbc   private=47
+  lur.c                            nfun=156  run=19   0x10c463a8..0x10c46410   private=39
+  dll.cpp                          nfun=86   run=19   0x10c6fbd8..0x10c6fcb8   private=24
+  coffemit.c                       nfun=119  run=19   0x10c2e21c..0x10c2e274   private=38
+  pogocg.c                         nfun=72   run=15   0x10c3dce8..0x10c3dd34   private=15
+  pogoopt.c                        nfun=197  run=14   0x10c6f250..0x10c6f288   private=35
+  (unnamed TU: no ICE site)        nfun=13   run=14   0x10c3d140..0x10c3d180   private=14
+  tuple.c                          nfun=513  run=13   0x10c6f96c..0x10c6f9a0   private=21
+  mod.c                            nfun=146  run=13   0x10c3ee58..0x10c3ee8c   private=38
+  mdmisc.c                         nfun=210  run=13   0x10c3cf80..0x10c3cfc0   private=40
+  pogoinline.c                     nfun=76   run=10   0x10c6f1f0..0x10c6f248   private=14
+  globopt.c                        nfun=106  run=10   0x10c40178..0x10c401a0   private=17
+  code.c                           nfun=121  run=10   0x10c6fd60..0x10c6fd84   private=41
+  optimize.c                       nfun=42   run=8    0x10c67d80..0x10c67da0   private=11
+  reader.c                         nfun=89   run=7    0x10c2f068..0x10c2f080   private=18
+  globregs.c                       nfun=60   run=7    0x10c3ffb0..0x10c3ffc8   private=20
+  emit.cpp                         nfun=43   run=7    0x10c433c8..0x10c43414   private=17
+  vlines.c                         nfun=74   run=6    0x10c7018c..0x10c701a4   private=6
+  ltcg.c                           nfun=135  run=6    0x10c2ebd4..0x10c2ebe8   private=16
+  lower.c                          nfun=107  run=6    0x10c3afd9..0x10c3afed   private=31
+  ioin.c                           nfun=28   run=6    0x10c6ff08..0x10c6ff1c   private=8
+  globdf.c                         nfun=112  run=6    0x10c2e360..0x10c2e38c   private=8
+  fg.c                             nfun=137  run=6    0x10c40f00..0x10c40f14   private=9
+  color.c                          nfun=70   run=6    0x10c435a4..0x10c435e8   private=16
+  except.c                         nfun=46   run=5    0x10c40f70..0x10c40f80   private=5
+  dag.c                            nfun=59   run=5    0x10c43590..0x10c435dc   private=13
+  regasg.c                         nfun=94   run=4    0x10c3d18c..0x10c3d19c   private=17
+  list.c                           nfun=53   run=4    0x10c2ebac..0x10c2ebbc   private=9
+  getflags.c                       nfun=16   run=4    0x10c6fe38..0x10c6fe48   private=5
+  getattr.c                        nfun=62   run=4    0x10c401d0..0x10c401fc   private=4
+  stack.c                          nfun=69   run=0    0x10c3d06c..0x10c3d084   private=4
+  ssa_seh.c                        nfun=38   run=0    0x10c3d074..0x10c3d0a4   private=2
+  ptinl.c                          nfun=74   run=0    -                        private=0
+  mdlist.c                         nfun=30   run=0    0x10c6f2dc..0x10c6f2e8   private=7
+  main.c                           nfun=19   run=0    0x10c2e2d8..0x10c2e2d8   private=5
+  lowersmd.c                       nfun=82   run=0    0x10c701ac..0x10c701b8   private=3
+  inlnasm.c                        nfun=18   run=0    0x10c30a08..0x10c30a18   private=26
+  globlopt.c                       nfun=106  run=0    0x10c2e3d0..0x10c2e3d0   private=2
+  factor.c                         nfun=49   run=0    0x10c40f34..0x10c40f34   private=1
+  error.c                          nfun=25   run=0    0x10c3c3cc..0x10c3c3ec   private=7
+  ehexcept.c                       nfun=27   run=0    0x10c434d4..0x10c434d4   private=1
+  dbg.cpp                          nfun=117  run=0    0x10c37d18..0x10c37d1c   private=3
+  cgintrin.c                       nfun=95   run=0    0x10c37dae..0x10c37daf   private=5
+  48 TUs; median run 6.0, mean 21.08, max 537; 12 of 48 score >= the subject's 14
+
+NEGATIVE CONTROL — 4905 sliding windows of 12 consecutive functions
+  40 (0.82%) match or beat the subject's run of 14
+  and here is where they are — the number that decides whether 0.82%% means anything:
+    0x10b5b5f7..0x10b5c1f0  best-run=63   tu=hash.c                 data 0x10c45ed4..0x10c45f50
+    0x10b5e531..0x10b6174c  best-run=22   tu=inline.c               data 0x10c3f520..0x10c3f590
+    0x10b76491..0x10b76cef  best-run=19   tu=lur.c                  data 0x10c463a8..0x10c46410
+    0x10be5cce..0x10be6382  best-run=14   tu=(unnamed TU: no ICE site) data 0x10c3d140..0x10c3d180
+    0x10c28e0e..0x10c2a3b6  best-run=537  tu=smdmisc.c              data 0x10c3ccf4..0x10c3cd30
+  -> 40 overlapping windows collapse to 5 distinct code regions
