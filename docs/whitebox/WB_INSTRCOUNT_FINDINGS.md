@@ -175,8 +175,78 @@ corroboration column would have published three phantom writers.
 10b9bf7b:  call 0x10c1f9a6   (il-read-varint16)  -> WORD [esi+0x52]
 ```
 
-This confirms `P_INLINE` §2.1a's decode independently. Its **conclusion**,
-however, needs a correction — see §5.
+This confirms `P_INLINE` §2.1a's decode independently.
+
+### 2.4 The tension this lane was dispatched to settle — and it settles one half
+
+Prereg §2 registered that two `[O]` claims in `P_INLINE` cannot both be true as
+written:
+
+* **§2.1a** — *"there is exactly ONE 16-bit store to `[reg+0x50]` in the whole
+  image"*;
+* **§2.1b** — *"`[sym+0x50]` is **initialized** from `SIZE` and is then
+  **reduced by whatever runs before the inliner**"*, on a matched pair with
+  identical `SIZE = 115` and opposite verdicts.
+
+**§2.1a survives the proper census (§2.1–§2.2). So there is no writer in the
+image to be §2.1b's reducer**, and c1xx does not fold before emitting either —
+both cells' counts are exactly `19 + 8×12` and `19 + 12×8`, to the unit.
+
+§2.1b's **headline** — *"the `.gl` `SIZE` field is NOT the value the decision
+tests"* — is nevertheless still standing, and §6's brackets make it sharper
+than §2.1b could. Both of its cells are **EXTERNAL** (`int callee(int a)`, no
+qualifier) at `SIZE = 115`, and §6 measures the external candidacy bracket at
+**`[93, 99]`** — so a hard reading of `0x10b5fc8a` refuses *both* at 115, yet
+`arith_012_O1` is measured **inlined**.
+
+> **`[O]` — two `[O]` datasets are in genuine contradiction, and this lane
+> reports it rather than choosing.** An external callee of count 115 is
+> **inlined** (`w-sizebracket`, `arith_012_O1`) while an external callee of
+> count 99 is **kept** (GRID-I `B_O1_k12`, re-measured here). Same linkage,
+> same profile, same field. **So `0x10b5fc8a` is not a hard refusal**: something
+> admits a callee the ceiling would reject, and the two families differ on
+> exactly one thing — `arith` folds to a single affine function and `chain`
+> cannot fold, because every rung reads a distinct `extern` slot.
+
+### 2.5 And the mechanism is visible: `jl` is NOT accept, and over-ceiling is NOT refuse `[R]`
+
+Reading `FUN_10b5fb5f`'s tail as control flow rather than as a sequence
+dissolves the contradiction's *shape*. Every page in this tree, including
+`P_INLINE` §2.1's own 2026-08-18 correction, renders `0x10b5fc90` as
+*"below it => candidate"*. **It is not.**
+
+```
+10b5fc7e:  cmp   ds:0x10c2e310,ebx        ; favour-speed (ebx = 0)
+10b5fc84:  jne   0x10b5fcb9               ;   set -> skip the size test
+10b5fc86:  movzx eax,WORD PTR [esi+0x50]  ; THE COUNT
+10b5fc8a:  cmp   eax,ds:0x10c46318        ; the ceiling
+10b5fc90:  jl    0x10b5fcb9               ; UNDER  -> not accept; a SECOND gate
+10b5fc92:  mov   eax,DWORD PTR [esi+0x4c] ; OVER   -> not refuse either:
+10b5fc95:  test  edi,eax                  ;   edi is a CALLER-SUPPLIED ATTR mask
+10b5fc97:  jne   0x10b5fcb9               ;   and it reaches the same gate
+...
+10b5fcb9:  cmp   ds:0x10c2e2fc,ebx
+10b5fcbf:  jne   0x10b5fcce               ; -> return 1
+10b5fcc1:  test  DWORD PTR [esi+0x4c],0x2080
+10b5fcc8:  jne   0x10b5fcce               ; -> return 1
+10b5fcca:  xor   eax,eax                  ; -> return 0
+```
+
+> **`[R]` — the size test is NEITHER NECESSARY NOR SUFFICIENT.**
+> **Under the ceiling still refuses** unless `DAT_10c2e2fc != 0` or
+> `[sym+0x4c] & 0x2080`. **Over the ceiling still passes** when
+> `[sym+0x4c] & edi` is non-zero, and `edi` is one of `FUN_10b5fb5f`'s five
+> parameters — **a caller-supplied `ATTR` mask, i.e. a decision point c2 itself
+> exposes as a parameter.**
+
+`0x2080` is `__forceinline` (`0x2000`) **or bit 7**, and **bit 7 of the `.gl`
+`ATTR` word is unread** — a front-end bit, which is where a "this body is
+trivial" mark would live, and `arith` is exactly the family that folds to one
+affine expression while `chain` cannot fold.
+
+**This lane does not settle it** — that needs the `ATTR` bit read, the `edi`
+mask traced to `FUN_10b5fb5f`'s three callers, and a twin grid; and the page it
+would amend is `w-clausegen`'s this wave. Ranked in §8.
 
 ---
 
@@ -447,11 +517,11 @@ two boundary pairs from `grid.py`'s frozen generators and reading each callee's
 | B | extern | **12** | **99** | 116 B | **called** |
 | B | extern | 13 | 106 | 124 B | called |
 
-`0x10b5fc90` is `jl`, so a candidate satisfies `count < DAT_10c46318`. The
-brackets are therefore
+`0x10b5fc90` is `jl`, so **if** the size test is what moves along each ladder,
+a candidate satisfies `count < DAT_10c46318` and the windows are
 
-* **STATIC: `DAT_10c46318 ∈ [261, 267]`**
-* **EXTERNAL: `DAT_10c46318 ∈ [93, 99]`**
+* **STATIC: the verdict flips in `count ∈ [261, 267]`**
+* **EXTERNAL: the verdict flips in `count ∈ [93, 99]`**
 
 **Neither contains any `0x10 << k`** — `256` misses the static window by 5 and
 `128` misses the external one by 29 — and **no single value satisfies both**.
@@ -462,6 +532,14 @@ So, in the correct unit:
 > unit correction, with a much smaller and much more informative gap: the
 > static window is **5 counts** above `16 << 4`, not "a reading that does not
 > compose at all".
+
+**The "if" in the first line is load-bearing and §2.5 is why.** These are
+**measured verdict boundaries in the read unit**, which is a stronger and
+narrower claim than "these bracket `DAT_10c46318`": attributing them to the
+ceiling requires §2.5's second gate (`DAT_10c2e2fc`, `ATTR & 0x2080`, the
+caller's `edi` mask) to be constant along each ladder, and nothing has shown
+that. The brackets are published as what they are — the numbers any reading of
+the ceiling or of the linkage arm now has to reproduce.
 
 Two candidate explanations, neither taken: a **linkage arm** adjusts the
 compared value or selects a different ceiling (`0x10b60a81`'s
@@ -502,20 +580,31 @@ wave; this lane edits neither, per `WAVE20_BRIEF` §4.)*
 
 ## 8. Found and not taken, ranked
 
-1. **The linkage arm at `0x10b60a81`** (`test DWORD PTR [edi+0x37],0x400`, then
+1. **`FUN_10b5fb5f`'s SECOND gate — `DAT_10c2e2fc`, `ATTR & 0x2080`, and the
+   caller-supplied `edi` mask** (§2.5). This is now the highest-value item on
+   the page, because it makes *"the size test decides candidacy"* false in both
+   directions and because bit 7 of `ATTR` is a **front-end** bit nothing in this
+   tree has read. Three things to do, all small: read `FUN_10b5fb5f`'s three
+   callers for `edi`; find `DAT_10c2e2fc`'s writer; and twin-grid the `arith`
+   and `chain` families at equal count to see whether `ATTR` differs. It would
+   settle §2.4's contradiction and probably `P_INLINE` §2.1b's pair with it.
+   **And it is a decision point c2 exposes as a parameter**, which is exactly
+   what `GOAL_DECISION_2026-08-21` § "AMENDED" says general layers should
+   surface.
+2. **The linkage arm at `0x10b60a81`** (`test DWORD PTR [edi+0x37],0x400`, then
    `0x10b5de82`). It sits between C17 and the POGO call, is covered by no clause
    row, and §6's two brackets — static `[261,267]`, external `[93,99]` — are a
-   ready-made grade for any reading of it. **Highest value: it is the last
-   unread thing between the read ceiling and the measured one.**
-2. **Does the budget explain F6's site-count effect?** §5.3's grid is 8–12
+   ready-made grade for any reading of it. It is the last unread thing between
+   the read ceiling and the measured boundaries.
+3. **Does the budget explain F6's site-count effect?** §5.3's grid is 8–12
    cells and would either confirm C3/C17 for the first time (both are *READ,
    NOT CONFIRMED* today) or refute the budget as the mechanism behind
    `INLINE-P`'s fitted `n_sites` term. Cheap, and it is the only known route to
    an `[O]` on the budget.
-3. **Close the 119 memcpy/memset call sites** (§2.2). Bounded, mechanical,
+4. **Close the 119 memcpy/memset call sites** (§2.2). Bounded, mechanical,
    and it is the one thing standing between this page's write census and a
    clean universal negative.
-4. **`FUN_10ba1eca`'s recount and `[sym+0x94] & 0x100`.** A second, 32-bit
+5. **`FUN_10ba1eca`'s recount and `[sym+0x94] & 0x100`.** A second, 32-bit
    instruction count with its own 150-instruction *"won't be inlined (too
    big)"* gate that this inliner does not consult. Two readers, `0x10b9e5d8`
    and `0x10ba3b7b`. Worth knowing where it *does* bite before anyone models
