@@ -39,8 +39,11 @@
   two predicates, and on the D family they had **≥ 7.9× and 6.1× of slack**.
   The published *"`B` from 1000 to ~2,820"* is arithmetic in the wrong unit —
   **measured, it is 1,000 → 9,846**.
-* **The read unblocks 2 of the 4 rows the brief names**, not 4. C4 and C20's
-  binding blocker was never the count.
+* **The read unblocks 2 of the 4 rows the brief names outright** (C2, C16), and
+  **C4 only in its budget *argument*** — its callee, c2's driver, needs a
+  breadth site loop the count does nothing for. C20 is untouched: its blocker
+  is the fixpoint's closure. *(C4's row was AMENDED after `w-clausegen`
+  contradicted it and the port was read; §7.)*
 
 ---
 
@@ -628,15 +631,24 @@ list costs a wave.
 | **C2** — seed `DAT_10c3f5cc = [fn+0x50]` | `absent`, `no-instr-count` | **UNBLOCKED — derivable today** | The producing field is the `.gl` `SIZE` the port **already decodes** (`crates/c2-il/src/func/gl.rs`, `GL_SIZE_ESCAPE_PAYLOAD`, `DISCLOSURE` **W-GLATTRS-1**) and then discards, which is C24's own note. Every field of a counterpart carries a `PROV[R]` address: the load `0x10b626f5`+`0x10b626f7`, the store `0x10b62703`, the producer `0x10b9bf6c`. |
 | **C16** — decline when `35000 < DAT_10c3f5cc` | `absent`, `no-instr-count` | **UNBLOCKED — derivable today, and measured slack-bounded** | Both terms are now read: the seed (C2) and the `add` at `0x10b625c1`, which — unlike the budget subtract one instruction above it — is **not** gated by the 40 test, only by `__forceinline` at `0x10b625a6`. `CLAUSES.tsv` C19 states the two as one clause and records neither asymmetry. The threshold is an immediate at `0x10b60a63`. On this corpus the largest measured total is 5,778 against 35,000, so an adoption is **byte-neutral by construction**, like C15 — which is a reason to adopt it cheaply, not a reason to skip it. |
 | **C17** — `budget < instrs && instrs > 0x28` | `absent`, `no-instr-count` | **BLOCKER REMOVED, STILL NOT ADOPTABLE** | Both operands are now derivable (`B` from C3, already `R-derived`; `instrs` from the same field). But `[ebp+0x10]` is the budget **threaded through the driver's recursion**, and the port has no driver to thread it through. C17's binding blocker moves from `no-instr-count` to whatever C4's is. Also proven unreachable at one call site (§5.2). |
-| **C4** — driver entry `FUN_10b61ee1(fn,1,B,0,1e8,0)` | `absent`, `no-instr-count` | **NOT UNBLOCKED** | The budget **argument** is fully derivable now. C4's own note says the real absence: *"no depth/budget parameters exist to pass"* — there is no driver, no site collector and no per-site loop. That is `no-instr-stream`'s absence (C5/C6), not the count's. |
-| **C20** — the expansion recurses into the driver | `fitted`, `no-instr-count` | **NOT UNBLOCKED** | What stands between `fitted` and `R-derived` for C20 is the **driver**, exactly as for C4. Removing the count from its blocker column would be honest; promoting the row would not. |
+| **C4** — driver entry `FUN_10b61ee1(fn,1,B,0,1e8,0)` | `absent`, `no-instr-count` | **AMENDED — its budget ARGUMENT is unblocked; its CALLEE is not** | ⛔ **This row said "NOT UNBLOCKED — there is no driver, no site collector and no per-site loop", and that was wrong.** `w-clausegen` contradicted it, the coordinator asked for a reconciliation, and reading the port settles it against me: `Expansion::at_pass_entry()` (`crates/c2-core/src/splice.rs:562`) is documented at C4's own address, returns `level: 1, level_base: 0, budget: Parent`, and runs on a **production** path (`splice.rs:1332`) with a site count read from the IL (`predicate_site_count`, `splice.rs:1251`). C4's own note — *"no depth/budget parameters exist to pass"* — is **false**, and this page repeated it without opening the port. What survives is narrower and is not "one value away" either: `NestedBudget` is an enum (`Parent` evaluable *without* `B`, `Divided { k }` not), and the port's walk is a **chain** with fan-out pinned to 1, so it has no siblings to thread c2's sequential growth state across (`0x10b625bb` / `0x10b625c1`). **One VALUE away from evaluating the budget at `n ≥ 2`; one SITE-COLLECTOR away from having an `n ≥ 2` to evaluate it on.** Full reconciliation in the rung. |
+| **C20** — the expansion recurses into the driver | `fitted`, `no-instr-count` | **NOT UNBLOCKED — unchanged by the C4 amendment** | C20's `fitted` pin is the chain's **closure**, and closure is a property of the fixpoint the port already has (`S6-chain`). So neither the count nor the site collector is what stands between it and `R-derived`. Removing the count from its blocker column would be honest; promoting the row would not. |
 
-**Score: 2 of 4 rows unblocked in the strong sense (C2, C16), 1 blocker
-removed without becoming adoptable (C17), 2 untouched (C4, C20).** The
-`no-instr-count` label was accurate as a *label* on all four and was the
-binding constraint on two — and the difference matters, because C4/C20's real
-blocker is the same one C5/C6 already name, which means the four-row group is
-really **two rows plus two more instances of `no-instr-stream`**.
+**Score, after the `w-clausegen` reconciliation: 2 of 4 rows unblocked in the
+strong sense (C2, C16), 1 blocker removed without becoming adoptable (C17), 1
+row split in half (C4 — budget argument unblocked, callee not), 1 untouched
+(C20).** The `no-instr-count` label was accurate as a *label* on all four; the
+next wave should read it as **two whole rows, one half-row, and one row whose
+blocker is the fixpoint's closure rather than the count**.
+
+> **The dispatchable consequence, and it is the reason this reconciliation was
+> worth the coordinator's question.** With `B` a number, C4's
+> `S6-budget-divided` stops being a blanket refusal and becomes a **computed
+> verdict** at `n ≥ 2` — a measurable, byte-neutral step that **does not wait
+> on the site collector** (`S2` refuses a two-call body upstream for emitter
+> reasons the count has nothing to do with). "Blocked on a second missing link"
+> would have deferred it; "one value away" would have over-promised a driver.
+> Neither one-liner is the shape of the thing.
 
 *(Proposals only. `CLAUSES.tsv` and `P_INLINE.md` are `w-clausegen`'s this
 wave; this lane edits neither, per `WAVE20_BRIEF` §4.)*
@@ -690,4 +702,4 @@ wave; this lane edits neither, per `WAVE20_BRIEF` §4.)*
 | **P3** | the field is 16-bit at rest, so the seed's `ushort` is a no-op | **HIT**, and the real ceiling located upstream in `il-read-varint16`, with the `0x81..0xff` hazard quantified |
 | **P4a** | both F7 callers clamp to the budget floor | **FALSIFIED** — `B` measured 1,000 → 9,846. The sub-prediction that the published arithmetic was in the wrong unit is a **HIT** (it was emitted `.text` bytes ÷ 2) |
 | **P4b** | the budget is unreachable on a one-site grid | **HIT**, and strengthened into the first-site theorem: ≥ 7 charged sites are needed before caller size can matter at all |
-| **P5** | C2 unblocked · C4 not · C16 unblocked-as-unreachable · C17 partly | **HIT on all four rows**, with C16 sharper than predicted (derivable *and* slack-bounded) and C20 added as a second row the count does not unblock |
+| **P5** | C2 unblocked · C4 not · C16 unblocked-as-unreachable · C17 partly | **THREE HITS AND ONE MISS.** C2, C16 and C17 landed as predicted (C16 sharper — derivable *and* slack-bounded). **C4 is the miss**: predicted "not unblocked", and after `w-clausegen` contradicted it and the port was read, its budget *argument* IS unblocked and only its callee is not. The prereg's own §5 refusal — *"a row I cannot settle is reported as unsettled, never as unblocked"* — guarded the wrong direction here: the error was reporting a row as **blocked** on a port fact never checked |

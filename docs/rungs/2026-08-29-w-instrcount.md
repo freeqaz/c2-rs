@@ -181,10 +181,89 @@ Ranked, with what each would unblock.
    downstream of it**. Re-explaining that pair is a real open item and is
    `w-clausegen`'s page to amend, not this lane's.
 
+## Reconciliation with `w-clausegen` on C4 — my verdict was WRONG, and the fix is not the coordinator's either
+
+*Added after the coordinator raised `w-clausegen`'s contradicting report.
+Reading only; no `crates/` file was edited.*
+
+**`w-clausegen` is right and I was wrong on the fact in dispute.** My §7 row
+said C4 was not unblocked because *"there is no driver, no site collector and
+no per-site loop"*, and I quoted C4's own note — *"no depth/budget parameters
+exist to pass"* — approvingly. **That note is false and I repeated it without
+opening the port.** `crates/c2-core/src/splice.rs:562`:
+
+```rust
+pub fn at_pass_entry() -> Expansion {
+    Expansion { level: 1, level_base: 0, budget: NestedBudget::Parent }
+}
+```
+
+documented at C4's own address (*"`FUN_10b61ee1(fn, level = 1, budget = B, 0,
+1e8, 0)`, `0x10b6276e`, with `DAT_10c3f50c` zeroed at `0x10b6274c`"*), and it
+is **on a production path**, not only in tests — `splice.rs:1332` calls it
+inside the live splice walk, with a site count **read from the IL**
+(`predicate_site_count`, `splice.rs:1251`, `f.call_seq().calls.len()`), a
+recursion ceiling, and C14/C15 evaluated per level through `port_enter_site`.
+So the parameter shape exists, three of C4's six arguments have PROV[R]
+counterparts, and my "no per-site loop" was simply not checked.
+
+**But "one value away" is also not right, and the port says why in its own
+words.** The budget is `NestedBudget::Parent` — an *enum*, not a number:
+
+```rust
+pub enum NestedBudget {
+    Parent,             // divisor 1: evaluable INDEPENDENTLY OF B
+    Divided { k: i64 }, // parent / k, k >= 2 — not evaluable without B
+}
+```
+
+`port_enter_site` returns `Err("S6-budget-divided")` the moment `n ≥ 2`,
+because c2 divides `B` and the port has no number to divide. So there are
+**three levels, and each peer is right about a different one**:
+
+| level | state | blocked on |
+|---|---|---|
+| **shape** — `level = 1`, `level_base = 0`, a symbolic budget | **present, production path**, PROV[R] at C4's address | nothing — `w-clausegen`'s point, and C4's note is false |
+| **value** — `B = clamp(2 × caller_instrs, 1000, 35000)` | absent | **`no-instr-count` — this lane's read closes it.** `NestedBudget::Divided { k }` already carries c2's own `k`; only `B` is missing |
+| **fan-out** — an `n ≥ 2` to evaluate it *on* | absent | the site stream, and the count does nothing for it |
+
+**So my verdict is amended, not withdrawn.** What the driver does that the
+existing parameters cannot express is **breadth**: the port's walk is a
+*chain* — `S6-chain` steps one callee per iteration and `predicate_site_count`
+must return 1 — so it has **no siblings**, and c2's growth accounting is
+sequential *across* siblings (`sub DWORD PTR [edi],eax` at `0x10b625bb` and
+`add ds:0x10c3f5cc,eax` at `0x10b625c1` mutate state the *next* site then
+reads). A depth-only chain has nowhere to carry that state, and no `B` fixes
+that.
+
+> **C4 is one value away from evaluating the budget at `n ≥ 2`, and one
+> site-collector away from having an `n ≥ 2` to evaluate it on.**
+
+**What would have to be built, in one sentence, for the next brief to price:**
+a **breadth site loop** — c2's single linear scan of the tuple stream for
+call-kind `0x0f` sites (`0x10b600e6`, which is C5's clause and `no-instr-stream`'s
+absence), yielding sites in c2's order, with the local budget and the global
+growth total threaded across siblings.
+
+**And the count is worth adopting before that exists**, which is the part that
+changes dispatch: with `B` a number, `S6-budget-divided` stops being a
+blanket refusal and becomes a *computed* verdict at `n ≥ 2`. That is a
+measurable, byte-neutral step (`S2` refuses a two-call body upstream for
+emitter reasons the count has nothing to do with) and it does not wait on the
+collector. **C4 is therefore the second of `#3829`'s rows, not the third —
+but only its budget argument is, and its callee still is not.**
+
+`#3829` amended accordingly. C20 is **unchanged**: its `fitted` pin is the
+chain's *closure*, and closure is a property of the fixpoint the port already
+has, so neither the count nor the collector is what stands between it and
+`R-derived`.
+
 ## Seam
 
 Wrote: `docs/whitebox/WB_INSTRCOUNT_FINDINGS.md`, `work/w-instrcount/**`, this
-rung, and board rows **#3824**–**#3829** only. Touched none of `crates/**`,
+rung, and board rows **#3824**–**#3830** only. **`crates/c2-core/src/splice.rs`
+was READ for the reconciliation above and not edited** — it is `w-globset`'s
+this wave. Touched none of `crates/**`,
 `docs/whitebox/ref/P_INLINE.md`, `work/w-inlmetric/**`, `P_GLOBREGS.md`,
 `P_DAG.md`, `docs/STATUS.md`, `docs/rungs/INDEX.md`. **No `DISCLOSURE.md` row
 is owed**: this lane adopted no disassembly-derived constant into `crates/`,
