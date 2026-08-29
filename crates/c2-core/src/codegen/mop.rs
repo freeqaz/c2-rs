@@ -111,11 +111,14 @@
 //! [`OPCODE_INDEX`], [`MAX_FIELDS`], [`NONE_FIELD`], [`EncodeParams::C2`]).
 //! *(**85 -> 88 on 2026-08-28**, lane `w-encarms`: `op::BL`, `op::MFSPR` and
 //! `op::STWUX`, the three rows `codegen::word_seam`'s armed refusals were
-//! waiting for.)*
+//! waiting for. **88 -> 94 on 2026-08-29**, lane `w-fmadd`: the six form-24
+//! fused multiply-adds — and unlike `w-encarms`'s three, these are opcodes the
+//! port could not compose a word for at all before that lane, not opcodes it
+//! was already emitting from a literal.)*
 //!
-//! This module declares **95** `const`/`static` items in non-test code:
+//! This module declares **101** `const`/`static` items in non-test code:
 //!
-//! COUNT[rs-consts:crates/c2-core/src/codegen/mop.rs] = 95
+//! COUNT[rs-consts:crates/c2-core/src/codegen/mop.rs] = 101
 //!
 //! **What is NOT bound, and it is named rather than left silent.** The other
 //! three numbers `#3643` repaired — **572** untranscribed rows, over **34** of
@@ -429,12 +432,14 @@ pub static OPCODES: &[OpRow] = OPCODE_ROWS;
 ///
 /// **The row count is BOUND, not asserted** (`#3643`, lane `w-wire`, board
 /// **#3683**): `scripts/prose_audit.py` C4 recounts the literal below on every
-/// run, so the **88** that every sentence in this file leans on cannot go stale
-/// the way *"71"* did for four days — and it earned its keep on 2026-08-28,
-/// when lane `w-encarms` took the table from 85 rows to **88** and C4 named
-/// every sentence that still said 85.
+/// run, so the **94** that every sentence in this file leans on cannot go stale
+/// the way *"71"* did for four days — and it earned its keep twice: on
+/// 2026-08-28, when lane `w-encarms` took the table from 85 rows to 88, and
+/// again on 2026-08-29, when lane `w-fmadd` took it to **94** and C4 named
+/// every sentence that still said 88 — including the two in this file's own
+/// module doc.
 ///
-/// COUNT[rs-array:crates/c2-core/src/codegen/mop.rs:OPCODE_ROWS] = 88
+/// COUNT[rs-array:crates/c2-core/src/codegen/mop.rs:OPCODE_ROWS] = 94
 const OPCODE_ROWS: &[OpRow] = &[
     row(op::ADD, "add", 0x7c00_0214, 49),
     row(op::ADDE, "adde", 0x7c00_0114, 49),
@@ -878,15 +883,33 @@ pub fn mnemonic_of(op: C2Op) -> Option<&'static str> {
 
 /// **The field plan for one c2 form**, transcribed from `P_ENCODE.md` §5.
 ///
-/// Returns `None` for a form this port does not emit; the port's **88** opcodes
-/// reach **34** of the **104** distinct form values c2's table contains
-/// (`P_ENCODE.md` §3), and the 27 arms below cover **35** form numbers — the
+/// Returns `None` for a form this port does not emit; the port's **94** opcodes
+/// reach **37** of the **104** distinct form values c2's table contains
+/// (`P_ENCODE.md` §3), and the 30 arms below cover **38** form numbers — the
 /// extra one is form 2, which shares an arm with form 6.
 ///
 /// *(**This line read "71 opcodes reach 24 of c2's 109 forms" from
 /// `227b90dd7` until 2026-08-26.** Corrected by lane `w-disclose`, board
 /// **#3643**, comment-only. See `OPCODES`' note for the same correction on the
 /// row count.)*
+///
+/// > **AND IT WENT STALE AGAIN IMMEDIATELY, which is the finding rather than
+/// > the fix.** Board **#3794**, lane `w-fmadd`. `w-disclose` corrected these
+/// > three numbers to `85 / 34 / 27 / 35` on 2026-08-26 and `#3643`'s whole
+/// > lesson was that an unbound count drifts. On 2026-08-28 `w-encarms` added
+/// > forms 7 and 54 and **left this sentence alone**: at master `12d3c0558`
+/// > the tree read `88 / 36 / 29 / 37` while the line still said `88 / 34 /
+/// > 27 / 35`, so **two of the four numbers were wrong for a day** and one of
+/// > them (35) is contradicted by `w-encarms`'s own rung, which reports
+/// > *"`plan` answers 35 → 37 forms"*. Only the row count `88` was right, and
+/// > only because `#3683` had **bound** it with a `COUNT[...]` recipe. The
+/// > three unbound neighbours drifted exactly as `#3643` said they would.
+/// >
+/// > This lane re-derives all four rather than incrementing them, and **still
+/// > does not bind three of them**, for the reason `#3683` already recorded:
+/// > `run_recipe` has no distinct-value counter, so `37 of 104` and `38 form
+/// > numbers` are not expressible as recipes. That is the standing gap, named
+/// > again with a second occurrence behind it.
 ///
 /// Provenance: the marker on [`EncodeParams::C2`] above covers every plan here
 /// — DISCLOSURE `W-MOP-3`. **This line deliberately carries no marker token of
@@ -2155,6 +2178,17 @@ mod ops_tests {
         // table row* was blocking rather than a disagreement. Again an encoder
         // the file was missing, not an encoder the port gained: `mflr` and
         // `mfspr` are one row, as `mtlr`/`mtctr` are one row.
-        assert_eq!(encoders, 87, "the encoder population moved; update the sweeps too");
+        //
+        // **87 -> 90 on 2026-08-29, lane `w-fmadd`**: `encode_fmadd`/`fmsub`/
+        // `fnmsub` and their `mop_` twins. **These three are NOT the shape of
+        // the last two** and the difference is the point of saying so — `mtlr`
+        // and `mflr` were encoders for words the port already emitted from
+        // literals, so the population grew while the port's reach did not.
+        // These three are words the port could not compose at all before this
+        // lane: c2's form 24 had no field plan and none of its 18 opcodes had a
+        // table row. The `+3` here is a genuine widening of what the port can
+        // emit, and `fixtures/cpp/w13c_fma.cpp` is where the byte judge grades
+        // it.
+        assert_eq!(encoders, 90, "the encoder population moved; update the sweeps too");
     }
 }

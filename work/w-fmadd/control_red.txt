@@ -1,0 +1,96 @@
+=== C-0  baseline: the whole c2-core lib suite is green
+   GREEN  exit=0  (want GREEN)
+     test result: ok. 683 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+=== C-1  PLANT: SWAP form 24's B and C shifts (11 <-> 6).
+         This is the fail axis. The word still disassembles as an fmadds
+         and still computes a multiply-add; only the operands move.
+   RED    exit=101  (want RED)
+     assertion `left == right` failed: `a*b+c` must be ONE fmadds, never fmuls+fadds
+       left: [236, 33, 16, 250, 78, 128, 0, 32]
+      right: [236, 33, 24, 186, 78, 128, 0, 32]
+     assertion `left == right` failed: a*b+c
+       left: ["0xec2110fa", "0x4e800020"]
+      right: ["0xec2118ba", "0x4e800020"]
+         RESTORED:
+   GREEN  exit=0  (want GREEN)
+     test result: ok. 683 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+=== C-2a  #3723, IN ITS PUREST FORM: a mutation that changes NO OUTPUT AT
+          ALL. WIDENING form 24's B field from 5 bits to 6 is a no-op on
+          the whole representable domain -- all four fields are FPR
+          numbers, the file is f0..f31, and `x & 0x3f == x & 0x1f` there.
+          So no obj anywhere, from any corpus, can ever move.
+          REGISTERED: bytes GREEN (necessarily), surface RED -- the
+          registry renders the field SPELLING (`D2<<11/5`) and not only
+          the words, so it catches a plan edit the byte judge is
+          structurally incapable of seeing. Over-sensitive by design, and
+          this is the case that shows why that is the right design.
+          THIS BLOCK WAS FIRST WRITTEN WITH THE OPPOSITE EXPECTATION and
+          the harness said so; both corrections are the controls working.
+   GREEN  exit=0  (want GREEN)
+     test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 671 filtered out; finished in 0.00s
+   RED    exit=101  (want RED)
+     THE DECISION-SURFACE DOMAIN MOVED — 2 line(s) of 2648 differ from crates/c2-core/src/surface/DOMAIN.txt.
+     test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 683 filtered out; finished in 0.00s
+         RESTORED:
+   GREEN  exit=0  (want GREEN)
+     test result: ok. 683 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+=== C-2b  #3723 WITH A REAL WRONG WORD BEHIND IT: NARROW form 24's B field
+          to 4 bits. Now the mutation DOES change emitted words -- but only
+          at FPRs >= 16, and every FP body this port emits lives in f0..f13
+          (parameters f1..f13, scratch pool f0 and f13..f1). So the byte
+          tests that pin this lane's words against real c2 CANNOT move.
+          REGISTERED: bytes GREEN, surface RED -- and this time the surface
+          moves because the WORDS it renders at f31/f30/f29/f28 and
+          f14..f17 are wrong, which is exactly w-encarms's C-C2 one form
+          over: a wrong field placement that no fixture can reach.
+   -- the byte-level tests, i.e. the words pinned against c2's own listing:
+   GREEN  exit=0  (want GREEN)
+     test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 671 filtered out; finished in 0.00s
+   -- the registered decision surface:
+   RED    exit=101  (want RED)
+     THE DECISION-SURFACE DOMAIN MOVED — 33 line(s) of 2648 differ from crates/c2-core/src/surface/DOMAIN.txt.
+     test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 683 filtered out; finished in 0.00s
+   -- and the full suite, to name every test that moved:
+         surface::tests::the_decision_surface_domain_matches_the_committed_baseline
+         RESTORED:
+   GREEN  exit=0  (want GREEN)
+     test result: ok. 683 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.41s
+=== C-3  PLANT: the wrong ADDEND. Feed the fused encoder the multiplicand
+         where c2 puts the summand (swap the fc/fb arguments at the emit
+         site).  Multiplication commutes, so this is numerically identical
+         whenever the addend equals a factor -- a fuzz-matcher cannot see
+         it and a hand-picked probe can agree by accident.
+   RED    exit=101  (want RED)
+     assertion `left == right` failed: `a*b+c` must be ONE fmadds, never fmuls+fadds
+       left: [236, 33, 16, 250, 78, 128, 0, 32]
+      right: [236, 33, 24, 186, 78, 128, 0, 32]
+     assertion `left == right` failed: a*b+c
+       left: ["0xec2110fa", "0x4e800020"]
+      right: ["0xec2118ba", "0x4e800020"]
+         RESTORED:
+   GREEN  exit=0  (want GREEN)
+     test result: ok. 683 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+=== C-4  PLANT: drop the reassociation fence -- the exact wrong emit the
+         sweep caught in this lane's first draft.  `a + b + c*d` starts
+         emitting again.
+   RED    exit=101  (want RED)
+     THE DECISION-SURFACE DOMAIN MOVED — 9 line(s) of 2648 differ from crates/c2-core/src/surface/DOMAIN.txt.
+     test result: FAILED. 680 passed; 3 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.40s
+         RESTORED:
+   GREEN  exit=0  (want GREEN)
+     test result: ok. 683 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+=== C-5  PLANT: drop the six OPCODE_ROWS entries. The plan survives but no
+         opcode reaches it, so `ported` must fall back to 29/79 and the
+         surface's word block must go to ERR.
+   RED    exit=101  (want RED)
+     test result: FAILED. 676 passed; 7 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.40s
+         RESTORED:
+   GREEN  exit=0  (want GREEN)
+     test result: ok. 683 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+ALL CONTROLS BEHAVED AS REGISTERED.

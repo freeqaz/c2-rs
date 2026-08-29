@@ -249,6 +249,30 @@ pub const SURFACES: &[Surface] = &[
         min_cells: 113,
         min_refusals: 60,
     },
+    // -- APPENDED 2026-08-29 by lane `w-fmadd`, board `#3793`. One additive
+    //    block at the end, for the same merge reason `w-encarms` gave above;
+    //    nothing between the two lines was touched.
+    Surface {
+        name: "float.contraction",
+        site: "codegen/leaf/float.rs",
+        boundary: "which floating-point `*` c2 fuses into its parent `+`/`-`, \
+                   which of fmadd/fmsub/fnmsub that parent becomes, how many \
+                   instructions the contracted body emits (hence which one lands \
+                   in f1), and the four register fields of c2's form 24 at FPRs \
+                   above f13 — where no body this port emits can reach",
+        cite: "c2 arm `0x10bfa49a` (form 24, read at the address); \
+               docs/CODEGEN_W13_FLOAT.md §3.3; DISCLOSURE W-FMADD-1; \
+               board #3791, #3792, #3793",
+        // No guard named, for `mop.encode_form`'s reason and for one of this
+        // surface's own. `FP_POOL`/`FP_RET`/`SCRATCH_REG` are the port's
+        // register model, already covered by `UNCOVERED`'s reasoning about
+        // port-side capacities; the c2 boundary this surface characterises is
+        // the contraction RULE, which is not spelled as a `const` at all.
+        guards: &[],
+        rows: crate::codegen::leaf::float::contraction_surface_rows,
+        min_cells: 96,
+        min_refusals: 6,
+    },
 ];
 
 /// Boundary-named `const`s this crate carries that **no registered surface
