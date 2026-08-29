@@ -567,6 +567,12 @@ So, in the correct unit:
 > static window is **5 counts** above `16 << 4`, not "a reading that does not
 > compose at all".
 
+**Consistency check, free and worth printing.** The D family (§5.1) is the same
+static `chain` generator at `k ∈ {24, 50, 120}`, counts **183 / 365 / 855**, and
+its frozen verdicts are **inlined / called / called** at both `O1` and `O2`.
+The static window `[261, 267]` predicts exactly that split — `183 < 261`,
+`365 > 267`, `855 > 267` — on **12 cells the window was not fitted to**.
+
 **The "if" in the first line is load-bearing and §2.5 is why.** These are
 **measured verdict boundaries in the read unit**, which is a stronger and
 narrower claim than "these bracket `DAT_10c46318`": attributing them to the
