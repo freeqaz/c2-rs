@@ -12265,3 +12265,166 @@ fails *into* a re-pricing instruction, tokenless),
 **`crates/c2-il/src/func/body/decode.rs:78-83`**, and the whole
 `docs/whitebox/ref/` shelf. **Both existing enumerations were short**, and the
 `ref/` shelf is short *by fence* this time rather than by oversight.
+
+## 12. The subsystem-scoreboard era — decision 15 through wave 19 (2026-08-29, written at the coordinator)
+
+*Board **#3815**. §11 stands as written — its Track 2 and Track 3 items are
+paused, not retracted, and decision 11's hold on Phase 1 is untouched. This
+section records the era that §11 could not have known about: on 2026-08-26 the
+owner changed the dispatch criterion (**decision 15**,
+`DECISIONS_2026-08-22.md`), and seven waves have landed under it since. Every
+number below was re-derived at tree `43367f507` by running the command named
+beside it; the wave history condenses the per-wave records in the rung shelf
+and `docs/ADOPTION_BRIEF_2026-08-28.md` / `-08-29.md`.*
+
+### 12.1 The dispatch criterion changed, and what it is now
+
+Decision 15, the owner's words: *"restructure our goal so that we can get each
+submodule in shape and have measurements for that. the overall TU goal is too
+broad because it is binary… focus on building tools we can use to measure our
+progress for each unit."* Decision 22 (2026-08-28) added the second half:
+*"dont worry about the prices. lets keep chipping away and making measurable
+progress by analyzing msvc to reproduce the behavior we expect"* — which closed
+the pricing track and made **turning existing reads into port code the byte
+judge can grade** the standing work.
+
+The unit of account is the **per-subsystem 4-tuple** — read / agreement /
+exercised / byte-owned, every denominator printed beside its numerator, over
+`SUBSYS.md` §1's ten subsystems (`c2rs subsys`). `match` and `fnbyte-exact`
+stay measured as goal (2)'s terminal metrics but **stop driving dispatch**.
+The signal is the CHANGE in a strength, never its distance from 0 or 100.
+
+### 12.2 Seven waves in one table
+
+| wave | date | decision | lanes | what it left behind |
+|---|---|---|---|---|
+| 13 | 08-26 | 15 | w-inlmetric · w-provenance · w-submetric | **the instruments exist**: `c2rs subsys`, the provenance census (`PROV[R/O/F/S/N]`), the 24-clause inliner conformance table |
+| 14 | 08-26 | 16 | w-encmap · w-provext · w-disclose | `[encode] ported 27/79` — the first row where all four strengths are numbers; emit-path constants 88/88 disclosed |
+| 15 | 08-27 | 17–19 | w-mopfold · w-provaudit · w-secported · w-wire · w-shelf | the funnel hole (**#3687**): the merged tree was red while every lane tip was green — the full workspace suite on the MERGED tree, comparing the TARGET count, is a standing funnel step now |
+| 16 | 08-27 | 20 | w-regsel · w-regprio · w-regcells · w-f0price · w-inlfit | the allocator is **Chow–Hennessy priority colouring, not Chaitin**; selector and comparator shipped as SETTABLE parameters; **#3723** named |
+| 17 | 08-28 | 21 | five characterization lanes | `c2_core::surface` — the decision-surface registry, #3723's checkable form; the headline pair **byte delta 0 / domain +127 lines** is the construct-rung template now |
+| 18 | 08-28 | 22 | w-encarms · w-inlswitch · w-inlbudget · w-globobj · w-clausefix | the ADOPTION turn: encode 27→29, globregs marks 2/48→21/74, clause `absent` 17→15; four of five lanes refuted a count the repo was carrying |
+| 19 | 08-29 | — | w-fmadd · w-inlclause · w-paramfill · w-globarms | encode 29→30; globregs `[O]` 21/74→29/100; `absent` 15→12; **a live pre-existing wrong emit on `/O1` found and closed** |
+
+Between waves 18 and 19 the coordinator closed two instrument debts standalone:
+**#3786/#3787** (the `hatch-red` gate arm had been dead for 1,681 commits /
+twenty days; revived, and enforcement moved to a `cargo test` target) and
+**#3788** (the clause absence screen matched substrings; now `-F -w` with
+matched paths named).
+
+### 12.3 Where the tuples stand (all from `c2rs subsys` at `43367f507`)
+
+| subsystem | read → ported | agreement `[O]` | movement, waves 13→19 |
+|---|---|---|---|
+| **[encode]** | 79 arms ⊇ **ported 30/79** (37.97 %) | 9/28 | the only fully-numeric row; 27→30 across three waves |
+| **[globregs]** | — (RESIDUE) | **29/100** | 2/48 → 29/100 — the era's biggest agreement mover; order key `[O]` exact 42/42 |
+| **[inline]** | — (RESIDUE) | 19/78 | clause split **absent 12 · R-derived 7 · fitted 2 · unexercisable 3** (was 17 · 2 · 2 · 3 at wave 13) |
+| [regalloc] | — (RESIDUE, by decision 20 §4) | 12/56 | 7/49 → 12/56; ~1,200 lines of settable-parameter code with `ported` honestly RESIDUE |
+| [section] | ported 1/15 dispatcher arms | 17/53 | recounted on-tree by w-secported |
+| [eh] | — | 14/41 | flat this era |
+| [coff] | — | 16/57 | flat this era |
+| [label] | — | 11/73 | flat this era |
+| **[dag]** | — | **7/50 (14.0 %)** | **the lowest row, and it gates the allocator** (P_REGALLOC §7: F5 is not separable from F0) |
+| [symbol] | — | **4/52 (7.7 %)** | the lowest percentage; weak externals exercised on 675/871 TUs |
+
+`match` is **25/878 and did not move across all seven waves** — the expected
+result under decision 15, not a bad seven days. What moved instead: workspace
+tests →**2,000 over 62 targets**, self-test →**392**, clause `absent`
+17→**12**,
+`DOMAIN.txt` 1,102→**2,993** lines, and the two `ported` numerators above.
+
+### 12.4 What the era settled — findings that outrank the deliverables
+
+1. **A live pre-existing wrong emit, found where no corpus could look**
+   (w-fmadd, `7fc044455`). 17 `/O1` cases — the workload's own mode —
+   mis-emitting at master: `/Ox` carries an FP pool cursor, `/O1` recycles the
+   register the instruction just killed. **The two policies agree at depth 1
+   and every FP body in the corpus was depth 1**, so the byte judge was
+   structurally blind to it. Fixed as `FpTempPolicy{Carried,FirstFree}` by
+   `OptMode`; guarded standing by `scripts/sweep.d/36-fp-contract.py` (4,597
+   FP cases) and depth-2+ fixture bodies. The general lesson is trap 1 in its
+   sharpest form yet: the corpus's *depth axes* bound the warranty, not just
+   its shape markers.
+2. **#3723 — a required-zero byte delta is NOT sufficient**, and its answer
+   works. The gate sees only emissions the corpus exercises; `w-regsel`'s
+   control opened the allowed set to `r0..r31` and stayed green. The
+   `c2_core::surface` registry is the checkable form, and it has since caught
+   two real widenings the byte gate scored zero on (form 54's SPR high half;
+   `HEAD_SLOTS_MAX`, refuting its own author's UNCOVERED claim).
+3. **A thing being printed is not a thing being watched** — three measured
+   instances in three days, each fixed the same way (something that goes
+   red, never more output): **#3689** (a ratchet), **#3787** (a `cargo test`
+   target), **#3814** (open — see 12.5). The worst was a checker that printed
+   the defect, printed `CLEAN`, and exited 0.
+4. **#3505 is six for six**: every lane dispatched off a constructed
+   ranking/denominator found the ranking was an artifact. The sixth is the
+   sharpest — an xref census returned 60 refs / 0 writes *correctly*, because
+   `rep movsd` writes through `EDI`; the instrument answered a different
+   question, correctly, and the answer was zero.
+5. **Reading is not the scarce input any more.** w-inlclause: of 15 `absent`
+   clauses, **13 were unadopted vs only 2 unread** — the reads exist and the
+   port lags them, which is exactly the state decision 22 was written against.
+   Five of the blocked rows share ONE blocker (`no-instr-count`).
+6. **The encoder's high-reach headroom is nearly spent.** w-encarms's census:
+   of the then-52 unported arms, 31 are reached zero times over all 861 objs
+   and 9 are byte-indistinguishable pseudo-opcodes (`lal` is reached 102,933
+   times and is STILL unadoptable — no oracle can tell it from `addi`). After
+   form 24 (wave 19), the ranked remainder is `mftb` (1,244 words), a VMX128
+   cluster (50/36/26/16/9/4 words), then zeros. `ported 30/79` will therefore
+   saturate well below 79 **honestly**, and pushing it past the
+   distinguishable set would be #3505 by construction.
+
+### 12.5 The forward plan, ranked
+
+**First, coordinator-sized instrument debt — hours, and it makes the next
+wave's numbers honest:**
+
+* **#3814** — generate `P_INLINE` §6.1's table from `CLAUSES.tsv`. The page
+  and the table diverged in two consecutive waves because they were fenced to
+  different lanes; the table is machine-checked and the page is prose nothing
+  verifies. Third instance of finding 3; the fix is a generator plus a
+  staleness check that goes red.
+* **The absence screen's false-negative half** (w-inlmetric PREREG §5). C14
+  and C18 had counterparts for a full wave — one with `PROV[R]` at the
+  clause's own address — and stayed `absent` because the screen checks one
+  spelling. Until this is closed, the clause scoreboard's `absent` column is
+  only as honest as token-spelling luck, and it is the inliner's exemplar
+  metric.
+
+**Then the adoption waves, where the value now is:**
+
+* **The inliner is the widest open front** (and the owner's named exemplar).
+  `absent 12`: 5 blocked on `no-instr-count` alone, 2 unread, the rest
+  individually named in `CLAUSES.tsv`. **The `no-instr-count` read is the
+  highest-fan-out single item on the board** — one characterization read
+  unblocks five clause conversions. The third depth arm (`0x10b60a21`) is
+  modelled and wants a fixture.
+* **Globregs is one construct rung from a settable model.** The order key is
+  `[O]` exact 42/42 with seven rivals refuted; gate A's 12 arms are read
+  (w-globarms); what remains is expressing the candidate SET as a
+  `c2_core::surface`-registered parameter the way the order already is —
+  without inventing a `ported` numerator (decision 21 §4 stands).
+* **The encoder takes `mftb` and then rests.** One more cheap arm; after
+  that the row's honest ceiling is near and further pushes are #3505 bait.
+
+**The long pole, named but not yet dispatched:** `[dag]` at `[O]` 7/50 is the
+lowest agreement row, the scheduler band has **no ICE site** (even its
+attribution is a hypothesis), and P_REGALLOC §7 says the full allocator is not
+separable from it. A scheduler characterization lane is the largest single
+unlock in the tuple table — and the most expensive, which is why it should be
+priced as a read (read-before-probe) and dispatched deliberately, not squeezed
+into an adoption wave.
+
+**Stays paused, per decisions 11 and 15:** Phase 1, the one-arm byte-judged
+slice, 4a(ii)/I2, 4b/IR3, step 5. *"Before we resume the broader goal"* is the
+owner's clause and only the owner lifts it.
+
+### 12.6 What this section does NOT change
+
+The one correctness rule — real `c2` under wibo, byte-exact obj compare, sole
+judge; a wrong emit scores strictly below the refusal it replaced (and §12.4
+item 1 is the era's proof that the rule needs corpus depth to bite, not a
+relaxation of it). Two-sided pricing. Read-before-probe. The coverage bound.
+No new count-bearing `gate.sh` row (**#3691** — enforcement goes to `cargo
+test` targets). And the subsystem keys license no emit: they live beside FBM,
+never in the gate's verdict.
