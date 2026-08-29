@@ -33,7 +33,7 @@
   its diagnostics call `instrs` are the other two.
 * **The `ushort` at the seed is a no-op**; the real 16-bit ceiling is imposed
   by the IL encoding, and the `0x81..0xff` single-byte form makes a function
-  read as **32,896..65,535** at the consumer — which is a live hazard, not a
+  read as **65,409..65,535** at the consumer — which is a live hazard, not a
   theoretical one.
 * **F7 is a property of the grid, not of c2**: the caller count reaches exactly
   two predicates, and on the D family they had **≥ 7.9× and 6.1× of slack**.
@@ -417,15 +417,16 @@ is imposed **upstream, by the IL encoding**, and it has three forms, all in
 |---|---|---|
 | `0x00..0x7f` | direct | `0..127` |
 | `0x80` | escape, two further LE bytes | `0..65535` |
-| **`0x81..0xff`** | `movsx ax,dl` — **one SIGNED byte** | **`32,896..65,535`** |
+| **`0x81..0xff`** | `movsx ax,dl` — **one SIGNED byte** | **`65,409..65,535`** (`0xff81..0xffff`) |
 
 The third row is the hazard and it is a behavioural one, not a curiosity:
 
 * A caller whose `SIZE` byte lands in `0x81..0xff` seeds `DAT_10c3f5cc` with a
   value **above 35,000**, so **C16 (`0x10b60a63`) declines the very first
   site** and the caller inlines nothing at all.
-* A callee in the same state reads as ≥ 32,896, so C8 refuses it and C19 would
-  charge 32,896+ against a budget of at most 35,000.
+* A callee in the same state reads as ≥ 65,409, so C8 refuses it and C19 would
+  charge 65,409+ against a budget of at most 35,000 — i.e. one such
+  callee drains any budget to a large negative number in a single charge.
 * A function whose true count reaches 65,536 cannot be represented; what
   happens then is decided by **c1xx's encoder**, not by c2. This lane did not
   read c1xx and does not guess.
