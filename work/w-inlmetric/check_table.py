@@ -128,7 +128,7 @@ def token_in_file(path, tok):
 
 
 def token_in_crates(tok):
-    """Is `tok` anywhere under crates/?
+    """Where under `crates/` does `tok` appear as an IDENTIFIER? A list of paths.
 
     `--untracked --exclude-standard` is LOAD-BEARING and was added by
     `w-clausefix` after a bare `git grep` reported GREEN over a file that
@@ -138,16 +138,38 @@ def token_in_crates(tok):
     check changes its mind with no edit in between. `--exclude-standard` keeps
     `target/` and other ignored output out of it.
 
-    KNOWN AND NOT FIXED HERE: this is a NAME screen over the whole subtree, so
-    it cannot tell a counterpart in the port from a MENTION in a comment or a
-    test (`#3641`). Narrowing it to `crates/*/src/` would redefine what
-    `absent` means, which is `w-inlmetric` PREREG SS5's to define, not this
-    function's. Named in the rung instead.
+    ---- `-w` ADDED 2026-08-29, coordinator, board **#3788** ----------------
+
+    This screened with a bare `-F` — a SUBSTRING match — until now, and on its
+    first real firing that produced a false positive. `w-inlbudget` landed
+    `forceinline_charged`, and C19's token `inline_charge` is a substring of
+    it, so the row went red for a coincidence of spelling. (C19's `absent`
+    verdict was stale anyway, for an unrelated and real reason, so the check
+    was right by accident — which is the least useful way for a check to be
+    right.)
+
+    Measured before changing, over all 18 `none:` tokens in the table:
+    **0 rows change verdict** under `-w` on this tree, so this is a strict
+    improvement and not a silent weakening. And it is confirmed against the
+    actual defect: `inline_charge` is substring-present and word-ABSENT, while
+    `caller_instrs` is word-PRESENT — separating the two failure classes of
+    2026-08-28 exactly.
+
+    STILL KNOWN AND STILL NOT FIXED HERE, because it is not a bug: this is a
+    NAME screen over the whole subtree, so it cannot tell a counterpart in the
+    port from a MENTION in a comment, a test, a GENERATED artifact, or — the
+    2026-08-28 case — a function PARAMETER name (`#3641`). `caller_instrs`
+    matches `splice.rs` and `surface/DOMAIN.txt`, and neither is a counterpart.
+    Narrowing to `crates/*/src/` would redefine what `absent` means, which is
+    `w-inlmetric` PREREG SS5's to define, not this function's. What IS done
+    here is to return the paths, so the reader can classify a hit in seconds
+    instead of reading the module — the verdict is unchanged, the diagnosis is
+    not.
     """
     r = subprocess.run(['git', '-C', REPO, 'grep', '-l', '--untracked',
-                        '--exclude-standard', '-F', '--', tok, '--', 'crates/'],
+                        '--exclude-standard', '-F', '-w', '--', tok, '--', 'crates/'],
                        capture_output=True, text=True)
-    return bool(r.stdout.strip())
+    return [p for p in r.stdout.strip().split('\n') if p]
 
 
 def main(argv):
@@ -219,12 +241,24 @@ def main(argv):
                 fails.append(f"{rid}: state {st} must cite none:<token>, got {w!r}")
             else:
                 tok = w[len('none:'):]
-                if token_in_crates(tok):
+                where = token_in_crates(tok)
+                if where:
+                    # The paths are the whole point of printing this (#3788).
+                    # A hit in a `src/` module is probably a counterpart; a hit
+                    # only in a test, a generated file, or a doc comment is
+                    # probably a MENTION, and this screen cannot tell them
+                    # apart. Naming the files lets the reader do in seconds
+                    # what cost a merge a full read of splice.rs.
+                    shown = ', '.join(where[:4]) + (' …' if len(where) > 4 else '')
                     fails.append(
-                        f"{rid}: ABSENCE state {st} but token {tok!r} IS PRESENT in crates/. "
+                        f"{rid}: ABSENCE state {st} but token {tok!r} IS PRESENT in crates/ "
+                        f"as an identifier, in: {shown}. "
                         f"If you are a lane that just added it, this is NOT a defect in your "
                         f"code -- the table's `absent` verdict has gone stale and the remedy "
-                        f"is a one-cell `state` edit by CLAUSES.tsv's owner.")
+                        f"is a one-cell `state` edit by CLAUSES.tsv's owner. CHECK THE PATHS "
+                        f"FIRST: a hit only in a test, a doc comment or a GENERATED file is a "
+                        f"mention, not a counterpart, and this screen cannot tell the "
+                        f"difference (#3641).")
         else:
             fails.append(f"{rid}: unknown state {st!r}")
 
