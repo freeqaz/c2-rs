@@ -468,35 +468,41 @@ black-box fit, not a reading of this clause · `absent`: no counterpart in
 `unexercisable`: no compilation this project runs reaches the clause, so
 `absent` would mis-read it. **Ties break toward `absent`** (`PREREG.md` §5).
 
+<!-- BEGIN GENERATED 6.1 -- work/w-inlmetric/gen_table.py --write; edit CLAUSES.tsv, never this block -->
+
 | # | clause | addr | state | witness | exercised by the workload |
 |---|---|---|---|---|---|
-| C1 | pass entry per function; skipped wholesale when `DAT_10c40ec4 == 0` | `0x10b62675` | **absent** | — | yes |
-| C2 | caller instruction count seeded, `DAT_10c3f5cc = (ushort)[fn+0x50]` | `0x10b62703` | **absent** | — | not separable (F7) |
-| C3 | growth budget `B = clamp(2 × caller_instrs, 1000, 35000)` | `0x10b62708` | **`[R]`-derived** | `splice.rs:INLINE_BUDGET_FLOOR` | not separable (F7) |
-| C4 | driver entry `FUN_10b61ee1(fn, level=1, budget=B, 0, 1e8, 0)` | `0x10b6276e` | **absent** | — | not separable |
-| C5 | site collector: one linear scan, instruction kind `0x0f` is a call site | `0x10b600e6` | **absent** | — | yes |
-| C6 | site collector: EH-region nesting, conditional/EH flag into bit 1 | `0x10b600e6` | **absent** | — | yes (F8, 6 cells) |
-| C7 | ceiling **value**: `DAT_10c46318 = 0x10 << DAT_10c2ea98`, or `1000` at `k ≥ 7` | `0x10b5e4d7` | **absent** | — | yes |
-| C8 | candidacy **size test**: `cmp WORD [sym+0x50], DAT_10c46318`; `jl` = candidate | `0x10b5fc8a` | **fitted** | `splice.rs:INLINE_UNBOUNDED_BYTES` | yes |
-| C9 | favour-speed bit `0x10c2e310` non-zero ⇒ **the size test is SKIPPED** | `0x10b5fc7e` | **absent** | — | **no** — `/O1` pins the bit |
-| C10 | `__forceinline`: `test [sym+0x4c], 0x2000` bypasses every size and budget test | `0x10b60a28` | **absent** | — | yes (F4, 2 cells) |
-| C11 | legality: refuse on `[sym+0x20] & {0x400, 0x1000, 0x40, 0x100}` | `0x10b5c06b` | **absent** | — | **no** |
-| C12 | legality: refuse on `[sym+0x4c] & {0x80000, 0x200}` | `0x10b5c06b` | **absent** | — | **no** |
-| C13 | legality: **REQUIRE bit 6 of `[sym+0x4c]`** | `0x10b5c06b` | **`[R]`-derived** | `gl.rs:FN_FLAG_INLINABLE` (`0x40`) | yes |
-| C14 | depth cap: `0x10 < level - DAT_10c3f50c` ⇒ decline (16 levels) | `0x10b60a1c` | **[R]-derived** | `splice.rs:INLINE_LEVEL_DEPTH_CAP` | **no** — no cell nests 16 deep |
-| C15 | `maxlevel != 0xff && maxlevel < level` ⇒ decline | `0x10b60a2f` | **[R]-derived** | `splice.rs:INLINE_MAXLEVEL_UNBOUNDED` | **no** — `#pragma inline_depth` in 0/100 TUs |
-| C16 | caller-huge decline: `35000 < DAT_10c3f5cc` | `0x10b60a63` | **absent** | — | **no** |
-| C17 | budget accept/decline: `budget < instrs && instrs > 0x28` | `0x10b60a73` | **absent** | — | not separable (F7) |
-| C18 | the 40-instruction test, **second copy** | `0x10b625b6` | **[R]-derived** | `splice.rs:INLINE_CHARGE_EXEMPT_MAX` | not separable |
-| C19 | the charge: `*budget -= WORD[callee+0x50]`, and the growth total | `0x10b625bb` | **`[R]`-derived** | `splice.rs:INLINE_CHARGE_EXEMPT_MAX` | not separable |
-| C20 | the expansion **recurses back into the driver** for the inlined body | `0x10b620fc` | **fitted** | `splice.rs:S6-chain` | yes (#1020, 150 witnesses) |
-| C21 | POGO profitability model, entered only on a profile record | `0x10b5fcd8` | **unexercisable** | — | unexercisable |
-| C22 | POGO per-site discount `cost -= (K + cost) / n_sites` | `0x10b600c8` | **unexercisable** | — | unexercisable |
-| C23 | parameter-table selection, `DAT_10c45e18` / `DAT_10c45ed0` | `0x10b5b86d` | **unexercisable** | — | unexercisable |
-| C24 | the tested quantity `WORD [sym+0x50]` **is the `.gl` `SIZE` field**, verbatim | `0x10b9bf6c` | **`[R]`-derived** | `gl.rs:GL_SIZE_ESCAPE_PAYLOAD` (`W-GLATTRS-1`) | yes (99 escaped records) |
+| C1 | pass entry per function; whole pass skipped when `DAT_10c40ec4` == 0 | `0x10b62675` | **absent** | — | yes |
+| C2 | caller instruction count seeded: `DAT_10c3f5cc` = (ushort)`[fn+0x50]` | `0x10b62703` | **absent** | — | not separable (F7) |
+| C3 | growth budget B = clamp(2 × caller_instrs, 1000, 35000) | `0x10b62708` | **`[R]`-derived** | `splice.rs:INLINE_BUDGET_FLOOR` | not separable (F7) |
+| C4 | driver entry `FUN_10b61ee1`(fn, level=1, budget=B, 0, 100000000, 0) | `0x10b6276e` | **absent** | — | not separable |
+| C5 | site collector: one linear scan; instruction kind `0x0f` is a call site | `0x10b600e6` | **absent** | — | yes |
+| C6 | site collector: EH-region nesting + conditional/EH flag into bit 1 | `0x10b600e6` | **absent** | — | yes (F8, 6 cells) |
+| C7 | ceiling VALUE: `DAT_10c46318` = `0x10` << `DAT_10c2ea98`, or 1000 at k ≥ 7 | `0x10b5e4d7` | **absent** | — | yes |
+| C8 | candidacy SIZE TEST: cmp WORD `[sym+0x50]`, `DAT_10c46318`; jl = candidate | `0x10b5fc8a` | **fitted** | `splice.rs:INLINE_UNBOUNDED_BYTES` | yes |
+| C9 | favour-speed bit `0x10c2e310` non-zero ⇒ the size test is SKIPPED | `0x10b5fc7e` | **absent** | — | **no** — `/O1` pins the bit |
+| C10 | `__forceinline`: test `[sym+0x4c]`, `0x2000` bypasses every size and budget test | `0x10b60a28` | **absent** | — | yes (F4, 2 cells) |
+| C11 | legality: refuse on `[sym+0x20]` & `{0x400, 0x1000, 0x40, 0x100}` | `0x10b5c06b` | **absent** | — | **no** |
+| C12 | legality: refuse on `[sym+0x4c]` & `{0x80000, 0x200}` | `0x10b5c06b` | **absent** | — | **no** |
+| C13 | legality: REQUIRE bit 6 of `[sym+0x4c]` | `0x10b5c06b` | **`[R]`-derived** | `gl.rs:FN_FLAG_INLINABLE` (`0x40`) | yes |
+| C14 | depth cap: `0x10` < level - `DAT_10c3f50c` ⇒ decline (16 levels) | `0x10b60a1c` | **`[R]`-derived** | `splice.rs:INLINE_LEVEL_DEPTH_CAP` | **no** — no cell nests 16 deep |
+| C15 | maxlevel != `0xff` && maxlevel < level ⇒ decline | `0x10b60a2f` | **`[R]`-derived** | `splice.rs:INLINE_MAXLEVEL_UNBOUNDED` | **no** — `#pragma inline_depth` in 0/100 TUs |
+| C16 | caller-huge decline: 35000 < `DAT_10c3f5cc` | `0x10b60a63` | **absent** | — | **no** |
+| C17 | budget accept/decline: budget < instrs && instrs > `0x28` ⇒ DECLINE | `0x10b60a73` | **absent** | — | not separable (F7) |
+| C18 | the 40-instruction test, SECOND copy: cmp WORD `[callee+0x50]`, `0x28` | `0x10b625b6` | **`[R]`-derived** | `splice.rs:INLINE_CHARGE_EXEMPT_MAX` | not separable |
+| C19 | the charge: `*budget` -= WORD`[callee+0x50]`; `DAT_10c3f5cc` += same | `0x10b625bb` | **`[R]`-derived** | `splice.rs:INLINE_CHARGE_EXEMPT_MAX` | not separable |
+| C20 | the expansion recurses back into the driver for the inlined body | `0x10b620fc` | **fitted** | `splice.rs:S6-chain` | yes (#1020, 150 witnesses) |
+| C21 | POGO profitability model, entered only when a profile record exists | `0x10b5fcd8` | **unexercisable** | — | unexercisable |
+| C22 | POGO per-site discount: cost -= (K + cost) / n_sites | `0x10b600c8` | **unexercisable** | — | unexercisable |
+| C23 | parameter-table selection between `DAT_10c45e18` / `DAT_10c45ed0` | `0x10b5b86d` | **unexercisable** | — | unexercisable |
+| C24 | the tested quantity WORD `[sym+0x50]` is the .gl SIZE field, arriving verbatim | `0x10b9bf6c` | **`[R]`-derived** | `gl.rs:GL_SIZE_ESCAPE_PAYLOAD` (`W-GLATTRS-1`) | yes (99 escaped records) |
 
 **Per-state split: `[R]`-derived 7 · fitted 2 · absent 12 · unexercisable 3.**
->
+**Exercised: yes 9 · no 6 · not separable 6 · unexercisable 3.**
+
+> **Generated** from [`work/w-inlmetric/CLAUSES.tsv`](../../../work/w-inlmetric/CLAUSES.tsv) by `work/w-inlmetric/gen_table.py --write`, over **24** rows. `crates/c2-harness/tests/clause_table.rs` goes RED when this block and the table diverge, so the three hand re-syncs of 2026-08-27..29 (`#3814`) cannot recur. **Nothing between the markers is hand-editable** -- edit `CLAUSES.tsv` and re-run.
+<!-- END GENERATED 6.1 -->
+
 > **Re-synced 2026-08-29 at the wave-19 merge, the THIRD time this page and
 > `CLAUSES.tsv` have had to be reconciled by hand.** `w-paramfill` synced it
 > to `absent 15 · R-derived 4` this same wave; `w-inlclause` then moved C14,
@@ -505,8 +511,10 @@ black-box fit, not a reading of this clause · `absent`: no counterpart in
 > and it has now produced a divergence in each of two consecutive waves —
 > board **#3814** carries it. The table is the machine-checked side
 > (`check_table.py`, `crates/c2-harness/tests/clause_table.rs`); this page is
-> prose and nothing verifies it against the table.
-**Exercised: yes 9 · no 6 · not separable 6 · unexercisable 3.**
+> prose and nothing verifies it against the table. **SUPERSEDED 2026-08-29 by
+> lane `w-clausegen` (`#3817`): the block above is now GENERATED from
+> `CLAUSES.tsv` and a `cargo test` target goes RED on divergence, so there is
+> no fourth hand re-sync to make.**
 
 > **RE-SYNCED to `CLAUSES.tsv` at master `12d3c0558`, by lane `w-paramfill`,
 > 2026-08-29.** The table above and `work/w-inlmetric/CLAUSES.tsv` are the same

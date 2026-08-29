@@ -1,0 +1,37 @@
+C3   R-derived      1 of 1 hits are under crates/*/src/
+       src  crates/c2-core/src/splice.rs
+C4   absent         1 of 1 hits are under crates/*/src/
+       src  crates/c2-core/src/splice.rs
+C10  absent         1 of 1 hits are under crates/*/src/
+       src  crates/c2-core/src/splice.rs
+C11  absent         2 of 4 hits are under crates/*/src/
+       src  crates/c2-core/src/comdat.rs
+       NOT  crates/c2-harness/tests/clause_table.rs
+       NOT  crates/c2-harness/tests/noinline_boundary.rs
+       src  crates/c2-il/src/func/gl.rs
+C12  absent         2 of 4 hits are under crates/*/src/
+       src  crates/c2-core/src/comdat.rs
+       NOT  crates/c2-harness/tests/clause_table.rs
+       NOT  crates/c2-harness/tests/noinline_boundary.rs
+       src  crates/c2-il/src/func/gl.rs
+C13  R-derived      2 of 4 hits are under crates/*/src/
+       src  crates/c2-core/src/comdat.rs
+       NOT  crates/c2-harness/tests/clause_table.rs
+       NOT  crates/c2-harness/tests/noinline_boundary.rs
+       src  crates/c2-il/src/func/gl.rs
+C14  R-derived      1 of 1 hits are under crates/*/src/
+       src  crates/c2-core/src/splice.rs
+C15  R-derived      1 of 2 hits are under crates/*/src/
+       src  crates/c2-core/src/splice.rs
+       NOT  crates/c2-harness/tests/clause_table.rs
+C18  R-derived      1 of 1 hits are under crates/*/src/
+       src  crates/c2-core/src/splice.rs
+C19  R-derived      1 of 1 hits are under crates/*/src/
+       src  crates/c2-core/src/splice.rs
+C23  unexercisable  1 of 1 hits are under crates/*/src/
+       src  crates/c2-harness/src/subsys.rs
+
+absent/unexercisable rows with ANY citation : ['C4', 'C10', 'C11', 'C12', 'C23']
+...and with a citation under crates/*/src/  : ['C4', 'C10', 'C11', 'C12', 'C23']
+
+narrowing check 6 to crates/*/src/ would change the flagged set by 0 row(s)

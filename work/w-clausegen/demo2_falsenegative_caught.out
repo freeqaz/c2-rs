@@ -1,0 +1,11 @@
+table    : work/w-inlmetric/CLAUSES.tsv
+rows     : 24
+  state    : {'absent': 12, 'R-derived': 7, 'fitted': 2, 'unexercisable': 3}
+  exercised: {'yes': 9, 'not-separable': 6, 'no': 6, 'unexercisable': 3}
+  CITES    : 11 of 24 rows have a non-empty frozen crates/ citation footprint, 24 of 24 compared
+listing  : ~/ghidra-projects/export/c2/objdump_intel.asm
+  ALIGN  : 424,232 instruction starts, 24 of 24 rows graded
+  DECODE : 24 of 24 rows carry an `asm` cell and were graded
+  FAIL C16: CITES footprint for 0x10b60a63 MOVED -- NEW: crates/c2-harness/tests/PLANTED_ADOPTION.txt. State is 'absent'. A NEW citation of this clause's own address is how a counterpart adopted under a DIFFERENT NAME becomes visible -- check 5 cannot see one and stayed GREEN on C14/C18 for a full wave. READ THE FILE, then either move `state` or record the citation as a mention by updating the `cites` cell. Do not regenerate the cell without reading it (#3641: this check cannot tell a mark from a mention either).
+
+CONFORMANCE-CHECK: RED  (1 failure(s) over 24 rows)
