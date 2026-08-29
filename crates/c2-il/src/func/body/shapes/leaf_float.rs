@@ -167,6 +167,18 @@ pub(crate) fn try_parse_float_leaf(
     //   where the width and the scheduling question live.
     let has_mul = ops.iter().any(|o| matches!(o, IlOp::Mul));
     let has_addsub = ops.iter().any(|o| matches!(o, IlOp::Add | IlOp::Sub));
+    // **What DOES still refuse the mix, and it refuses HERE rather than in
+    // codegen.** `super::super::chain::fp_contract_instructions` is the whole
+    // contraction rule; it returns `Err` for the two op-stream shapes the
+    // lowering declines — a `+` chain c2 reassociates, and a product on both
+    // sides of a node that cannot contract. The first draft of this lane put
+    // that refusal in `float_leaf_text` alone, and `census_gate.rs` went red
+    // saying so: the census counted 2 of 19,549 generated bodies in class that
+    // `PortC2` then refused, which is a coverage over-claim by exactly 2.
+    // `docs/GAPS.md` §6 — acceptance belongs in the parser.
+    if crate::func::body::chain::fp_contract_instructions(&ops).is_err() {
+        return None;
+    }
 
     // ---- W13b constant gates ------------------------------------------------
     //

@@ -4,7 +4,14 @@
 //! the FP parameters ALONE, which is a different fact from the positional
 //! index and was a live mis-emit until W27 separated them.
 
-use c2_il::{IlFunction, IlOp};
+use c2_il::{
+    // **The contraction rule lives in `c2-il` and this file does not restate
+    // it.** It is the acceptance gate `try_parse_float_leaf` runs *and* the
+    // emission rule below, one implementation — see `c2_il`'s `body::chain`
+    // block header for the census/gate failure that forced the placement.
+    fp_contract_instructions, fp_node_plan, FpNodePlan, FpValKind, IlFunction, IlOp,
+    FP_REASSOCIATED,
+};
 use crate::BackendError;
 use crate::codegen::encode::{
     encode_addis,
@@ -68,192 +75,6 @@ pub struct FpConstRef {
     pub lo_off: u32,
 }
 
-/// **What one binary node does once deferred products are in play.**
-///
-/// c2 contracts *every* `*` that feeds a `+`/`-` — mandatory, not an
-/// optimisation (`docs/CODEGEN_W13_FLOAT.md` §3.3) — so a multiply is not
-/// emitted when it is read; it is held as a pending `(A, C)` pair and either
-/// folded into its parent or materialised as an `fmul` when the parent cannot
-/// take it.
-///
-/// **One rule, two consumers**, which is the whole reason this is a function
-/// and not two `match`es: [`n_fused_instructions`] runs it to find out how many
-/// instructions the body will emit (the last of which targets `f1`), and the
-/// evaluator in [`float_leaf_text`] runs it to emit them.
-/// `the_counter_and_the_emitter_agree` drives both over a generated set of op
-/// streams and requires the counts to match — board **#3637**'s lesson, that
-/// two rules which agree are invisible for exactly as long as they agree.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum NodePlan {
-    /// A multiply: emit nothing, push a deferred product.
-    DeferProduct,
-    /// `+`/`-` whose **left** operand is a product: `fmadd`/`fmsub`.
-    FuseLeft,
-    /// `+`/`-` whose **right** operand is a product: `fmadd`/**`fnmsub`**.
-    ///
-    /// The `-` case is the asymmetry that makes the side matter:
-    /// `fnmsub` computes `−(A*C − B)` = `B − A*C`, so `c - a*b` is one
-    /// instruction and using `fmsub` here would negate the result.
-    FuseRight,
-    /// Everything else: both operands materialised, one plain instruction.
-    Plain,
-    /// **c2 REASSOCIATES this one and the port does not model it.** See
-    /// [`node_plan`]'s § "the one fence".
-    Refuse,
-}
-
-/// What the evaluator knows about one stack entry, and it is exactly the two
-/// bits [`node_plan`] reads.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-struct ValKind {
-    /// A multiply whose instruction has not been emitted.
-    prod: bool,
-    /// The value came out of an `IlOp::Add` node — plain `fadd` **or** fused
-    /// `fmadd`, which are the same node as far as the reassociation is
-    /// concerned.
-    from_add: bool,
-}
-
-/// The contraction rule itself.
-///
-/// **Left wins when both operands are products** — `a*b + c*d` and
-/// `c*d + a*b` emit *the same three words* (`work/w-fmadd/probe/fma2.cod`,
-/// `fma3.cod`), with `a*b` fused and `c*d` materialised into `f0` first; the
-/// parser's ascending-leaf gate is what makes "left" and "lower-numbered" the
-/// same choice on everything that reaches here.
-///
-/// # The one fence, and it was found by the sweep rather than reasoned to
-///
-/// `float f(float a,float b,float c,float d){ return a + b + c*d; }` was a
-/// **live wrong emit** in this lane's first working draft, and
-/// `scripts/sweep.d/36-fp-contract.py` caught it on its first run (2 of 4,597
-/// FP cases). c2 does not lower the source tree `((a+b) + c*d)`; it
-/// **reassociates the `+` chain** so the product is fused with the *first*
-/// term and the rest are added afterwards:
-///
-/// ```text
-///   a + b + c*d      fmadds f0,f3,f4,f1   ; c*d + a
-///                    fadds  f1,f0,f2      ;      + b
-/// ```
-///
-/// The rule is narrow, and every clause of it is a measured pair
-/// (`work/w-fmadd/shapes_*.txt`, graded against real `c2.dll`):
-///
-/// | shape | fusing node | addend produced by | c2 |
-/// |---|---|---|---|
-/// | `a + b + c*d` | `Add` | `Add` | **reassociates** |
-/// | `a - b + c + d*e` | `Add` | `Add` | **reassociates** |
-/// | `a*b + c + d*e` | `Add` | `Add` (a fused one) | **reassociates** |
-/// | `a - b + c*d` | `Add` | `Sub` | does not |
-/// | `a - b - c + d*e` | `Add` | `Sub` | does not |
-/// | `a + b - c*d` | `Sub` | `Add` | does not |
-/// | `a + b + c - d*e` | `Sub` | `Add` | does not |
-/// | `a*b + c*d + e` | `Add` | `Mul` | does not |
-///
-/// So the fence is exactly *"an `Add` fusing against an addend that came out
-/// of an `Add`"*, and it is **priced two-sided** (`#1042`): what it costs is
-/// the `+`-chain shapes whose product is not in the first term — every one of
-/// which this lane measured as a MISMATCH before the fence went in, so the
-/// refusal replaces a wrong emit rather than a green one. Modeling the
-/// reassociation is a separate rule with its own read; `w13_freassoc.cpp`
-/// already fences that family for the non-contracted case.
-fn node_plan(op: &IlOp, lhs: ValKind, rhs: ValKind) -> NodePlan {
-    match op {
-        IlOp::Mul => NodePlan::DeferProduct,
-        IlOp::Add | IlOp::Sub if lhs.prod => {
-            if matches!(op, IlOp::Add) && rhs.from_add {
-                NodePlan::Refuse
-            } else {
-                NodePlan::FuseLeft
-            }
-        }
-        IlOp::Add | IlOp::Sub if rhs.prod => {
-            if matches!(op, IlOp::Add) && lhs.from_add {
-                NodePlan::Refuse
-            } else {
-                NodePlan::FuseRight
-            }
-        }
-        _ => NodePlan::Plain,
-    }
-}
-
-/// Is this IL op a value push rather than a binary node?
-fn is_leaf_op(o: &IlOp) -> bool {
-    matches!(o, IlOp::Load(_) | IlOp::Lit(_) | IlOp::FpLit { .. })
-}
-
-/// **How many machine instructions the contracted body emits.**
-///
-/// `None` when the stream is one this lowering refuses (an underflowing stack,
-/// or a node with a product on *both* sides that is not a fusable `+`/`-` —
-/// the only sources of which need source parentheses, which the parser already
-/// rejects, so there is no witness for the order in which c2 would materialise
-/// the two).
-///
-/// The count matters because the **last** instruction is the one that targets
-/// `f1`; with contraction the instruction count is no longer the binary-node
-/// count, and reading it off the wrong one silently leaves the result in a
-/// scratch register.
-fn n_fused_instructions(ops: &[IlOp]) -> Result<usize, &'static str> {
-    let mut stack: Vec<ValKind> = Vec::new();
-    let mut n = 0usize;
-    for op in ops {
-        if is_leaf_op(op) {
-            stack.push(ValKind::default());
-            continue;
-        }
-        let (rhs, lhs) = match (stack.pop(), stack.pop()) {
-            (Some(r), Some(l)) => (r, l),
-            _ => return Err(EMPTY_STACK),
-        };
-        let from_add = matches!(op, IlOp::Add);
-        match node_plan(op, lhs, rhs) {
-            NodePlan::Refuse => return Err(REASSOCIATED),
-            NodePlan::DeferProduct => {
-                if lhs.prod && rhs.prod {
-                    return Err(TWO_PRODUCTS);
-                }
-                n += usize::from(lhs.prod) + usize::from(rhs.prod);
-                stack.push(ValKind { prod: true, from_add: false });
-            }
-            NodePlan::FuseLeft => {
-                n += usize::from(rhs.prod) + 1;
-                stack.push(ValKind { prod: false, from_add });
-            }
-            NodePlan::FuseRight => {
-                n += usize::from(lhs.prod) + 1;
-                stack.push(ValKind { prod: false, from_add });
-            }
-            NodePlan::Plain => {
-                if lhs.prod && rhs.prod {
-                    return Err(TWO_PRODUCTS);
-                }
-                n += usize::from(lhs.prod) + usize::from(rhs.prod) + 1;
-                stack.push(ValKind { prod: false, from_add });
-            }
-        }
-    }
-    // A body whose ROOT is a product materialises it: `a*b*c` ends on an
-    // `fmuls` into `f1`.
-    if stack.last().map(|v| v.prod) == Some(true) {
-        n += 1;
-    }
-    Ok(n)
-}
-
-/// The three refusals [`n_fused_instructions`] can report, spelled once so the
-/// counter and the emitter cannot describe the same condition two ways.
-const REASSOCIATED: &str =
-    "an FP `+` chain whose product is not its first term: c2 REASSOCIATES the \
-     chain so the product is fused first (`a + b + c*d` is \
-     `fmadds f0,f3,f4,f1 ; fadds f1,f0,f2`); that reassociation is not modeled; \
-     out of class";
-const TWO_PRODUCTS: &str =
-    "an FP expression with a product on both sides of a node that cannot \
-     contract: no witness for the order c2 materialises them in; out of class";
-const EMPTY_STACK: &str = "FP binary op: empty stack; out of class";
-
 /// One entry of the evaluation stack: a register, or a **product c2 has not
 /// committed to yet**.
 #[derive(Clone, Copy, Debug)]
@@ -267,10 +88,10 @@ enum FpVal {
 }
 
 impl FpVal {
-    fn kind(self) -> ValKind {
+    fn kind(self) -> FpValKind {
         match self {
-            FpVal::Reg { from_add, .. } => ValKind { prod: false, from_add },
-            FpVal::Prod { .. } => ValKind { prod: true, from_add: false },
+            FpVal::Reg { from_add, .. } => FpValKind { prod: false, from_add },
+            FpVal::Prod { .. } => FpValKind { prod: true, from_add: false },
         }
     }
 }
@@ -425,7 +246,7 @@ pub fn float_leaf_text(
     // **The instruction count, not the binary-node count.** A contracted body
     // emits fewer instructions than it has `*`/`+` nodes, and it is the LAST
     // instruction that targets `f1`.
-    let n_ops = n_fused_instructions(&func.ops).map_err(out_of_class)?;
+    let n_ops = fp_contract_instructions(&func.ops).map_err(out_of_class)?;
     let mut emitted = 0usize;
     let mut cursor = 0usize;
     let mut live: Vec<u8> = (1..=func.params.len() as u8).collect();
@@ -573,9 +394,9 @@ pub fn float_leaf_text(
                 let lhs = stack
                     .pop()
                     .ok_or_else(|| out_of_class("FP binary op: empty stack (lhs)"))?;
-                let plan = node_plan(binop, lhs.kind(), rhs.kind());
-                if plan == NodePlan::Refuse {
-                    return Err(out_of_class(REASSOCIATED));
+                let plan = fp_node_plan(binop, lhs.kind(), rhs.kind());
+                if plan == FpNodePlan::Refuse {
+                    return Err(out_of_class(FP_REASSOCIATED));
                 }
                 let from_add = matches!(binop, IlOp::Add);
                 let mut e = Emit {
@@ -592,7 +413,7 @@ pub fn float_leaf_text(
                     // becomes an `fmul` or the `A`/`C` half of a fused
                     // instruction belongs to its parent, and this is the whole
                     // structural change the contraction needed.
-                    (NodePlan::DeferProduct, _) => {
+                    (FpNodePlan::DeferProduct, _) => {
                         let a = e.materialise(lhs)?;
                         let c = e.materialise(rhs)?;
                         stack.push(FpVal::Prod { a, c });
@@ -602,8 +423,8 @@ pub fn float_leaf_text(
                     // own emission order for `a*b + c*d`, which is
                     // `fmuls f0,f3,f4` and only then `fmadds f1,f1,f2,f0`
                     // (`work/w-fmadd/probe/fma2.cod`).
-                    (NodePlan::FuseLeft, _) | (NodePlan::FuseRight, _) => {
-                        let (prod, other) = if plan == NodePlan::FuseLeft {
+                    (FpNodePlan::FuseLeft, _) | (FpNodePlan::FuseRight, _) => {
+                        let (prod, other) = if plan == FpNodePlan::FuseLeft {
                             (lhs, rhs)
                         } else {
                             (rhs, lhs)
@@ -620,7 +441,7 @@ pub fn float_leaf_text(
                             (IlOp::Add, _) => encode_fmadd(double, dest, a, c, b),
                             // `A*C − B` when the product was written on the
                             // left …
-                            (IlOp::Sub, NodePlan::FuseLeft) => {
+                            (IlOp::Sub, FpNodePlan::FuseLeft) => {
                                 encode_fmsub(double, dest, a, c, b)
                             }
                             // … and `B − A*C` when it was on the right. One
@@ -633,7 +454,7 @@ pub fn float_leaf_text(
                         e.finish(dest);
                         stack.push(FpVal::Reg { r: dest, from_add });
                     }
-                    (NodePlan::Plain, _) => {
+                    (FpNodePlan::Plain, _) => {
                         let l = e.materialise(lhs)?;
                         let r = e.materialise(rhs)?;
                         let dest = e.dest()?;
@@ -647,7 +468,7 @@ pub fn float_leaf_text(
                             // Source order, NOT the integer reversal.
                             IlOp::Sub => e.text.extend_from_slice(&encode_fsub(double, dest, l, r)),
                             IlOp::Div => e.text.extend_from_slice(&encode_fdiv(double, dest, l, r)),
-                            // `IlOp::Mul` cannot reach here: `node_plan` maps
+                            // `IlOp::Mul` cannot reach here: `fp_node_plan` maps
                             // every multiply to `DeferProduct`. Named rather
                             // than swept in, like every neighbour below.
                             IlOp::Mul
@@ -685,14 +506,14 @@ pub fn float_leaf_text(
                         e.finish(dest);
                         stack.push(FpVal::Reg { r: dest, from_add });
                     }
-                    (NodePlan::Refuse, _) => unreachable!("refused above"),
+                    (FpNodePlan::Refuse, _) => unreachable!("refused above"),
                 }
             }
         }
     }
     // **A body whose ROOT is a product commits it here** — `a*b*c` ends on an
     // `fmuls` into `f1`, and the deferral would otherwise swallow it. This is
-    // the one place `n_fused_instructions`' trailing `+ 1` is spent, and the
+    // the one place `fp_contract_instructions`' trailing `+ 1` is spent, and the
     // two halves are pinned against each other by
     // `the_counter_and_the_emitter_agree`.
     if let Some(FpVal::Prod { .. }) = stack.last() {
@@ -1115,7 +936,7 @@ mod tests {
 
     /// **E-#3637: the counter and the emitter are one rule, checked.**
     ///
-    /// `n_fused_instructions` decides which instruction targets `f1`, and the
+    /// `fp_contract_instructions` decides which instruction targets `f1`, and the
     /// evaluator emits them; two implementations that agree are invisible for
     /// exactly as long as they agree. This drives both over every op stream of
     /// up to four leaves and requires the count to equal the number of
@@ -1152,7 +973,7 @@ mod tests {
                         }
                     }
                     checked += 1;
-                    let want = n_fused_instructions(&ops);
+                    let want = fp_contract_instructions(&ops);
                     let f = fpfunc(p.clone(), ops.clone());
                     match (want, float_leaf_text(&f, false)) {
                         (Ok(n), Ok((text, _))) => {
@@ -1593,13 +1414,13 @@ mod tests {
 ///   every SPR the port names is `< 32`. Block 3 renders the four fused words
 ///   at `f31/f30/f29/f28` and at `f14/f15`, where a shift or a width defect
 ///   is unmistakable and where nothing else in the project looks.
-/// * **the rule table in block 1.** `node_plan` is a total function of
+/// * **the rule table in block 1.** `fp_node_plan` is a total function of
 ///   `(op, lhs kind, rhs kind)` and the corpus exercises a handful of its
 ///   cells; the table renders all of them, so widening the fence — say, by
 ///   dropping the `from_add` test and letting `a + b + c*d` through again —
 ///   moves committed text whether or not any fixture covers it.
 ///
-/// Block 2 renders [`n_fused_instructions`], the half of the rule that decides
+/// Block 2 renders [`fp_contract_instructions`], the half of the rule that decides
 /// which instruction lands in `f1`. Its refusals are the streams the lowering
 /// declines outright.
 ///
@@ -1618,31 +1439,31 @@ pub fn contraction_surface_rows() -> Vec<crate::surface::Row> {
     // The three operand kinds are the representable ones: a deferred product is
     // never *also* `from_add`, so `(prod, from_add) = (true, true)` is excluded
     // rather than rendered as a cell that cannot arise.
-    let kinds: [(&str, ValKind); 3] = [
-        ("leaf", ValKind { prod: false, from_add: false }),
-        ("add", ValKind { prod: false, from_add: true }),
-        ("prod", ValKind { prod: true, from_add: false }),
+    let kinds: [(&str, FpValKind); 3] = [
+        ("leaf", FpValKind { prod: false, from_add: false }),
+        ("add", FpValKind { prod: false, from_add: true }),
+        ("prod", FpValKind { prod: true, from_add: false }),
     ];
     for (opname, op) in
         [("add", IlOp::Add), ("sub", IlOp::Sub), ("mul", IlOp::Mul), ("div", IlOp::Div)]
     {
         for (ln, lk) in kinds {
             for (rn, rk) in kinds {
-                let plan = node_plan(&op, lk, rk);
+                let plan = fp_node_plan(&op, lk, rk);
                 let outcome = match plan {
-                    NodePlan::Refuse => format!("{REFUSE} c2-reassociates-the-plus-chain"),
-                    NodePlan::DeferProduct => "defer-product".to_string(),
-                    NodePlan::FuseLeft => match op {
+                    FpNodePlan::Refuse => format!("{REFUSE} c2-reassociates-the-plus-chain"),
+                    FpNodePlan::DeferProduct => "defer-product".to_string(),
+                    FpNodePlan::FuseLeft => match op {
                         IlOp::Add => "fuse-left fmadd".to_string(),
                         _ => "fuse-left fmsub".to_string(),
                     },
-                    NodePlan::FuseRight => match op {
+                    FpNodePlan::FuseRight => match op {
                         IlOp::Add => "fuse-right fmadd".to_string(),
                         // The asymmetry, rendered so it cannot be changed
                         // quietly: `fnmsub` computes `B - A*C`.
                         _ => "fuse-right fnmsub".to_string(),
                     },
-                    NodePlan::Plain => "plain".to_string(),
+                    FpNodePlan::Plain => "plain".to_string(),
                 };
                 rows.push(Row::new(format!("plan.{opname}.{ln}.{rn}"), outcome));
             }
@@ -1686,12 +1507,12 @@ pub fn contraction_surface_rows() -> Vec<crate::surface::Row> {
         ]),
     ];
     for (name, ops) in streams {
-        let outcome = match n_fused_instructions(ops) {
+        let outcome = match fp_contract_instructions(ops) {
             Ok(n) => format!("instructions={n}"),
             // The REASON is rendered, not just the refusal: the two are
             // different boundaries and a domain that collapsed them would
             // survive replacing one with the other.
-            Err(r) if r == REASSOCIATED => format!("{REFUSE} c2-reassociates"),
+            Err(r) if r == FP_REASSOCIATED => format!("{REFUSE} c2-reassociates"),
             Err(_) => format!("{REFUSE} product-on-both-sides"),
         };
         rows.push(Row::new(format!("count.{name}"), outcome));
