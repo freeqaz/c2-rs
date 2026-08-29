@@ -1,0 +1,21 @@
+table    : work/w-inlmetric/CLAUSES.tsv  (24 rows)
+page     : docs/whitebox/ref/P_INLINE.md
+  FAIL line 4: page has '| C1 | pass entry per function; skipped wholesale when `DAT_10c40ec4 == 0` | `0x10b62675` | **absent** | — | yes |'
+              table gives '| C1 | pass entry per function; whole pass skipped when `DAT_10c40ec4` == 0 | `0x10b62675` | **absent** | — | yes |'
+  FAIL line 5: page has '| C2 | caller instruction count seeded, `DAT_10c3f5cc = (ushort)[fn+0x50]` | `0x10b62703` | **absent** | — | not separable (F7) |'
+              table gives '| C2 | caller instruction count seeded: `DAT_10c3f5cc` = (ushort)`[fn+0x50]` | `0x10b62703` | **absent** | — | not separable (F7) |'
+  FAIL line 6: page has '| C3 | growth budget `B = clamp(2 × caller_instrs, 1000, 35000)` | `0x10b62708` | **`[R]`-derived** | `splice.rs:INLINE_BUDGET_FLOOR` | not separable (F7) |'
+              table gives '| C3 | growth budget B = clamp(2 × caller_instrs, 1000, 35000) | `0x10b62708` | **`[R]`-derived** | `splice.rs:INLINE_BUDGET_FLOOR` | not separable (F7) |'
+  FAIL line 7: page has '| C4 | driver entry `FUN_10b61ee1(fn, level=1, budget=B, 0, 1e8, 0)` | `0x10b6276e` | **absent** | — | not separable |'
+              table gives '| C4 | driver entry `FUN_10b61ee1`(fn, level=1, budget=B, 0, 100000000, 0) | `0x10b6276e` | **absent** | — | not separable |'
+  FAIL line 8: page has '| C5 | site collector: one linear scan, instruction kind `0x0f` is a call site | `0x10b600e6` | **absent** | — | yes |'
+              table gives '| C5 | site collector: one linear scan; instruction kind `0x0f` is a call site | `0x10b600e6` | **absent** | — | yes |'
+  FAIL line 9: page has '| C6 | site collector: EH-region nesting, conditional/EH flag into bit 1 | `0x10b600e6` | **absent** | — | yes (F8, 6 cells) |'
+              table gives '| C6 | site collector: EH-region nesting + conditional/EH flag into bit 1 | `0x10b600e6` | **absent** | — | yes (F8, 6 cells) |'
+  FAIL line 10: page has '| C7 | ceiling **value**: `DAT_10c46318 = 0x10 << DAT_10c2ea98`, or `1000` at `k ≥ 7` | `0x10b5e4d7` | **absent** | — | yes |'
+              table gives '| C7 | ceiling VALUE: `DAT_10c46318` = `0x10` << `DAT_10c2ea98`, or 1000 at k >= 7 | `0x10b5e4d7` | **absent** | — | yes |'
+  FAIL line 11: page has '| C8 | candidacy **size test**: `cmp WORD [sym+0x50], DAT_10c46318`; `jl` = candidate | `0x10b5fc8a` | **fitted** | `splice.rs:INLINE_UNBOUNDED_BYTES` | yes |'
+              table gives '| C8 | candidacy SIZE TEST: cmp WORD `[sym+0x50]`, `DAT_10c46318`; jl = candidate | `0x10b5fc8a` | **fitted** | `splice.rs:INLINE_UNBOUNDED_BYTES` | yes |'
+  ... and 19 more
+
+TABLE-GEN: RED  (27 differing line(s) over 24 rows)  -- run `python3 work/w-inlmetric/gen_table.py --write`
