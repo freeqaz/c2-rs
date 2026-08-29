@@ -503,8 +503,10 @@ and up to 22 if the callees are small (a callee at 41 charges 41). **Every D
 cell has exactly one call site.**
 
 And C16 needs a running total above 35,000. The largest D cell reaches
-**5,778** — **6.1× of slack**, and a caller would need ≈ 35,000 count units,
-about **4,800** statements of the `x += tbl[i];` form the grid uses.
+**5,778** — **6.1× of slack**, and a caller would need ≈ 35,000 count units. The D family's own rate is
+`4,923 / 700 = 7.03` counts per statement, so that is about **5,000**
+statements of the `x += tbl[i];` form — **7.1× the largest cell the grid
+contains**.
 
 > **F7's answer: the D family varied the right variable and read it through two
 > predicates that had 7.9× and 6.1× of slack. The null is a property of the
