@@ -1,0 +1,9 @@
+hatch: TARGET REPOSITORY  <REPO>   (resolved from the invoking cwd, NOT from this script's path — board #1460)
+hatch: THIS SCRIPT        <REPO>/work/w-front3/hatch.py
+hatch: COMMAND            check
+hatch: 0 of 8 edit(s) present, 7 pending, 1 undecidable
+ crates/c2-il/src/func/body/shapes/calls.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+  HATCH-DRIFT        id=call-arg-lit-permuted      crates/c2-il/src/func/body/shapes/calls.rs (matched 0)
+hatch: CLEAN
