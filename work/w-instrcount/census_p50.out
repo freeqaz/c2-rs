@@ -1,0 +1,67 @@
+# census of memory operands at displacement +0x50
+# image: c2.dll 16.00.11886.00 sha256 c80981c0..a66258
+# listing: ~/ghidra-projects/export/c2/objdump_intel.asm
+# total operands: 125
+
+READ           BYTE   5
+READ           DWORD  73
+READ           WORD   9
+UNCLASSIFIED   WORD   1
+WRITE          BYTE   18
+WRITE          DWORD  17
+WRITE          WORD   2
+
+# every WRITE and every UNCLASSIFIED, in full:
+10b01e87   WRITE          BYTE   add    BYTE PTR [esi+0x50],al
+10b02423   UNCLASSIFIED   WORD   arpl   WORD PTR [ecx+0x50],esp
+10b12e09   WRITE          BYTE   and    BYTE PTR [ecx+0x50],cl
+10b1316f   WRITE          BYTE   and    BYTE PTR [ecx+0x50],cl
+10b1318e   WRITE          BYTE   and    BYTE PTR fs:[ecx+0x50],cl
+10b166df   WRITE          BYTE   add    BYTE PTR [ebp+ebp*2+0x50],al
+10b166f7   WRITE          BYTE   add    BYTE PTR [ebp+ebp*2+0x50],al
+10b1674b   WRITE          BYTE   add    BYTE PTR [edi+0x50],cl
+10b1755f   WRITE          BYTE   add    BYTE PTR [edi+0x50],cl
+10b175ab   WRITE          BYTE   add    BYTE PTR [edi+0x50],cl
+10b191e1   WRITE          WORD   mov    WORD PTR ds:[eax+0x50],?
+10b240db   WRITE          BYTE   add    BYTE PTR [ecx+0x50],cl
+10b27e7d   WRITE          DWORD  mov    DWORD PTR [edi+0x50],esi
+10b2b406   WRITE          DWORD  mov    DWORD PTR [esi+0x50],eax
+10b3f557   WRITE          DWORD  mov    DWORD PTR [esi+0x50],ecx
+10b3f568   WRITE          DWORD  mov    DWORD PTR [esi+0x50],eax
+10b3f5b3   WRITE          DWORD  mov    DWORD PTR [esi+0x50],ebp
+10b55609   WRITE          DWORD  mov    DWORD PTR [esi+0x50],eax
+10b75947   WRITE          DWORD  mov    DWORD PTR [esi+0x50],eax
+10b9bf6c   WRITE          WORD   mov    WORD PTR [esi+0x50],ax
+10ba955b   WRITE          BYTE   or     BYTE PTR [esi+0x50],0x4
+10baa74f   WRITE          BYTE   or     BYTE PTR [esi+0x50],0x2
+10baa8c1   WRITE          BYTE   or     BYTE PTR [esi+0x50],0x1
+10baf504   WRITE          DWORD  mov    DWORD PTR [eax+0x50],edi
+10bb15d9   WRITE          BYTE   or     BYTE PTR [esi+0x50],0x2
+10bb2041   WRITE          BYTE   and    BYTE PTR [edi+0x50],0xfe
+10be460a   WRITE          DWORD  and    DWORD PTR [eax+0x50],0x0
+10be51c9   WRITE          DWORD  mov    DWORD PTR [esi+0x50],eax
+10bf3c4d   WRITE          DWORD  mov    DWORD PTR [ebp+0x50],ecx
+10bffa7e   WRITE          DWORD  or     DWORD PTR [ebp+0x50],0x40000
+10c115e6   WRITE          DWORD  mov    DWORD PTR [esi+0x50],eax
+10c11765   WRITE          DWORD  add    DWORD PTR [esi+0x50],eax
+10c1c405   WRITE          DWORD  mov    DWORD PTR [ebp+0x50],edx
+10c20be1   WRITE          DWORD  mov    DWORD PTR [edi+0x50],eax
+10c21064   WRITE          DWORD  mov    DWORD PTR [esi+0x50],edi
+10c2d383   WRITE          BYTE   add    BYTE PTR [eax+eax*1+0x50],ah
+10c2d4f5   WRITE          BYTE   add    BYTE PTR [eax+eax*1+0x50],bl
+10c2d579   WRITE          BYTE   add    BYTE PTR [eax+eax*1+0x50],ch
+
+# BLIND SPOTS this census cannot see, enumerated rather than assumed:
+#  B1 a store through a base already advanced (lea/add then disp 0)
+#  B2 rep movs* / block copy of a whole record
+#  B3 a memcpy/memmove thunk call whose destination is a record
+#  B4 a store at a different displacement into a DIFFERENT struct
+#     that happens to alias the same bytes
+#  B5 anything in code the listing does not cover (data-as-code)
+#
+# B1 is covered by classify_p50.py (which keeps ADDR-TAKEN rows).
+# B2 was searched by hand over all 28 `rep movsd` sites, reading the
+#    `ecx` set-up at each; 0 candidates. B3 -- 119 memcpy/memset call
+#    sites -- was NOT cleared and is named as open.
+# All three are written up in docs/whitebox/WB_INSTRCOUNT_FINDINGS.md
+# section 2.2, which is where a reader should meet them.
