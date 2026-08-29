@@ -1381,6 +1381,71 @@ pub fn mop_fmul(double: bool, fd: u8, fa: u8, fc: u8) -> MachineOp {
     MachineOp::new(if double { op::FMUL } else { op::FMULS }).s(fd).d0(fa).d1(fc)
 }
 
+/// `fmadds`/`fmadd` — the fused multiply-add, `fD = fA*fC + fB`. XO 29.
+///
+/// **The parameter order is c2's slot order, which is the MNEMONIC's order and
+/// not the bit layout's**: `fc` is the second multiplicand and lands in the `C`
+/// field at bit 6; `fb` is the ADDEND and lands in the `B` field at bit 11.
+/// Read at arm `0x10bfa49a` (`mop::plan`'s form-24 arm, DISCLOSURE
+/// `W-FMADD-1`), not inferred. Passing the addend as `fc` yields a word that
+/// disassembles cleanly and computes `fA*fB + fC`.
+///
+/// c2 **always** contracts a `*` feeding a `+`/`-`; there is no mode in which
+/// it emits `fmuls`+`fadds` for `a*b+c` (`docs/CODEGEN_W13_FLOAT.md` §3.3), so
+/// this is not an optimisation the port may decline to take — declining is a
+/// wrong emit.
+pub fn encode_fmadd(double: bool, fd: u8, fa: u8, fc: u8, fb: u8) -> [u8; 4] {
+    mop_fmadd(double, fd, fa, fc, fb).word()
+}
+
+/// The [`MachineOp`] form of [`encode_fmadd`] — the value S1c's op streams
+/// carry, before any word exists.
+#[inline(always)]
+pub fn mop_fmadd(double: bool, fd: u8, fa: u8, fc: u8, fb: u8) -> MachineOp {
+    MachineOp::new(if double { op::FMADD } else { op::FMADDS })
+        .s(fd)
+        .d0(fa)
+        .d1(fc)
+        .d2(fb)
+}
+
+/// `fmsubs`/`fmsub` — `fD = fA*fC − fB`. XO 28. Same slot order as
+/// [`encode_fmadd`]; see its note.
+pub fn encode_fmsub(double: bool, fd: u8, fa: u8, fc: u8, fb: u8) -> [u8; 4] {
+    mop_fmsub(double, fd, fa, fc, fb).word()
+}
+
+/// The [`MachineOp`] form of [`encode_fmsub`].
+#[inline(always)]
+pub fn mop_fmsub(double: bool, fd: u8, fa: u8, fc: u8, fb: u8) -> MachineOp {
+    MachineOp::new(if double { op::FMSUB } else { op::FMSUBS })
+        .s(fd)
+        .d0(fa)
+        .d1(fc)
+        .d2(fb)
+}
+
+/// `fnmsubs`/`fnmsub` — `fD = −(fA*fC − fB)` = **`fB − fA*fC`**. XO 30.
+///
+/// The negated form is what makes `c - a*b` **one** instruction with no `fneg`
+/// (`docs/CODEGEN_W13_FLOAT.md` §3.3), and it is why the port must distinguish
+/// which side of the `-` the product was on: product-on-the-left is
+/// [`encode_fmsub`], product-on-the-right is this. Emitting `fmsub` for the
+/// right-hand case negates the result.
+pub fn encode_fnmsub(double: bool, fd: u8, fa: u8, fc: u8, fb: u8) -> [u8; 4] {
+    mop_fnmsub(double, fd, fa, fc, fb).word()
+}
+
+/// The [`MachineOp`] form of [`encode_fnmsub`].
+#[inline(always)]
+pub fn mop_fnmsub(double: bool, fd: u8, fa: u8, fc: u8, fb: u8) -> MachineOp {
+    MachineOp::new(if double { op::FNMSUB } else { op::FNMSUBS })
+        .s(fd)
+        .d0(fa)
+        .d1(fc)
+        .d2(fb)
+}
+
 /// `fdivs`/`fdiv` — XO 18.
 pub fn encode_fdiv(double: bool, fd: u8, fa: u8, fb: u8) -> [u8; 4] {
     mop_fdiv(double, fd, fa, fb).word()

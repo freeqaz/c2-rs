@@ -1,0 +1,93 @@
+# lane w-fmadd — the form-24 arm read, and its two neighbours for contrast
+# regenerate: python3 work/w-fmadd/dumparm.py <VA> <n>   (self-test first)
+
+### the dispatcher's register set-up — VA 0x10bf9f20
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# image_base 0x10b00000   section .text   VA 0x10bf9f20 -> file offset 0xf9320
+# raw: 8b47048955f48b77288945fc8b472c85f674048b0eeb0233c98b55fc8b1c9578a5c3108b1495189bc3108955f84a83fa6e0f87c40e0000ff24952daebf10
+  10bf9f20  8b4704               mov eax, dword ptr [edi + 4]
+  10bf9f23  8955f4               mov dword ptr [ebp - 0xc], edx
+  10bf9f26  8b7728               mov esi, dword ptr [edi + 0x28]
+  10bf9f29  8945fc               mov dword ptr [ebp - 4], eax
+  10bf9f2c  8b472c               mov eax, dword ptr [edi + 0x2c]
+  10bf9f2f  85f6                 test esi, esi
+  10bf9f31  7404                 je 0x10bf9f37
+  10bf9f33  8b0e                 mov ecx, dword ptr [esi]
+  10bf9f35  eb02                 jmp 0x10bf9f39
+  10bf9f37  33c9                 xor ecx, ecx
+  10bf9f39  8b55fc               mov edx, dword ptr [ebp - 4]
+  10bf9f3c  8b1c9578a5c310       mov ebx, dword ptr [edx*4 + 0x10c3a578]
+  10bf9f43  8b1495189bc310       mov edx, dword ptr [edx*4 + 0x10c39b18]
+  10bf9f4a  8955f8               mov dword ptr [ebp - 8], edx
+  10bf9f4d  4a                   dec edx
+  10bf9f4e  83fa6e               cmp edx, 0x6e
+  10bf9f51  0f87c40e0000         ja 0x10bfae1b
+  10bf9f57  ff24952daebf10       jmp dword ptr [edx*4 + 0x10bfae2d]
+
+### arm 0x10bfa456 — forms 22/49, the three-register A/X form (ALREADY PORTED, mop.rs:886)
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# image_base 0x10b00000   section .text   VA 0x10bfa456 -> file offset 0xf9856
+# raw: 8b561c8b401c8b52288b4028c1e0050bc2c1e0058b491c0b4128c1e00be9a1090000
+  10bfa456  8b561c               mov edx, dword ptr [esi + 0x1c]
+  10bfa459  8b401c               mov eax, dword ptr [eax + 0x1c]
+  10bfa45c  8b5228               mov edx, dword ptr [edx + 0x28]
+  10bfa45f  8b4028               mov eax, dword ptr [eax + 0x28]
+  10bfa462  c1e005               shl eax, 5
+  10bfa465  0bc2                 or eax, edx
+  10bfa467  c1e005               shl eax, 5
+  10bfa46a  8b491c               mov ecx, dword ptr [ecx + 0x1c]
+  10bfa46d  0b4128               or eax, dword ptr [ecx + 0x28]
+  10bfa470  c1e00b               shl eax, 0xb
+  10bfa473  e9a1090000           jmp 0x10bfae19
+
+### arm 0x10bfa478 — form 23, fmul (ALREADY PORTED, mop.rs:888)
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# image_base 0x10b00000   section .text   VA 0x10bfa478 -> file offset 0xf9878
+# raw: 8b401c8b40288b561c8b52288b491cc1e0050bc2c1e00a0b4128c1e006e97f090000
+  10bfa478  8b401c               mov eax, dword ptr [eax + 0x1c]
+  10bfa47b  8b4028               mov eax, dword ptr [eax + 0x28]
+  10bfa47e  8b561c               mov edx, dword ptr [esi + 0x1c]
+  10bfa481  8b5228               mov edx, dword ptr [edx + 0x28]
+  10bfa484  8b491c               mov ecx, dword ptr [ecx + 0x1c]
+  10bfa487  c1e005               shl eax, 5
+  10bfa48a  0bc2                 or eax, edx
+  10bfa48c  c1e00a               shl eax, 0xa
+  10bfa48f  0b4128               or eax, dword ptr [ecx + 0x28]
+  10bfa492  c1e006               shl eax, 6
+  10bfa495  e97f090000           jmp 0x10bfae19
+
+### arm 0x10bfa49a — form 24, FP multiply-add — THE READ
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# image_base 0x10b00000   section .text   VA 0x10bfa49a -> file offset 0xf989a
+# raw: 8b401c8b491c8b40288b561c8b71288b4f288b098b52288b098b491cc1e0050bc2c1e0050b4128c1e0050bc6ebca
+  10bfa49a  8b401c               mov eax, dword ptr [eax + 0x1c]
+  10bfa49d  8b491c               mov ecx, dword ptr [ecx + 0x1c]
+  10bfa4a0  8b4028               mov eax, dword ptr [eax + 0x28]
+  10bfa4a3  8b561c               mov edx, dword ptr [esi + 0x1c]
+  10bfa4a6  8b7128               mov esi, dword ptr [ecx + 0x28]
+  10bfa4a9  8b4f28               mov ecx, dword ptr [edi + 0x28]
+  10bfa4ac  8b09                 mov ecx, dword ptr [ecx]
+  10bfa4ae  8b5228               mov edx, dword ptr [edx + 0x28]
+  10bfa4b1  8b09                 mov ecx, dword ptr [ecx]
+  10bfa4b3  8b491c               mov ecx, dword ptr [ecx + 0x1c]
+  10bfa4b6  c1e005               shl eax, 5
+  10bfa4b9  0bc2                 or eax, edx
+  10bfa4bb  c1e005               shl eax, 5
+  10bfa4be  0b4128               or eax, dword ptr [ecx + 0x28]
+  10bfa4c1  c1e005               shl eax, 5
+  10bfa4c4  0bc6                 or eax, esi
+  10bfa4c6  ebca                 jmp 0x10bfa492
+
+### the shared tail 0x10bfae19
+# image sha256 c80981c015166effecc71ad8112d5577a065b2300891dfdb02b9c13787a66258
+# image_base 0x10b00000   section .text   VA 0x10bfae19 -> file offset 0xfa219
+# raw: 0bd88b45f46a048918585f5e5bc9c2
+  10bfae19  0bd8                 or ebx, eax
+  10bfae1b  8b45f4               mov eax, dword ptr [ebp - 0xc]
+  10bfae1e  6a04                 push 4
+  10bfae20  8918                 mov dword ptr [eax], ebx
+  10bfae22  58                   pop eax
+  10bfae23  5f                   pop edi
+  10bfae24  5e                   pop esi
+  10bfae25  5b                   pop ebx
+  10bfae26  c9                   leave 

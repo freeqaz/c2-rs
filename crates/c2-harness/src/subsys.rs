@@ -621,11 +621,12 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
         // ENCODE_ARMS.txt plus c2-core's own public tables on every run and
         // every `cargo test`. See `recount_encode_ported` for the predicate.
         ported: Cell::Measured {
-            num: 29,
+            num: 30,
             den: 79,
             unit: "encode arms the port can produce a word through",
             source: "lane w-encmap, board #3636-#3641 (27/79); lane w-encarms, board \
-                     #3756-#3761 (29/79, wave 18): ENCODE_ARMS.txt (79 rows, \
+                     #3756-#3761 (29/79, wave 18); lane w-fmadd, board #3790-#3795 \
+                     (30/79, wave 19): ENCODE_ARMS.txt (79 rows, \
                      re-measured on this tree) x c2_core::codegen::mop::{plan, OPCODES}",
             caveat: "THE DENOMINATOR IS THE 79 ARMS, NOT THE BAND'S 14 AND NOT THE 111 \
                      JUMP-TABLE ENTRIES, and the choice is published rather than \
@@ -637,9 +638,13 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
                      14 is Ghidra function entries -- a different population \
                      entirely. AN ARM COUNTS ON ONE OF ITS FORMS, so this OVER-states \
                      partial arms: the strict reading (every form of the arm \
-                     reachable) is 26, and the loose reading (a FieldPlan exists, \
-                     whether or not an opcode reaches it) is 30 -- the extra arm is \
-                     10bfa26c, form 2, a plan no opcode reaches. \
+                     reachable) is 27, and the loose reading (a FieldPlan exists, \
+                     whether or not an opcode reaches it) is 31 -- the extra arm is \
+                     10bfa26c, form 2, a plan no opcode reaches. BOTH MOVED BY ONE ON \
+                     2026-08-29 and both were re-derived, not incremented: arm \
+                     10bfa49a serves form 24 ALONE, so an arm that counts published \
+                     also counts strict, which is why w-fmadd's adoption is the first \
+                     that moves all three readings together. \
                      27 -> 29 ON 2026-08-28, lane w-encarms: arms 10bfa285 (form 7, \
                      `bl`) and 10bfa76a (form 54, `mfspr`) were read at their \
                      addresses in the pinned image and adopted, discharging all three \
@@ -654,7 +659,16 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
                      arms are reached unambiguously and 31 are reached ZERO times, \
                      including the ICE arm 10bfa81d and 30 others; the 104-opcode \
                      default arm 10bf9f91 is reached by at most 10 words, 0.0003 %. \
-                     work/w-encarms/armhist.py. See P_ENCODE.md section 10",
+                     work/w-encarms/armhist.py. \
+                     29 -> 30 ON 2026-08-29, lane w-fmadd: arm 10bfa49a (form 24, the \
+                     FUSED multiply-adds) was read at its address and adopted, and \
+                     unlike w-encarms's two this one had NO field plan and NO opcode \
+                     row before the lane -- the port could not compose the word at \
+                     all. It is the fourth-most-reached unmapped arm on the same \
+                     861-obj histogram (7,995 words, unambiguous), and the adoption \
+                     is an EMIT and not a fold: `a*b+c` was a refusal and is now \
+                     byte-exact (fixtures/cpp/w13c_fma.cpp, 15 functions). \
+                     DISCLOSURE W-FMADD-1. See P_ENCODE.md section 10",
         },
         ported_recount: Some(PortedRecount::EncodeArms),
         agreement_extra: Some(Cell::Measured {
@@ -2553,7 +2567,7 @@ mod tests {
         // what makes this control a statement about a KNOWN cell rather than
         // about whatever the cell happens to be, and it went red on exactly the
         // commit that moved the number, which is the behaviour asked for.
-        assert_eq!((num, den), (29, 79), "the shipped ported cell moved");
+        assert_eq!((num, den), (30, 79), "the shipped ported cell moved");
         // The cheapest lie: one more arm than the port implements.
         table[i].ported = Cell::Measured { num: num + 1, den, unit, source, caveat };
         let v = verify(&root(), &ref_dir(), &table);

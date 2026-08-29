@@ -235,6 +235,22 @@ pub mod op {
     pub const FMUL: C2Op = C2Op(0x0081);
     pub const FMULS: C2Op = C2Op(0x0083);
 
+    // form 24 — A-form floating-point MULTIPLY-ADD, `FRT,FRA,FRC,FRB`.
+    //
+    // The **fourth** register field is what separates this form from 22/23, and
+    // where each of the four lands is read at the arm rather than assumed from
+    // the PPC manual — see [`plan`]'s form-24 arm and DISCLOSURE `W-FMADD-1`.
+    // The `s` (single) rows are primary 59 and the plain rows primary 63,
+    // exactly as for `fadd`/`fadds`; c2 numbers them adjacently but not
+    // contiguously, so each number is transcribed rather than derived from its
+    // neighbour.
+    pub const FMADD: C2Op = C2Op(0x0077);
+    pub const FMADDS: C2Op = C2Op(0x0079);
+    pub const FMSUB: C2Op = C2Op(0x007D);
+    pub const FMSUBS: C2Op = C2Op(0x007F);
+    pub const FNMSUB: C2Op = C2Op(0x008D);
+    pub const FNMSUBS: C2Op = C2Op(0x008F);
+
     // form 25 — FRT/FRB
     pub const FMR: C2Op = C2Op(0x007B);
     pub const FRSP: C2Op = C2Op(0x0093);
@@ -436,6 +452,18 @@ const OPCODE_ROWS: &[OpRow] = &[
     row(op::FDIVS, "fdivs", 0xec00_0024, 22),
     row(op::FMUL, "fmul", 0xfc00_0032, 23),
     row(op::FMULS, "fmuls", 0xec00_0032, 23),
+    // form 24 — the fused multiply-adds. `fnmadd`/`fnmadds` (`0x0089`/`0x008b`)
+    // and every `.` (record) variant are DELIBERATELY absent: `-(a*b+c)` needs
+    // the IL's unary-negate node, which `leaf_float`'s parser refuses, so a row
+    // for them would be a table entry no emit can reach — the fabricated-
+    // numerator shape `#3505` names. They are in
+    // `docs/whitebox/ref/ENCODE_OPCODES.txt` when a lane needs them.
+    row(op::FMADD, "fmadd", 0xfc00_003a, 24),
+    row(op::FMADDS, "fmadds", 0xec00_003a, 24),
+    row(op::FMSUB, "fmsub", 0xfc00_0038, 24),
+    row(op::FMSUBS, "fmsubs", 0xec00_0038, 24),
+    row(op::FNMSUB, "fnmsub", 0xfc00_003c, 24),
+    row(op::FNMSUBS, "fnmsubs", 0xec00_003c, 24),
     row(op::FMR, "fmr", 0xfc00_0090, 25),
     row(op::FRSP, "frsp", 0xfc00_0018, 25),
     row(op::MR, "mr", 0x7c00_0378, 36),
@@ -732,6 +760,9 @@ const fn fp2(a: Field, b: Field) -> FieldPlan {
 const fn fp3(a: Field, b: Field, c: Field) -> FieldPlan {
     fp([a, b, c, NONE_FIELD, NONE_FIELD], 3, 0)
 }
+const fn fp4(a: Field, b: Field, c: Field, d: Field) -> FieldPlan {
+    fp([a, b, c, d, NONE_FIELD], 4, 0)
+}
 const fn fp5(a: Field, b: Field, c: Field, d: Field, e: Field) -> FieldPlan {
     fp([a, b, c, d, e], 5, 0)
 }
@@ -886,6 +917,45 @@ pub const fn plan(form: Form) -> Option<FieldPlan> {
         // not B. Reusing form 22 here silently multiplies by the wrong
         // register (`encode.rs`'s own trap note).
         23 => fp3(f(S, 21, 5), f(D0, 16, 5), f(D1, 6, 5)),
+        // `10bfa49a` — the FUSED multiply-adds, read at that address by lane
+        // `w-fmadd` instruction by instruction. It is form 23 plus one register,
+        // and it literally *ends* by jumping into form 23's last two
+        // instructions (`0x10bfa492: shl eax,6 ; jmp 0x10bfae19`):
+        //
+        //     eax = [[eax+0x1c]+0x28]        ; reg(S)
+        //     esi = [[ecx+0x1c]+0x28]        ; reg(D1)   -- ecx arrives as D1
+        //     edx = [[esi+0x1c]+0x28]        ; reg(D0)   -- esi arrives as D0
+        //     ecx = [[[edi+0x28]]]           ; D2, re-walked from the tuple:
+        //                                    ;   [edi+0x28] is D0, [D0] is D1,
+        //                                    ;   [D1] is D2 -- a linked list
+        //     eax = eax<<5 | edx             ; reg(S)<<5  | reg(D0)
+        //     eax = eax<<5 | [ecx+0x28]      ;   ...  <<5 | reg(D2)
+        //     eax = eax<<5 | esi             ;   ...  <<5 | reg(D1)
+        //     jmp 0x10bfa492                 ; eax <<= 6 ; ebx |= eax
+        //
+        // i.e. `reg(S)<<21 | reg(D0)<<16 | reg(D2)<<11 | reg(D1)<<6`.
+        //
+        // **`D1` lands in the `C` field at bit 6 and `D2` in the `B` field at
+        // bit 11 — the NON-monotone assignment, and it is the whole safety
+        // content of this form.** c2's slot order follows the *mnemonic*,
+        // `fmadd FRT,FRA,FRC,FRB`, not the bit layout: the second multiplicand
+        // is `D1` and the addend is `D2`. Swapping the two produces a word that
+        // disassembles, that a fuzz-matcher accepts, and that computes
+        // `(a*c)+b` — and because multiplication commutes, `fmadd f1,f1,f2,f3`
+        // and `fmadd f1,f1,f3,f2` are *numerically identical* whenever the
+        // addend happens to equal one of the factors, so a hand-picked probe
+        // can agree by accident. Form 23 is the reason the assignment is
+        // believable rather than surprising: it already puts `D1` at bit 6.
+        // This is form 39's hazard (`P_ENCODE.md` §5.1) in the FP file.
+        //
+        // **Not masked in c2, masked here, and the difference is unreachable.**
+        // The arm ORs `reg()` in with no `and eax,0x1f` (unlike the VMX arm
+        // `10bf9f91`, which masks all three), so a register ≥ 32 would carry
+        // into the next field. Every field here is an FPR and the file is
+        // `f0..f31`, so the 5-bit mask is exactly saturating and no input can
+        // tell the two rules apart. Recorded because it is a *domain* statement,
+        // not a coincidence — `surface_rows`' `mop.encode_form` renders it.
+        24 => fp4(f(S, 21, 5), f(D0, 16, 5), f(D2, 11, 5), f(D1, 6, 5)),
         // `10bfa4df` — `fmr`, `frsp`, `fabs`: no A field at all.
         25 => fp2(f(S, 21, 5), f(D0, 11, 5)),
         // `10bfa53b` — **the destination is the RA field.** `P_ENCODE.md` §5.1

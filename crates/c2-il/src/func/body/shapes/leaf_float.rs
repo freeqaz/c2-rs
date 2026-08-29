@@ -143,13 +143,30 @@ pub(crate) fn try_parse_float_leaf(
     p += 3;
     eat_return_plumbing(seg, &mut p, false, BODY_SCOPE_DEPTH).ok()?;
 
-    // A `*` mixed with `+`/`-` contracts; reject rather than emit two
-    // instructions where c2 emits one.
+    // ~~A `*` mixed with `+`/`-` contracts; reject rather than emit two
+    // instructions where c2 emits one.~~
+    //
+    // **STRUCK 2026-08-29, lane `w-fmadd`, board `#3792`.** The contraction is
+    // modeled: `c2_core::codegen::leaf::float`'s `node_plan` defers every
+    // multiply and folds it into its parent `+`/`-` as `fmadd`/`fmsub`/
+    // `fnmsub`, from a read of c2's own form-24 arm at `0x10bfa49a`. The gate
+    // stayed for as long as this comment says it did because the *encoder* had
+    // no form-24 field plan either, so there was nothing to lower to.
+    //
+    // **What the widening does NOT relax** — each of these keeps refusing the
+    // contracted shapes too, and together they are why "the mix is in class"
+    // is not "any mix is in class":
+    //
+    // * the ascending-leaf gate below (`b*a + c` reaches c2 as `fmadds
+    //   f1,f1,f2,f3`, i.e. the *canonicalized* pair, and this port does not
+    //   model FP canonicalization);
+    // * the `0x59` parenthesis marker, which rejects `(a+b)*c + d` and
+    //   `a*(b*c + d)` at the top of the op loop;
+    // * the repeated-leaf gate;
+    // * a pooled constant inside a contracted expression, refused in codegen
+    //   where the width and the scheduling question live.
     let has_mul = ops.iter().any(|o| matches!(o, IlOp::Mul));
     let has_addsub = ops.iter().any(|o| matches!(o, IlOp::Add | IlOp::Sub));
-    if has_mul && has_addsub {
-        return None;
-    }
 
     // ---- W13b constant gates ------------------------------------------------
     //
