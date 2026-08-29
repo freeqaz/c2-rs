@@ -96,6 +96,21 @@ pub mod fp_store_diamond;
 pub mod if_call_join;
 pub mod memcpy_tail;
 pub mod global_store_leaf;
+/// **c2's CANDIDATE SET** — `globregs.c`'s promotion policy (`FUN_10b550e5`
+/// gate A, `FUN_10bd7d24` gate B) and the kind map that feeds it
+/// (`FUN_10bd2913`), with its five decision points exposed as named, settable
+/// parameters. Lane `w-globset`, wave 20, board **#3831**.
+///
+/// **Deliberately NOT in the glob re-export list below**, for the reason
+/// [`regalloc_worklist`] gives: `Symbol`, `Arm`, `Outcome` and `Verdict` are
+/// generic enough that arriving in a module's ambient scope by accident is a
+/// real hazard. Callers spell `codegen::globset::CandidateSet`.
+///
+/// **Additive, with no production caller, by construction**: the port has no
+/// symbol arena, no `.gl` records and no tuple list, so nothing in
+/// [`crate::PortC2::build`] can reach it and no byte the judge grades can move.
+/// A test in the module enforces that.
+pub mod globset;
 pub mod nonce_add_run;
 pub mod xtea_encrypt_loop;
 pub mod xtea_round_loop;
