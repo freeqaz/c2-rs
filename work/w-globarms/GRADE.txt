@@ -1,0 +1,125 @@
+=== SELFTEST ===
+  readout: no post-stwu frame store is PROMOTED                    ok
+  readout: the prologue saves BEFORE the stwu are not frame traffic ok
+  readout: a post-stwu r1 store is MEMORY                          ok
+  readout: a store to a RELOCATED static is MEMORY                 ok
+  REJECT a body with no frame (U, not a pass)                      ok
+  image: digest is the pinned one                                  ok
+  image: gate A decodes to exactly twelve arms                     ok
+  image: kind 0x10 SKIPs without the reject tail                   ok
+  image: kinds 4 and 5 are ELIGIBLE, 6 and 9 are REJECT            ok
+  image: the linkage table's entry 0 is UNREACHABLE (a null slot)  ok
+  image: linkage 1 -> kind 4 and linkage 3 -> kind 5               ok
+  REJECT a chain whose kind byte moved off sym+0x04                ok
+  REJECT a chain whose A6 compare changed shape                    ok
+  the kind->arm map FOLLOWS the image (A6 bound 5 -> 7 moves kinds 6,7) ok
+  P_GLOBREGS §3's gate-A table contains every decoded arm address  ok
+
+  SELFTEST PASS
+
+=== IMAGE ===
+  c2.dll
+  sha256 c80981c015166eff...  PINNED
+
+=== GATE A, DECODED FROM THE IMAGE (not typed in) ===
+  A1   10b5511a  kind == 0x10                                         je -> 10b55295 NEXT-SLOT
+  A2   10b55125  (unconditional)                                      
+  A3   10b55129  sym+0x08 != sym                                      jne -> 10b55295 NEXT-SLOT
+  A4   10b55134  kind == 0x3                                          je -> 10b551b3
+  A5   10b55138  kind <= 0x3                                          jbe -> 10b552b8 REJECT-TAIL
+  A6   10b5513e  kind <= 0x5                                          jbe -> 10b551a8
+  A7   10b55142  kind <= 0x6                                          jbe -> 10b552b8 REJECT-TAIL
+  A8   10b5514a  kind <= 0x8                                          jbe -> 10b551ae
+  A9   10b5514e  kind != 0xa                                          jne -> 10b552b8 REJECT-TAIL
+  A10  10b55156  (*(sym))+0x37 & 0x400 set and & 0x200000 clear       je/jne -> 10b552b8 REJECT-TAIL
+  A11  10b551b3  kind 3 needs sym+0x14 == 0                           jne -> 10b552b8 REJECT-TAIL
+  A12  10b551bc  kind 3 needs sym+0x07 & 0x40 clear                   jne -> 10b552b8 REJECT-TAIL
+
+  P_GLOBREGS.md §3 gate-A table: 15 addresses; every decoded arm present: YES
+
+=== kind -> ARM, by SIMULATING the decoded chain ===
+  kind 0x00  A5           REJECT           kind <= 0x3
+  kind 0x01  A5           REJECT           kind <= 0x3
+  kind 0x02  A5           REJECT           kind <= 0x3
+  kind 0x03  A4->A11/A12  COND             kind == 0x3: needs sym+0x14 == 0 and sym+0x07 & 0x40 clear
+  kind 0x04  A6           ELIGIBLE         aliased only when sym+0x05 & 2 is set
+  kind 0x05  A6           ELIGIBLE         aliased only when sym+0x05 & 2 is set
+  kind 0x06  A7           REJECT           kind <= 0x6
+  kind 0x07  A8           ELIGIBLE-ALIASED always joins the DAT_10c2e3e8 set
+  kind 0x08  A8           ELIGIBLE-ALIASED always joins the DAT_10c2e3e8 set
+  kind 0x09  A9           REJECT           kind != 0xa
+  kind 0x0a  A10          COND             needs (*(sym))+0x37 & 0x400 set and & 0x200000 clear; indexes sub-symbols only
+  kind 0x0b  A9           REJECT           kind != 0xa
+  kind 0x0c  A9           REJECT           kind != 0xa
+  kind 0x0d  A9           REJECT           kind != 0xa
+  kind 0x0e  A9           REJECT           kind != 0xa
+  kind 0x0f  A9           REJECT           kind != 0xa
+  kind 0x10  A1           SKIP             kind == 0x10: skipped, and the reject tail is NOT run
+
+=== WHERE THE KIND COMES FROM — FUN_10bd2913, decoded ===
+  .gl record kind [gl+0x30] == 1    -> the linkage jump table at 0x10bd2a9f
+  .gl record kind [gl+0x30] == 2    -> globregs kind 0x4
+  .gl record kind [gl+0x30] == 3    -> globregs kind 0xb
+  .gl record kind [gl+0x30] == 4    -> globregs kind 0xa
+  .gl record kind [gl+0x30] == else -> globregs kind 0xa
+  the 8-entry table at 0x10bd2a9f, index = ([gl+0x37] >> 0x15) & 7:
+    linkage 0 -> unreachable
+    linkage 1 -> globregs kind 0x4
+    linkage 2 -> kind 8 when ([gl+0x37]&0x1e0)==0x80 else kind 7
+    linkage 3 -> globregs kind 0x5
+    linkage 4 -> storage-kind switch
+    linkage 5 -> (sym+0x20 >> 4) & 2 | 5
+    linkage 6 -> kind 8 when ([gl+0x37]&0x1e0)==0x80 else kind 7
+    linkage 7 -> storage-kind switch
+
+=== the allocation POOL is chosen by kind too — FUN_10bd2492, decoded ===
+    cmp kind, 0x3   je   -> 10bd2662
+    cmp kind, 0x5   jbe  -> 10bd25da
+    cmp kind, 0x6   je   -> 10bd2662
+    cmp kind, 0x8   jbe  -> 10bd255a
+    cmp kind, 0xb   jbe  -> 10bd250a
+    cmp kind, 0xd   je   -> 10bd25da
+
+=== CELLS — the frame-traffic readout ===
+  . gb_addr_escape   A6   arm2_W.txt     want MEMORY    got MEMORY    0014:stw 11, 80(1)
+  . gb_addr_local    A6   arm2_W.txt     want PROMOTED  got PROMOTED  
+  . gb_fnaddr2       A9   arm2_W.txt     want PROMOTED  got PROMOTED  
+  . gb_pair_none     A6   arm2_W.txt     want PROMOTED  got PROMOTED  
+  . gb_pair_xescape  A6   arm2_W.txt     want SPLIT     got SPLIT     001c:stw 10, 80(1)
+  . gb_pair_yescape  A6   arm2_W.txt     want SPLIT     got SPLIT     001c:stw 10, 80(1)
+  . gb_addr_escape   A6   arm2_X.txt     want MEMORY    got MEMORY    0014:stw 11, 80(1)
+  . gb_addr_local    A6   arm2_X.txt     want PROMOTED  got PROMOTED  
+  . gb_fnaddr2       A9   arm2_X.txt     want PROMOTED  got PROMOTED  
+  . gb_pair_none     A6   arm2_X.txt     want PROMOTED  got PROMOTED  
+  . gb_pair_xescape  A6   arm2_X.txt     want SPLIT     got SPLIT     001c:stw 10, 80(1)
+  . gb_pair_yescape  A6   arm2_X.txt     want SPLIT     got SPLIT     001c:stw 10, 80(1)
+  . ga_escape        A6   arm_W.txt      want MEMORY    got MEMORY    0014:stw 11, 80(1)
+  . ga_extern        A8   arm_W.txt      want MEMORY    got MEMORY    001c:stw 11, 0(31)
+  . ga_fnaddr        A9   arm_W.txt      want PROMOTED  got PROMOTED  
+  . ga_fstatic       A8   arm_W.txt      want MEMORY    got MEMORY    001c:stw 11, 0(31)
+  . ga_int           A6   arm_W.txt      want PROMOTED  got PROMOTED  
+  . ga_lstatic       A8   arm_W.txt      want MEMORY    got MEMORY    001c:stw 11, 0(31)
+  . ga_param         A6   arm_W.txt      want PROMOTED  got PROMOTED  
+  . ga_ref           A6   arm_W.txt      want PROMOTED  got PROMOTED  
+  . ga_struct4       A3   arm_W.txt      want PROMOTED  got PROMOTED  
+  . ga_structmix     A3   arm_W.txt      want PROMOTED  got PROMOTED  
+  . ga_temp          A11  arm_W.txt      want PROMOTED  got PROMOTED  
+  . ga_temp3         A11  arm_W.txt      want PROMOTED  got PROMOTED  
+  . ga_vol           -    arm_W.txt      want MEMORY    got MEMORY    0014:stw 11, 80(1)
+  . ga_escape        A6   arm_X.txt      want MEMORY    got MEMORY    0014:stw 11, 80(1)
+  . ga_extern        A8   arm_X.txt      want MEMORY    got MEMORY    001c:stw 11, 0(31)
+  . ga_fnaddr        A9   arm_X.txt      want PROMOTED  got PROMOTED  
+  . ga_fstatic       A8   arm_X.txt      want MEMORY    got MEMORY    001c:stw 11, 0(31)
+  . ga_int           A6   arm_X.txt      want PROMOTED  got PROMOTED  
+  . ga_lstatic       A8   arm_X.txt      want MEMORY    got MEMORY    001c:stw 11, 0(31)
+  . ga_param         A6   arm_X.txt      want PROMOTED  got PROMOTED  
+  . ga_ref           A6   arm_X.txt      want PROMOTED  got PROMOTED  
+  . ga_struct4       A3   arm_X.txt      want PROMOTED  got PROMOTED  
+  . ga_structmix     A3   arm_X.txt      want PROMOTED  got PROMOTED  
+  . ga_temp          A11  arm_X.txt      want PROMOTED  got PROMOTED  
+  . ga_temp3         A11  arm_X.txt      want PROMOTED  got PROMOTED  
+  . ga_vol           -    arm_X.txt      want MEMORY    got MEMORY    0014:stw 11, 80(1)
+
+  graded 38, U 0, hits 38, misses 0
+  CONTROL C1 (ga_int PROMOTED / ga_vol MEMORY, both profiles): FIRED
+GRADE: PASS
