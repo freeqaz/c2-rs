@@ -667,7 +667,7 @@ pub const SUBSYSTEMS: &[Subsystem] = &[
                      all. It is the fourth-most-reached unmapped arm on the same \
                      861-obj histogram (7,995 words, unambiguous), and the adoption \
                      is an EMIT and not a fold: `a*b+c` was a refusal and is now \
-                     byte-exact (fixtures/cpp/w13c_fma.cpp, 14 functions). \
+                     byte-exact (fixtures/cpp/w13c_fma.cpp, 17 functions). \
                      DISCLOSURE W-FMADD-1. See P_ENCODE.md section 10",
         },
         ported_recount: Some(PortedRecount::EncodeArms),

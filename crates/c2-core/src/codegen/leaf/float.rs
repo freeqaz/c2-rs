@@ -207,6 +207,39 @@ impl Emit<'_> {
         }
     }
 
+    /// **Retire the dying sources and choose the destination, in the order the
+    /// policy requires.**
+    ///
+    /// * `FirstFree` (`/O1`) retires FIRST, because c2 takes the register the
+    ///   instruction itself just freed — `fadds f0,f0,f3`.
+    /// * `Carried` (`/Ox`) retires LAST, which is the order the port has always
+    ///   used and which `/Ox` needs.
+    ///
+    /// **The two orders are NOT interchangeable under `Carried`, and this lane
+    /// claimed they were before a test said otherwise.** They differ exactly at
+    /// pool exhaustion: `w13_fscratch::fm13` has thirteen live parameters and
+    /// one free slot, so retiring the temporary before the cursor wraps lets
+    /// the cursor find it and emit, where c2 (at `/Ox`) does something else.
+    /// Retiring early there turned a REFUSAL into a WRONG EMIT —
+    /// `census_gate.rs`'s pinned `KNOWN_DISAGREEMENTS_PACKED` went 1 → 0 and
+    /// looked like an improvement, and a direct grade of `fm13` at `/Ox` showed
+    /// it was not. A refusal outranks a wrong emit
+    /// (`docs/PROGRESS_METRIC.md`), so the order is per-policy.
+    fn retire_then_dest(&mut self, dying: &[u8]) -> Result<u8, BackendError> {
+        if self.policy == FpTempPolicy::FirstFree {
+            for &r in dying {
+                retire(self.live, r, self.nparams);
+            }
+            self.dest()
+        } else {
+            let dest = self.dest()?;
+            for &r in dying {
+                retire(self.live, r, self.nparams);
+            }
+            Ok(dest)
+        }
+    }
+
     fn finish(&mut self, dest: u8) {
         if dest != FP_RET {
             self.live.push(dest);
@@ -222,17 +255,7 @@ impl Emit<'_> {
         match v {
             FpVal::Reg { r, .. } => Ok(r),
             FpVal::Prod { a, c } => {
-                // **Retire BEFORE choosing the destination.** A source dies at
-                // the instruction that reads it, so under
-                // [`FpTempPolicy::FirstFree`] the register it vacates is the
-                // one c2 takes — `fadds f0,f0,f3` reuses `f0` in the same
-                // instruction that kills it. Under `Carried` the order cannot
-                // matter (the cursor advances regardless), which is why this
-                // was invisible until `/O1` was graded on a body with two
-                // temporaries.
-                retire(self.live, a, self.nparams);
-                retire(self.live, c, self.nparams);
-                let dest = self.dest()?;
+                let dest = self.retire_then_dest(&[a, c])?;
                 self.text
                     .extend_from_slice(&encode_fmul(self.double, dest, a, c));
                 self.finish(dest);
@@ -503,10 +526,7 @@ pub fn float_leaf_text(
                         let FpVal::Prod { a, c } = prod else {
                             unreachable!("node_plan chose a side that is not a product")
                         };
-                        for s in [a, c, b] {
-                            retire(e.live, s, e.nparams);
-                        }
-                        let dest = e.dest()?;
+                        let dest = e.retire_then_dest(&[a, c, b])?;
                         let w = match (binop, plan) {
                             (IlOp::Add, _) => encode_fmadd(double, dest, a, c, b),
                             // `A*C − B` when the product was written on the
@@ -528,12 +548,9 @@ pub fn float_leaf_text(
                         let l = e.materialise(lhs)?;
                         let r = e.materialise(rhs)?;
                         // Both sources die here unless they are still-live
-                        // parameters — and they die BEFORE the destination is
-                        // chosen; see `Emit::materialise`.
-                        for s in [l, r] {
-                            retire(e.live, s, e.nparams);
-                        }
-                        let dest = e.dest()?;
+                        // parameters; WHEN they die relative to the
+                        // destination choice is the policy's, not this site's.
+                        let dest = e.retire_then_dest(&[l, r])?;
                         match binop {
                             IlOp::Add => e.text.extend_from_slice(&encode_fadd(double, dest, l, r)),
                             // Source order, NOT the integer reversal.
