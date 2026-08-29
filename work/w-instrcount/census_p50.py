@@ -80,7 +80,7 @@ def main():
     counts = Counter((r[1], r[2]) for r in rows)
     print('# census of memory operands at displacement +0x50')
     print('# image: c2.dll 16.00.11886.00 sha256 c80981c0..a66258')
-    print('# listing: %s' % ASM)
+    print('# listing: %s' % ASM.replace(os.path.expanduser('~'), '~'))
     print('# total operands: %d' % len(rows))
     print()
     for (kind, width), n in sorted(counts.items()):
@@ -98,7 +98,13 @@ def main():
     print('#  B4 a store at a different displacement into a DIFFERENT struct')
     print('#     that happens to alias the same bytes')
     print('#  B5 anything in code the listing does not cover (data-as-code)')
-    print('# B1-B3 are searched separately by work/w-instrcount/census_blind.sh')
+    print('#')
+    print('# B1 is covered by classify_p50.py (which keeps ADDR-TAKEN rows).')
+    print('# B2 was searched by hand over all 28 `rep movsd` sites, reading the')
+    print('#    `ecx` set-up at each; 0 candidates. B3 -- 119 memcpy/memset call')
+    print('#    sites -- was NOT cleared and is named as open.')
+    print('# All three are written up in docs/whitebox/WB_INSTRCOUNT_FINDINGS.md')
+    print('# section 2.2, which is where a reader should meet them.')
 
 
 main()
