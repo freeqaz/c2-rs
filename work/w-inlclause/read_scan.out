@@ -1,0 +1,22 @@
+corpus   : 15 prose files (.md only; .asm dumps and .out transcripts are NOT corpus -- see the module doc)
+  +own   : 16 with this lane's own read included
+
+row              pins  as-dispatchedat-tip   where
+C1                  2  READ         READ     work/w-clausefix/REPAIRS.md
+C2                  2  READ         READ     docs/whitebox/WB_LOWERBAND_FINDINGS.md, docs/whitebox/ref/P_INLINE.md, work/w-clausefix/PREREG.md, work/w-clausefix/REPAIRS.md, work/w-inlbudget/IMAGE_READ.md
+C4                  1  READ         READ     docs/whitebox/ref/P_INLINE.md, work/w-clausefix/PREREG.md, work/w-clausefix/REPAIRS.md, work/w-inlbudget/IMAGE_READ.md, work/w-inlbudget/PREREG.md
+C5                  1  unread       READ     (none)
+C6                  3  unread       READ     (none)
+C7                  3  READ         READ     docs/whitebox/WB_INLINE_FINDINGS.md, docs/whitebox/WB_INLSWITCH_FINDINGS.md, docs/whitebox/WB_LOWERBAND_FINDINGS.md, docs/whitebox/ref/P_INLINE.md, work/w-clausefix/REPAIRS.md, work/w-inlswitch/PREREG.md
+C9                  2  READ         READ     docs/whitebox/WB_INLINE_FINDINGS.md, docs/whitebox/WB_LOWERBAND_FINDINGS.md, docs/whitebox/ref/P_INLINE.md, work/w-clausefix/REPAIRS.md
+C10                 3  READ         READ     work/w-clausefix/PREREG.md, work/w-clausefix/REPAIRS.md
+C11                 4  READ         READ     work/w-clausefix/REPAIRS.md
+C12                 2  READ         READ     work/w-clausefix/REPAIRS.md
+C14                 2  READ         READ     work/w-clausefix/PREREG.md, work/w-clausefix/REPAIRS.md, work/w-inlbudget/IMAGE_READ.md
+C15                 2  READ         READ     work/w-clausefix/PREREG.md, work/w-clausefix/REPAIRS.md
+C16                 2  READ         READ     work/w-clausefix/PREREG.md, work/w-clausefix/REPAIRS.md
+C17                 2  READ         READ     work/w-clausefix/PREREG.md, work/w-clausefix/REPAIRS.md
+C18                 2  READ         READ     docs/whitebox/ref/P_INLINE.md, work/w-clausefix/PREREG.md, work/w-clausefix/REPAIRS.md, work/w-inlbudget/IMAGE_READ.md
+
+PIN-SCAN: 13 of 15 rows have at least one clause-pinning address cited in the frozen corpus as dispatched
+PIN-SCAN: 15 of 15 rows once this lane's own read is included
