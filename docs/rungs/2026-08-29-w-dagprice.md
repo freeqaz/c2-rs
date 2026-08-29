@@ -135,10 +135,31 @@ added. Board **#3841**.
 
 | lane | result |
 |---|---|
-| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | see below — target count and pass count both recorded |
-| `scripts/gate.sh --jobs 16 --require-graded` | see below — the `GATE:` **verdict line**, never the exit code |
-| byte delta | **0, required** — `git diff --stat` touches no `crates/**` path; the lane's whole diff is `docs/**` + `work/w-dagprice/**` |
-| reach | **0, predicted and realized** — no fixture, no census key, no `DISCLOSURE.md` row |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **62 targets · 1,999 passed · 1 failed · 2 ignored.** The one failure is named and diagnosed below |
+| `scripts/gate.sh --jobs 16 --require-graded` | **`GATE: PASS — 18/18 lanes ran and every one of them graded a corpus`** — unqualified, read off the **verdict line** and not the exit code. Sweep graded 19,542 of 19,638; cross graded 91,900 of 92,288 case-lane cells; **0 mismatches anywhere**; 7,056 fixture-verdicts, match 2,493, 0 mismatch, 0 PANIC; debug lane 18/18 at 0 panics. Graded tree `a00a40351045` (808 files, content-hashed) |
+| byte delta | **0, required and held** — the lane's entire diff is `docs/**` + `work/w-dagprice/**`. No `crates/**` path is touched, and the gate's own content hash covers `crates fixtures scripts` |
+| reach | **0, predicted and realized** — no fixture, no census key, no `DISCLOSURE.md` row, no emit path |
+
+> **THE ONE RED, NAMED AND BOUNDED.**
+> `c2-harness --test rung_registry :: rung_index_is_generated_and_current`
+> asserts `docs/rungs/INDEX.md` matches `scripts/gen_rung_index.sh`. It is red
+> because **this rung file exists and `INDEX.md` does not yet list it**.
+> Diagnosed rather than asserted:
+>
+> ```
+> $ sh scripts/gen_rung_index.sh - | diff - docs/rungs/INDEX.md
+> 349d348
+> < | 2026-08-29 | w-dagprice | [w-dagprice](2026-08-29-w-dagprice.md) | 11 | unchanged → unchanged, +0 |
+> ```
+>
+> **One line, and it is this lane's own row.** `INDEX.md` is **outside this
+> lane's seam** and `WAVE20_BRIEF_2026-08-29.md` §4 says it is *"regenerated at
+> merge, never hand-resolved"* — three lanes ran concurrently and each adding a
+> row by hand is the conflict that rule exists to prevent. The red is expected,
+> it is a **complete** diff of one line, and it clears the moment the
+> coordinator regenerates. **It is recorded rather than suppressed**, because a
+> lane that reports "all green" over a red it chose not to look at is exactly
+> `#3689`/`#3787`/`#3814`'s shape.
 
 ## Found and not taken
 
