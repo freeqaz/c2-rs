@@ -1,0 +1,60 @@
+=== CONTROLS_RED.txt — lane w-globarms. Five planted defects + the cross-grader control.
+# prereg §5. #3336: a control never watched fail is decoration.
+# Each defect was applied to the FINAL grader, the run captured (stdout AND
+# stderr), the file restored with cp AND touch, and the restore verified by
+# re-running (brief §5: cp/mv preserves the older mtime and the mutated copy
+# would otherwise run on).
+
+--- DEFECT 1: the kind byte is read at sym+0x08 instead of sym+0x04 ---
+  File "<repo>/docs/whitebox/scripts/grade_globarms.py", line 179, in decode_arms
+    raise ArmDecodeError("A1: no `mov al,[edi+0x4]` at %08x" % va)
+ArmDecodeError: A1: no `mov al,[edi+0x4]` at 10b5511a
+  exit=0
+
+--- DEFECT 2: the frame-traffic scan starts at instruction 0, so the prologue saves count ---
+  readout: no post-stwu frame store is PROMOTED                    FAIL
+  readout: the prologue saves BEFORE the stwu are not frame traffic FAIL
+  SELFTEST FAIL: 2
+  a body with no frame is U, not a pass                    ok
+GRADE: FAIL (readout precondition — no cell verdict is published)
+
+--- DEFECT 3: a no-frame body is scored PROMOTED instead of U ---
+  REJECT a body with no frame (U, not a pass)                      FAIL
+  SELFTEST FAIL: 1
+  a body with no frame is U, not a pass                    FAIL
+GRADE: FAIL (readout precondition — no cell verdict is published)
+
+--- DEFECT 4: the linkage jump table is read at stride 3 instead of 4 ---
+  File "<repo>/docs/whitebox/scripts/grade_globarms.py", line 116, in off
+    raise ValueError("va %#x outside every section" % va)
+ValueError: va 0xbd294d00 outside every section
+
+--- DEFECT 5: the relocated-static arm of the readout is removed ---
+    THIS ONE FOUND A REAL HOLE. Before the fix (commit eaeebd42a) it printed
+    'GRADE: PASS  (3 prediction misses)' with the three A8 cells flipped to
+    PROMOTED -- a dead readout publishing a table that reads like a finding.
+    The readout precondition exists because of this control.
+  readout: a store to a RELOCATED static is MEMORY                 FAIL
+  SELFTEST FAIL: 1
+=== READOUT PRECONDITION (the same four assertions --selftest runs) ===
+  no post-stwu frame store is PROMOTED                     ok
+  a post-stwu r1 store is MEMORY                           ok
+  a store to a RELOCATED static is MEMORY                  FAIL
+  a body with no frame is U, not a pass                    ok
+GRADE: FAIL (readout precondition — no cell verdict is published)
+
+--- RESTORE VERIFIED: the un-mutated grader re-run, and git diff EMPTY ---
+
+  SELFTEST PASS
+  graded 38, U 0, hits 38, misses 0
+  CONTROL C1 (ga_int PROMOTED / ga_vol MEMORY, both profiles): FIRED
+GRADE: PASS
+git diff --stat of the grader after all five restores:
+  ^ no line above = restored byte-for-byte
+
+=== CONTROL C4 — the CROSS-GRADER agreement, prereg §5 ===
+grade_globobj.py's INDEPENDENT frame-traffic readout on the same dumps.
+A disagreement would be a finding about one of the two graders.
+  globobj verdicts: 38   globarms verdicts: 38
+  C4: AGREE on all 38 cell/profile verdicts.
+      (SPLIT folded to MEMORY, which is what globobj's coarser rule calls it.)

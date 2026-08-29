@@ -80,6 +80,12 @@
     cmp kind, 0xb   jbe  -> 10bd250a
     cmp kind, 0xd   je   -> 10bd25da
 
+=== READOUT PRECONDITION (the same four assertions --selftest runs) ===
+  no post-stwu frame store is PROMOTED                     ok
+  a post-stwu r1 store is MEMORY                           ok
+  a store to a RELOCATED static is MEMORY                  ok
+  a body with no frame is U, not a pass                    ok
+
 === CELLS — the frame-traffic readout ===
   . gb_addr_escape   A6   arm2_W.txt     want MEMORY    got MEMORY    0014:stw 11, 80(1)
   . gb_addr_local    A6   arm2_W.txt     want PROMOTED  got PROMOTED  
