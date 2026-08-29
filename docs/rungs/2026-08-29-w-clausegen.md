@@ -71,8 +71,20 @@ screen recorded as an explicit `CLAUSES.tsv` column** — both of the two option
 the brief named, because they are one option: the column is the frozen record
 and the address is what populates it. It is **not** a narrowing of check 5 to
 `crates/*/src/`, which redefines what `absent` MEANS and was declined at the
-wave-19 merge — and which would additionally have re-hidden C4's and C10's
-`splice.rs` citations, the finding in §3.
+wave-19 merge.
+
+> **A correction this lane owes on its own claim.** The first draft of this
+> rung, and of board `#3818`, gave a *second* reason for declining the
+> narrowing: that it would have re-hidden C4's and C10's citations. **That is
+> false** — `splice.rs` is under `crates/c2-core/src/`. Measured
+> (`work/w-clausegen/src_narrowing.py`, output in `src_narrowing.out`): **all
+> five flagged rows carry at least one `crates/*/src/` hit, so narrowing check 6
+> would change the flagged set by 0 of 5.** The narrowing question is
+> *orthogonal* to §3's finding; what it would actually remove is the
+> self-reference hazard, at the price of redefining `absent`. Recorded rather
+> than quietly fixed, because it is this lane's own subject happening to this
+> lane — a consequence asserted instead of measured, and the grep that settled
+> it took eleven seconds.
 
 **Why an address.** A name is a lane's free choice. An address is not:
 `CLAUDE.md` §Whitebox requires a `DISCLOSURE` row naming the address in the same
@@ -197,10 +209,12 @@ instrument's state**, against `#770`'s base rate. Both misses fell that way.
 
 ## 6. Gate evidence
 
+All runs on this lane's branch at `efc45a8ea` + the corrections in this commit.
+
 | lane | result |
 |---|---|
-| `scripts/gate.sh --jobs 16 --require-graded` | *(filled below from `work/w-clausegen/gate.out`)* |
-| `cargo test --workspace --release --no-fail-fast` | *(filled below)* |
+| `scripts/gate.sh --jobs 16 --require-graded` | **`GATE: PASS`**, unqualified — **18/18 lanes PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT**, **7,056 fixture-verdicts**; sweep **19,542 of 19,638** graded, cross **91,900 of 92,288** cells graded, **0 mismatch anywhere**; debug-lane 18/18, 7,056 verdicts, **0 panic**; `ROW LIVENESS: every row executed`. Graded tree `f0e5a69dd329`, 808 files. `work/w-clausegen/gate.out` |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **62 targets · 2,003 passed · 1 failed · 2 ignored.** The single failure is **`rung_registry::rung_index_is_generated_and_current`** — `docs/rungs/INDEX.md` is stale **because this lane added a rung file**, and the brief seams `INDEX.md` away from every lane and regenerates it at merge. **The delta is exactly one line** (this rung's row), measured by running the generator, diffing, and restoring: `work/w-clausegen/cargo_test.out`. `clause_table` is **6/6**. |
 | `python3 work/w-inlmetric/check_table.py` | `CONFORMANCE-CHECK: GREEN (0 failure(s) over 24 rows)`; `state: {'absent': 12, 'R-derived': 7, 'fitted': 2, 'unexercisable': 3}`; `CITES: 11 of 24 rows have a non-empty frozen crates/ citation footprint, 24 of 24 compared`; `ALIGN: 424,232 instruction starts, 24 of 24 rows graded`; `DECODE: 24 of 24` |
 | `python3 work/w-inlmetric/gen_table.py --check` | `TABLE-GEN: GREEN (0 differing line(s) over 24 rows)`, 34 generated lines |
 | red-on-broken-input | §4 above; `gen_red_on_handwritten_page.out` (27 lines RED), `demo2_falsenegative_caught.out` (check 5 GREEN / check 6 RED), `control_c1.out` (8 rows RED at `72caf2586`) |
@@ -236,3 +250,17 @@ instrument's state**, against `#770`'s base rate. Both misses fell that way.
    `no-instr-count` and its *other* half is already adopted — so C4 is closer to
    convertible than the `absent 12` partition suggests, and that lane should be
    told.
+7. **`scripts/gen_rung_index.sh` WRITES `INDEX.md` IN PLACE and prints its
+   path to stdout** — there is no `--check` and no dry run. Running it to *see*
+   the expected output modifies a file the wave's seam table assigns to nobody;
+   it happened here and was reverted with `git checkout` + `touch` inside the
+   same tool call. A generator with no read-only mode is a generator that
+   cannot be consulted, only obeyed. `gen_table.py` was given `--check` as its
+   **default** for exactly this reason.
+8. **`INDEX.md`'s `fixtures` column prints a WORD COUNT for every
+   `Fixtures: none — …` rung**, not a fixture count: this rung reads **9**,
+   `w-inlclause` **12**, `w-paramfill` **19**, `w-globarms` **8** — all four
+   declare no fixtures. Pre-existing, affects every construct/characterization
+   /instrument rung in the index, and is a printed number that means nothing,
+   which is the family this wave is funded to shrink. Not taken: `INDEX.md` and
+   its generator are outside this lane's seam.

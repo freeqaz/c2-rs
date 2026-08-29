@@ -191,9 +191,22 @@ implies — and is the strongest argument for generating that this lane found.
 
 * **Convert any clause.** Five rows are flagged, two of them (C4, C10)
   substantively. Not one `state` cell moved and `SPLIT` is unchanged.
-* **Narrow the screen to `crates/*/src/`.** That redefines what `absent`
-  *means* and was declined at the wave-19 merge; it is also the change that
-  would have made C4's and C10's `splice.rs` citations invisible again.
+* **Narrow the screen to `crates/*/src/`.** Declined on the wave-19 grounds: it
+  redefines what `absent` *means*.
+
+  **And a second reason for declining, which I wrote here first, is FALSE.** I
+  claimed narrowing would have re-hidden C4's and C10's citations. It would
+  not: `splice.rs` **is** under `crates/c2-core/src/`. Measured properly
+  (`work/w-clausegen/src_narrowing.py`, output in `src_narrowing.out`), **all
+  five flagged rows carry at least one `crates/*/src/` hit**, so narrowing
+  check 6 would change the flagged set by **0 of 5**. The narrowing question is
+  therefore *orthogonal* to §3's finding; what narrowing would actually remove
+  is the self-reference hazard (`clause_table.rs` and `noinline_boundary.rs`
+  mentions on C11/C12), at the price of redefining `absent`.
+
+  Recorded rather than quietly fixed, because it is this lane's own subject
+  happening to this lane: **a consequence asserted instead of measured.** The
+  grep took eleven seconds.
 * **Rubber-stamp the five.** Their `cites` cells record a *measured footprint*,
   not a verdict. Check 6 stays able to fire on all 24 rows tomorrow.
 * **Add a `scripts/gate.sh` row** (`#3691`).

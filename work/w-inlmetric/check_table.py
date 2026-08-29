@@ -255,6 +255,21 @@ def token_in_crates(tok, rev=None):
     here is to return the paths, so the reader can classify a hit in seconds
     instead of reading the module — the verdict is unchanged, the diagnosis is
     not.
+
+    ---- THE OTHER HALF IS NOW CHECK 6, AND IT IS NOT THIS FUNCTION -----------
+
+    Everything above is about a **false positive**: a mention read as a
+    counterpart. The block above says that is KNOWN AND NOT FIXED, and it still
+    is. What was not written down anywhere until 2026-08-29 is the **false
+    negative** — a counterpart adopted under a DIFFERENT NAME, which this
+    function answers `absent` to and which nothing counts. That one is closed,
+    by `cites_in_crates` (check 6), and it is closed with an ADDRESS rather
+    than by narrowing this grep, because narrowing to `crates/*/src/` would
+    redefine what `absent` MEANS and that is still `w-inlmetric` PREREG SS5's
+    to define and not this function's. The two checks are independent and
+    neither subsumes the other: this one catches an adoption that reuses the
+    table's spelling, check 6 catches one that cites the table's address, and
+    an adoption that does neither is invisible to both. See `w-clausegen`.
     """
     return grep_l(tok, rev, word=True)
 
