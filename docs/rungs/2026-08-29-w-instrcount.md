@@ -100,7 +100,7 @@ not a clamp argument.
 |---|---|
 | `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,770 targets run, 1,770 pass, 0 fail** (see below for the exact recipe) |
 | `c2rs selftest` | **392 PASS, 0 SKIP** — the worktree's toolchain resolves; `SKIP: toolchain absent` would have invalidated every row here |
-| `scripts/gate.sh --jobs 16 --require-graded` | **`GATE: PASS`**, unqualified — 18/18 lanes, 0 mismatch, and the `expr_sweep` row `checked=19638 mismatches=0 graded=19542` |
+| `scripts/gate.sh --jobs 16 --require-graded` | **`GATE: PASS`**, unqualified — *"18/18 lanes ran and every one of them graded a corpus, the sweep graded **19,542 of 19,638** generated cases and the cross graded **91,900 of 92,288** case-lane cells, with **0 mismatches anywhere** (96 sweep cases carried ungraded — the reference rejects the source), and 18/18 lanes ran again through a DEBUG-profile `c2rs` for **7,056** more fixture-verdicts at **0 panics**"*. Graded tree `a00a40351045`, 808 files |
 | `scripts/expr_sweep.sh` | inside the gate row above |
 | 878-TU workload scan | not run — no compiled file changed, so a scan would grade a byte-identical tree |
 | fixtures, `c2rs census` | +0 by construction |
@@ -121,10 +121,19 @@ Ranked, with what each would unblock.
    `DAT_10c2e2fc != 0` or `[sym+0x4c] & 0x2080`, and the over-ceiling path gets
    there through `test edi,eax` — **a caller-supplied `ATTR` mask, one of the
    function's five parameters, i.e. a decision point c2 already exposes as a
-   parameter**. Three small reads (the three callers for `edi`,
-   `DAT_10c2e2fc`'s writer, `ATTR` bit 7) would settle a contradiction between
-   two `[O]` datasets that this lane could only report: external count **115**
-   inlined vs external count **99** kept.
+   parameter**. Two small reads: the three callers for `edi`, and
+   `DAT_10c2e2fc`'s writer.
+
+   **And the reason it is item 0 rather than a finding is worth reading.** This
+   lane's first hypothesis was that `0x2080`'s bit 7 marks a foldable body and
+   so explains `P_INLINE` §2.1b's matched pair. **Its own data killed that
+   inside an hour** — `w-sizebracket`'s raw `series.jsonl` has both cells at
+   `gl_attr = 0x68`, `gl_size = 115`, `caller_gl_size = 21`, same profile,
+   opposite arms. That is `#3505`'s shape caught before publication rather than
+   after, and it upgrades the §2.1b question: **every identified input to
+   candidacy is identical across the pair**, so the separation is provably
+   downstream of `0x10b5fc8a`, and this lane narrowed the search space rather
+   than closing it.
 1. **The linkage arm at `0x10b60a81`** — `test DWORD PTR [edi+0x37],0x400`, then
    `call 0x10b5de82`, sitting between C17 and the POGO model and **covered by no
    clause row of the 24**. It is the last unread thing between the ceiling this

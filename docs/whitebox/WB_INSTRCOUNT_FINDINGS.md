@@ -193,27 +193,40 @@ image to be §2.1b's reducer**, and c1xx does not fold before emitting either �
 both cells' counts are exactly `19 + 8×12` and `19 + 12×8`, to the unit.
 
 §2.1b's **headline** — *"the `.gl` `SIZE` field is NOT the value the decision
-tests"* — is nevertheless still standing, and §6's brackets make it sharper
-than §2.1b could. Both of its cells are **EXTERNAL** (`int callee(int a)`, no
-qualifier) at `SIZE = 115`, and §6 measures the external candidacy bracket at
-**`[93, 99]`** — so a hard reading of `0x10b5fc8a` refuses *both* at 115, yet
-`arith_012_O1` is measured **inlined**.
+tests"* — is nevertheless still standing, and this lane can say something
+stronger than §2.1b could, from `w-sizebracket`'s own raw
+`series.jsonl` rather than from its prose:
 
-> **`[O]` — two `[O]` datasets are in genuine contradiction, and this lane
-> reports it rather than choosing.** An external callee of count 115 is
-> **inlined** (`w-sizebracket`, `arith_012_O1`) while an external callee of
-> count 99 is **kept** (GRID-I `B_O1_k12`, re-measured here). Same linkage,
-> same profile, same field. **So `0x10b5fc8a` is not a hard refusal**: something
-> admits a callee the ceiling would reject, and the two families differ on
-> exactly one thing — `arith` folds to a single affine function and `chain`
-> cannot fold, because every rung reads a distinct `extern` slot.
+| cell | `gl_size` | **`gl_attr`** | `caller_gl_size` | profile | arm |
+|---|---:|---:|---:|---|---|
+| `arith_012_O1` | **115** | **104 = `0x68`** | 21 | `/GR /O1 /Oi /EHsc` | **inlined** |
+| `mix_008_O1` | **115** | **104 = `0x68`** | 21 | `/GR /O1 /Oi /EHsc` | **kept** |
 
-### 2.5 And the mechanism is visible: `jl` is NOT accept, and over-ceiling is NOT refuse `[R]`
+> **`[O]` — EVERY input to `FUN_10b5fb5f` that this project has identified is
+> IDENTICAL across the pair.** The count is the same (115), the `ATTR` word is
+> the same (`0x68` — so `& 0x2080` is **0** in both, and §2.5's escape is not
+> the separator either), the caller is the same (21), the globals are the same
+> compilation. **Candidacy therefore returns the same verdict for both, whatever
+> that verdict is, and `P_INLINE` §2.1b's separation is provably DOWNSTREAM of
+> `0x10b5fc8a`.** It is not the size test, and it is not `0x2080`.
 
-Reading `FUN_10b5fb5f`'s tail as control flow rather than as a sequence
-dissolves the contradiction's *shape*. Every page in this tree, including
-`P_INLINE` §2.1's own 2026-08-18 correction, renders `0x10b5fc90` as
-*"below it => candidate"*. **It is not.**
+**And there is no writer in the image to be its stated reducer** (§2.1–§2.2),
+nor does c1xx fold before emitting — both counts are exactly `19 + 8×12` and
+`19 + 12×8`. So §2.1b's headline is right and **its mechanism is not**.
+
+*(A cross-dataset comparison suggests itself here and this lane declines it:
+§6's brackets are measured at GRID-I's `/O1 /GS- /c`, the pair above at the
+workload's `/GR /O1 /Oi /EHsc`. `w-sizebracket` §2.1c's own `/O1` bracket for
+non-folding bodies is `(97,103]`, which agrees with §6's `[93,99]` to within
+family — but two flag sets are two flag sets, and `P_INLINE` §2.1c's own rule
+is that no single-profile size claim may be quoted at another profile.)*
+
+### 2.5 `jl` is NOT accept, and over-ceiling is NOT refuse `[R]`
+
+Read as control flow rather than as a sequence, `FUN_10b5fb5f`'s tail says
+something every page in this tree gets wrong, including `P_INLINE` §2.1's own
+2026-08-18 correction, which renders `0x10b5fc90` as *"below it => candidate"*.
+**It is not.**
 
 ```
 10b5fc7e:  cmp   ds:0x10c2e310,ebx        ; favour-speed (ebx = 0)
@@ -240,13 +253,19 @@ dissolves the contradiction's *shape*. Every page in this tree, including
 > exposes as a parameter.**
 
 `0x2080` is `__forceinline` (`0x2000`) **or bit 7**, and **bit 7 of the `.gl`
-`ATTR` word is unread** — a front-end bit, which is where a "this body is
-trivial" mark would live, and `arith` is exactly the family that folds to one
-affine expression while `chain` cannot fold.
+`ATTR` word is unread**. It is a front-end bit, which is where a "this body is
+trivial" mark would live — **and §2.4 already rules it out as the explanation
+of `P_INLINE` §2.1b's pair, because both of those cells carry `ATTR = 0x68`
+and bit 7 is clear in both.** That is registered here deliberately: it was
+this lane's first hypothesis, and its own data killed it inside an hour. The
+bit is still worth reading; it is no longer worth reading *for that reason*.
 
-**This lane does not settle it** — that needs the `ATTR` bit read, the `edi`
-mask traced to `FUN_10b5fb5f`'s three callers, and a twin grid; and the page it
-would amend is `w-clausegen`'s this wave. Ranked in §8.
+**What §2.5 does establish is structural and does not depend on the pair:** the
+size test is not the accept/refuse boundary anyone has been quoting, and one of
+its two escapes is a **parameter**. **This lane does not settle where the
+boundary actually is** — that needs the `edi` mask traced to `FUN_10b5fb5f`'s
+three callers and `DAT_10c2e2fc`'s writer found — and the page it would amend
+is `w-clausegen`'s this wave. Ranked in §8.
 
 ---
 
@@ -593,31 +612,37 @@ wave; this lane edits neither, per `WAVE20_BRIEF` §4.)*
 
 ## 8. Found and not taken, ranked
 
-1. **`FUN_10b5fb5f`'s SECOND gate — `DAT_10c2e2fc`, `ATTR & 0x2080`, and the
-   caller-supplied `edi` mask** (§2.5). This is now the highest-value item on
-   the page, because it makes *"the size test decides candidacy"* false in both
-   directions and because bit 7 of `ATTR` is a **front-end** bit nothing in this
-   tree has read. Three things to do, all small: read `FUN_10b5fb5f`'s three
-   callers for `edi`; find `DAT_10c2e2fc`'s writer; and twin-grid the `arith`
-   and `chain` families at equal count to see whether `ATTR` differs. It would
-   settle §2.4's contradiction and probably `P_INLINE` §2.1b's pair with it.
-   **And it is a decision point c2 exposes as a parameter**, which is exactly
-   what `GOAL_DECISION_2026-08-21` § "AMENDED" says general layers should
-   surface.
-2. **The linkage arm at `0x10b60a81`** (`test DWORD PTR [edi+0x37],0x400`, then
+1. **`FUN_10b5fb5f`'s SECOND gate — `DAT_10c2e2fc` and the caller-supplied
+   `edi` mask** (§2.5). Highest-value item on the page, because it makes
+   *"the size test decides candidacy"* false in **both** directions and because
+   one escape is a **parameter** — which is exactly the shape
+   `GOAL_DECISION_2026-08-21` § "AMENDED" says general layers should surface.
+   Two small reads: `FUN_10b5fb5f`'s three callers for `edi`, and
+   `DAT_10c2e2fc`'s writer. **It will NOT explain `P_INLINE` §2.1b's pair** —
+   §2.4 rules that out on `ATTR = 0x68` in both cells — and a lane that takes
+   this on should not expect it to.
+2. **What separates `P_INLINE` §2.1b's pair, given that candidacy cannot.**
+   Every identified input to `FUN_10b5fb5f` is identical across the two cells
+   (§2.4), so the mechanism is downstream and no clause of the 24 is a
+   candidate: C17 cannot bind at one site, C16 is 30× away, POGO is
+   unreachable. **This is a genuinely open question that this lane narrowed
+   rather than answered**, and narrowing it is most of the work: the search
+   space is now "downstream of `0x10b5fc8a`, sensitive to whether the body
+   folds, insensitive to the count and to `ATTR`."
+3. **The linkage arm at `0x10b60a81`** (`test DWORD PTR [edi+0x37],0x400`, then
    `0x10b5de82`). It sits between C17 and the POGO call, is covered by no clause
    row, and §6's two brackets — static `[261,267]`, external `[93,99]` — are a
    ready-made grade for any reading of it. It is the last unread thing between
    the read ceiling and the measured boundaries.
-3. **Does the budget explain F6's site-count effect?** §5.3's grid is 8–12
+4. **Does the budget explain F6's site-count effect?** §5.3's grid is 8–12
    cells and would either confirm C3/C17 for the first time (both are *READ,
    NOT CONFIRMED* today) or refute the budget as the mechanism behind
    `INLINE-P`'s fitted `n_sites` term. Cheap, and it is the only known route to
    an `[O]` on the budget.
-4. **Close the 119 memcpy/memset call sites** (§2.2). Bounded, mechanical,
+5. **Close the 119 memcpy/memset call sites** (§2.2). Bounded, mechanical,
    and it is the one thing standing between this page's write census and a
    clean universal negative.
-5. **`FUN_10ba1eca`'s recount and `[sym+0x94] & 0x100`.** A second, 32-bit
+6. **`FUN_10ba1eca`'s recount and `[sym+0x94] & 0x100`.** A second, 32-bit
    instruction count with its own 150-instruction *"won't be inlined (too
    big)"* gate that this inliner does not consult. Two readers, `0x10b9e5d8`
    and `0x10ba3b7b`. Worth knowing where it *does* bite before anyone models
