@@ -33,6 +33,59 @@ mid-level (pre-lowering) pass's differences from the machine-level one, and
 > [`ADDR.tsv`](ADDR.tsv) marks this band `tu_conf = no-ice-site` so the index
 > cannot repeat the error.
 
+> ### ⛔ AMENDED 2026-08-29 (lane `w-dagprice`, board **#3838**–**#3840**) — **THE BAND IS THREE CLAIMS, THE `61` COUNTS A FUNCTION THAT IS NOT THE SCHEDULER'S, AND THE TU CLAIM NOW HAS POSITIVE EVIDENCE**
+>
+> Amended beside, per [`README.md`](README.md) §2.1. The banner and the box
+> above stand as written. Grade and full derivation:
+> [`../WB_DAGPRICE_FINDINGS.md`](../WB_DAGPRICE_FINDINGS.md) §1; instruments
+> `work/w-dagprice/band_probe*.py`, `tu_signal*.py`.
+>
+> ***"Even attributing that band to the scheduler is a hypothesis"*** — as
+> [`SUBSYS.md`](SUBSYS.md)'s blind-spot box and the wave-20 brief gloss it —
+> **conflates three claims with three different standings.**
+>
+> * **FUNCTIONAL — *these functions are the scheduler*: SURVIVES, and it never
+>   rested on `c2_tus.tsv`.** That table is a **file-name** partition built from
+>   ICE sites; it has no opinion about what a function does, so it cannot weaken
+>   a claim it was not used to make. Reading its caveat as a caveat on the code
+>   is `#1823`'s own category error inverted. Measured here: the twelve
+>   functions `0x10be5cce`..`0x10be663d` are a **single-entry call component** —
+>   `ENTRY 0x10be6382 from 0x10b7dc51, 0x10b7df57`, the two phase drivers §1's
+>   table names, and **1 external entry of 12**.
+> * **EXTENT — *the band's members are the scheduler's functions*: REFUTED, at
+>   both edges, and nobody had tested it.** `0x10be663f` admits `FUN_10be663e`
+>   (**1,197 bytes, of which the band covers 2**), which calls and is called by
+>   **none** of the twelve, whose only callers `0x10be6aeb`/`0x10be6bca`
+>   reference `clui.dll` and `PATH`, and which shares **no** private data with
+>   them. **The correct top edge is `0x10be663d`, the scheduler count is 12, and
+>   the coverage denominator is `48 + 12 = 60`, not 61.** At the bottom,
+>   `FUN_10be5cbe` (16 B) ends exactly at the band start and is called by
+>   `0x10c1bbaf` — a scheduler function — while [`FUNCS.tsv`](FUNCS.tsv) hands
+>   it to `except.c`, an attribution no call edge supports. And the **`dag.c`
+>   half has the same defect**: its published end `0x10b3433f` falls inside
+>   `FUN_10b3421b` (`0x10b3421b`..`0x10b34398`). Board **#3839**.
+> * **TRANSLATION UNIT — *the band is one compiland*: POSITIVE EVIDENCE, for the
+>   first time.** The twelve exclusively own a contiguous `.data` block
+>   `0x10c3d140`..`0x10c3d180` (14 words, 13 with no referrer outside them),
+>   bounded by `sizeopt.c`'s block below and `regasg.c`'s above. **Control
+>   watched:** of 4,905 sliding 12-function windows image-wide, **40 (0.82 %)**
+>   match that run, and they collapse to **5 code regions — four of which are
+>   named compilands** (`hash.c`, `inline.c`, `lur.c`, `smdmisc.c`); the fifth
+>   is this band. Same instrument, opposite answer on the 29 gap functions
+>   *above* the band, which own **zero** exclusive `.data`. **The first control
+>   built came back broken and is recorded**, not dropped: anchor-extent
+>   positives all scored *below* the subject, because an ICE anchor brackets a
+>   subset of its compiland. **The compiland's NAME stays unrecoverable** — the
+>   image's only naming channel is the ICE `__FILE__` string. Board **#3840**.
+>
+> **And the epistemic ranking in this page's denominator is the reverse of the
+> received one.** Over the 83 functions [`FUNCS.tsv`](FUNCS.tsv) gives
+> `subsys=dag`: **69 `gap`, 13 `no-ice-site`, 1 `in-anchor`.** `dag.c` has a
+> **single** ICE site (`0x10b3219f`, line 1429), so the 48-function `dag.c` band
+> is 47 functions of extrapolation off one anchor. **The scheduler band is not
+> this subsystem's weak half — it is now the only part of it with a positive TU
+> test behind it.**
+
 ---
 
 ## 1. The four scheduler runs
@@ -136,6 +189,8 @@ moves `[O]`.
 | `0x10c3bfb0` | the microcoded-opcode list (+15 cycles) `[R]` |
 | `0x10c435cc` | the monotonic tuple-index counter, source of `node+0x44` `[R]` |
 | `0x10c435ac` / `0x10c435b4` | last-writer / last-reader lists `[R]` |
+| `0x10c3d140`–`0x10c3d180` | **the scheduler compiland's own `.data` block** — 14 referenced words, 13 of them with **no referrer outside** the twelve functions `0x10be5cce`..`0x10be663d`; bounded by `sizeopt.c`'s block below and `regasg.c`'s above. This is the positive evidence for the TU claim in the box at the top of this page `[R]` (`w-dagprice`, **#3840**) |
+| `0x10c435bc` / `0x10c435c0` | **the DAG's two installable client hooks** — a per-EDGE callback invoked at the tail of `0x10b32113` as `(*DAT_10c435bc)(edge, kind)`, and a per-NODE callback at the tail of `0x10b327cd`. §6's *"a second author of tuple order exists"* names the merge **clients**; this is the **mechanism by which one attaches**, and neither pointer was recorded anywhere in this repo `[R]` (`w-dagprice`, **#3844**) |
 
 
 > ### ⛔ CORRECTION 2026-08-20 (lane `w-stageoracle`) — **`0x10bec297` IS NOT "THE TIMER"**
@@ -357,6 +412,38 @@ Ready-list order: **priority DESC (unsigned), then `node+0x44` ASC**
 >
 > Data: [`SCHED_LATENCY.tsv`](SCHED_LATENCY.tsv). Full decode:
 > [`WB_SCHEDCONF_FINDINGS.md`](../WB_SCHEDCONF_FINDINGS.md) §2.4.
+
+> ### ⛔ AMENDED 2026-08-29 (lane `w-dagprice`, board **#3842**–**#3843**) — **`edge+0x19` BIT 1 HAS ONE SETTER AND IT IS READ; `5` IS THE DEFAULT; AND *"`crates/` CARRIES THE 2"* IS LOOSE**
+>
+> Amended beside; the box above stands. Derivation:
+> [`../WB_DAGPRICE_FINDINGS.md`](../WB_DAGPRICE_FINDINGS.md) §3. `[R]`, from the
+> flat export's decompilation.
+>
+> * **Bit 1 is CLEARED at edge creation.** `FUN_10b32113` @ `0x10b32113` ends
+>   with `*(byte *)(edge + 0x19) &= 0xfd`. **So `5` is the default and `2` is an
+>   override applied later** — the polarity a port needs, and not stated above.
+> * **The sole setter is `FUN_10c1bc78` @ `0x10c1bc78` (114 B).** An image-wide
+>   scan for `+ 0x19)` gives 23 occurrences in 6 functions; one writes bit 1 on
+>   a DAG edge. Its four conditions: producer class **1**, consumer class **8**,
+>   consumer opcode in `[0x14d,0x180]` — three of which are exactly cell
+>   `(1,8)` as decoded above — **and a fourth that is new**: a record passed by
+>   the caller must be non-null with `+0x14 & 0x20` clear. **The latency-2 half
+>   is gated on that record, and nothing in this repo names it.**
+> * **§2's `0x10b322ba` row is incomplete where it matters.** It reads *"true-dep
+>   edges from last writers (register kind 4, memory kind `0x80`)"*. The function
+>   dispatches on **kinds 1, 4 and `0x20`** plus a default, and it is **kind 1**,
+>   not kind 4, that reaches the setter and the latency call `0x10c1c1d4`. The
+>   edge-kind inventory the whole latency model joins through is missing its
+>   most consequential member. Board **#3842**.
+> * ***"and `crates/` carries the `2` and not the `5`"* — LOOSE, and
+>   [`WB_SCHEDCONF_FINDINGS.md`](../WB_SCHEDCONF_FINDINGS.md) §8.4 restates it.**
+>   [`../DISCLOSURE.md`](../DISCLOSURE.md) has **no `[dag]` adoption row at all**.
+>   The `2` both sentences point at is `order.rs`'s `u = min(2, #unproduced)`, a
+>   **store-slot count** fitted over 250 cells, whose identification with the
+>   ALU→store-data latency is §4's own interpretive step and not a read.
+>   **Correct statement: the port has no latency model, so it cannot carry a
+>   wrong cell — and this read is a prerequisite for the first one it builds,
+>   not a fix to an existing one.** Board **#3843**.
 
 > ### ⛔ AMENDED 2026-08-28 (lane `w-sched`, board **#3729**) — **THE 10/10 IS IMAGE-VS-IMAGE. IT NEVER MET THE TAP, AND IT DOES NOT PROMOTE THIS SECTION**
 >
