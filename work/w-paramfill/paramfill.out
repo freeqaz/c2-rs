@@ -1,0 +1,89 @@
+==========================================================================
+CONTROLS (work/w-paramfill/PREREG.md SS2)
+==========================================================================
+  C1 GREEN  DAT_10c46318: writers ['0x10b5e4d7', '0x10b5e4e8']  readers ['0x10b5fc8a']
+            required writers ['0x10b5e4d7', '0x10b5e4e8'] reader ['0x10b5fc8a'] -> GREEN
+  C2 RED    planted 0xdeadbe00 via instrument L: 0 refs of 424232 decoded starts -> RED (correct)
+  C3 RED    byte scan for de ad be 00: 0 hits of 1232384 .text bytes
+            byte scan for 0x10c462c4   : 114 hits, listing says 114 -> RED+GREEN (correct)
+  C4 CROSS  Ghidra 114 refs vs listing 114 refs; L\G={} G\L={}
+
+CONTROLS: ALL PASS
+==========================================================================
+REFERENCE CENSUS for 0x10c462c4
+==========================================================================
+  section          : .data
+  load-time value  : NONE -- above raw section end, BSS, zero at load
+  L  objdump linear: 114 refs  (  2 WRITE, 112 READ)   of 424232 decoded instruction starts
+  G  Ghidra xrefs  : 114 refs  (  2 WRITE, 0 READ_WRITE, 112 READ)
+  B  raw byte scan : 114 occurrences of c4 62 c4 10  of 1232384 .text bytes scanned
+
+  B-hits with no decoded instruction start within 7 bytes: 0 of 114
+  L\G (in listing, not in Ghidra): none
+  G\L (in Ghidra, not in listing): none
+
+  WRITERS (instrument L):
+      0x10b84bba  mov DWORD PTR ds:0x10c462c4,  in FUN_10b848dc
+      0x10bec3e4  mov ds:0x10c462c4,eax         in FUN_10bec3d3
+  WRITERS (instrument G):
+      0x10b84bba  WRITE         in FUN_10b848dc
+      0x10bec3e4  WRITE         in FUN_10bec3d3
+
+  READ distribution: 112 reads in 78 distinct owner functions
+  reads inside the inliner band 0x10b5b86d-0x10b62b00: 4 of 112
+        48  cmp DWORD PTR ds:0x10c462c4,0x0
+        23  cmp DWORD PTR ds:0x10c462c4,ebx
+        14  cmp DWORD PTR ds:0x10c462c4,edi
+        10  cmp DWORD PTR ds:0x10c462c4,esi
+         6  cmp DWORD PTR ds:0x10c462c4,ebp
+         4  cmp DWORD PTR ds:0x10c462c4,eax
+         3  cmp DWORD PTR ds:0x10c462c4,edx
+         1  cmp DWORD PTR ds:0x10c462c4,ecx
+         1  mov edx,DWORD PTR ds:0x10c462c4
+         1  mov ecx,DWORD PTR ds:0x10c462c4
+         1  push DWORD PTR ds:0x10c462c4
+
+==========================================================================
+WRITERS of the 46-dword live record at 0x10c3f510
+==========================================================================
+  per-field xref census : 60 refs over the 46 fields, 0 of them WRITEs
+    -> a `rep movsd` is invisible to this census BY CONSTRUCTION.
+  immediate loads of 0x10c3f510:
+      0x10b5b885  mov edi,0x10c3f510             in FUN_10b5b86d
+      0x10b5e518  mov edi,0x10c3f510             in FUN_10b5e4cc
+      0x10b5fd29  cmp eax,DWORD PTR ds:0x10c3f51 in FUN_10b5fcd8
+      0x10b5fe6b  mov eax,ds:0x10c3f510          in FUN_10b5fcd8
+      0x10b600d6  cmp esi,DWORD PTR ds:0x10c3f51 in FUN_10b5fcd8
+  `rep movs` sites within 32 bytes of such a load:
+      0x10b5b88a  rep movs DWORD PTR es:[edi],DWORD PTR ds:[esi]   in FUN_10b5b86d   (base loaded at 0x10b5b885)
+      0x10b5e52a  rep movs DWORD PTR es:[edi],DWORD PTR ds:[esi]   in FUN_10b5e4cc   (base loaded at 0x10b5e518)
+  decode-independent byte scan for 10 f5 c3 10: 5 hits of 1232384 .text bytes
+  B-hits with no decoded instruction start within 7 bytes: 0 of 5
+
+==========================================================================
+CALL CHAIN -- who reaches FUN_10b5e4cc (the fill), and in what order
+==========================================================================
+FUN_10b5e4cc (0x10b5e4cc)  <- 1 caller(s)
+  FUN_10b7f1ff (0x10b7f1ff)  <- 1 caller(s)
+    FUN_10b7f369 (0x10b7f369)  <- 1 caller(s)
+      FUN_10b7f3b6 (0x10b7f3b6)  <- 1 caller(s)
+        FUN_10b7f3e7 (0x10b7f3e7)  <- 3 caller(s)
+          FUN_10bec3d3 (0x10bec3d3)  <- 2 caller(s)
+            DllGetObjHandler (0x10bec40a)  <- 0 caller(s)
+            FUN_10b73634 (0x10b73634)  <- 0 caller(s)
+          _InvokeCompilerPassW@16 (0x10bec133)  <- 0 caller(s)
+          _InvokeCompilerPass@12 (0x10bebffd)  <- 0 caller(s)
+
+WRITERS of 0x10c462c4 and the function that owns each:
+   0x10b84bba  mov DWORD PTR ds:0x10c462c4,edi   in FUN_10b848dc
+   0x10bec3e4  mov ds:0x10c462c4,eax   in FUN_10bec3d3
+==========================================================================
+SCATTER / SWEEP re-derivation (PREREG P5)
+==========================================================================
+  FUN_10b5b88f scatters 37 value words, sources 0x10c45d80-0x10c45e10
+  table B at 0x10c45ed0: 32 zero-guarded default stores, 0 UNGUARDED
+        offsets +0x00..+0x80, 32 distinct fields, 32 values recovered
+        +0x00=2  +0x04=20  +0x08=5  +0x0c=0  +0x10=3  +0x14=7  +0x18=0  +0x1c=2  +0x20=2  +0x24=3  +0x28=0  +0x2c=15  +0x30=0  +0x34=0  +0x38=15  +0x3c=10  +0x40=5  +0x48=2  +0x4c=3  +0x50=0  +0x54=0  +0x58=0  +0x5c=15  +0x60=0  +0x64=0  +0x68=0  +0x6c=0  +0x70=2  +0x74=3  +0x78=3  +0x7c=6  +0x80=4
+  table A at 0x10c45e18: 34 zero-guarded default stores, 0 UNGUARDED
+        offsets +0x00..+0x80, 33 distinct fields, 33 values recovered
+        +0x00=60  +0x04=104  +0x08=32  +0x0c=0  +0x10=3  +0x14=7  +0x18=0  +0x1c=2  +0x20=2  +0x24=3  +0x28=0  +0x2c=96  +0x30=0  +0x34=0  +0x38=96  +0x3c=10  +0x40=5  +0x44=4294967292  +0x48=8  +0x4c=48  +0x50=4  +0x54=4  +0x58=0  +0x5c=32  +0x60=0  +0x64=0  +0x68=0  +0x6c=0  +0x70=2  +0x74=3  +0x78=3  +0x7c=32  +0x80=16

@@ -1,0 +1,41 @@
+# c2's own command line per cl mode.  Lane w-paramfill, 2026-08-29.
+# cl 16.00.11886.00 under wibo; every row is 'cl /Bd <mode> /GS- /c t.cpp'.
+# The IL path is elided as <IL>.  zsh word-split is explicit (${=m}).
+
+cl /O1                   c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -Gy'
+cl /O1 /EHsc             c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -Gy -EHs'
+cl /O1 /Oi               c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -Gy'
+cl /O1 /Oi /EHsc         c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -Gy -EHs'
+cl /Ox                   c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2'
+cl /Ox /EHsc             c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -EHs'
+cl /Ox /Gy               c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -Gy'
+cl /Ox /Gy /EHsc         c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -Gy -EHs'
+cl /O2                   c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -Gy'
+cl /O2 /EHsc             c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -Gy -EHs'
+cl /Od                   c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Ob0'
+cl /Od /EHsc             c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Ob0 -EHs'
+cl /O1 /Oi /GR           c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -Gy'
+cl /O1 /Oi /EHsc /GR     c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -Gy -EHs'
+cl /Ox /GR               c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2'
+cl /Ox /EHsc /GR         c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -EHs'
+cl /Od /GR               c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Ob0'
+cl /Od /EHsc /GR         c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Ob0 -EHs'
+cl /Os                   c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -Ob0 -MT -Fdvc100.pdb -f <SRC> -Bd'
+cl /Ot                   c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -Ob0 -MT -Fdvc100.pdb -f <SRC> -Bd'
+cl /Ox /Ob0              c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob0'
+cl /GL                   c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -Ob0 -MT -Fdvc100.pdb -f <SRC> -Bd -ltcg'
+cl /GL /O2               c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -ltcg -Og -Ob2 -Gy'
+cl /O2 /GL /Gy           c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -ltcg -Gy'
+cl /FAsc                 c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -Ob0 -MT -Fdvc100.pdb -f <SRC> -Bd -FAasc -Fa t.cod'
+cl /O2 /FAsc             c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -Gy -FAasc -Fa t.cod'
+cl /Ox /GL /EHsc         c2.dll -il <IL> -typedil -Fot.obj -W 1 -Gs4096 -G604 -QVMX128 -QDD2 -MT -Fdvc100.pdb -f <SRC> -Bd -Og -Ob2 -ltcg -EHs'
+
+# --- THE ANSWER, by grep over the 27 rows above ---
+#   ' -Fl'     : 0 hit(s) over 27 mode rows
+#   ' -ltcg'   : 4 hit(s) over 27 mode rows
+#   ' -optref' : 0 hit(s) over 27 mode rows
+#   ' -GL'     : 0 hit(s) over 27 mode rows
+#   ' -FAsc'   : 0 hit(s) over 27 mode rows
+#   ' -Fa'     : 2 hit(s) over 27 mode rows
+#   ' -Fs'     : 0 hit(s) over 27 mode rows
+#   ' -FA'     : 2 hit(s) over 27 mode rows

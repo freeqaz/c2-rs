@@ -471,32 +471,65 @@ black-box fit, not a reading of this clause · `absent`: no counterpart in
 | # | clause | addr | state | witness | exercised by the workload |
 |---|---|---|---|---|---|
 | C1 | pass entry per function; skipped wholesale when `DAT_10c40ec4 == 0` | `0x10b62675` | **absent** | — | yes |
-| C2 | caller instruction count seeded, `DAT_10c3f5cc = (ushort)[fn+0x50]` | `0x10b626d8` | **absent** | — | not separable (F7) |
-| C3 | growth budget `B = clamp(2 × caller_instrs, 1000, 35000)` | `0x10b626f4` | **absent** | — | not separable (F7) |
-| C4 | driver entry `FUN_10b61ee1(fn, level=1, budget=B, 0, 1e8, 0)` | `0x10b6276a` | **absent** | — | not separable |
+| C2 | caller instruction count seeded, `DAT_10c3f5cc = (ushort)[fn+0x50]` | `0x10b62703` | **absent** | — | not separable (F7) |
+| C3 | growth budget `B = clamp(2 × caller_instrs, 1000, 35000)` | `0x10b62708` | **`[R]`-derived** | `splice.rs:INLINE_BUDGET_FLOOR` | not separable (F7) |
+| C4 | driver entry `FUN_10b61ee1(fn, level=1, budget=B, 0, 1e8, 0)` | `0x10b6276e` | **absent** | — | not separable |
 | C5 | site collector: one linear scan, instruction kind `0x0f` is a call site | `0x10b600e6` | **absent** | — | yes |
 | C6 | site collector: EH-region nesting, conditional/EH flag into bit 1 | `0x10b600e6` | **absent** | — | yes (F8, 6 cells) |
 | C7 | ceiling **value**: `DAT_10c46318 = 0x10 << DAT_10c2ea98`, or `1000` at `k ≥ 7` | `0x10b5e4d7` | **absent** | — | yes |
 | C8 | candidacy **size test**: `cmp WORD [sym+0x50], DAT_10c46318`; `jl` = candidate | `0x10b5fc8a` | **fitted** | `splice.rs:INLINE_UNBOUNDED_BYTES` | yes |
 | C9 | favour-speed bit `0x10c2e310` non-zero ⇒ **the size test is SKIPPED** | `0x10b5fc7e` | **absent** | — | **no** — `/O1` pins the bit |
-| C10 | `__forceinline`: `test [sym+0x4c], 0x2000` bypasses every size and budget test | `0x10b609d3` | **absent** | — | yes (F4, 2 cells) |
+| C10 | `__forceinline`: `test [sym+0x4c], 0x2000` bypasses every size and budget test | `0x10b60a28` | **absent** | — | yes (F4, 2 cells) |
 | C11 | legality: refuse on `[sym+0x20] & {0x400, 0x1000, 0x40, 0x100}` | `0x10b5c06b` | **absent** | — | **no** |
 | C12 | legality: refuse on `[sym+0x4c] & {0x80000, 0x200}` | `0x10b5c06b` | **absent** | — | **no** |
 | C13 | legality: **REQUIRE bit 6 of `[sym+0x4c]`** | `0x10b5c06b` | **`[R]`-derived** | `gl.rs:FN_FLAG_INLINABLE` (`0x40`) | yes |
-| C14 | depth cap: `0x10 < level - DAT_10c3f50c` ⇒ decline (16 levels) | `0x10b609ae` | **absent** | — | **no** — no cell nests 16 deep |
-| C15 | `maxlevel != 0xff && maxlevel < level` ⇒ decline | `0x10b609bd` | **absent** | — | **no** — `#pragma inline_depth` in 0/100 TUs |
-| C16 | caller-huge decline: `35000 < DAT_10c3f5cc` | `0x10b609ee` | **absent** | — | **no** |
-| C17 | budget accept/decline: `budget < instrs && instrs > 0x28` | `0x10b60a04` | **absent** | — | not separable (F7) |
-| C18 | the 40-instruction test, **second copy** | `0x10b6249b` | **absent** | — | not separable |
-| C19 | the charge: `*budget -= WORD[callee+0x50]`, and the growth total | `0x10b624a2` | **absent** | — | not separable |
+| C14 | depth cap: `0x10 < level - DAT_10c3f50c` ⇒ decline (16 levels) | `0x10b60a1c` | **absent** | — | **no** — no cell nests 16 deep |
+| C15 | `maxlevel != 0xff && maxlevel < level` ⇒ decline | `0x10b60a2f` | **absent** | — | **no** — `#pragma inline_depth` in 0/100 TUs |
+| C16 | caller-huge decline: `35000 < DAT_10c3f5cc` | `0x10b60a63` | **absent** | — | **no** |
+| C17 | budget accept/decline: `budget < instrs && instrs > 0x28` | `0x10b60a73` | **absent** | — | not separable (F7) |
+| C18 | the 40-instruction test, **second copy** | `0x10b625b6` | **absent** | — | not separable |
+| C19 | the charge: `*budget -= WORD[callee+0x50]`, and the growth total | `0x10b625bb` | **`[R]`-derived** | `splice.rs:INLINE_CHARGE_EXEMPT_MAX` | not separable |
 | C20 | the expansion **recurses back into the driver** for the inlined body | `0x10b620fc` | **fitted** | `splice.rs:S6-chain` | yes (#1020, 150 witnesses) |
 | C21 | POGO profitability model, entered only on a profile record | `0x10b5fcd8` | **unexercisable** | — | unexercisable |
 | C22 | POGO per-site discount `cost -= (K + cost) / n_sites` | `0x10b600c8` | **unexercisable** | — | unexercisable |
 | C23 | parameter-table selection, `DAT_10c45e18` / `DAT_10c45ed0` | `0x10b5b86d` | **unexercisable** | — | unexercisable |
 | C24 | the tested quantity `WORD [sym+0x50]` **is the `.gl` `SIZE` field**, verbatim | `0x10b9bf6c` | **`[R]`-derived** | `gl.rs:GL_SIZE_ESCAPE_PAYLOAD` (`W-GLATTRS-1`) | yes (99 escaped records) |
 
-**Per-state split: `[R]`-derived 2 · fitted 2 · absent 17 · unexercisable 3.**
+**Per-state split: `[R]`-derived 4 · fitted 2 · absent 15 · unexercisable 3.**
 **Exercised: yes 9 · no 6 · not separable 6 · unexercisable 3.**
+
+> **RE-SYNCED to `CLAUSES.tsv` at master `12d3c0558`, by lane `w-paramfill`,
+> 2026-08-29.** The table above and `work/w-inlmetric/CLAUSES.tsv` are the same
+> instrument published twice, and they had diverged in **two** places, not one:
+>
+> * **Ten `addr` cells** — C2 C3 C4 C10 C14 C15 C16 C17 C18 C19, repaired by
+>   `w-clausefix` (`#3780`) and left as a paste-ready block because that lane
+>   did not own this page. **Applied here after independent re-derivation**:
+>   all ten new addresses are decoded instruction starts in the objdump listing
+>   (**424,232** starts, `#3784`'s corrected figure), **eight of the ten old
+>   ones are not**, and each new address decodes to the instruction its clause
+>   names — `mov ds:0x10c3f5cc,eax` (C2), `add eax,eax` (C3),
+>   `call 0x10b61ee1` (C4), `and eax,0x2000` (C10), `cmp ecx,0x10` (C14),
+>   `cmp edx,0xff` (C15), `cmp ds:0x10c3f5cc,0x88b8` = 35000 (C16),
+>   `cmp [ebp+0x10],eax` (C17), `cmp eax,0x28` = 40 (C18),
+>   `sub DWORD PTR [edi],eax` (C19). Witness
+>   `work/w-paramfill/clause_addr_recheck.out`.
+> * **Two `state`+`witness` cells and the split line** — C3 and C19 were
+>   converted to `[R]`-derived by `w-inlbudget` in wave 18 and the conversion
+>   reached the machine table and not this page, so the page read
+>   `absent 17 · [R]-derived 2` while `check_table.py` printed **GREEN** over
+>   `absent 15 · R-derived 4`. **A grader that is green on the table proves
+>   nothing about the prose copy of it**, which is the same defect one level up
+>   from `#3785` (nothing invoked the grader) and `#3679` (two programs is two
+>   chances to run only one).
+>
+> **Nothing else moved**: no clause text, no `owner`, no `exercised` cell, and
+> the reachable denominator is still **21 of 24** (`#3505`). **This page is
+> hand-maintained and the table is generated — the durable fix is to generate
+> §6.1 from `CLAUSES.tsv`, which is named here and NOT built**, because it is
+> `w-inlmetric`'s instrument and a lane that does not own it should not decide
+> its output format. Re-sync whenever `CLAUSES.tsv` moves.
+
 
 ### 6.2 What the table says that a percentage would not
 
@@ -879,6 +912,33 @@ aligned but describing something else, which is a defect class the new checker
 does **not** reach; and `FUN_10b5da2f` (573 B, unread) is the second consumer of
 `k`.
 
+> **CORRECTION, lane `w-paramfill` 2026-08-29 (board `#3806`).** Three numbers
+> in this subsection are wrong and one paragraph is refuted. The subsection is
+> left as written — it is a dated record of what `w-inlfit` could see — and the
+> corrections are stated here rather than by rewriting it.
+>
+> * **"eight of the twenty-four" is TEN.** C10 and C15 are *aligned*, in the
+>   right function, and name a different instruction; no alignment check can
+>   see that class. `#3780`, re-derived in `work/w-paramfill/clause_addr_recheck.out`.
+> * **"425,871 instruction starts" is 424,232.** The larger figure counts
+>   objdump's byte-continuation lines for instructions longer than 7 bytes as
+>   starts (`#3784`). Re-measured independently by
+>   `docs/whitebox/scripts/dump_paramfill.py`, which requires a third
+>   tab-separated field.
+> * **The "DUPLICATE of the wrong function" explanation of C18/C19 is REFUTED**
+>   (`#3782`). The block at `0x10b62488`–`0x10b624be` is *not* byte-identical to
+>   `0x10b5fb85` (the register differs, `ecx` against `edi`), it is inside
+>   `FUN_10b6242a` — which is the `owner` C18/C19 already name correctly — there
+>   is a **third** copy at `0x10b62519`, and it contains no `0x28` and no
+>   `+0x50` access, so no content search could have landed there. What does
+>   explain both citations is one uniform **`-0x11b` transcription shift**:
+>   `0x10b6249b + 0x11b = 0x10b625b6` and `0x10b624a2 + 0x11b = 0x10b625bd`.
+> * **C10 is settled and it stays `absent`** (`#3781`): the `__forceinline`
+>   bypass is an ACCEPT at `0x10b60a3e` that returns before the POGO branch, the
+>   caller-huge test and the budget test. It is *not* a class the checker cannot
+>   reach — DECODE reaches it.
+
+
 ### 6.7 THE `[sym+0x50]` REDUCTION DOES NOT EXIST — §6.6.1's first missing link is refuted, and §2.1b's conclusion survives without it
 
 > **Added 2026-08-28 by lane `w-lowerband`** (decision 21, board **#3731**–**#3736**).
@@ -1218,3 +1278,209 @@ does not word-split unquoted parameter expansions**, so `cl.exe` received
 owed. Recorded because the false reading was one command from publication, and
 because it is the same class as `#3731`: an enumeration of one addressing form
 — here, one *argument* form — quoted as an enumeration of the thing.
+
+### 6.9 GATE 1 (`DAT_10c462c4`) READ — and §6.8.2's "the whole parameter initialisation" is FALSE: there are TWO copiers and the ungated one is the live one
+
+> **Added 2026-08-29 by lane `w-paramfill`** (`ADOPTION_BRIEF_2026-08-29.md`
+> §L3, board **#3802**–**#3807**). **Amend-beside**: §1–§6.8 are unchanged
+> except for §6.1's re-sync and §6.6.3's correction block, both marked in
+> place. **No clause row is added, removed or renumbered**; C23's `addr` and
+> its `unexercisable` verdict are untouched and this section *strengthens*
+> both. Prereg `work/w-paramfill/PREREG.md`, committed at `959281309`
+> **before the image was opened**. **Predicted reach 0, delivered 0** — zero
+> `crates/` bytes, no `DISCLOSURE` row, no `gate.sh` row (`#3691`).
+> Full record: [`../WB_PARAMFILL_FINDINGS.md`](../WB_PARAMFILL_FINDINGS.md).
+> Instrument: [`../scripts/dump_paramfill.py`](../scripts/dump_paramfill.py).
+
+#### 6.9.0 The word, over three instruments `[R]`
+
+`DAT_10c462c4` sits above the raw `.data` end `0x10c3cc00`, so it is **BSS,
+zero at load**. Three instruments over three populations agree **to the
+address**, with no residue in either direction:
+
+| instrument | population | refs | WRITE | READ |
+|---|---|---:|---:|---:|
+| objdump linear listing | 424,232 decoded instruction starts | **114** | **2** | 112 |
+| Ghidra `xrefs.tsv` (control-flow-driven) | 146,818 references | **114** | **2** | 112 |
+| **decode-independent byte scan** for `c4 62 c4 10` | 1,232,384 `.text` bytes | **114** | — | — |
+
+`L\G` and `G\L` are both empty, and **0 of the 114 byte-scan hits lack a
+decoded instruction start within 7 bytes** — so no site is hiding inside a
+desynchronised run of c2's ~150 KB head-of-`.text` data block.
+
+**Both writers store `1`; nothing in the image ever stores `0`.** The word is a
+**one-way latch**: `0` at load, monotone to `1`, never back.
+
+| site | owner | condition | stores |
+|---|---|---|---|
+| `0x10bec3e4` | `FUN_10bec3d3` | **unconditional** (`xor eax,eax` / `inc eax` at `0x10bec3dd`) | `1` |
+| `0x10b84bba` | `FUN_10b848dc` (the option-table walk) | `cmp ds:0x10c45fa0,esi` (`esi = 0`, `xor esi,esi` at `0x10b848f4`) / `je` | `1` |
+
+**112 reads in 78 distinct owner functions, and only 4 of the 112 are inside
+the inliner band** `0x10b5b86d`–`0x10b62b00` (`0x10b5e4f7`, `0x10b5fe35`,
+`0x10b6005d`, `0x10b62583`). **This is a global compiler condition that the
+inliner consults, not an inliner flag.** 109 of the 112 reads are
+`cmp <word>,<zero-or-a-zeroed-register>` — it is used as a boolean everywhere.
+
+#### 6.9.1 What sets it: `-Fl#`, a 200-entry repeatable file list `[R]`
+
+`0x10c45fa0` is the value word of **`-Fl#`**, descriptor `0x10c46ec0`, kind
+**`0x2601`** — the *only* row of that kind in c2's whole option table. Kind
+`0x26` is one of the four `FUN_10c1f572` arms §6.8.6's lane listed as unread;
+it is read here, at `0x10c1f703`:
+
+```
+10c1f703:  mov  esi,DWORD PTR [edi+0x4]     ; value_ptr = 0x10c45fa0
+10c1f706:  cmp  DWORD PTR [esi],0xc8        ; 200 entries max
+10c1f70c:  jge  0x10c1f72a                  ; -> diagnostic 0x5e
+10c1f720:  mov  ecx,DWORD PTR [esi]
+10c1f722:  mov  DWORD PTR [esi+ecx*4+0x4],eax   ; array[count++] = strdup(arg)
+10c1f726:  inc  DWORD PTR [esi]
+```
+
+So `0x10c45fa0` is a **count**, its array is `0x10c45fa4`–`0x10c462c0`, and
+**`DAT_10c462c4` is the dword immediately past that array's end** — adjacent,
+not aliased: index 199 writes `0x10c462c0`, and the `jge` refuses at 200.
+
+**The `-Fl` array is write-only inside `c2.dll`.** Decode-independent byte scan
+over the whole `0x328`-byte block: **2** raw occurrences of `0x10c45fa0` (the
+`cmp` at `0x10b84bb4` and the descriptor plant at `0x10c29a40`) and **0** of
+any of the 200 element addresses, over 1,232,384 `.text` bytes. c2 records the
+list and never reads it back; only *"at least one was given"* has an effect.
+
+#### 6.9.2 The unconditional writer's own path NEVER reaches the fill `[R]`
+
+`FUN_10bec3d3` sets the gate **and** `DAT_10c2eb38`:
+
+```
+10bec3dd:  xor eax,eax / inc eax
+10bec3e4:  mov ds:0x10c462c4,eax     ; GATE = 1
+10bec3e9:  mov ds:0x10c2eb38,eax     ; = 1
+10bec3f8:  call 0x10b7f3e7           ; -> FUN_10b7f3b6
+```
+
+and `FUN_10b7f3b6` is where every entry point converges:
+
+```
+10b7f3b6:  call 0x10b7e4f0        ; -> FUN_10b848dc, the option walk (the OTHER writer)
+10b7f3c0:  cmp  ds:0x10c2eb38,0x0
+10b7f3c7:  jne  0x10b7f3e1        ; <-- skips everything below
+10b7f3c9:  cmp  ds:0x10c46308,0x0 ; -ltcg
+10b7f3d0:  jne  0x10b7f3d7
+10b7f3d2:  call 0x10b7f369        ; -> FUN_10b7f1ff -> FUN_10b5e4cc, the fill
+```
+
+`DAT_10c2eb38` is in raw `.data` with load-time value **0** and `0x10bec3e9` is
+its **only** writer. So the path that sets the gate unconditionally is exactly
+the path that jumps over the fill. **On the path that runs the fill, the only
+writer that can have fired is `0x10b84bba`, and it fires iff `-Fl<file>` is on
+c2's argv.**
+
+#### 6.9.3 `-Fl` is passed by no mode this project compiles `[O]`
+
+`cl /Bd` prints each pass's own command line. **27 mode rows** — every row of
+`scripts/lanes.txt` plus `/Os` `/Ot` `/Ox /Ob0` `/GL` `/GL /O2` `/O2 /GL /Gy`
+`/FAsc` `/O2 /FAsc` `/Ox /GL /EHsc`. Witness
+[`../../../work/w-paramfill/cl_argv_flgate.out`](../../../work/w-paramfill/cl_argv_flgate.out).
+
+| token | hits over 27 rows |
+|---|---:|
+| `-Fl` | **0** |
+| `-optref` | **0** |
+| `-ltcg` | **4** — every `/GL` row, and only those |
+
+**So `DAT_10c462c4 = 0` on every compilation this project runs.** Two incidental
+readings from the same table: **`/FAsc` passes `-FAasc -Fa <file>`, not `-Fl`**,
+so `c2rs`'s listing seam does **not** disturb this gate; and **`/GL` does reach
+c2, as `-ltcg`**, which `0x10b7f3c9` turns into "skip the whole back-end init",
+so at `/GL` `FUN_10b5e4cc` is not called at all.
+
+#### 6.9.4 …and it does NOT follow that the live record stays zero — §6.8.2 is FALSE `[R]`
+
+§6.8.2 calls `FUN_10b5e4cc` *"also the whole parameter initialisation"*. **It is
+not.** There is a **second** copier, and it is not behind GATE 1:
+
+```
+FUN_10b5b86d   (0x10b5b86d, 34 B, one caller 0x10b7e1b0)
+10b5b86d:  cmp  ds:0x10c6f1c8,0x0        ; GATE 2 only -- requested POGO mode
+10b5b876:  mov  esi,0x10c45ed0           ; table B
+10b5b87d:  mov  esi,0x10c45e18           ; table A
+10b5b885:  mov  edi,0x10c3f510
+10b5b88a:  rep movs DWORD PTR es:[edi],DWORD PTR ds:[esi]   ; 0x2e dwords
+```
+
+and it is reached **once per code-generated function**, unconditionally:
+
+```
+0x10b7f1b1  call FUN_10b7ef55        (the per-function compile, from the driver's
+                                      function-list walk at 0x10b7f15f)
+0x10b7ef5d  call FUN_10b7e113        (3rd instruction, unconditional)
+0x10b7e1b0  call FUN_10b5b86d        (tail, past both of that function's branches)
+```
+
+**This is the finding that survives, and it inverts the obvious conclusion.**
+The live 46-dword record at `0x10c3f510` *is* populated with **table A**
+(`DAT_10c6f1c8 = 0`, §6.8.6), on every compilation, by `0x10b5b88a` — so
+§6.8.3's per-switch defaults are operative after all, by an instruction §6.8.2
+does not mention. C23's `addr` cell in §6.1 has named `0x10b5b86d` all along.
+
+> **How this was nearly published the other way.** A per-field reference census
+> over all 46 live fields returns **60 refs, 0 of them WRITEs** — *correctly*,
+> because a `rep movsd` writes through `EDI` and leaves no per-field reference.
+> Read as an absence, that says "nothing else writes the record" and yields the
+> confident, wrong headline *"the live record stays all-zero on this
+> workload"*. What refuted it was **an index of the same fact already in this
+> repo** — §6.1's C23 row — checked against the read rather than assumed
+> consistent with it. `#3505` is now six for six on *"no writer exists"* being a
+> claim about an instrument's index. `dump_paramfill.py --copiers` exists so the
+> next reader gets the copiers instead of the census.
+
+#### 6.9.5 What GATE 1 actually costs on this workload `[R]` `[O]`
+
+Exactly two things sit between the `je` at `0x10b5e4fe` and the `ret`, and both
+are dead here:
+
+1. **`FUN_10b5b9de`, the module-size trim of table A** (`0x10b5e50a`). This
+   **refutes `WB_INLSWITCH_FINDINGS.md` §9 item 2's** *"`-inlT#`'s effective
+   default is a range, 80–136, not the 104 the sweep installs"*: the six-band
+   trim is behind GATE 1, so on this workload `-inlT#` is **exactly 104** and
+   `-inlfcsw#` **exactly 32**.
+2. **The gated copy at `0x10b5e52a`** — redundant with `0x10b5b88a`, which runs
+   anyway.
+
+`DAT_10c46318 = 0x10 << k` is computed at `0x10b5e4d2`, **before** the gate, so
+§6.6.1 and `#3732`/`#3734` are untouched in both directions.
+
+`[I]` **What the gate means.** Four things point one way and none points
+elsewhere: its setter is a 200-entry *file list*; its `== 0` arm in the driver
+(`0x10b7f026`, `0x10b7f2e0`) is the code that derives the per-module `.gl` /
+`.sy` / `.ex` / `.in` IL file names from a single `-il` base (extension pairs at
+`0x10b1339c` / `0x10b13368` / `0x10b13374` / `0x10b13380`, ASCII + UTF-16); its
+two in-model readers pair it with `-optref` — `/OPT:REF`, a **linker** option —
+at `0x10b5fe3e` and `0x10b60066`; and its descriptor neighbours in the option
+table are `-ltcg` and `-optref`. The reading is **whole-program / link-time
+back-end mode**, and it is marked `[I]`: no obj in this project can exhibit it.
+
+#### 6.9.6 One §6.8.3 default is wrong: `-inlfcsa#`'s table-A value is 20, not 5 `[R]`
+
+Both fillers are **straight-line** — exactly **1** non-guard control transfer
+each (the `call FUN_10b5b88f`) over 120 (A) and 119 (B) instructions, every
+other branch a `cmp ds:F,eax / jne` skipping exactly one store — and `eax` is
+defined **once** in each (`xor eax,eax`) and never redefined.
+
+`FUN_10b5bc6e` (table A) contains **34** default-store instructions over **33**
+fields. `+0x40`, which is `-inlfcsa#`, is stored **twice**:
+
+```
+10b5bcf5:  cmp ds:0x10c45e58,eax / jne / 10b5bcfd: mov ds:0x10c45e58,0x14   ; 20
+10b5be3f:  cmp ds:0x10c45e58,eax / jne / 10b5be47: mov ds:0x10c45e58,0x5    ; 5
+```
+
+The first store wins and **the second can never fire**. So table A's
+`-inlfcsa#` default is **20**; `WB_INLSWITCH_FINDINGS.md` §3's `defA = 5` is
+**false**, and its *"A and B differ on 13 of the 46 fields — 8 of the 24
+switch-fed ones"* is **14 and 9**. The ratio 20/5 = 4.0× is inside the published
+2.1×–30.0× span and A is still the larger, so those two shape claims survive.
+Table B is **33 stores over 33 fields** with no duplicate, exactly as published.
+**32 of A's 33 and 33 of B's 33 re-derive identically**; witness
+[`../../../work/w-paramfill/defaults_rederived.out`](../../../work/w-paramfill/defaults_rederived.out).

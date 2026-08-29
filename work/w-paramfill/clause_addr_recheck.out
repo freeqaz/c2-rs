@@ -1,0 +1,15 @@
+# 424232 decoded instruction starts (#3784: NOT 425,871 -- continuation lines excluded)
+id   old          old@start new          new@start  new decodes to
+C2   0x10b626d8 no        0x10b62703 YES        mov ds:0x10c3f5cc,eax              owner=FUN_10b62675
+C3   0x10b626f4 no        0x10b62708 YES        add eax,eax                        owner=FUN_10b62675
+C4   0x10b6276a no        0x10b6276e YES        call 0x10b61ee1                    owner=FUN_10b62675
+C10  0x10b609d3 YES       0x10b60a28 YES        and eax,0x2000                     owner=FUN_10b60930
+C14  0x10b609ae no        0x10b60a1c YES        cmp ecx,0x10                       owner=FUN_10b60930
+C15  0x10b609bd YES       0x10b60a2f YES        cmp edx,0xff                       owner=FUN_10b60930
+C16  0x10b609ee no        0x10b60a63 YES        cmp DWORD PTR ds:0x10c3f5cc,0x88b8 owner=FUN_10b60930
+C17  0x10b60a04 no        0x10b60a73 YES        cmp DWORD PTR [ebp+0x10],eax       owner=FUN_10b60930
+C18  0x10b6249b no        0x10b625b6 YES        cmp eax,0x28                       owner=FUN_10b6242a
+C19  0x10b624a2 no        0x10b625bb YES        sub DWORD PTR [edi],eax            owner=FUN_10b6242a
+
+new addresses that are decoded instruction starts: 10 of 10
+old addresses that are decoded instruction starts: 2 of 10
