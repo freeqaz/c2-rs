@@ -119,13 +119,30 @@ cells record today's footprint, so a *new* citation on any of the 24 goes RED.
 
 ## 3. The finding — `absent` is over-stated on two rows, and this lane did not fix it
 
-**C4.** `Expansion::at_pass_entry()` in `splice.rs` is documented at C4's own
-address as the pass entry's state and returns `level: 1, level_base: 0,
-budget: Parent`. The row's `note` reads *"no depth/budget parameters exist to
-pass"* — **there are, and `Expansion` is them.** What is genuinely absent is the
-*value* of `B`, which needs the pre-codegen instruction count the row's own
-`blocker` column already names (`no-instr-count`, which is `w-instrcount`'s read
-this wave). One row, two facts.
+**C4 — and this claim is about the ARGUMENT SHAPE, not about the driver.**
+`Expansion::at_pass_entry()` in `splice.rs` is documented at C4's own address as
+the pass entry's state and returns `level: 1, level_base: 0, budget: Parent`. It
+is **live production code, not a documented constant** — called at
+`splice.rs:1333`, where `mod tests` begins at 1534. The row's `note` reads *"no
+depth/budget parameters exist to pass"* — **there are, and `Expansion` is
+them.**
+
+> **Reconciled with `w-instrcount`, which concluded C4 is NOT unblocked, and
+> which is right.** C4's clause has two halves and my evidence reaches one:
+>
+> | part of C4 | in the port? |
+> |---|---|
+> | entry **state** `level = 1`, `level_base = 0` | **PRESENT**, live, address-cited |
+> | the `budget = B` argument's **value** | **ABSENT** — `no-instr-count` |
+> | the other three arguments `(0, 1e8, 0)` | **ABSENT**, unread |
+> | the **driver** `FUN_10b61ee1` — a recursive walk over a collected site stream | **ABSENT**; `0x10b61ee1` is cited **nowhere** under `crates/`, and `splice.rs:1325` says the port's walk *"is the same recursion with `n = 1` at every step"* — arithmetic, not a stream walk |
+>
+> **My evidence bears on `no-instr-count`, and only for the `budget = B`
+> argument.** It says nothing about the driver, which is the larger absence.
+> **`no-instr-count` alone does not unblock C4** and this lane withdraws any
+> suggestion that it does. What survives unchanged: the `note` is false as
+> written, the entry state is a live address-cited counterpart, and check 6 was
+> right to flag the row. `RESULT.md` §3a carries the full table.
 
 **C10 — the sharper one.** Four citations of C10's address in `splice.rs`, none
 of them describing an unimplemented clause: they establish that the bypass lands
@@ -246,10 +263,22 @@ All runs on this lane's branch at `efc45a8ea` + the corrections in this commit.
 5. **The five flagged rows are the next wave's adoption queue, ranked**: C4 and
    C10 first (both partial, both with a false or misleading `note`), then
    C11/C12/C23 which need only a note that they are adjudicated mentions.
-6. **`w-instrcount`'s read this wave lands directly on C4.** C4's blocker is
-   `no-instr-count` and its *other* half is already adopted — so C4 is closer to
-   convertible than the `absent 12` partition suggests, and that lane should be
-   told.
+6. **~~`w-instrcount`'s read lands directly on C4, which is closer to
+   convertible than the `absent 12` partition suggests.~~ WITHDRAWN at the
+   pre-merge review — see §3.** That sentence read C4's argument-shape half as
+   if it were the whole clause. `w-instrcount` reached the opposite conclusion
+   independently and is right: C4's **driver** is absent, `0x10b61ee1` is cited
+   nowhere in `crates/`, and `no-instr-count` alone does not unblock the row.
+   Kept struck rather than deleted, because a withdrawn ranking that two lanes
+   had to collide to catch is worth more in the log than a clean paragraph.
+
+   **What replaces it, as a question for the next wave and not an edit here:**
+   C4's `blocker` cell names `no-instr-count`, and the two lanes' evidence
+   together suggests that is the **smaller** of two blockers — the driver's
+   absence looks like `no-instr-stream`. If that holds it moves `#3816`'s
+   published partition (`no-instr-count` 4 → 3, `no-instr-stream` 2 → 3), which
+   is a re-ranking of the highest-fan-out item on the board. **Not changed
+   here**: a `blocker` cell is a verdict and this lane moves none.
 7. **`scripts/gen_rung_index.sh` WRITES `INDEX.md` IN PLACE and prints its
    path to stdout** — there is no `--check` and no dry run. Running it to *see*
    the expected output modifies a file the wave's seam table assigns to nobody;

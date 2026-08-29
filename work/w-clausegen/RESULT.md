@@ -87,16 +87,52 @@ in one run, a full wave before they were found by hand. It is still a miss.
 
 ## 3. Adjudication of the five — and two of them say the table is over-stating `absent`
 
-**C4 — `absent` is over-stated, and the row's own note is now false.**
+**C4 — `absent` is over-stated on ONE of the clause's two halves, and the row's
+own note is false about that half. See §3a: this claim is about the ARGUMENT
+SHAPE and not about the driver, and an earlier draft of it over-reached.**
+
 `crates/c2-core/src/splice.rs`'s `Expansion::at_pass_entry()` is documented at
 this clause's own address as *"the pass entry's state — `FUN_10b61ee1(fn,
 level = 1, budget = B, 0, 1e8, 0)`, `0x10b6276e`, with `DAT_10c3f50c` zeroed at
-`0x10b6274c`"*, and it returns `level: 1, level_base: 0, budget: Parent`. The
+`0x10b6274c`"*, and it returns `level: 1, level_base: 0, budget: Parent`. It is
+**live production code, not a documented constant** — called at `splice.rs:1333`
+(the `mod tests` boundary is line 1534; the other two call sites are tests). The
 row's `note` reads *"no depth/budget parameters exist to pass"* — **there are;
-`Expansion` is them.** What is genuinely absent is the *value* of `B`, which
-needs the pre-codegen instruction count the row's `blocker` column already names
-(`no-instr-count`, L2's read this wave). So C4 is one row carrying two facts:
-the entry state is adopted and address-cited; the budget value is blocked.
+`Expansion` is them.**
+
+## 3a. Reconciling C4 with `w-instrcount` — my evidence bears on the argument shape, not on the driver
+
+`w-instrcount` concluded independently that C4 is **not** unblocked, because
+what C4 needs is the inline **driver**, whose absence is `no-instr-stream`
+rather than `no-instr-count`. **That lane is right, and an earlier draft of this
+section over-reached.** Stated at the precision the reconciliation needs:
+
+| part of C4's clause | in the port? | evidence |
+|---|---|---|
+| the entry **state** `level = 1`, `level_base = 0` (`DAT_10c3f50c` zeroed at `0x10b6274c`) | **PRESENT**, live, address-cited | `Expansion::at_pass_entry()`, called in production at `splice.rs:1333` |
+| the `budget = B` argument's **value** | **ABSENT** | needs a pre-codegen instruction count — `no-instr-count` |
+| the three remaining arguments `(0, 1e8, 0)` | **ABSENT** | no counterpart; not read here by anyone |
+| the **driver** `FUN_10b61ee1` itself — a recursive walk over a *collected site stream* | **ABSENT** | **`0x10b61ee1` is cited NOWHERE under `crates/`.** The port calls `port_enter_site` once with `predicate_site_count(f, selected)`; `splice.rs:1325`'s own comment says the port's walk *"is the same recursion with `n = 1` at every step"* — it models the recursion's arithmetic, it does not walk a stream |
+
+**So which blocker does my evidence bear on? `no-instr-count`, and only for the
+`budget = B` argument.** It says nothing about the driver, and the driver is the
+larger of C4's two absences. **`no-instr-count` alone does not unblock C4**, and
+this lane withdraws the suggestion that it does.
+
+**What survives, unchanged:** the row's `note` is false as written, the entry
+state *is* an address-cited live counterpart, and check 6 was right to flag the
+row. What is withdrawn is the ranking — an earlier draft of §7/6 of the rung
+said *"C4 is closer to convertible than the `absent 12` partition suggests"*,
+which reads the argument-shape half as if it were the whole clause.
+
+**One candidate correction for the wave that owns adoption, and this lane does
+not make it:** C4's `blocker` cell reads `no-instr-count`, and the two lanes'
+evidence together suggests that names the **smaller** of two blockers — the
+driver's absence looks like `no-instr-stream`, which is C5/C6's. If that is
+right it also moves `#3816`'s published partition (`no-instr-count` 4, not 5,
+and `no-instr-stream` 3, not 2). **Not changed here**: a `blocker` cell is a
+verdict, this lane is seamed to move none, and the reconciliation is the
+coordinator's.
 
 **C10 — `absent` is over-stated in a different and sharper way.** Four citations
 of `0x10b60a28` in `splice.rs`, and they do not describe an unimplemented
