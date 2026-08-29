@@ -588,7 +588,14 @@ pub fn lowering_of(func: &IlFunction, mode: OptMode) -> Option<Lowering> {
     // formals `float_leaf_text` declines. One cell in 1,820, in the unsound
     // direction, at zero cost to every other number — board **#3270**'s shape.
     if let Some(double) = func.float_leaf() {
-        return float_leaf_text(func, double).is_ok().then_some(Lowering::FloatLeaf);
+        // The mode is not available on this path and the policy cannot change
+        // an `is_ok`: `FpTempPolicy` picks *which* scratch register, never
+        // whether one is available (`take_fp` fails only when all 14 are live,
+        // which is policy-independent). `Ox` is passed as the arbitrary one and
+        // this comment is why that is sound rather than convenient.
+        return float_leaf_text(func, double, crate::codegen::select::OptMode::Ox)
+            .is_ok()
+            .then_some(Lowering::FloatLeaf);
     }
     // The three predicate-shaped leaves are CALLED, not re-implemented: they
     // already return `Option<Result<…>>`, so asking them here is asking the

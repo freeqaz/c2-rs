@@ -46,6 +46,16 @@ float f_mulmul(float a, float b, float c, float d) { return a * b * c + d; }
 float f_twoprod(float a, float b, float c, float d) { return a * b + c * d; }
 float f_twoprod_sub(float a, float b, float c, float d) { return a * b - c * d; }
 
+// --- TWO live temporaries, which is where c2's FP scratch policy becomes
+//     MODE-DEPENDENT and where the port was wrong at master. `/Ox` carries the
+//     pool cursor (f0, then f13); `/O1` recycles the register the instruction
+//     itself just killed (f0, then f0). Three leaves can never separate the
+//     two, because three leaves need only one temporary — which is why no
+//     fixture had ever caught it. See `FpTempPolicy`. ---
+float f_chain4(float a, float b, float c, float d) { return a + b + c + d; }
+float f_mad4(float a, float b, float c, float d, float e) { return a * b + c + d + e; }
+double d_chain4(double a, double b, double c, double d) { return a + b + c + d; }
+
 // --- double: primary opcode 63 rather than 59, same four fields. ---
 double d_fma(double a, double b, double c)        { return a * b + c; }
 double d_fms(double a, double b, double c)        { return a * b - c; }

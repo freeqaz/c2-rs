@@ -259,10 +259,15 @@ pub const SURFACES: &[Surface] = &[
                    which of fmadd/fmsub/fnmsub that parent becomes, how many \
                    instructions the contracted body emits (hence which one lands \
                    in f1), and the four register fields of c2's form 24 at FPRs \
-                   above f13 — where no body this port emits can reach",
+                   above f13 — where no body this port emits can reach; and \
+                   `FpTempPolicy`: WHICH scratch register c2 takes for an FP \
+                   intermediate, which is MODE-DEPENDENT, and on which the two \
+                   policies AGREE at depth 1 — the whole of this project's \
+                   corpus before 2026-08-29 — and disagree at every depth above",
         cite: "c2 arm `0x10bfa49a` (form 24, read at the address); \
                docs/CODEGEN_W13_FLOAT.md §3.3; DISCLOSURE W-FMADD-1; \
-               board #3791, #3792, #3793",
+               board #3791, #3792, #3793, #3795; work/w-fmadd/repro/deep_O1.cod \
+               and deep_Ox.cod (six shapes, three depths)",
         // No guard named, for `mop.encode_form`'s reason and for one of this
         // surface's own. `FP_POOL`/`FP_RET`/`SCRATCH_REG` are the port's
         // register model, already covered by `UNCOVERED`'s reasoning about
@@ -270,12 +275,12 @@ pub const SURFACES: &[Surface] = &[
         // the contraction RULE, which is not spelled as a `const` at all.
         guards: &[],
         rows: crate::codegen::leaf::float::contraction_surface_rows,
-        // 101 cells / 9 refusals at this tip. The floors sit one step below,
+        // 133 cells / 9 refusals at this tip. The floors sit one step below,
         // as every other row's do: they are E3's "a check over zero cells is
         // green and says nothing" guard, not a second copy of the count —
         // `DOMAIN.txt` is where the exact numbers live and E1 is what pins
         // them.
-        min_cells: 96,
+        min_cells: 128,
         min_refusals: 8,
     },
 ];

@@ -606,7 +606,7 @@ pub fn select_function(func: &IlFunction, mode: OptMode) -> Result<Selected, Bac
         // disjoint from the indirect-load and address leaves', which is why it
         // is safe as its own arm.
         BodyShape::FloatLeaf(double) => {
-            let (text, consts) = float_leaf_text(func, *double)?;
+            let (text, consts) = float_leaf_text(func, *double, mode)?;
             Ok(Selected::Float { text, consts })
         }
         // W43 compare/shift/or leaf, and the W6 comparison leaf — each its own

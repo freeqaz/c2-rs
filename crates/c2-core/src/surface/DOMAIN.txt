@@ -2541,8 +2541,8 @@ mop.encode_form  bl.disp=6  0x48000005 DIVERGES-from-c2
 
 ## surface  float.contraction
 ##   site      codegen/leaf/float.rs
-##   boundary  which floating-point `*` c2 fuses into its parent `+`/`-`, which of fmadd/fmsub/fnmsub that parent becomes, how many instructions the contracted body emits (hence which one lands in f1), and the four register fields of c2's form 24 at FPRs above f13 — where no body this port emits can reach
-##   cite      c2 arm `0x10bfa49a` (form 24, read at the address); docs/CODEGEN_W13_FLOAT.md §3.3; DISCLOSURE W-FMADD-1; board #3791, #3792, #3793
+##   boundary  which floating-point `*` c2 fuses into its parent `+`/`-`, which of fmadd/fmsub/fnmsub that parent becomes, how many instructions the contracted body emits (hence which one lands in f1), and the four register fields of c2's form 24 at FPRs above f13 — where no body this port emits can reach; and `FpTempPolicy`: WHICH scratch register c2 takes for an FP intermediate, which is MODE-DEPENDENT, and on which the two policies AGREE at depth 1 — the whole of this project's corpus before 2026-08-29 — and disagree at every depth above
+##   cite      c2 arm `0x10bfa49a` (form 24, read at the address); docs/CODEGEN_W13_FLOAT.md §3.3; DISCLOSURE W-FMADD-1; board #3791, #3792, #3793, #3795; work/w-fmadd/repro/deep_O1.cod and deep_Ox.cod (six shapes, three depths)
 ##   guards    (none named)
 float.contraction  plan.add.leaf.leaf  plain
 float.contraction  plan.add.leaf.add  plain
@@ -2645,4 +2645,36 @@ float.contraction  word.s.fnmsub.31,31,31,31  0xeffffffc
 float.contraction  word.d.fmadd.31,31,31,31  0xfffffffa
 float.contraction  word.d.fmsub.31,31,31,31  0xfffffff8
 float.contraction  word.d.fnmsub.31,31,31,31  0xfffffffc
-## summary  float.contraction  cells=101 admit=92 refuse=9 values={0xec0007f8,0xec0007fa,0xec0007fc,0xec00f838,0xec00f83a,0xec00f83c,0xec1f0038,0xec1f003a,0xec1f003c,0xec2118b8,0xec2118ba,0xec2118bc,0xedcf8c38,0xedcf8c3a,0xedcf8c3c,0xef9dffb8,0xef9dffba,0xef9dffbc,0xeffee778,0xeffee77a,0xeffee77c,0xeffffff8,0xeffffffa,0xeffffffc,0xfc0007f8,0xfc0007fa,0xfc0007fc,0xfc00f838,0xfc00f83a,0xfc00f83c,0xfc1f0038,0xfc1f003a,0xfc1f003c,0xfc2118b8,0xfc2118ba,0xfc2118bc,0xfdcf8c38,0xfdcf8c3a,0xfdcf8c3c,0xff9dffb8,0xff9dffba,0xff9dffbc,0xfffee778,0xfffee77a,0xfffee77c,0xfffffff8,0xfffffffa,0xfffffffc,defer-product,fuse-left fmadd,fuse-left fmsub,fuse-right fmadd,fuse-right fnmsub,instructions=1,instructions=2,plain}
+float.contraction  temp.carried.p2.d1  f0
+float.contraction  temp.carried.p2.d2  f0 f13
+float.contraction  temp.carried.p2.d3  f0 f13 f12
+float.contraction  temp.carried.p2.d4  f0 f13 f12 f11
+float.contraction  temp.carried.p2.d5  f0 f13 f12 f11 f10
+float.contraction  temp.carried.p2.d6  f0 f13 f12 f11 f10 f9
+float.contraction  temp.carried.p2.d7  f0 f13 f12 f11 f10 f9 f8
+float.contraction  temp.carried.p2.d8  f0 f13 f12 f11 f10 f9 f8 f7
+float.contraction  temp.carried.p4.d1  f0
+float.contraction  temp.carried.p4.d2  f0 f13
+float.contraction  temp.carried.p4.d3  f0 f13 f12
+float.contraction  temp.carried.p4.d4  f0 f13 f12 f11
+float.contraction  temp.carried.p4.d5  f0 f13 f12 f11 f10
+float.contraction  temp.carried.p4.d6  f0 f13 f12 f11 f10 f9
+float.contraction  temp.carried.p4.d7  f0 f13 f12 f11 f10 f9 f8
+float.contraction  temp.carried.p4.d8  f0 f13 f12 f11 f10 f9 f8 f7
+float.contraction  temp.firstfree.p2.d1  f0
+float.contraction  temp.firstfree.p2.d2  f0 f0
+float.contraction  temp.firstfree.p2.d3  f0 f0 f0
+float.contraction  temp.firstfree.p2.d4  f0 f0 f0 f0
+float.contraction  temp.firstfree.p2.d5  f0 f0 f0 f0 f0
+float.contraction  temp.firstfree.p2.d6  f0 f0 f0 f0 f0 f0
+float.contraction  temp.firstfree.p2.d7  f0 f0 f0 f0 f0 f0 f0
+float.contraction  temp.firstfree.p2.d8  f0 f0 f0 f0 f0 f0 f0 f0
+float.contraction  temp.firstfree.p4.d1  f0
+float.contraction  temp.firstfree.p4.d2  f0 f0
+float.contraction  temp.firstfree.p4.d3  f0 f0 f0
+float.contraction  temp.firstfree.p4.d4  f0 f0 f0 f0
+float.contraction  temp.firstfree.p4.d5  f0 f0 f0 f0 f0
+float.contraction  temp.firstfree.p4.d6  f0 f0 f0 f0 f0 f0
+float.contraction  temp.firstfree.p4.d7  f0 f0 f0 f0 f0 f0 f0
+float.contraction  temp.firstfree.p4.d8  f0 f0 f0 f0 f0 f0 f0 f0
+## summary  float.contraction  cells=133 admit=124 refuse=9 values={0xec0007f8,0xec0007fa,0xec0007fc,0xec00f838,0xec00f83a,0xec00f83c,0xec1f0038,0xec1f003a,0xec1f003c,0xec2118b8,0xec2118ba,0xec2118bc,0xedcf8c38,0xedcf8c3a,0xedcf8c3c,0xef9dffb8,0xef9dffba,0xef9dffbc,0xeffee778,0xeffee77a,0xeffee77c,0xeffffff8,0xeffffffa,0xeffffffc,0xfc0007f8,0xfc0007fa,0xfc0007fc,0xfc00f838,0xfc00f83a,0xfc00f83c,0xfc1f0038,0xfc1f003a,0xfc1f003c,0xfc2118b8,0xfc2118ba,0xfc2118bc,0xfdcf8c38,0xfdcf8c3a,0xfdcf8c3c,0xff9dffb8,0xff9dffba,0xff9dffbc,0xfffee778,0xfffee77a,0xfffee77c,0xfffffff8,0xfffffffa,0xfffffffc,defer-product,f0,f0 f0,f0 f0 f0,f0 f0 f0 f0,f0 f0 f0 f0 f0,f0 f0 f0 f0 f0 f0,f0 f0 f0 f0 f0 f0 f0,f0 f0 f0 f0 f0 f0 f0 f0,f0 f13,f0 f13 f12,f0 f13 f12 f11,f0 f13 f12 f11 f10,f0 f13 f12 f11 f10 f9,f0 f13 f12 f11 f10 f9 f8,f0 f13 f12 f11 f10 f9 f8 f7,fuse-left fmadd,fuse-left fmsub,fuse-right fmadd,fuse-right fnmsub,instructions=1,instructions=2,plain}
