@@ -1,0 +1,156 @@
+CONTROLS — lane `w-globset`, wave 20 L3.  Board #3832.
+Every one watched RED before any verdict from it was quoted (#3336).
+Registered in work/w-globset/PREREG.md §3 BEFORE the module was written.
+
+Environment asserted, not assumed (#3219/#3231): this worktree resolves the
+real toolchain — `c2rs selftest` reads 392 PASS / 0 SKIP against
+compilers/X360/16.00.11886.00/{cl.exe,c2.dll,c1xx.dll} under wibo 1.2.0-c2rs.1
+(work/w-globset/selftest_base.log).
+
+Baseline: DOMAIN.txt 4920 lines at the tip (2993 at the base — the surface
+`globregs.candidate_set` adds 1927, and DELETES ZERO: no existing surface moved).
+
+===============================================================================
+C1  — THE REFUSAL-DOMAIN CONTROL. A REAL WIDENING OF THE CANDIDATE SET.
+===============================================================================
+
+Mutation: `AliasingPolicy::EscapesToOpaqueCallee`'s arm returns `true`
+unconditionally, i.e. every symbol group joins c2's `DAT_10c2e3e8` aliasing
+set. The parameter keeps its name and its default; only what it MEANS widens —
+which is the shape `#3723` says the byte gate cannot see.
+
+  BYTE SIDE — the gate, run at the mutation with the dirty-crates hatch:
+
+    GATE: PASS (HATCH-RED REFUSED) — 18/18 lanes ran and every one of them
+    graded a corpus ... 0 mismatches anywhere
+    graded tree: e988a2a5ebc2  (810 files)
+
+    scripts/gate_identity_diff.sh gate_base2.txt gate_c1.txt
+      count-bearing rows: 21 base, 21 tip (enumerated, not asserted)
+      IDENTITY DIFF: 0 lines over 21 rows — required-zero byte delta HOLDS
+
+    scripts/gate_identity_diff.sh gate_tip.txt gate_c1.txt
+      IDENTITY DIFF: 0 lines over 21 rows
+
+  (`HATCH-RED REFUSED` is this run's DIRTY tree, deliberately — the control
+  lives in the working copy and is never committed. `hatch-red` and
+  `ladder-red` are the two rows the identity diff excludes by construction, so
+  the 21 count-bearing rows are unaffected. The unqualified `GATE: PASS` at
+  the base and at the tip is in gate_base2.txt and gate_tip.txt.)
+
+  DOMAIN SIDE — RED:
+
+    THE DECISION-SURFACE DOMAIN MOVED — 97 line(s) of 4920 differ from
+    crates/c2-core/src/surface/DOMAIN.txt.
+
+  AND THE FAIL AXIS — RED, independently:
+
+    codegen::globset::tests::the_default_policy_agrees_with_every_scored_obj_cell
+    codegen::globset::tests::population_power_over_the_obj_cells
+    codegen::globset::tests::the_escape_bit_is_per_symbol_not_per_function
+    surface::tests::the_decision_surface_domain_matches_the_committed_baseline
+
+  ⇒ THE HEADLINE PAIR, MEASURED: **byte delta 0 / domain moved 97 lines.**
+     A widening of which symbols c2 promotes ships silently under the byte
+     criterion and is stopped by two instruments that do not read a byte.
+
+  PREREG SCORE: the prediction was "moves > 100 lines". **97 — a MISS by 3**,
+  recorded as one. The direction and the order of magnitude are right and the
+  threshold was not; the number is the measurement, not the prediction.
+
+===============================================================================
+C2  — A6's KIND BOUND 5 -> 7, THE MUTANT THE IMAGE GRADER ITSELF PLANTS
+===============================================================================
+
+Mutation: `GateA::C2.auto_at_or_below` 5 -> 7, which moves kinds 6 and 7 into
+A6. `grade_globarms.py --selftest` plants the same edit in c2.dll
+(`cmp al,5` -> `cmp al,7` at 0x10b5513f) and asserts its own map follows.
+
+  RED, on three counts:
+
+    THE DECISION-SURFACE DOMAIN MOVED — 97 line(s) of 4920 differ
+    codegen::globset::tests::the_fail_axis
+    codegen::globset::tests::a6s_kinds_are_exactly_the_linkage_classes_with_no_coff_record
+    surface::tests::the_decision_surface_domain_matches_the_committed_baseline
+
+  `the_fail_axis` is the one that matters: the 17-row kind->arm table it
+  grades against was decoded out of c2.dll by ANOTHER lane's instrument and is
+  parsed at test time, so this is the image refusing the transcription — not
+  this module checking itself.
+
+===============================================================================
+C3  — TYPE_CLASS_MAX WIDENED BY ONE STEP
+===============================================================================
+
+Mutation: `TYPE_CLASS_MAX` 0x1d -> 0x1e.
+
+  RED:
+
+    THE DECISION-SURFACE DOMAIN MOVED — 696 line(s) of 4942 differ
+    codegen::globset::tests::a_class_above_the_nibble_tables_range_is_refused
+    codegen::globset::tests::the_fail_axis
+    surface::tests::the_decision_surface_domain_matches_the_committed_baseline
+
+  ⇒ NAMING `TYPE_CLASS_MAX` A `guards` ENTRY OF THE SURFACE IS A **TRUE**
+    COVERAGE CLAIM. `#3746`'s rule is that a guard must be tested by widening
+    it one step and requiring the domain to move; two of the registry's seven
+    original guard entries were false and moved ZERO lines. This one moves 696.
+
+===============================================================================
+C4  — THE DOMAIN GENERATOR RETURNS AN EMPTY VEC
+===============================================================================
+
+Mutation: `surface_rows()` returns `Vec::new()` immediately.
+
+  RED, and E3 is what catches it — not E1:
+
+    surface `globregs.candidate_set`: 0 cells, floor is 1500
+    surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary
+    codegen::globset::tests::the_surface_domain_is_a_deterministic_set_that_reaches_past_every_fixture
+
+  This is `#3470`'s shape: a check over zero cells is green and says nothing,
+  so only a floor catches a domain that quietly emptied.
+
+===============================================================================
+RESTORE — AND THE `cp`-MTIME TRAP, WATCHED
+===============================================================================
+
+Every restore is `cp` from work/w-globset/globset.rs.orig FOLLOWED BY `touch`,
+because a `cp` preserves the backup's older mtime and cargo then does not
+rebuild — so the MUTATED binary runs for the closing check. Two lanes hit this
+independently in wave 18; one saw 67 failures over a tree `git status` called
+clean.
+
+  After the final restore:
+    git status --short  ->  (empty)
+    cargo test -p c2-core --release --lib
+      Compiling c2-core v0.1.0 (...)          <- the rebuild HAPPENED
+      test result: ok. 697 passed; 0 failed; 1 ignored
+
+===============================================================================
+A METHODOLOGICAL DEFECT THIS LANE MADE AND CAUGHT — BOARD #3835
+===============================================================================
+
+The FIRST base gate this lane ran was launched and then left running while the
+module was being written in the same worktree. Its own output says so:
+
+  line  16:  graded tree: a00a40351045  (808 files ... )   <- hashed at START
+  line 111:  graded tree: 24afdf51d441  (810 files ... )   <- hashed at END
+
+Two different tree hashes in one run, and a file count that rose by exactly the
+two files authored mid-run. That run (work/w-globset/gate_base.txt) is VOID and
+is kept, unedited, as the invalid log — a colour taken in an unvalidated
+environment is void, not provisional (`rungs/README.md` § "Two rules a probe
+must satisfy").
+
+The base was re-run at `git switch --detach c5bfe89d9`, clean:
+
+  work/w-globset/gate_base2.txt
+    graded tree: a00a40351045  (808 files)  at BOTH ends
+    GATE: PASS — 18/18 lanes ... 0 mismatches anywhere
+
+and every identity diff in this file is against THAT run.
+
+The general form, for the next lane: **gate.sh prints its tree hash twice and
+they are supposed to be equal.** Nothing compares them. A base run that
+overlaps authoring is silently a run of something else.

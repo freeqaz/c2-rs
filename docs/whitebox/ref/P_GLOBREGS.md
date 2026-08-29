@@ -405,6 +405,83 @@ which asserts that the page carries all twelve.
 >   the obj cannot separate them. `w-globobj` §2.1 refused `pc_struct2` for the
 >   mirror-image reason; this lane refuses these three for the same one.
 
+> ## 3.3 §3 IS NOW EXECUTABLE — `w-globset`, 2026-08-29. Five settable parameters, and the FIRST `[globregs]` decision point the port has ever carried
+>
+> Lane `w-globset`, wave 20 L3, board **#3831**–**#3835**. Rung
+> [`../../rungs/2026-08-29-w-globset.md`](../../rungs/2026-08-29-w-globset.md).
+> Prereg [`work/w-globset/PREREG.md`](../../../work/w-globset/PREREG.md),
+> committed before the first line of code. Provenance
+> [`../DISCLOSURE.md`](../DISCLOSURE.md) row **W-GLOBSET-1**.
+>
+> `w-globarms` §7 left this page one instruction —
+>
+> > *"Anyone porting the candidate set: the parameter to expose is **linkage
+> > class**, not variable kind … the escape flag `sym+0x05 & 2` is the second
+> > parameter and it is per-symbol, not per-function."*
+>
+> — and `crates/c2-core/src/codegen/globset.rs` is that instruction carried
+> out. The whole of §3, §3.1 and §3.2 is now code you can run and set:
+>
+> | # | parameter | default = the read | address |
+> |---|---|---|---|
+> | **P1** | `KindMap::table` — the 8-entry jump table | `NullSlot, Kind(4), StorageBits{8,7}, Kind(5), StorageKind, AliasBit, StorageBits{8,7}, StorageKind` | `0x10bd2a9f` |
+> | **P2** | `KindMap::kind_for_gl2` / `_function` / `_extern` | `4`, `0xb`, `0xa` | `0x10bd2926` |
+> | **P3** | `GateA`'s seven kind bounds | `0x10`, `3`, `≤3`, `≤5`, `≤6`, `≤8`, `!=0xa` | `0x10b5511a`–`0x10b5514e` |
+> | **P4** | `AliasingPolicy` | `EscapesToOpaqueCallee` | the bit `sym+0x05 & 2`; sole setter `FUN_10bd2db7` |
+> | **P5** | `TypeClassPolicy` | not-promotable `{0x00,0x12,0x13,0x18,0x1d}`, gate-B kinds `{3,4,5,7,8}` | `0x10b18b28` |
+>
+> **P4 takes a `SymbolGroup`, not a `Symbol`**, because `FUN_10bd2db7` walks the
+> **leader's `+0x0c` chain** — the same fact A3 is the other half of. And
+> `AliasingPolicy::AddressTaken` ships as a **refuted rival**, not as a
+> plausible reading: `gb_addr_local` takes a local's address without escaping
+> it and is PROMOTED (§3.2).
+>
+> **§2.2's refutation is in the code, not just in the prose.**
+> `TypeClassPolicy::kinds_reaching_gate_b` is `{3,4,5,7,8}` and a test asserts
+> that a kind-10 symbol is admitted **even at a class gate B would reject** —
+> the type gate is not on its path at all.
+>
+> ### What grades it, and it is deliberately NOT this module's own instrument
+>
+> `the_fail_axis` **parses `work/w-globarms/GRADE.txt` and
+> `work/w-globobj/GRADE.txt` at test time** — the 8-row linkage table, the
+> 5-row `.gl` chain, the 17-row kind→arm simulation and the gate-B answer-key
+> line, all decoded out of `c2.dll` by another lane's grader. A transcription
+> error here is red there while every byte is unchanged. A missing file
+> **fails**; it does not skip (`#3470`).
+>
+> ### The registered surface, and the pair that is this lane's whole grade
+>
+> `c2_core::surface::SURFACES` gains **`globregs.candidate_set`**: 1,920 cells,
+> 988 refusals, over (`.gl` kind × linkage × storage bits × storage kind ×
+> alias bit), (kind `0x00`..`0x11` × three conditional bits × escape), (kind ×
+> class past `TYPE_CLASS_MAX`) and the composed verdict. **Every point is past
+> what the corpus reaches** — the module has no production caller and a test
+> enforces it.
+>
+> > **Byte delta 0 / domain moved 97 lines.** Control **C1** widens
+> > `EscapesToOpaqueCallee` to `true` — every symbol group joins the aliasing
+> > set — and the gate reads `PASS` with an identity diff of **0 lines over 21
+> > rows** against the clean base *and* against the tip. The widening is caught
+> > only by the domain and by the fail axis. That is `#3723` reproduced on this
+> > page's own policy.
+>
+> ### What this lane did NOT do, said here so absence does not read as coverage
+>
+> * **No `ported` numerator** — §10.4's caveat stands unamended.
+> * **No new read.** Every address above is `w-globarms`' or `w-globobj`'s.
+> * **No emit.** Nothing in `PortC2::build` reaches the module, and §9's open
+>   holes — the arena serial, `aux+0x18`, the `> 1024` regime, A10's and A12's
+>   cells — are **exactly as open as before**. A model of a policy is not a
+>   measurement of it.
+> * **The 46-cell promote grid cannot grade P5**, and the reason is a named
+>   read for a later lane: **the map from a C++ type to a gate-B type CLASS is
+>   unread.** This section gives the class table; the nibble resolution of a
+>   front-end type word through `0x10bd7c10` / `0x10bd7cf0` is what would let
+>   `pc_int` … `pc_double` grade the table entry by entry. Until then P5's
+>   separating power over every obj cell this project owns is **zero**, and
+>   `population_power_over_the_obj_cells` publishes that zero.
+
 **Gate B — the type gate**, `0x10b551d4`: `FUN_10bd7d24(sym+0x10 as u16)`.
 `0x10bd7c10` maps the type word's **top nibble** through the 13-entry table at
 `0x10bd7cf0`, each arm resolving the low 12 bits to a **type class `0x00…0x1d`**;
