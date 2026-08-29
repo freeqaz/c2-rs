@@ -283,6 +283,34 @@ pub const SURFACES: &[Surface] = &[
         min_cells: 128,
         min_refusals: 8,
     },
+    // -- APPENDED 2026-08-29 by lane `w-globset`, board `#3831`. One additive
+    //    block at the end, for the merge reason `w-encarms` gave above;
+    //    nothing between the lines was touched.
+    Surface {
+        name: "globregs.candidate_set",
+        site: "codegen/globset.rs",
+        boundary: "WHICH SYMBOLS BECOME REGISTER CANDIDATES: the front end's \
+                   3-bit COFF linkage class through the 8-entry jump table, the \
+                   back-end kind through gate A's twelve arms, the per-symbol-GROUP \
+                   escape bit that decides A6 internally, and gate B's \
+                   type-class table — plus the linkage value and the type class \
+                   at which the port REFUSES because c2's own invariant says \
+                   they cannot arise",
+        cite: "docs/whitebox/ref/P_GLOBREGS.md §3, §3.1, §3.2; \
+               docs/whitebox/WB_GLOBARMS_FINDINGS.md §0, §2.2, §7; \
+               c2 `0x10bd2a1d` (the kind write), `0x10bd2a9f` (the jump table), \
+               `0x10b5511a`–`0x10b551c6` (gate A's twelve arms), \
+               `0x10b18b28` (gate B's table); DISCLOSURE W-GLOBSET-1; \
+               board #3808, #3809, #3831",
+        guards: &["TYPE_CLASS_MAX"],
+        rows: crate::codegen::globset::surface_rows,
+        // Measured at this tip; the floors sit one step below, as every other
+        // row's do — E3's "a check over zero cells is green and says nothing"
+        // guard, not a second copy of the count. `DOMAIN.txt` holds the exact
+        // numbers and E1 pins them.
+        min_cells: 1500,
+        min_refusals: 700,
+    },
 ];
 
 /// Boundary-named `const`s this crate carries that **no registered surface

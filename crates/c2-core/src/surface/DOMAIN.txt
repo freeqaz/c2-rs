@@ -2991,3 +2991,1930 @@ float.contraction  temp.firstfree.p4.d6  f0 f0 f0 f0 f0 f0
 float.contraction  temp.firstfree.p4.d7  f0 f0 f0 f0 f0 f0 f0
 float.contraction  temp.firstfree.p4.d8  f0 f0 f0 f0 f0 f0 f0 f0
 ## summary  float.contraction  cells=133 admit=124 refuse=9 values={0xec0007f8,0xec0007fa,0xec0007fc,0xec00f838,0xec00f83a,0xec00f83c,0xec1f0038,0xec1f003a,0xec1f003c,0xec2118b8,0xec2118ba,0xec2118bc,0xedcf8c38,0xedcf8c3a,0xedcf8c3c,0xef9dffb8,0xef9dffba,0xef9dffbc,0xeffee778,0xeffee77a,0xeffee77c,0xeffffff8,0xeffffffa,0xeffffffc,0xfc0007f8,0xfc0007fa,0xfc0007fc,0xfc00f838,0xfc00f83a,0xfc00f83c,0xfc1f0038,0xfc1f003a,0xfc1f003c,0xfc2118b8,0xfc2118ba,0xfc2118bc,0xfdcf8c38,0xfdcf8c3a,0xfdcf8c3c,0xff9dffb8,0xff9dffba,0xff9dffbc,0xfffee778,0xfffee77a,0xfffee77c,0xfffffff8,0xfffffffa,0xfffffffc,defer-product,f0,f0 f0,f0 f0 f0,f0 f0 f0 f0,f0 f0 f0 f0 f0,f0 f0 f0 f0 f0 f0,f0 f0 f0 f0 f0 f0 f0,f0 f0 f0 f0 f0 f0 f0 f0,f0 f13,f0 f13 f12,f0 f13 f12 f11,f0 f13 f12 f11 f10,f0 f13 f12 f11 f10 f9,f0 f13 f12 f11 f10 f9 f8,f0 f13 f12 f11 f10 f9 f8 f7,fuse-left fmadd,fuse-left fmsub,fuse-right fmadd,fuse-right fnmsub,instructions=1,instructions=2,plain}
+
+## surface  globregs.candidate_set
+##   site      codegen/globset.rs
+##   boundary  WHICH SYMBOLS BECOME REGISTER CANDIDATES: the front end's 3-bit COFF linkage class through the 8-entry jump table, the back-end kind through gate A's twelve arms, the per-symbol-GROUP escape bit that decides A6 internally, and gate B's type-class table — plus the linkage value and the type class at which the port REFUSES because c2's own invariant says they cannot arise
+##   cite      docs/whitebox/ref/P_GLOBREGS.md §3, §3.1, §3.2; docs/whitebox/WB_GLOBARMS_FINDINGS.md §0, §2.2, §7; c2 `0x10bd2a1d` (the kind write), `0x10bd2a9f` (the jump table), `0x10b5511a`–`0x10b551c6` (gate A's twelve arms), `0x10b18b28` (gate B's table); DISCLOSURE W-GLOBSET-1; board #3808, #3809, #3831
+##   guards    TYPE_CLASS_MAX
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=0 skind=1 alias=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=0 skind=1 alias=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=0 skind=2 alias=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=0 skind=2 alias=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=0 skind=4 alias=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=0 skind=4 alias=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=0 skind=9 alias=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=0 skind=9 alias=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=1 skind=1 alias=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=1 skind=1 alias=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=1 skind=2 alias=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=1 skind=2 alias=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=1 skind=4 alias=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=1 skind=4 alias=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=1 skind=9 alias=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=0 sbits=1 skind=9 alias=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=0 skind=1 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=0 skind=1 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=0 skind=2 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=0 skind=2 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=0 skind=4 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=0 skind=4 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=0 skind=9 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=0 skind=9 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=1 skind=1 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=1 skind=1 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=1 skind=2 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=1 skind=2 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=1 skind=4 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=1 skind=4 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=1 skind=9 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=1 sbits=1 skind=9 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=0 skind=1 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=0 skind=1 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=0 skind=2 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=0 skind=2 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=0 skind=4 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=0 skind=4 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=0 skind=9 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=0 skind=9 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=1 skind=1 alias=0  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=1 skind=1 alias=1  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=1 skind=2 alias=0  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=1 skind=2 alias=1  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=1 skind=4 alias=0  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=1 skind=4 alias=1  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=1 skind=9 alias=0  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=2 sbits=1 skind=9 alias=1  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=0 skind=1 alias=0  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=0 skind=1 alias=1  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=0 skind=2 alias=0  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=0 skind=2 alias=1  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=0 skind=4 alias=0  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=0 skind=4 alias=1  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=0 skind=9 alias=0  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=0 skind=9 alias=1  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=1 skind=1 alias=0  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=1 skind=1 alias=1  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=1 skind=2 alias=0  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=1 skind=2 alias=1  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=1 skind=4 alias=0  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=1 skind=4 alias=1  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=1 skind=9 alias=0  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=3 sbits=1 skind=9 alias=1  kind=0x05,no-coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=0 skind=1 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=0 skind=1 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=0 skind=2 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=0 skind=2 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=0 skind=4 alias=0  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=0 skind=4 alias=1  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=0 skind=9 alias=0  kind=0x09,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=0 skind=9 alias=1  kind=0x09,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=1 skind=1 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=1 skind=1 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=1 skind=2 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=1 skind=2 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=1 skind=4 alias=0  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=1 skind=4 alias=1  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=1 skind=9 alias=0  kind=0x09,coff
+globregs.candidate_set  kindmap  gl=1 link=4 sbits=1 skind=9 alias=1  kind=0x09,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=0 skind=1 alias=0  kind=0x05,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=0 skind=1 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=0 skind=2 alias=0  kind=0x05,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=0 skind=2 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=0 skind=4 alias=0  kind=0x05,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=0 skind=4 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=0 skind=9 alias=0  kind=0x05,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=0 skind=9 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=1 skind=1 alias=0  kind=0x05,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=1 skind=1 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=1 skind=2 alias=0  kind=0x05,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=1 skind=2 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=1 skind=4 alias=0  kind=0x05,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=1 skind=4 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=1 skind=9 alias=0  kind=0x05,coff
+globregs.candidate_set  kindmap  gl=1 link=5 sbits=1 skind=9 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=0 skind=1 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=0 skind=1 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=0 skind=2 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=0 skind=2 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=0 skind=4 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=0 skind=4 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=0 skind=9 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=0 skind=9 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=1 skind=1 alias=0  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=1 skind=1 alias=1  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=1 skind=2 alias=0  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=1 skind=2 alias=1  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=1 skind=4 alias=0  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=1 skind=4 alias=1  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=1 skind=9 alias=0  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=6 sbits=1 skind=9 alias=1  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=0 skind=1 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=0 skind=1 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=0 skind=2 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=0 skind=2 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=0 skind=4 alias=0  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=0 skind=4 alias=1  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=0 skind=9 alias=0  kind=0x09,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=0 skind=9 alias=1  kind=0x09,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=1 skind=1 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=1 skind=1 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=1 skind=2 alias=0  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=1 skind=2 alias=1  kind=0x07,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=1 skind=4 alias=0  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=1 skind=4 alias=1  kind=0x08,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=1 skind=9 alias=0  kind=0x09,coff
+globregs.candidate_set  kindmap  gl=1 link=7 sbits=1 skind=9 alias=1  kind=0x09,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=0 skind=1 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=0 skind=1 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=0 skind=2 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=0 skind=2 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=0 skind=4 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=0 skind=4 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=0 skind=9 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=0 skind=9 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=1 skind=1 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=1 skind=1 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=1 skind=2 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=1 skind=2 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=1 skind=4 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=1 skind=4 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=1 skind=9 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=0 sbits=1 skind=9 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=0 skind=1 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=0 skind=1 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=0 skind=2 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=0 skind=2 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=0 skind=4 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=0 skind=4 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=0 skind=9 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=0 skind=9 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=1 skind=1 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=1 skind=1 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=1 skind=2 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=1 skind=2 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=1 skind=4 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=1 skind=4 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=1 skind=9 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=1 sbits=1 skind=9 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=0 skind=1 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=0 skind=1 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=0 skind=2 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=0 skind=2 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=0 skind=4 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=0 skind=4 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=0 skind=9 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=0 skind=9 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=1 skind=1 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=1 skind=1 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=1 skind=2 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=1 skind=2 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=1 skind=4 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=1 skind=4 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=1 skind=9 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=2 sbits=1 skind=9 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=0 skind=1 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=0 skind=1 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=0 skind=2 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=0 skind=2 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=0 skind=4 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=0 skind=4 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=0 skind=9 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=0 skind=9 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=1 skind=1 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=1 skind=1 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=1 skind=2 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=1 skind=2 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=1 skind=4 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=1 skind=4 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=1 skind=9 alias=0  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=3 sbits=1 skind=9 alias=1  kind=0x04,no-coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=0 skind=1 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=0 skind=1 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=0 skind=2 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=0 skind=2 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=0 skind=4 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=0 skind=4 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=0 skind=9 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=0 skind=9 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=1 skind=1 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=1 skind=1 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=1 skind=2 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=1 skind=2 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=1 skind=4 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=1 skind=4 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=1 skind=9 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=4 sbits=1 skind=9 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=0 skind=1 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=0 skind=1 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=0 skind=2 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=0 skind=2 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=0 skind=4 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=0 skind=4 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=0 skind=9 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=0 skind=9 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=1 skind=1 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=1 skind=1 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=1 skind=2 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=1 skind=2 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=1 skind=4 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=1 skind=4 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=1 skind=9 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=5 sbits=1 skind=9 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=0 skind=1 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=0 skind=1 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=0 skind=2 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=0 skind=2 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=0 skind=4 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=0 skind=4 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=0 skind=9 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=0 skind=9 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=1 skind=1 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=1 skind=1 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=1 skind=2 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=1 skind=2 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=1 skind=4 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=1 skind=4 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=1 skind=9 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=6 sbits=1 skind=9 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=0 skind=1 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=0 skind=1 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=0 skind=2 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=0 skind=2 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=0 skind=4 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=0 skind=4 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=0 skind=9 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=0 skind=9 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=1 skind=1 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=1 skind=1 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=1 skind=2 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=1 skind=2 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=1 skind=4 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=1 skind=4 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=1 skind=9 alias=0  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=2 link=7 sbits=1 skind=9 alias=1  kind=0x04,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=0 skind=1 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=0 skind=1 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=0 skind=2 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=0 skind=2 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=0 skind=4 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=0 skind=4 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=0 skind=9 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=0 skind=9 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=1 skind=1 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=1 skind=1 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=1 skind=2 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=1 skind=2 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=1 skind=4 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=1 skind=4 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=1 skind=9 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=0 sbits=1 skind=9 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=0 skind=1 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=0 skind=1 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=0 skind=2 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=0 skind=2 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=0 skind=4 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=0 skind=4 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=0 skind=9 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=0 skind=9 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=1 skind=1 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=1 skind=1 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=1 skind=2 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=1 skind=2 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=1 skind=4 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=1 skind=4 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=1 skind=9 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=1 sbits=1 skind=9 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=0 skind=1 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=0 skind=1 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=0 skind=2 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=0 skind=2 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=0 skind=4 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=0 skind=4 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=0 skind=9 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=0 skind=9 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=1 skind=1 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=1 skind=1 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=1 skind=2 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=1 skind=2 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=1 skind=4 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=1 skind=4 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=1 skind=9 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=2 sbits=1 skind=9 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=0 skind=1 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=0 skind=1 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=0 skind=2 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=0 skind=2 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=0 skind=4 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=0 skind=4 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=0 skind=9 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=0 skind=9 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=1 skind=1 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=1 skind=1 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=1 skind=2 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=1 skind=2 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=1 skind=4 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=1 skind=4 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=1 skind=9 alias=0  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=3 sbits=1 skind=9 alias=1  kind=0x0b,no-coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=0 skind=1 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=0 skind=1 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=0 skind=2 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=0 skind=2 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=0 skind=4 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=0 skind=4 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=0 skind=9 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=0 skind=9 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=1 skind=1 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=1 skind=1 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=1 skind=2 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=1 skind=2 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=1 skind=4 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=1 skind=4 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=1 skind=9 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=4 sbits=1 skind=9 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=0 skind=1 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=0 skind=1 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=0 skind=2 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=0 skind=2 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=0 skind=4 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=0 skind=4 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=0 skind=9 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=0 skind=9 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=1 skind=1 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=1 skind=1 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=1 skind=2 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=1 skind=2 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=1 skind=4 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=1 skind=4 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=1 skind=9 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=5 sbits=1 skind=9 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=0 skind=1 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=0 skind=1 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=0 skind=2 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=0 skind=2 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=0 skind=4 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=0 skind=4 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=0 skind=9 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=0 skind=9 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=1 skind=1 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=1 skind=1 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=1 skind=2 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=1 skind=2 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=1 skind=4 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=1 skind=4 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=1 skind=9 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=6 sbits=1 skind=9 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=0 skind=1 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=0 skind=1 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=0 skind=2 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=0 skind=2 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=0 skind=4 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=0 skind=4 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=0 skind=9 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=0 skind=9 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=1 skind=1 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=1 skind=1 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=1 skind=2 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=1 skind=2 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=1 skind=4 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=1 skind=4 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=1 skind=9 alias=0  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=3 link=7 sbits=1 skind=9 alias=1  kind=0x0b,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=0 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=0 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=0 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=0 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=0 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=0 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=0 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=0 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=1 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=1 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=1 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=1 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=1 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=1 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=1 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=0 sbits=1 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=0 skind=1 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=0 skind=1 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=0 skind=2 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=0 skind=2 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=0 skind=4 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=0 skind=4 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=0 skind=9 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=0 skind=9 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=1 skind=1 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=1 skind=1 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=1 skind=2 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=1 skind=2 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=1 skind=4 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=1 skind=4 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=1 skind=9 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=1 sbits=1 skind=9 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=0 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=0 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=0 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=0 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=0 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=0 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=0 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=0 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=1 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=1 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=1 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=1 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=1 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=1 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=1 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=2 sbits=1 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=0 skind=1 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=0 skind=1 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=0 skind=2 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=0 skind=2 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=0 skind=4 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=0 skind=4 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=0 skind=9 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=0 skind=9 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=1 skind=1 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=1 skind=1 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=1 skind=2 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=1 skind=2 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=1 skind=4 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=1 skind=4 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=1 skind=9 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=3 sbits=1 skind=9 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=0 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=0 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=0 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=0 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=0 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=0 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=0 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=0 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=1 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=1 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=1 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=1 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=1 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=1 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=1 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=4 sbits=1 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=0 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=0 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=0 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=0 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=0 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=0 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=0 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=0 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=1 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=1 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=1 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=1 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=1 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=1 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=1 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=5 sbits=1 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=0 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=0 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=0 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=0 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=0 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=0 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=0 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=0 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=1 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=1 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=1 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=1 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=1 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=1 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=1 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=6 sbits=1 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=0 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=0 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=0 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=0 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=0 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=0 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=0 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=0 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=1 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=1 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=1 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=1 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=1 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=1 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=1 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=4 link=7 sbits=1 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=0 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=0 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=0 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=0 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=0 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=0 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=0 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=0 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=1 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=1 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=1 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=1 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=1 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=1 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=1 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=0 sbits=1 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=0 skind=1 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=0 skind=1 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=0 skind=2 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=0 skind=2 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=0 skind=4 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=0 skind=4 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=0 skind=9 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=0 skind=9 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=1 skind=1 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=1 skind=1 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=1 skind=2 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=1 skind=2 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=1 skind=4 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=1 skind=4 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=1 skind=9 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=1 sbits=1 skind=9 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=0 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=0 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=0 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=0 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=0 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=0 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=0 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=0 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=1 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=1 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=1 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=1 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=1 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=1 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=1 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=2 sbits=1 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=0 skind=1 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=0 skind=1 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=0 skind=2 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=0 skind=2 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=0 skind=4 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=0 skind=4 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=0 skind=9 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=0 skind=9 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=1 skind=1 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=1 skind=1 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=1 skind=2 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=1 skind=2 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=1 skind=4 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=1 skind=4 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=1 skind=9 alias=0  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=3 sbits=1 skind=9 alias=1  kind=0x0a,no-coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=0 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=0 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=0 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=0 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=0 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=0 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=0 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=0 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=1 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=1 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=1 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=1 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=1 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=1 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=1 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=4 sbits=1 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=0 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=0 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=0 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=0 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=0 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=0 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=0 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=0 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=1 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=1 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=1 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=1 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=1 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=1 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=1 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=5 sbits=1 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=0 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=0 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=0 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=0 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=0 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=0 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=0 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=0 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=1 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=1 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=1 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=1 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=1 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=1 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=1 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=6 sbits=1 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=0 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=0 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=0 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=0 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=0 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=0 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=0 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=0 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=1 skind=1 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=1 skind=1 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=1 skind=2 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=1 skind=2 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=1 skind=4 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=1 skind=4 alias=1  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=1 skind=9 alias=0  kind=0x0a,coff
+globregs.candidate_set  kindmap  gl=7 link=7 sbits=1 skind=9 alias=1  kind=0x0a,coff
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=0 flag=0 idx=0 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=0 flag=0 idx=0 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=0 flag=0 idx=1 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=0 flag=0 idx=1 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=0 flag=1 idx=0 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=0 flag=1 idx=0 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=0 flag=1 idx=1 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=0 flag=1 idx=1 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=1 flag=0 idx=0 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=1 flag=0 idx=0 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=1 flag=0 idx=1 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=1 flag=0 idx=1 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=1 flag=1 idx=0 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=1 flag=1 idx=0 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=1 flag=1 idx=1 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x00 leader=1 slot=1 flag=1 idx=1 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=0 flag=0 idx=0 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=0 flag=0 idx=0 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=0 flag=0 idx=1 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=0 flag=0 idx=1 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=0 flag=1 idx=0 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=0 flag=1 idx=0 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=0 flag=1 idx=1 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=0 flag=1 idx=1 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=1 flag=0 idx=0 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=1 flag=0 idx=0 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=1 flag=0 idx=1 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=1 flag=0 idx=1 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=1 flag=1 idx=0 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=1 flag=1 idx=0 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=1 flag=1 idx=1 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x01 leader=1 slot=1 flag=1 idx=1 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=0 flag=0 idx=0 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=0 flag=0 idx=0 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=0 flag=0 idx=1 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=0 flag=0 idx=1 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=0 flag=1 idx=0 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=0 flag=1 idx=0 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=0 flag=1 idx=1 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=0 flag=1 idx=1 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=1 flag=0 idx=0 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=1 flag=0 idx=0 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=1 flag=0 idx=1 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=1 flag=0 idx=1 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=1 flag=1 idx=0 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=1 flag=1 idx=0 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=1 flag=1 idx=1 esc=0  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x02 leader=1 slot=1 flag=1 idx=1 esc=1  REFUSE A5-reject-tail
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=0 flag=0 idx=0 esc=0  REFUSE A11-reject-tail
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=0 flag=0 idx=0 esc=1  REFUSE A11-reject-tail
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=0 flag=0 idx=1 esc=0  REFUSE A11-reject-tail
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=0 flag=0 idx=1 esc=1  REFUSE A11-reject-tail
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=0 flag=1 idx=0 esc=0  REFUSE A11-reject-tail
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=0 flag=1 idx=0 esc=1  REFUSE A11-reject-tail
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=0 flag=1 idx=1 esc=0  REFUSE A11-reject-tail
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=0 flag=1 idx=1 esc=1  REFUSE A11-reject-tail
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=1 flag=0 idx=0 esc=0  REFUSE A12-reject-tail
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=1 flag=0 idx=0 esc=1  REFUSE A12-reject-tail
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=1 flag=0 idx=1 esc=0  REFUSE A12-reject-tail
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=1 flag=0 idx=1 esc=1  REFUSE A12-reject-tail
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=1 flag=1 idx=0 esc=0  A11,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=1 flag=1 idx=0 esc=1  A11,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=1 flag=1 idx=1 esc=0  A11,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x03 leader=1 slot=1 flag=1 idx=1 esc=1  A11,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=0 flag=0 idx=0 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=0 flag=0 idx=0 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=0 flag=0 idx=1 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=0 flag=0 idx=1 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=0 flag=1 idx=0 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=0 flag=1 idx=0 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=0 flag=1 idx=1 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=0 flag=1 idx=1 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=1 flag=0 idx=0 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=1 flag=0 idx=0 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=1 flag=0 idx=1 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=1 flag=0 idx=1 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=1 flag=1 idx=0 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=1 flag=1 idx=0 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=1 flag=1 idx=1 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x04 leader=1 slot=1 flag=1 idx=1 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=0 flag=0 idx=0 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=0 flag=0 idx=0 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=0 flag=0 idx=1 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=0 flag=0 idx=1 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=0 flag=1 idx=0 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=0 flag=1 idx=0 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=0 flag=1 idx=1 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=0 flag=1 idx=1 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=1 flag=0 idx=0 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=1 flag=0 idx=0 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=1 flag=0 idx=1 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=1 flag=0 idx=1 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=1 flag=1 idx=0 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=1 flag=1 idx=0 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=1 flag=1 idx=1 esc=0  A6,ELIGIBLE
+globregs.candidate_set  gateA    kind=0x05 leader=1 slot=1 flag=1 idx=1 esc=1  A6,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=0 flag=0 idx=0 esc=0  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=0 flag=0 idx=0 esc=1  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=0 flag=0 idx=1 esc=0  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=0 flag=0 idx=1 esc=1  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=0 flag=1 idx=0 esc=0  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=0 flag=1 idx=0 esc=1  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=0 flag=1 idx=1 esc=0  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=0 flag=1 idx=1 esc=1  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=1 flag=0 idx=0 esc=0  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=1 flag=0 idx=0 esc=1  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=1 flag=0 idx=1 esc=0  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=1 flag=0 idx=1 esc=1  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=1 flag=1 idx=0 esc=0  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=1 flag=1 idx=0 esc=1  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=1 flag=1 idx=1 esc=0  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x06 leader=1 slot=1 flag=1 idx=1 esc=1  REFUSE A7-reject-tail
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=0 flag=0 idx=0 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=0 flag=0 idx=0 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=0 flag=0 idx=1 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=0 flag=0 idx=1 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=0 flag=1 idx=0 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=0 flag=1 idx=0 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=0 flag=1 idx=1 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=0 flag=1 idx=1 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=1 flag=0 idx=0 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=1 flag=0 idx=0 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=1 flag=0 idx=1 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=1 flag=0 idx=1 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=1 flag=1 idx=0 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=1 flag=1 idx=0 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=1 flag=1 idx=1 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x07 leader=1 slot=1 flag=1 idx=1 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=0 flag=0 idx=0 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=0 flag=0 idx=0 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=0 flag=0 idx=1 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=0 flag=0 idx=1 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=0 flag=1 idx=0 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=0 flag=1 idx=0 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=0 flag=1 idx=1 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=0 flag=1 idx=1 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=1 flag=0 idx=0 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=1 flag=0 idx=0 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=1 flag=0 idx=1 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=1 flag=0 idx=1 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=1 flag=1 idx=0 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=1 flag=1 idx=0 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=1 flag=1 idx=1 esc=0  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x08 leader=1 slot=1 flag=1 idx=1 esc=1  A8,ELIGIBLE-ALIASED
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=0 flag=0 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=0 flag=0 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=0 flag=0 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=0 flag=0 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=0 flag=1 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=0 flag=1 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=0 flag=1 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=0 flag=1 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=1 flag=0 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=1 flag=0 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=1 flag=0 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=1 flag=0 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=1 flag=1 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=1 flag=1 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=1 flag=1 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x09 leader=1 slot=1 flag=1 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=0 flag=0 idx=0 esc=0  REFUSE A10-reject-tail
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=0 flag=0 idx=0 esc=1  REFUSE A10-reject-tail
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=0 flag=0 idx=1 esc=0  A10,INDEX-SUB-SYMBOLS
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=0 flag=0 idx=1 esc=1  A10,INDEX-SUB-SYMBOLS
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=0 flag=1 idx=0 esc=0  REFUSE A10-reject-tail
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=0 flag=1 idx=0 esc=1  REFUSE A10-reject-tail
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=0 flag=1 idx=1 esc=0  A10,INDEX-SUB-SYMBOLS
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=0 flag=1 idx=1 esc=1  A10,INDEX-SUB-SYMBOLS
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=1 flag=0 idx=0 esc=0  REFUSE A10-reject-tail
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=1 flag=0 idx=0 esc=1  REFUSE A10-reject-tail
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=1 flag=0 idx=1 esc=0  A10,INDEX-SUB-SYMBOLS
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=1 flag=0 idx=1 esc=1  A10,INDEX-SUB-SYMBOLS
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=1 flag=1 idx=0 esc=0  REFUSE A10-reject-tail
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=1 flag=1 idx=0 esc=1  REFUSE A10-reject-tail
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=1 flag=1 idx=1 esc=0  A10,INDEX-SUB-SYMBOLS
+globregs.candidate_set  gateA    kind=0x0a leader=1 slot=1 flag=1 idx=1 esc=1  A10,INDEX-SUB-SYMBOLS
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=0 flag=0 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=0 flag=0 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=0 flag=0 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=0 flag=0 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=0 flag=1 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=0 flag=1 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=0 flag=1 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=0 flag=1 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=1 flag=0 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=1 flag=0 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=1 flag=0 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=1 flag=0 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=1 flag=1 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=1 flag=1 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=1 flag=1 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0b leader=1 slot=1 flag=1 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=0 flag=0 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=0 flag=0 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=0 flag=0 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=0 flag=0 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=0 flag=1 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=0 flag=1 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=0 flag=1 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=0 flag=1 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=1 flag=0 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=1 flag=0 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=1 flag=0 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=1 flag=0 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=1 flag=1 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=1 flag=1 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=1 flag=1 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0c leader=1 slot=1 flag=1 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=0 flag=0 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=0 flag=0 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=0 flag=0 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=0 flag=0 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=0 flag=1 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=0 flag=1 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=0 flag=1 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=0 flag=1 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=1 flag=0 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=1 flag=0 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=1 flag=0 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=1 flag=0 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=1 flag=1 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=1 flag=1 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=1 flag=1 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0d leader=1 slot=1 flag=1 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=0 flag=0 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=0 flag=0 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=0 flag=0 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=0 flag=0 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=0 flag=1 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=0 flag=1 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=0 flag=1 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=0 flag=1 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=1 flag=0 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=1 flag=0 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=1 flag=0 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=1 flag=0 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=1 flag=1 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=1 flag=1 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=1 flag=1 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0e leader=1 slot=1 flag=1 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=0 flag=0 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=0 flag=0 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=0 flag=0 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=0 flag=0 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=0 flag=1 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=0 flag=1 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=0 flag=1 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=0 flag=1 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=1 flag=0 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=1 flag=0 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=1 flag=0 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=1 flag=0 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=1 flag=1 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=1 flag=1 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=1 flag=1 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x0f leader=1 slot=1 flag=1 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=0 flag=0 idx=0 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=0 flag=0 idx=0 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=0 flag=0 idx=1 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=0 flag=0 idx=1 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=0 flag=1 idx=0 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=0 flag=1 idx=0 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=0 flag=1 idx=1 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=0 flag=1 idx=1 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=1 flag=0 idx=0 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=1 flag=0 idx=0 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=1 flag=0 idx=1 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=1 flag=0 idx=1 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=1 flag=1 idx=0 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=1 flag=1 idx=0 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=1 flag=1 idx=1 esc=0  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x10 leader=1 slot=1 flag=1 idx=1 esc=1  REFUSE A1-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=0 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=0 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=0 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=0 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=0 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=0 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=0 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=0 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=1 flag=0 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=1 flag=0 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=1 flag=0 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=1 flag=0 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=1 flag=1 idx=0 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=1 flag=1 idx=0 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=1 flag=1 idx=1 esc=0  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=0 slot=1 flag=1 idx=1 esc=1  REFUSE A3-skip
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=0 flag=0 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=0 flag=0 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=0 flag=0 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=0 flag=0 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=0 flag=1 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=0 flag=1 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=0 flag=1 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=0 flag=1 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=1 flag=0 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=1 flag=0 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=1 flag=0 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=1 flag=0 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=1 flag=1 idx=0 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=1 flag=1 idx=0 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=1 flag=1 idx=1 esc=0  REFUSE A9-reject-tail
+globregs.candidate_set  gateA    kind=0x11 leader=1 slot=1 flag=1 idx=1 esc=1  REFUSE A9-reject-tail
+globregs.candidate_set  gateB    kind=0x03 class=0x00  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x03 class=0x01  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x02  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x03  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x04  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x05  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x06  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x07  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x08  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x09  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x0a  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x0b  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x0c  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x0d  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x0e  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x0f  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x10  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x11  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x12  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x03 class=0x13  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x03 class=0x14  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x15  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x16  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x17  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x18  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x03 class=0x19  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x1a  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x1b  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x1c  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x03 class=0x1d  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x03 class=0x1e  REFUSE class-above-TYPE_CLASS_MAX
+globregs.candidate_set  gateB    kind=0x03 class=0x1f  REFUSE class-above-TYPE_CLASS_MAX
+globregs.candidate_set  gateB    kind=0x04 class=0x00  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x04 class=0x01  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x02  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x03  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x04  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x05  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x06  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x07  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x08  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x09  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x0a  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x0b  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x0c  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x0d  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x0e  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x0f  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x10  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x11  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x12  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x04 class=0x13  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x04 class=0x14  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x15  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x16  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x17  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x18  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x04 class=0x19  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x1a  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x1b  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x1c  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x04 class=0x1d  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x04 class=0x1e  REFUSE class-above-TYPE_CLASS_MAX
+globregs.candidate_set  gateB    kind=0x04 class=0x1f  REFUSE class-above-TYPE_CLASS_MAX
+globregs.candidate_set  gateB    kind=0x05 class=0x00  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x05 class=0x01  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x02  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x03  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x04  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x05  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x06  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x07  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x08  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x09  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x0a  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x0b  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x0c  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x0d  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x0e  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x0f  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x10  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x11  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x12  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x05 class=0x13  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x05 class=0x14  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x15  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x16  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x17  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x18  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x05 class=0x19  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x1a  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x1b  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x1c  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x05 class=0x1d  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x05 class=0x1e  REFUSE class-above-TYPE_CLASS_MAX
+globregs.candidate_set  gateB    kind=0x05 class=0x1f  REFUSE class-above-TYPE_CLASS_MAX
+globregs.candidate_set  gateB    kind=0x07 class=0x00  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x07 class=0x01  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x02  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x03  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x04  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x05  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x06  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x07  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x08  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x09  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x0a  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x0b  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x0c  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x0d  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x0e  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x0f  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x10  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x11  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x12  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x07 class=0x13  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x07 class=0x14  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x15  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x16  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x17  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x18  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x07 class=0x19  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x1a  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x1b  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x1c  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x07 class=0x1d  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x07 class=0x1e  REFUSE class-above-TYPE_CLASS_MAX
+globregs.candidate_set  gateB    kind=0x07 class=0x1f  REFUSE class-above-TYPE_CLASS_MAX
+globregs.candidate_set  gateB    kind=0x08 class=0x00  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x08 class=0x01  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x02  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x03  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x04  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x05  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x06  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x07  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x08  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x09  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x0a  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x0b  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x0c  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x0d  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x0e  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x0f  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x10  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x11  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x12  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x08 class=0x13  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x08 class=0x14  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x15  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x16  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x17  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x18  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x08 class=0x19  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x1a  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x1b  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x1c  PROMOTABLE
+globregs.candidate_set  gateB    kind=0x08 class=0x1d  REFUSE gate-B-not-promotable
+globregs.candidate_set  gateB    kind=0x08 class=0x1e  REFUSE class-above-TYPE_CLASS_MAX
+globregs.candidate_set  gateB    kind=0x08 class=0x1f  REFUSE class-above-TYPE_CLASS_MAX
+globregs.candidate_set  gateB    kind=0x0a class=0x00  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x01  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x02  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x03  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x04  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x05  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x06  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x07  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x08  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x09  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x0a  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x0b  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x0c  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x0d  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x0e  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x0f  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x10  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x11  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x12  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x13  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x14  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x15  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x16  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x17  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x18  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x19  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x1a  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x1b  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x1c  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x1d  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x1e  NOT-TYPE-GATED
+globregs.candidate_set  gateB    kind=0x0a class=0x1f  NOT-TYPE-GATED
+globregs.candidate_set  verdict  link=0 class=0x00 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x00 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x01 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x01 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x02 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x02 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x03 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x03 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x04 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x04 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x05 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x05 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x06 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x06 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x07 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x07 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x08 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x08 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x09 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x09 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x0a esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x0a esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x0b esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x0b esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x0c esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x0c esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x0d esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x0d esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x0e esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x0e esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x0f esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x0f esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x10 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x10 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x11 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x11 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x12 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x12 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x13 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x13 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x14 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x14 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x15 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x15 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x16 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x16 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x17 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x17 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x18 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x18 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x19 esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x19 esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x1a esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x1a esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x1b esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x1b esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x1c esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x1c esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x1d esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x1d esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x1e esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x1e esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x1f esc=0  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=0 class=0x1f esc=1  REFUSE linkage-0-null-slot
+globregs.candidate_set  verdict  link=1 class=0x00 esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=1 class=0x00 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x01 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x01 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x02 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x02 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x03 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x03 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x04 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x04 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x05 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x05 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x06 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x06 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x07 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x07 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x08 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x08 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x09 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x09 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x0a esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x0a esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x0b esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x0b esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x0c esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x0c esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x0d esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x0d esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x0e esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x0e esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x0f esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x0f esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x10 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x10 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x11 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x11 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x12 esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=1 class=0x12 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x13 esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=1 class=0x13 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x14 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x14 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x15 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x15 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x16 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x16 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x17 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x17 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x18 esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=1 class=0x18 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x19 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x19 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x1a esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x1a esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x1b esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x1b esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x1c esc=0  PROMOTED
+globregs.candidate_set  verdict  link=1 class=0x1c esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x1d esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=1 class=0x1d esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x1e esc=0  REFUSE type-class-above-TYPE_CLASS_MAX
+globregs.candidate_set  verdict  link=1 class=0x1e esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=1 class=0x1f esc=0  REFUSE type-class-above-TYPE_CLASS_MAX
+globregs.candidate_set  verdict  link=1 class=0x1f esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x00 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x00 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x01 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x01 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x02 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x02 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x03 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x03 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x04 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x04 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x05 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x05 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x06 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x06 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x07 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x07 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x08 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x08 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x09 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x09 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x0a esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x0a esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x0b esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x0b esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x0c esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x0c esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x0d esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x0d esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x0e esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x0e esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x0f esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x0f esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x10 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x10 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x11 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x11 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x12 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x12 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x13 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x13 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x14 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x14 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x15 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x15 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x16 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x16 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x17 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x17 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x18 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x18 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x19 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x19 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x1a esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x1a esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x1b esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x1b esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x1c esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x1c esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x1d esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x1d esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x1e esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x1e esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x1f esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=2 class=0x1f esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x00 esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=3 class=0x00 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x01 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x01 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x02 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x02 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x03 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x03 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x04 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x04 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x05 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x05 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x06 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x06 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x07 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x07 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x08 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x08 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x09 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x09 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x0a esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x0a esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x0b esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x0b esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x0c esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x0c esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x0d esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x0d esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x0e esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x0e esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x0f esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x0f esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x10 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x10 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x11 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x11 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x12 esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=3 class=0x12 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x13 esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=3 class=0x13 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x14 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x14 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x15 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x15 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x16 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x16 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x17 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x17 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x18 esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=3 class=0x18 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x19 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x19 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x1a esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x1a esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x1b esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x1b esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x1c esc=0  PROMOTED
+globregs.candidate_set  verdict  link=3 class=0x1c esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x1d esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=3 class=0x1d esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x1e esc=0  REFUSE type-class-above-TYPE_CLASS_MAX
+globregs.candidate_set  verdict  link=3 class=0x1e esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=3 class=0x1f esc=0  REFUSE type-class-above-TYPE_CLASS_MAX
+globregs.candidate_set  verdict  link=3 class=0x1f esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=4 class=0x00 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x00 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x01 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x01 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x02 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x02 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x03 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x03 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x04 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x04 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x05 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x05 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x06 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x06 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x07 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x07 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x08 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x08 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x09 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x09 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x0a esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x0a esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x0b esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x0b esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x0c esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x0c esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x0d esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x0d esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x0e esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x0e esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x0f esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x0f esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x10 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x10 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x11 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x11 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x12 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x12 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x13 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x13 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x14 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x14 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x15 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x15 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x16 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x16 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x17 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x17 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x18 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x18 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x19 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x19 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x1a esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x1a esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x1b esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x1b esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x1c esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x1c esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x1d esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x1d esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x1e esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x1e esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x1f esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=4 class=0x1f esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=5 class=0x00 esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=5 class=0x00 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x01 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x01 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x02 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x02 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x03 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x03 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x04 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x04 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x05 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x05 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x06 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x06 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x07 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x07 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x08 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x08 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x09 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x09 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x0a esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x0a esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x0b esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x0b esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x0c esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x0c esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x0d esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x0d esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x0e esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x0e esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x0f esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x0f esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x10 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x10 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x11 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x11 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x12 esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=5 class=0x12 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x13 esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=5 class=0x13 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x14 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x14 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x15 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x15 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x16 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x16 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x17 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x17 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x18 esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=5 class=0x18 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x19 esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x19 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x1a esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x1a esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x1b esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x1b esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x1c esc=0  PROMOTED
+globregs.candidate_set  verdict  link=5 class=0x1c esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x1d esc=0  REFUSE gate-B:-class-not-promotable
+globregs.candidate_set  verdict  link=5 class=0x1d esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x1e esc=0  REFUSE type-class-above-TYPE_CLASS_MAX
+globregs.candidate_set  verdict  link=5 class=0x1e esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=5 class=0x1f esc=0  REFUSE type-class-above-TYPE_CLASS_MAX
+globregs.candidate_set  verdict  link=5 class=0x1f esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x00 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x00 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x01 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x01 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x02 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x02 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x03 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x03 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x04 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x04 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x05 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x05 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x06 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x06 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x07 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x07 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x08 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x08 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x09 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x09 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x0a esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x0a esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x0b esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x0b esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x0c esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x0c esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x0d esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x0d esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x0e esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x0e esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x0f esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x0f esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x10 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x10 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x11 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x11 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x12 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x12 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x13 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x13 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x14 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x14 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x15 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x15 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x16 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x16 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x17 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x17 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x18 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x18 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x19 esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x19 esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x1a esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x1a esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x1b esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x1b esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x1c esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x1c esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x1d esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x1d esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x1e esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x1e esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x1f esc=0  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=6 class=0x1f esc=1  REFUSE in-the-aliasing-set-[I]
+globregs.candidate_set  verdict  link=7 class=0x00 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x00 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x01 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x01 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x02 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x02 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x03 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x03 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x04 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x04 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x05 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x05 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x06 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x06 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x07 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x07 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x08 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x08 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x09 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x09 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x0a esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x0a esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x0b esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x0b esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x0c esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x0c esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x0d esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x0d esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x0e esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x0e esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x0f esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x0f esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x10 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x10 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x11 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x11 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x12 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x12 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x13 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x13 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x14 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x14 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x15 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x15 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x16 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x16 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x17 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x17 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x18 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x18 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x19 esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x19 esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x1a esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x1a esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x1b esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x1b esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x1c esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x1c esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x1d esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x1d esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x1e esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x1e esc=1  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x1f esc=0  REFUSE gate-A-rejected-the-slot
+globregs.candidate_set  verdict  link=7 class=0x1f esc=1  REFUSE gate-A-rejected-the-slot
+## summary  globregs.candidate_set  cells=1920 admit=932 refuse=988 values={A10,A11,A6,A8,ELIGIBLE,ELIGIBLE-ALIASED,INDEX-SUB-SYMBOLS,NOT-TYPE-GATED,PROMOTABLE,PROMOTED,coff,kind=0x04,kind=0x05,kind=0x07,kind=0x08,kind=0x09,kind=0x0a,kind=0x0b,no-coff}
