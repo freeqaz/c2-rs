@@ -346,3 +346,4 @@ the header block this table is read from.
 | 2026-08-28 | w-lowerband | [w-lowerband](2026-08-28-w-lowerband.md) | 10 | 707728/2417794 → 707728/2417794 (29.27% → 29.27%), +0 |
 | 2026-08-28 | w-s7 | [w-s7](2026-08-28-w-s7.md) | 9 | unchanged → unchanged, +0 |
 | 2026-08-28 | w-sched-r7 | [w-sched-r7](2026-08-28-w-sched-r7.md) | 9 | +0 — no `crates/` or `fixtures/` file is touched |
+| 2026-08-29 | w-inlclause | [w-inlclause](2026-08-29-w-inlclause.md) | 12 | 707728/2417794 → 707728/2417794 (29.27% → 29.27%), +0 |
