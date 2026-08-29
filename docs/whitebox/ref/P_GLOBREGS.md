@@ -35,6 +35,19 @@ grade [`../WB_GLOBOBJ_FINDINGS.md`](../WB_GLOBOBJ_FINDINGS.md), board
 image). **48 order cells, 46 promotion verdicts, 16 shape cells, at both `/O1`
 and `/Ox`; 0 scored `U`.** Every `[O]` below names its witness.
 
+**Amended again by lane `w-globarms`, 2026-08-29** (wave 19 L4), prereg
+[`work/w-globarms/PREREG.md`](../../../work/w-globarms/PREREG.md) and
+[`PREREG_ADDENDUM.md`](../../../work/w-globarms/PREREG_ADDENDUM.md), grade
+[`../WB_GLOBARMS_FINDINGS.md`](../WB_GLOBARMS_FINDINGS.md), classification
+[`work/w-globarms/ARMS.tsv`](../../../work/w-globarms/ARMS.tsv), board
+**#3808**–**#3813**. Grids `../grids/w-globarms/`, instrument
+`../scripts/grade_globarms.py` (`--selftest`; **the twelve arms are decoded out
+of the pinned image and the kind→arm map is produced by simulating that decode,
+so no constant in §3 below lives in the instrument**). **38 cell verdicts at
+both `/O1` and `/Ox`, 0 scored `U`; 4 of gate A's 12 arms converted, 6 filed
+`CONSTR`, 2 `UNCOMP`.** It answers the question `w-globobj` §6 left open —
+*what a `kind` value actually is* — in §3.1.
+
 > ### ⚠ THE COVERAGE STATEMENT ABOVE WAS RE-CHECKED AND IT STANDS — but it is not the interesting denominator
 >
 > `w-globobj` verified R4's *"6 of 18 callees read to policy level, plus 7
@@ -230,7 +243,11 @@ insert ([`P_REGALLOC.md`](P_REGALLOC.md) §1, §4).
 | `0x10b316b1` | 164 | 1 | 4 | `color.c` gap | the worklist build. Buckets **ascending** `0x10c43b80 → 0x10c44b80` (`0x10b316cd`/`0x10b3173b`), chain `cand+0x30`, class filter `DAT_10b022cc`. **Contains no `+0x44` reference at all** `[R]` |
 | `0x10b2b82d` | 126 | 3 | 0 | *(gap)* | **THE COMPARATOR.** `+0x0c` DESC signed, then **`+0x44` DESC unsigned**, `<=` on the tie. Its **six** `+0x44` reads are the field's only reads in the image `[R]` |
 | `0x10bd2343` | 230 | ~ | ~ | *(symtab)* | **the symbol-chunk allocator.** `alloc(0, 0xc20)`; **32 slots** of `0x60` from `+0x20`; stamps `slot+0x1c = symtab[0]++`; **APPENDS** the chunk (`symtab+0x10` head, `symtab+0x14` tail) `[R]` |
-| `0x10bd3225` | 394 | ~ | ~ | *(symtab)* | one symbol allocation: bump `chunk+0x04` by `0x60`, or take the free list at `symtab+0x30` — which **`memset`s `0x60` and restores only `+0x1c`** `[R]` |
+| `0x10bd3225` | 394 | ~ | ~ | *(symtab)* | ⛔ **MIS-LABELLED UNTIL 2026-08-29 — this is the symbol-TABLE constructor, not "one symbol allocation".** It allocates the `0x4c`-byte symtab (`0x10bd322c`), a `0xfa0` array, **four** initial chunks into `symtab+0x18/+0x1c/+0x24/+0x28` and three bitsets, and only then, as its last act, mints one record and stamps it **kind `0x10`** (`0x10bd339c`), parking it at `symtab+0x3c` — **the sentinel A1 skips.** The mechanism the old row described (bump `chunk+0x04` by `0x60`, or take the free list at `symtab+0x30`, which **`memset`s `0x60` and restores only `+0x1c`**) is real but is that constructor's *inlined tail*, running **once per compilation** `[R]` |
+| **`0x10bd2492`** | 588 | 5 | ~ | *(symtab)* | **the general symbol allocator, and it is FIVE POOLS, not one.** Dispatches on the kind in `cl`: `{3,6}` → free list `symtab+0x2c` / chunk `+0x24`; `{0,1,2,4,5,0xd}` → `+0x30` / `+0x18`; `{7,8}` → `+0x34` / `+0x1c`; `{9,0xa,0xb}` → `+0x38` / `+0x28`; everything else → `+0x20` with **no free list**. All five draw 32-slot `0x60`-stride chunks from the one appended chain `0x10bd2343` maintains `[R]` |
+| **`0x10bd2913`** | 329 | 32 | 6 | *(symtab)* | **the front-end → back-end symbol map — where every gate-A `kind` is decided.** §3.1 `[R]` |
+| `0x10bd28a2` | 72 | ~ | 2 | *(symtab)* | **the TEMPORARY constructor**: allocates from the kind-`0xf` pool, sets `+0x10` = the type word, `+0x20` = its low 12 bits, `+0x04 = 3` (`0x10bd28bf`) and `+0x08 = self` `[R]` |
+| `0x10bd2db7` | 17 | ~ | 0 | *(symtab)* | **the only setter of `sym+0x05 \| 2`** — A6's internal aliasing flag. Walks the leader's `+0x0c` chain, so the flag is a property of a symbol **GROUP** `[R]` |
 | `0x10bd7d24` | 13 | 23 | 1 | *(types)* | **the promotable-type gate.** `mov al, [eax*4 + 0x10b18b28]` over the class from `0x10bd7c10` §3 `[R]` |
 | `0x10c2022a` | 280 | many | 3 | *(arena)* | the arena allocator. **`memset`s every chunk it takes**, so `alloc` returns zeroed memory — this is what makes `+0x44 == 0` a hard default rather than garbage `[R]` |
 
@@ -259,25 +276,134 @@ say *"which symbols become candidates is not characterized"*. It is decided
 entirely inside `FUN_10b550e5`, in two gates, and it is **categorical — there
 is no threshold constant anywhere in it.**
 
-**Gate A — the structural gate**, in order:
+**Gate A — the structural gate**, in order. **The arm names `A1`…`A12` and the
+tier column were added by `w-globarms`, 2026-08-29**; every address in this
+table is re-derived from the pinned image by `../scripts/grade_globarms.py`,
+which asserts that the page carries all twelve.
 
-| addr | test | effect |
-|---|---|---|
-| `0x10b5511a` | `sym+0x04 == 0x10` | skip the slot entirely |
-| `0x10b55125` | — | `sym+0x40 &= ~1` unconditionally |
-| `0x10b55129` | `sym+0x08 != sym` | skip — **only a group leader is considered** |
-| `0x10b55134` | kind `== 3` | → gate A3 |
-| `0x10b55138` | kind `< 3` | **REJECT** (kinds 0, 1, 2 — a physical register is kind 1) |
-| `0x10b5513e` | kind `∈ {4,5}` | eligible; `sym+0x05 & 2` set ⇒ also joins the `DAT_10c2e3e8` set |
-| `0x10b55142` | kind `== 6` | **REJECT** |
-| `0x10b5514a` | kind `∈ {7,8}` | eligible, and always joins the `DAT_10c2e3e8` set |
-| `0x10b5514e` | kind `!= 10` | **REJECT** (kind 9) |
-| `0x10b55156`–`0x10b5516b` | kind 10 needs `*(sym)+0x37 & 0x400` set **and** `& 0x200000` clear | else **REJECT**; and then only sub-symbols with `t+0x20 == 4` are indexed (`0x10b55173`) |
-| **A3** `0x10b551b3` | kind 3 needs `sym+0x14 == 0` … | else **REJECT** |
-| `0x10b551bc` | … **and** `sym+0x07 & 0x40` clear | else **REJECT**; then `sym+0x06 &= ~2` |
+| arm | addr | test | effect | tier |
+|---|---|---|---|---|
+| **A1** | `0x10b5511a` | `sym+0x04 == 0x10` | skip the slot entirely — **and note this skip does NOT run the reject tail** | `[R]` `CONSTR` |
+| **A2** | `0x10b55125` | — | `sym+0x40 &= ~1` unconditionally | `[R]` `CONSTR` |
+| **A3** | `0x10b55129` | `sym+0x08 != sym` | skip — **only a group leader is considered**; a member is reached through the leader's `+0x0c` chain instead | `[R]`; its **consequence** `[O]` |
+| **A4** | `0x10b55134` | kind `== 3` | → A11 | **`[O]`** — `ga_temp` |
+| **A5** | `0x10b55138` | kind `< 3` | **REJECT** (kinds 0, 1, 2 — a physical register is kind 1, and **kind 2 is the candidate record itself**, `0x10b54d6c`) | `[R]` `CONSTR` |
+| **A6** | `0x10b5513e` | kind `∈ {4,5}` | eligible; `sym+0x05 & 2` set ⇒ also joins the `DAT_10c2e3e8` set | **`[O]`** — `gb_pair_yescape` |
+| **A7** | `0x10b55142` | kind `== 6` | **REJECT** | `[R]` `CONSTR` |
+| **A8** | `0x10b5514a` | kind `∈ {7,8}` | eligible, and always joins the `DAT_10c2e3e8` set | **`[O]` but CONFOUNDED** — §3.2 |
+| **A9** | `0x10b5514e` | kind `!= 10` | **REJECT** (kind 9, and `0xb`…`0xf` — `0xb` is a **function**) | `[R]` `CONSTR` |
+| **A10** | `0x10b55156`–`0x10b5516b` | kind 10 needs `*(sym)+0x37 & 0x400` set **and** `& 0x200000` clear | else **REJECT**; and then only sub-symbols with `t+0x20 == 4` are indexed (`0x10b55173`) | `[R]` `UNCOMP` |
+| **A11** | `0x10b551b3` | kind 3 needs `sym+0x14 == 0` … | else **REJECT** | accept side **`[O]`**, reject side `[R]` |
+| **A12** | `0x10b551bc` | … **and** `sym+0x07 & 0x40` clear | else **REJECT**; then `sym+0x06 &= ~2` | `[R]` `UNCOMP` |
 
 `0x10b552b8` is the reject tail: it increments the diagnostic counter
 `DAT_10c2e454` and clears `+0x34`/`+0x38` on **every** sub-symbol.
+
+> **A5, A7, A9 and both reject sides of A11/A12 branch to that ONE address**, so
+> an obj can say a symbol was rejected and can never say which arm rejected it.
+> That is the shared reason six of the twelve are `CONSTR`, and it is the same
+> argument this section already made for the gate's internal *order*.
+>
+> **`DAT_10c2e454` is written and never read** — it has exactly **two**
+> references in the image, the zeroing at `0x10b550e7` and the increment at
+> `0x10b552b8`, both inside `FUN_10b550e5`, corroborated by an objdump
+> displacement scan and by Ghidra's xrefs. `w-globarms` registered the opposite
+> as its one wall-breaking risk (prereg §4.1, **G1**, p = 0.20) precisely
+> because a reader reaching an emitted artifact would make A1/A3's *silent*
+> skip and A5/A7/A9's *charged* reject separable. **There is no reader.** `[R]`
+
+> ## 3.1 WHERE THE `kind` COMES FROM — `w-globarms`, 2026-08-29, and it makes gate A a statement about COFF LINKAGE
+>
+> This page has always carried gate A as a decision over `sym+0x04` without
+> saying what a value of that byte *means*. It has **one deciding writer**.
+>
+> **`FUN_10bd2913` (`0x10bd2913`) is c2's front-end → back-end symbol map.**
+> Memoised on `gl+0x10` (early-out `0x10bd2917`, cache write `0x10bd299c`); it
+> writes the kind at **`0x10bd2a1d`**; it sets `[sym+0x08] = sym` at
+> `0x10bd2a20`, **which is why A3's leader test passes for everything it
+> makes**; and it writes `[sym+0x00] = gl` at `0x10bd299f`, **which is the
+> pointer A10 dereferences to reach `+0x37`.** 32 distinct calling functions.
+> `[R]`
+>
+> The kind is a four-step `dec`-chain at `0x10bd2926` over the `.gl` record's
+> own kind byte `[gl+0x30]` ([`P_SYMBOL.md`](P_SYMBOL.md) §1: **1 data, 3
+> function, 4 extern/alias**), and for a *data* record an **8-entry jump table
+> at `0x10bd2a9f`** indexed by the **3-bit linkage field**
+> `([gl+0x37] >> 0x15) & 7`:
+>
+> ```
+>   [gl+0x30] == 1 -> the linkage table    [gl+0x30] == 3 (function) -> kind 0xb
+>   [gl+0x30] == 2 -> kind 4               [gl+0x30] == 4 (extern)   -> kind 0xa
+>                                          anything else             -> kind 0xa
+>   linkage 0 -> a NULL table slot: unreachable by invariant
+>   linkage 1 -> kind 4        linkage 3 -> kind 5
+>   linkage 2 -> kind 8 iff ([gl+0x37] & 0x1e0) == 0x80 else 7   ( = linkage 6 )
+>   linkage 4 -> storage kind 1,2 -> 7;  4 -> 8;  else -> 9      ( = linkage 7 )
+>   linkage 5 -> ((gl+0x20) >> 4) & 2 | 5, i.e. kind 5 or kind 7
+> ```
+>
+> **That 3-bit field is already read on this repo's own pages.**
+> [`P_SYMBOL.md`](P_SYMBOL.md) §3 reads it at `0x10b28bb4`/`0x10b28bbd` and
+> records that linkage `∈ {1,3}` is *"a linkage class that is suppressed
+> outright"* — **no COFF record at all**. Compose the two:
+>
+> > **A6's kinds 4 and 5 are exactly the two linkage classes that produce NO
+> > COFF RECORD — the ordinary autos. Every symbol that does get a COFF record
+> > arrives at A8 or A9 as kind 7, 8 or 9.** `[R]`
+>
+> The rest of the enum, by attributed writer — **15 of the 17 values `0…0x10`**,
+> all but kind 0 and kind `0x0f`:
+>
+> | kind | what it is | writer |
+> |---:|---|---|
+> | 1 | a **physical register** | `WB_LIVE_FINDINGS.md`:254, `DISCLOSURE W-STAGETAP-4` |
+> | 2 | **the candidate record itself** | `0x10b54d6c` in `FUN_10b54d32` — §2's own row |
+> | 3 | a **compiler-generated temporary**, built from a bare type word | `0x10bd28bf` in `FUN_10bd28a2` |
+> | 4, 5 | an **auto** (linkage 1 / linkage 3) | `0x10bd2a1d` |
+> | 6 | a **by-name runtime symbol** | `0x10c06033` ×5 in `FUN_10c05f44`, `0x10c0c52a`; the region `WB_S7_FINDINGS.md`:450 shows minting `__C_specific_handler` |
+> | 7, 8, 9 | symbols that **do** get a COFF record | `0x10bd2a1d` via linkage 2/4/6/7 |
+> | `0xa` | an **extern/alias** | `0x10bd2a1d` |
+> | `0xb` | a **function** | `0x10bd2a1d` |
+> | `0xc`, `0xd`, `0xe` | — | `0x10b6636b`, `0x10b567f6`, `0x10b66b0a` |
+> | `0x10` | **the symbol table's SENTINEL**, minted once per compilation and parked at `symtab+0x3c` | `0x10bd339c` |
+>
+> **`0x10bd339c` is what makes A1 a `CONSTR`** with a reason rather than a
+> guess: A1 skips exactly one record per compilation, and that record has no
+> source form.
+
+> ## 3.2 §3 MEETS AN OBJ AGAIN — `w-globarms`, 2026-08-29. Four arms convert; A8's three cells are CONFOUNDED and are NOT banked
+>
+> **Witness: `../grids/w-globarms/arm_grid.cpp` (13 cells) and
+> `arm2_grid.cpp` (6 cells), 38 verdicts, identical at `/O1` and `/Ox`, 0 `U`,
+> graded by `../scripts/grade_globarms.py --arms`**, transcript
+> `work/w-globarms/GRADE.txt`.
+>
+> * **A6 `[O]`, and its internal test with it.** The deciding pair is
+>   `gb_pair_yescape` (`x → r31`, `y → stw 10, 80(1)`) against
+>   `gb_pair_xescape` (the exact mirror) — two `int` locals of one type in one
+>   body, **same kind, same arm, same TU, same profile**, differing only in
+>   which address escapes. `sym+0x05 & 2` is therefore **per-symbol**, not
+>   per-function. `gb_addr_local` sharpens it further: `int *q = &x` with no
+>   escape is **PROMOTED**, so the bit is not *"address taken"*. `[I]` on
+>   calling it *escape*.
+> * **A4 and A11's accept side `[O]`.** `ga_temp` — `return f1(x) + g1(y);` —
+>   holds `f1`'s **unnamed** result in `r30` across the second call with no
+>   frame traffic; `ga_temp3` does it twice. A kind-3 temporary reaches A4, is
+>   dispatched to A11/A12 and is admitted.
+> * **A3's consequence `[O]`, and it kills a reading of A10.** `ga_structmix`
+>   assigns a `struct{int; char; short; long long;}` member-wise and all four
+>   land in callee-saved registers — `lwa 30`, `lbz 29`, `lha 28`, **`ld 31`** —
+>   with **no frame traffic at all**. A `long long` member is 8 bytes.
+>   **A10's `t+0x20 == 4` width test therefore does not apply to a local
+>   aggregate**, which is a kind-4/5 symbol on the general path at
+>   `0x10b551ca` where each sub-symbol is gate-B'd individually. This is
+>   `w-globobj` §3's *"promoted member by member"* given its mechanism.
+> * **⛔ A8 is measured and NOT banked.** `ga_extern`, `ga_fstatic` and
+>   `ga_lstatic` are MEMORY at both profiles — and a symbol with a COFF record
+>   must be observable to another TU across an opaque call **for language
+>   reasons**. Gate A and the C++ object model predict the same thing here and
+>   the obj cannot separate them. `w-globobj` §2.1 refused `pc_struct2` for the
+>   mirror-image reason; this lane refuses these three for the same one.
 
 **Gate B — the type gate**, `0x10b551d4`: `FUN_10bd7d24(sym+0x10 as u16)`.
 `0x10bd7c10` maps the type word's **top nibble** through the 13-entry table at
@@ -514,6 +640,13 @@ bytes and **restores `+0x1c`**. A symbol created late into a recycled slot
 therefore carries an **early** serial and mints early. **"Arena order == symbol
 creation order" is true only for a compiland in which nothing was recycled**,
 and this page does not establish that. `[I]` on `[R]`.
+
+> **`w-globarms`, 2026-08-29 — the wrinkle gets SHARPER, not weaker.** The real
+> recycling path is `FUN_10bd2492`'s, and it has **five free lists keyed by
+> kind** (§2's new row). A slot that once held a kind-7 symbol can only ever be
+> reused for kinds 7 and 8; a kind-3 slot only for kinds 3 and 6. So recycling
+> does not scramble the arena uniformly — it scrambles it **within a kind
+> class**, and the classes are exactly gate A's arms. `[R]`
 
 ---
 
@@ -823,3 +956,35 @@ Plus the methodological one: §7.1's *"`+0x44` or a definition-ordered
 `agreement` is a correct reading of the page's KIND, and no amount of obj work
 will ever move 28 of these 48 marks.** The reachable ceiling is about
 **20 of 48 ≈ 42 %**. Watch the `OBS` bucket's fill rate, not the ratio.
+
+### 10.4 THE SAME CLASSIFICATION APPLIED TO GATE A'S TWELVE ARMS — `w-globarms`, 2026-08-29
+
+Registered in advance in
+[`work/w-globarms/PREREG.md`](../../../work/w-globarms/PREREG.md) §4 **before
+the image was opened**, with a stated ceiling — *"at most 5 arms convert, at
+least 6 are `CONSTR`"*. Outcome, in
+[`work/w-globarms/ARMS.tsv`](../../../work/w-globarms/ARMS.tsv):
+**4 `OBS`, 6 `CONSTR`, 2 `UNCOMP`. The ceiling held.**
+
+**Six `CONSTR`, and ONE reason covers four of them:** A5, A7, A9 and both
+reject sides of A11/A12 branch to the **same** address `0x10b552b8`. An obj can
+say a symbol was rejected; it can never say which arm rejected it. The other
+two: **A2**'s write is unconditional, so no body exists in which it does not
+happen; **A1**'s subject is a **single sentinel record per compilation**
+(`0x10bd339c`) with no source form.
+
+**Two `UNCOMP`, each with its cell named:**
+
+| arm | the cell that would decide it |
+|---|---|
+| **A10** — kind 10 needs `*(sym)+0x37 & 0x400` set, then indexes only sub-symbols with `t+0x20 == 4` | an aggregate that is itself an **undefined external**, assigned member-wise across a call, so a kind-`0xa` symbol reaches A10 **with sub-symbols** and the width test bites. The shape is nameable; this lane did not build it |
+| **A12** — kind 3 needs `sym+0x07 & 0x40` clear | a temporary with that bit set. **What sets it was not read**, so the cell cannot be written — the same state §10.2 files `aux+0x18` in |
+
+> **A caveat on any future metric over this population, and it is the reason
+> this lane defined none** (decision 21 §4, `#3505`). The twelve arms look like
+> a ready-made denominator and they are not one: **6 of 12 are `CONSTR` for one
+> shared structural reason**, so a ratio would carry a 6/12 ceiling on day one —
+> `#3776`'s trap in a new place — and the arms are **not equally weighted**. A6
+> and A8 between them cover every symbol a C++ compiland declares; **A1 covers
+> one record per compilation.** Twelve equal sites would measure the binary's
+> branch structure, not the compiler's behaviour.
