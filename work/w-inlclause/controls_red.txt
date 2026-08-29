@@ -28,3 +28,15 @@ CONFORMANCE-CHECK: GREEN  (0 failure(s) over 24 rows)
   CONTROL: the restored tree must be GREEN
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 682 filtered out; finished in 0.00s
   restored tree: byte-identical to the pre-mutation backup
+
+=== the Fail axis: field, watched RED on THIS rung (#3744) ============
+  the graded population is now 2 (w-inlbudget's and this one), not 1.
+  $ # delete the `Fail axis:` block from docs/rungs/2026-08-29-w-inlclause.md
+  $ cargo test -p c2-harness --release --test rung_registry
+  fail-axis: 341 rung docs examined, 9 declare a construct rung,
+             2 dated at or after 2026-08-28 (the graded population), 1 violation(s)
+  2026-08-29-w-inlclause.md declares `Kind: construct rung` and carries no `Fail axis:` header field
+  test result: FAILED. 3 passed; 1 failed
+  $ # restore, then `touch` (#3767 -- cp preserves the backup's older mtime)
+  test result: ok. 4 passed; 0 failed
+  restore byte-identical to the backup

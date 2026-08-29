@@ -314,15 +314,41 @@ Two things about the control script itself, both of which cost a run:
 
 | lane | result |
 |---|---|
-| `scripts/gate.sh --jobs 16 --require-graded` (base, `12d3c0558`, before any edit) | **`GATE: PASS`, unqualified** — `work/w-inlclause/gate_base.out` |
-| `scripts/gate.sh --jobs 16 --require-graded` (tip) | **`GATE: PASS`, unqualified** — see below |
-| `scripts/gate_identity_diff.sh base tip` | **0 lines over 21 rows** |
-| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | see below |
+| `scripts/gate.sh --jobs 16 --require-graded` (base, `12d3c0558`, before any `crates/` edit) | **`GATE: PASS`, unqualified** — `work/w-inlclause/gate_base.out` |
+| `scripts/gate.sh --jobs 16 --require-graded` (tip) | **`GATE: PASS`, unqualified** — 18/18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT, **7038** fixture-verdicts; sweep 19460 of 19556 graded, 0 mismatch; cross 90424 of 90812, 0 mismatch; debug 7038 verdicts, match 2479, 0 PANIC |
+| `scripts/gate_identity_diff.sh base tip` | **`IDENTITY DIFF: 0 lines over 21 rows — required-zero byte delta HOLDS`**, `21 base, 21 tip` |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **62 targets, 1995 passed, 1 failed** — the one failure is a peer lane's, §8.1 |
 | fixtures, `c2rs census` | none claimed — construct rung, `Census: +0` |
 
 **`GATE: PASS` is unqualified at both ends.** `#3786` re-anchored the
 `hatch-red` needle on 2026-08-29 and this is a lane confirming it from a fresh
 worktree: neither run carries `(HATCH-RED REFUSED)`.
+
+**All 21 count-bearing rows are digit-for-digit identical**, base to tip. This
+lane added **no `gate.sh` row**, which is what keeps the diff usable for every
+other live lane in the wave (`#3691`).
+
+### 8.1 The one suite failure is another worktree's, and it is named
+
+```
+---- no_worktree_holds_an_unlocked_pinned_artifact ----
+  reap guard FAILED — a worktree holds a pinned artifact and is NOT locked.
+  UNLOCKED AND PINNED  <mainrepo>/.claude/worktrees/w-fmadd
+    P1 unique-binary  work/w-fmadd/sweep_fp/c2rs
+    P1 unique-binary  work/w-fmadd/sweep_fp2/c2rs
+```
+
+`crates/c2-harness/tests/wt_pin_audit.rs` scans **every** worktree of the
+primary repo, so it reports the same failure from any tree in the checkout —
+confirmed by running `scripts/wt_pin_audit.sh` directly, which names `w-fmadd`
+and nothing else. **`w-inlclause`'s worktree appears in no violation line.**
+The remedy (`scripts/wt_pin_audit.sh --lock`) belongs to that lane; locking a
+peer's live worktree from here would be the seam violation, not the fix.
+
+Recorded rather than filtered: `w-inlbudget`'s own rung makes the point that a
+lane which shows only its clean re-run has hidden the failures that were real,
+and the honest version of that is naming the one failure and whose it is. The
+transcript is committed with the failure in it (`cargo_test_tip.out`).
 
 > **`crates/c2-core/src/surface/DOMAIN.txt` is a generated baseline and this
 > lane re-blessed it** (2540 → 2853 lines). `w-fmadd` will re-bless the same
