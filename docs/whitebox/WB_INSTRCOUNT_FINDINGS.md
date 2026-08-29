@@ -130,7 +130,7 @@ them). Two filters, both necessary:
 `FUN_10b9b8e9` (`p2symtab.c`, 3,307 bytes)** — and it carries the richest
 corroboration of any row in the census: the same function, on the same base
 register, touches `+0x20`, `+0x37`, `+0x4c`, `+0x52`, `+0x54` **and** `+0x58`.
-No other row in the census corroborates on more than three.
+No other row in the census reaches more than **four**, and the runner-up (`FUN_10c1c3f7`, `0x20,0x4c,0x54,0x58`) is missing exactly the two fields that are specific to this record — `+0x37`, the unaligned linkage word, and `+0x52`, the WORD that only exists if `+0x50` is 16 bits wide.
 
 **None of the 22 DWORD/BYTE writes is on this struct.** The one that looks
 closest — `FUN_10b3f454`'s three stores at `0x10b3f557`/`0x10b3f568`/`0x10b3f5b3`,
