@@ -1,0 +1,130 @@
+== THE 12 (0x10be5cce .. 0x10be663d) ==
+  span 0x10be5cce..0x10be663d = 2416 bytes
+  ENTRY 0x10be6382  from 0x10b7dc51, 0x10b7df57
+  external entry points: 1 of 12
+
+== 0x10be663e, THE 13th BAND MEMBER ==
+  0x10be663e size=1197  callers=0x10be6aeb,0x10be6bca                    callees=0x10c28862,0x10c28868
+  0x10be6aeb size=223   callers=0x10be6bca                               callees=0x10be663e,0x10c28868
+  0x10be6bca size=229   callers=0x10c1f1bb                               callees=0x10be663e,0x10be6aeb,0x10c28868
+  0x10be5cbe size=16    callers=0x10c1bbaf                               callees=-
+
+== DATA PRIVATE TO THE 12 ==
+  22 data addresses touched; 14 private to the 12
+  cluster 0x10c3d140..0x10c3d180 n=14
+
+== .data NEIGHBOURHOOD 0x10c3ce00..0x10c3d400 ==
+  every referenced datum in the window, with which TU-band its referrers live in
+  10c3cf34	1	other	10c28d50
+  10c3cf38	1	other	10c28518
+  10c3cf3c	1	other	10c28518
+  10c3cf40	2	other	10c28518,10c28ec1
+  10c3cf44	2	other	10c28518,10c28ec1
+  10c3cf48	1	other	10c28518
+  10c3cf4c	1	other	10bebf3e
+  10c3cf54	2	other	10b27dfc,10b27f1e
+  10c3cf58	2	other	10b27de7,10b27e8b
+  10c3cf5c	2	other	10b27dd2,10b280cc
+  10c3cf60	2	other	10b27da5,10b2810d
+  10c3cf64	5	other	10b27996,10b279f9,10b73308,10ba2493,10ba3073
+  10c3cf68	23	other	10b276e4,10b2773f,10b27b4c,10b27b7f,10b27db2,10b27f3c,10b2810d,10b7f1ff,10b82338,10b9e1d2,10ba24c4,10ba2811,10ba28bb,10ba2fbc,10ba35db,10ba36cd,10ba37cd,10ba39f7,10baa0b2,10baecc6,10bb2650,10bdd590,10bdd7b4
+  10c3cf6c	1	other	10b29f53
+  10c3cf72	1	other	10b29f53
+  10c3cf80	3	mdmisc	10c1b9ad,10c1b9da,10c1ba6f
+  10c3cf84	3	mdmisc	10c1b9ad,10c1ba6f,10c1bdff
+  10c3cf88	3	mdmisc	10c1b9ad,10c1b9da,10c1ba6f
+  10c3cf8c	2	SCHED12|mdmisc	10be60c0,10c1c0e5
+  10c3cf90	6	mdmisc	10c1b9ad,10c1b9da,10c1ba4f,10c1ba6f,10c1bd6f,10c1c0e5
+  10c3cf92	3	other	10b7e113,10c0f14e,10c18cc2
+  10c3cf93	3	other	10b7e113,10c08e38,10c1b808
+  10c3cf94	1	mdmisc	10c1c0e5
+  10c3cf96	3	other	10bc0fcc,10bc2d7a,10bc4715
+  10c3cf97	3	other	10b73f2c,10b74236,10b8a48a
+  10c3cf98	4	SCHED12|mdmisc	10be60c0,10c1b9da,10c1ba6f,10c1c0e5
+  10c3cf9b	2	other	10b52f17,10b53e6d
+  10c3cf9c	2	other	10c1873b,10c19239
+  10c3cfa0	1	mdmisc	10c1c0e5
+  10c3cfa2	1	mdmisc	10c1c0e5
+  10c3cfa8	7	SCHED12|mdmisc	10be60c0,10c1b9ad,10c1b9da,10c1ba4f,10c1ba6f,10c1bbaf,10c1c0e5
+  10c3cfac	1	mdmisc	10c1c0e5
+  10c3cfae	1	mdmisc	10c1c0e5
+  10c3cfb4	3	mdmisc	10c1b9ad,10c1b9da,10c1c0e5
+  10c3cfba	1	mdmisc	10c1c0e5
+  10c3cfc0	1	mdmisc	10c1b9ad
+  10c3d024	9	other	10b2ceb7,10b2d630,10b30517,10b31544,10b316b1,10b31ac9,10b54d32,10bfb0fa,10bfb16f
+  10c3d028	1	other	10bfb00d
+  10c3d038	2	other	10b31544,10bfb00d
+  10c3d044	1	other	10bd7ef8
+  10c3d06c	5	other	10bd1634,10bd19a3,10bd1c85,10bd1f1a,10bd22a7
+  10c3d074	4	other	10bcf74d,10bcf79d,10bcfbc2,10bd077e
+  10c3d078	2	other	10bcf74d,10bd1068
+  10c3d07c	2	other	10bd077e,10bd1068
+  10c3d084	1	other	10bd1068
+  10c3d088	4	other	10bd00f9,10bd0c77,10bd0f6e,10bd1068
+  10c3d08c	5	other	10bd00f9,10bd0301,10bd036b,10bd0c77,10bd0f6e
+  10c3d090	5	other	10bcfbc2,10bd00f9,10bd0c77,10bd0f6e,10bd1068
+  10c3d094	4	other	10bcf74d,10bd0c77,10bd0f6e,10bd1068
+  10c3d098	4	other	10bcf74d,10bd0c77,10bd0f6e,10bd1068
+  10c3d09c	4	other	10bd07e4,10bd0c77,10bd0f6e,10bd1068
+  10c3d0a0	5	other	10bcf713,10bcf74d,10bd07e4,10bd0c77,10bd1068
+  10c3d0a4	3	other	10bd055e,10bd069e,10bd0914
+  10c3d0a8	2	other	10bd055e,10bd1068
+  10c3d0ac	3	other	10bcc058,10bce512,10bce877
+  10c3d0b0	1	other	10bcc058
+  10c3d0b4	3	other	10bcc058,10bce688,10bce78e
+  10c3d0b8	4	other	10bcc058,10bce6bf,10bce78e,10bce877
+  10c3d0c0	8	other	10b77052,10bcc058,10bcc415,10bcc59d,10bce512,10bce5ca,10bcea6d,10bdca37
+  10c3d0c4	1	other	10bcca04
+  10c3d0c8	12	other	10b74eef,10b750cb,10b79029,10b79440,10bcb214,10bcba8f,10bcc8d8,10bcca04,10bcccac,10bdbdc6,10bdbdde,10bdf84d
+  10c3d0cc	1	other	10bcc058
+  10c3d0d0	2	other	10bcc058,10bce6bf
+  10c3d0d4	3	other	10bcc058,10bce6bf,10bce78e
+  10c3d0d8	2	other	10bcca4b,10bcd35b
+  10c3d0dc	1	other	10bce5ca
+  10c3d0e0	1	other	10bcc058
+  10c3d0e4	1	other	10bcc058
+  10c3d0e8	3	other	10bcb94d,10bcbb0f,10bcc058
+  10c3d0ec	7	other	10bcb94d,10bcba8f,10bcbb0f,10bcbf30,10bcc058,10bcccac,10bce512
+  10c3d0f0	5	other	10bca8e6,10bcba8f,10bcca8f,10bccb20,10bccb8f
+  10c3d0f4	2	other	10bca3f7,10bcba8f
+  10c3d0f8	3	other	10bca373,10bcba8f,10bccc59
+  10c3d0fc	4	other	10bcb94d,10bcc058,10bcc294,10bcd40d
+  10c3d100	5	other	10bca8e6,10bcba8f,10bcca8f,10bccb20,10bccb8f
+  10c3d104	2	other	10bca3f7,10bcba8f
+  10c3d108	4	other	10bca373,10bcba8f,10bccc15,10bccc59
+  10c3d10c	10	other	10bca4b7,10bca8e6,10bcb584,10bcba8f,10bcbb0f,10bcccac,10bcced2,10bccf34,10bcd0dc,10bcd1e5
+  10c3d110	4	other	10bcad1d,10bcb94d,10bcbb0f,10bccd3b
+  10c3d114	2	other	10bcba8f,10bcc458
+  10c3d118	5	other	10bcaacc,10bcb0a0,10bcb36c,10bcb94d,10bcba54
+  10c3d11c	7	other	10bcaacc,10bcaf85,10bcb038,10bcb0a0,10bcb36c,10bcb94d,10bcba54
+  10c3d120	4	other	10bcaacc,10bcb0a0,10bcb94d,10bcba54
+  10c3d124	2	other	10bcc59d,10bce877
+  10c3d128	4	other	10bcab79,10bcc59d,10bcdd61,10bce877
+  10c3d12c	10	other	10bcaa4c,10bcaacc,10bcb000,10bcb0a0,10bcb36c,10bcb584,10bcb94d,10bcc294,10bcda70,10bcdaa5
+  10c3d130	9	other	10bcaa4c,10bcaacc,10bcac8c,10bcaefe,10bcb0a0,10bcb36c,10bcb584,10bcb94d,10bcd69d
+  10c3d134	12	other	10bcaa4c,10bcaacc,10bcaf85,10bcb000,10bcb038,10bcb0a0,10bcb36c,10bcb584,10bcb94d,10bcc294,10bcda70,10bcdaa5
+  10c3d138	1	other	10bce512
+  10c3d13c	3	other	10bc7dd6,10bc7e2a,10bc7e4d
+  10c3d140	2	SCHED12	10be60c0,10be626c
+  10c3d144	7	SCHED12|dag.c|mdmisc	10b328da,10be5d4b,10be5db0,10be5df6,10be6382,10c1b9da,10c1c0e5
+  10c3d148	1	SCHED12	10be626c
+  10c3d14c	1	SCHED12	10be626c
+  10c3d150	2	SCHED12	10be5cce,10be626c
+  10c3d154	2	SCHED12	10be60c0,10be626c
+  10c3d158	1	SCHED12	10be626c
+  10c3d15c	2	SCHED12	10be60c0,10be626c
+  10c3d160	1	SCHED12	10be626c
+  10c3d16c	4	SCHED12	10be5d06,10be5fbb,10be6046,10be626c
+  10c3d170	4	SCHED12	10be5d06,10be5fbb,10be6046,10be626c
+  10c3d174	5	SCHED12	10be5d06,10be5fbb,10be6046,10be60c0,10be626c
+  10c3d178	3	SCHED12	10be5cce,10be60c0,10be6382
+  10c3d17c	1	SCHED12	10be6382
+  10c3d180	1	SCHED12	10be6382
+  10c3d184	2	SCHED12|other	10be6382,10c1ce93
+  10c3d18c	2	other	10bc71bf,10bc7324
+  10c3d190	11	other	10bc64f5,10bc652d,10bc6549,10bc6580,10bc7228,10bc727b,10bc72a3,10bc72cb,10bc72ea,10bc72ff,10bc7324
+  10c3d194	3	other	10bc7228,10bc72ff,10bc7324
+  10c3d198	3	other	10bc514a,10bc5494,10bc58d5
+  10c3d19c	1	other	10bc62b6
+  10c3d220	1	other	10bc58d5
+  10c3d254	1	other	10bc58d5

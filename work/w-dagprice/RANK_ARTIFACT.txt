@@ -1,0 +1,15 @@
+rank  bytes  row
+   1    610  RD1 edge+0x19 bit 1, the -2 cell's discriminator
+   2   2231  RD2 DAG build FUN_10b328da
+   3   3809  RD3 the 31 unread bodies of the dag.c band
+   4    700  RD4 the mid-level (mode 1) pass
+   5    483  RD5 the re-schedule iteration FUN_10c1bdff
+   6    274  RD6 the DAG's two client callbacks
+   7   1649  RD7 0x10be663e's cluster (a denominator fix)
+   8   2939  RD8 the 29 gap neighbours above the band
+
+Spearman rho(rank, named-body bytes) = +0.000  over n=8
+registered artifact threshold: |rho| >= 0.700
+VERDICT: NOT FIRED — the ranking is not predicted by candidate size
+
+note the sign: a size-driven ranking would give rho NEGATIVE (big first = rank 1); rho positive means the plan puts SMALL reads first.

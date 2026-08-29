@@ -1,0 +1,14 @@
+w-read-r1    prereg=- merge=2026-08-22 11:57:44  (not both found)
+w-read-r2    prereg=- merge=2026-08-22 12:47:12  (not both found)
+w-read-r3    prereg=- merge=2026-08-22 13:56:48  (not both found)
+w-read-r4    prereg 2026-08-23 00:18:00  merge 2026-08-23 01:20:41  span    62 min   1.03 h
+w-read-r5    prereg 2026-08-23 00:20:40  merge 2026-08-23 01:01:53  span    41 min   0.68 h
+w-read-r6    prereg=- merge=2026-08-23 21:51:05  (not both found)
+w-read-r7    prereg 2026-08-23 02:12:32  merge 2026-08-23 03:11:52  span    59 min   0.98 h
+w-read-r8    prereg 2026-08-23 02:04:22  merge 2026-08-23 03:28:54  span    84 min   1.40 h
+w-read-r9    prereg=- merge=2026-08-23 03:13:03  (not both found)
+w-globarms   prereg=- merge=2026-08-29 03:40:43  (not both found)
+w-s7         prereg 2026-08-28 07:30:59  merge 2026-08-28 09:05:42  span    94 min   1.57 h
+w-f0price    prereg 2026-08-27 20:12:54  merge 2026-08-27 22:16:39  span   123 min   2.05 h
+w-regcells   prereg 2026-08-27 20:17:26  merge 2026-08-27 20:55:58  span    38 min   0.63 h
+w-encarms    prereg 2026-08-28 09:50:42  merge 2026-08-28 12:22:59  span   152 min   2.53 h

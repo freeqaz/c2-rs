@@ -1,0 +1,18 @@
+population	name	nfun	best_run	range
+subject	the 12	12	14	10c3d140..10c3d180
+positive	dag.c	48	5	-
+positive	color.c	71	6	-
+positive	inline.c	29	0	-
+positive	reader.c	75	7	-
+positive	p2symtab.c	102	5	-
+positive	except.c	17	5	-
+positive	emit.cpp	35	4	-
+positive	tuple.c	198	0	-
+positive	stack.c	1	0	-
+positive	main.c	2	0	-
+negative	window12 run>=4	4905	408	-
+negative	window12 run>=8	4905	83	-
+negative	window12 run>=10	4905	60	-
+negative	window12 run>=12	4905	54	-
+negative	window12 run>=14	4905	40	-
+negative	window12 run>=15	4905	39	-

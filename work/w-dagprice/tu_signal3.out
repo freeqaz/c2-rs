@@ -1,0 +1,40 @@
+== (a) THE 32 FUNCTIONS ABOVE THE BAND, handed to except.c by the gap rule ==
+  29 functions 0x10be663e..0x10be717f   run=0 - private=0
+  except.c's own ICE-anchored functions: 17, run=5 0x10c40f70..0x10c40f80
+  the two together:                       run=5 0x10c40f70..0x10c40f80
+  -> if the union does not beat the parts, they are not one compiland
+
+== (b) IS .data ORDER == .text ORDER ACROSS TUs? ==
+  29 TUs with a run >= 6, ordered by first .text address:
+    text 0x10b290dc   data 0x10c2e21c   coffemit.c
+    text 0x10b2c21d   data 0x10c435a4   color.c
+    text 0x10b36133   data 0x10c40f00   fg.c
+    text 0x10b40197   data 0x10c2e360   globdf.c
+    text 0x10b4c762   data 0x10c40178   globopt.c
+    text 0x10b55eae   data 0x10c3ffb0   globregs.c
+    text 0x10b5a1fc   data 0x10c45e20   hash.c
+    text 0x10b5cfd4   data 0x10c3f42c   inline.c
+    text 0x10b72fe7   data 0x10c2ebd4   ltcg.c
+    text 0x10b75e1e   data 0x10c463a8   lur.c
+    text 0x10b7f3f4   data 0x10c46b38   misc.c
+    text 0x10b8a0c1   data 0x10c3ee58   mod.c
+    text 0x10b92fe2   data 0x10c67d80   optimize.c
+    text 0x10b97dfb   data 0x10c3dd1c   p2symtab.c
+    text 0x10ba37cd   data 0x10c3dce8   pogocg.c
+    text 0x10ba87f2   data 0x10c6f1f0   pogoinline.c
+    text 0x10bad217   data 0x10c6f250   pogoopt.c
+    text 0x10bbc9ab   data 0x10c2f068   reader.c
+    text 0x10bca2af   data 0x10c3d0ac   sizeopt.c
+    text 0x10bd398a   data 0x10c6f96c   tuple.c
+    text 0x10be5cce   data 0x10c3d140   (unnamed TU: no ICE site)
+    text 0x10be71c9   data 0x10c433c8   emit.cpp
+    text 0x10bec23c   data 0x10c6fbd8   dll.cpp
+    text 0x10bf9f15   data 0x10c6fd60   code.c
+    text 0x10c053e7   data 0x10c3afd9   lower.c
+    text 0x10c1227f   data 0x10c3cf80   mdmisc.c
+    text 0x10c1fbd4   data 0x10c6ff08   ioin.c
+    text 0x10c20453   data 0x10c7018c   vlines.c
+    text 0x10c279b7   data 0x10c67514   smdmisc.c
+  Spearman rho(.text rank, .data rank) = 0.378 over n=29
+  -> rho near 0 means the .data NEIGHBOURS of the subject's block say
+     NOTHING about which compilands it sits beside in link order.
