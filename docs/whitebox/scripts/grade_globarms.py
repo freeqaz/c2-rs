@@ -614,6 +614,30 @@ def main(argv):
         print("GRADE: IMAGE-ONLY — no dump given")
         return 0
 
+    # THE READOUT MUST PROVE ITSELF BEFORE IT GRADES ANYTHING.
+    # Found by control defect 5 (work/w-globarms/CONTROLS_RED.txt): with the
+    # relocated-static arm removed, the three A8 cells flipped to PROMOTED and
+    # this run still printed `GRADE: PASS  (3 prediction misses)`. A dead
+    # readout must not be able to publish a table of misses that look like a
+    # finding, so the four synthetic assertions now gate the cell half.
+    print()
+    print("=== READOUT PRECONDITION (the same four assertions --selftest runs) ===")
+    pre = [
+        ("no post-stwu frame store is PROMOTED",
+         frame_verdict(_parse_text(SYN_PROMOTED)["syn_prom"])[0] == "PROMOTED"),
+        ("a post-stwu r1 store is MEMORY",
+         frame_verdict(_parse_text(SYN_MEMORY)["syn_mem"])[0] == "MEMORY"),
+        ("a store to a RELOCATED static is MEMORY",
+         frame_verdict(_parse_text(SYN_STATIC)["syn_static"])[0] == "MEMORY"),
+        ("a body with no frame is U, not a pass",
+         frame_verdict(_parse_text(SYN_NOFRAME)["syn_leaf"])[0] == "U"),
+    ]
+    for name, ok in pre:
+        print("  %-56s %s" % (name, "ok" if ok else "FAIL"))
+    if not all(ok for _, ok in pre):
+        print("GRADE: FAIL (readout precondition — no cell verdict is published)")
+        return 1
+
     print()
     print("=== CELLS — the frame-traffic readout ===")
     exp = dict((c, (a, e)) for c, a, e in EXPECT)
