@@ -262,6 +262,26 @@ is now a fact about the wave's design rather than about either lane. `w-globobj`
 a documentation baseline, not port behaviour — or a page-owning lane gets a
 one-line exemption named in its brief. Neither was taken, so it fired again.
 
+### THE OTHER TWO REDS, AND NEITHER IS A DEFECT — one is generated, one is a PEER'S WORKTREE
+
+`cargo test --workspace --release --no-fail-fast` at this tip:
+**1,991 passed, 3 failed, 2 ignored.** The three, named individually because
+"three failures" is not a reportable state on its own:
+
+| test | why | whose |
+|---|---|---|
+| `subsys::tests::the_mark_census_reproduces` | the pinned `P_GLOBREGS` triple — the box above | **this lane's, by design** |
+| `rung_registry::rung_index_is_generated_and_current` | *"`docs/rungs/INDEX.md` is stale — it is GENERATED. Run `scripts/gen_rung_index.sh`."* This rung file is new and `INDEX.md` is regenerated **at merge**; the brief bars this lane from touching it | **this lane's, by design** |
+| `wt_pin_audit::no_worktree_holds_an_unlocked_pinned_artifact` | **not this tree.** The guard scans **all nine** worktrees on the box and reports `UNLOCKED AND PINNED /…/w-fmadd`, holding `work/w-fmadd/sweep_fp/c2rs` and `work/w-fmadd/sweep_fp2/c2rs`. `w-globarms` appears nowhere in its output | **`w-fmadd`'s** — a wave-19 peer, remedy `scripts/wt_pin_audit.sh --lock` |
+
+**The third one is worth a sentence beyond "not mine".** `wt_pin_audit` is
+worktree-**global**: it fails in every concurrently-running lane's tree the
+moment one lane leaves an unlocked binary, so on a five-lane wave a single
+lane's omission reddens the suite for all five. That is the same
+cross-worktree coupling `#3545` documents for its own WIDE counters, and a
+lane reading its suite output without opening this failure would report a
+red it did not cause.
+
 ### Everything else
 
     GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
@@ -273,8 +293,10 @@ one-line exemption named in its brief. Neither was taken, so it fired again.
 
     graded tree: bcb7e1dfff2a  (806 files: crates fixtures scripts, content-hashed)
 
-Unqualified `GATE: PASS` (`#3786`). Transcript `work/w-globarms/gate_tip.out`;
-`cargo test --workspace --release --no-fail-fast` transcript
-`work/w-globarms/tests_tip.out`; suite counts in §8 of the findings' companion
-transcript. Instrument transcripts `work/w-globarms/GRADE.txt` and
-`work/w-globarms/CONTROLS_RED.txt`.
+Unqualified `GATE: PASS` (`#3786`), read off the verdict **line**, not the exit
+code. Transcript `work/w-globarms/gate_tip.out`; suite transcript
+`work/w-globarms/tests_tip.out` (**1,991 passed / 3 failed / 2 ignored**);
+instrument transcripts `work/w-globarms/GRADE.txt` (`SELFTEST PASS`, 16
+assertions; `GRADE: PASS`, 38 graded, 0 `U`, 0 misses) and
+`work/w-globarms/CONTROLS_RED.txt` (five planted defects RED, C4 agreeing
+38/38).
