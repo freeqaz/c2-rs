@@ -89,7 +89,7 @@ was not broken: it answered a different question correctly.
 | lane | result |
 |---|---|
 | `scripts/gate.sh --jobs 16 --require-graded` | **`GATE: PASS`** — unqualified, with `hatch-red` live: `#3786` re-anchored the needle and this tree is clean, so `#1406`'s caveat on a `(HATCH-RED REFUSED)` run does not apply here. **18/18 lanes PASS**, 0 FAIL, 0 SKIP, 0 NO-RESULT, **7,038 fixture-verdicts**; sweep **19,460 of 19,556** graded, **0 mismatch**; cross **90,424 of 90,812** cells, **0 mismatch**; `hatch-red` **live and PASS, 14/14 arms, 11 red, 3 green controls**. Transcript `work/w-paramfill/gate_tip.out` |
-| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,984 passed / 0 failed / 2 ignored** over 60 result blocks. Transcript `work/w-paramfill/cargo_test_tip.out` |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **1,992 passed / 2 failed / 2 ignored** over 62 result blocks. **Both failures are named, and one of them was this lane's own defect.** Transcript `work/w-paramfill/cargo_test_tip.out`, which carries them in its header rather than being replaced by a clean re-run |
 | `git diff master..HEAD -- crates/` | **empty** — required, and this lane's whole grading criterion |
 | `python3 work/w-front3/hatch.py check` | `0 of 8 present, 8 pending, 0 undecidable`, `crates/ diff: EMPTY`, `CLEAN` |
 | `python3 work/w-inlmetric/check_table.py` | `CONFORMANCE-CHECK: GREEN (0 failures over 24 rows)` — **read only**; `CLAUSES.tsv` was not touched (`w-inlclause` owns it this wave) |
@@ -99,6 +99,29 @@ was not broken: it answered a different question correctly.
 > `WB_PARAMFILL_FINDINGS` §1 records C1 GREEN, C2 RED, C3 RED and a
 > cross-population Ghidra check, **and §8 records one control this lane could
 > not turn green and therefore quotes nothing from.**
+
+### The two suite failures, and the one that was real
+
+**`tracked_artifact_audit::the_index_carries_no_artifact_claude_md_forbids` —
+class 3, `VIOLATION work/w-paramfill/gate_tip.out`.** The gate transcript was
+committed carrying this box's absolute paths. That is `CLAUDE.md`'s own rule and
+the box convention's own rule, and **the absolute-path grep had been run** — over
+`docs/BOARD.md`, both new `docs/` pages, the instrument, and every other `work/`
+output. The gate transcript simply was not in the set that was remembered.
+**An enumerated check beat a remembered one**, which is the same shape as
+`#3689` and `#3679` and is why the check exists. Fixed by sanitizing the
+transcript to `<WORKTREE>` / `<REPO>` / `<HOME>` — no count, verdict or hash
+edited — and re-run green (`2 passed; 0 failed`).
+
+**`rung_registry::rung_index_is_generated_and_current`.**
+`docs/rungs/INDEX.md` is **generated** and this lane added a rung doc.
+`ADOPTION_BRIEF_2026-08-29.md` §4 says INDEX.md is regenerated **at merge**, and
+this lane's dispatch lists it under MUST NOT TOUCH — with two lanes adding rung
+docs this wave, each regenerating it is an add/add conflict on a generated file.
+**So it is left stale deliberately and the failure is reported rather than
+resolved**, which is the opposite of what `w-inlswitch` did last wave (it
+regenerated) and is a difference in the wave's instructions, not in the rule.
+Never regenerate it by hand; `scripts/gen_rung_index.sh` is the only writer.
 
 ### The control that failed
 
