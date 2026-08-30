@@ -1,0 +1,147 @@
+========================================================================
+--controls  (#3336: watched before any green is quoted)
+========================================================================
+C1 (GREEN expected): 0x10b9be68 `mov [esi+0x20],eax` survives all filters = True
+C1b (RED expected, must be > 0): `mov reg,[base+0x20]` rows the destination test REJECTS = 1509
+C2 (must be far smaller): operands at +0x21 = 3
+C3 (width mask is load-bearing): BYTE writes at +0x20 = 0; none of them can reach 0x1000 by construction, and the script drops them for that bit.
+C4 (RED expected): owner(0x0badf00d) = None
+
+CONTROLS PASS
+
+========================================================================
+--writers
+========================================================================
+operands at +0x20, decoded              : 2782
+   ...inside a Ghidra function extent   : 2719
+   ...WRITE mnemonic AND memory is dest : 497
+   ...in a function CORROBORATED on the symbol record : 5
+
+corroborated functions (>=3 of ['0x37', '0x4c', '0x50', '0x52', '0x54', '0x58'], >=1 of ['0x37', '0x52']): 16
+   0x10b50c43  FUN_10b50c43  fields ['0x37', '0x4c', '0x58']
+   0x10b60930  FUN_10b60930  fields ['0x37', '0x4c', '0x50']
+   0x10b64fee  FUN_10b64fee  fields ['0x37', '0x4c', '0x54', '0x58']
+   0x10b67a74  FUN_10b67a74  fields ['0x37', '0x54', '0x58']
+   0x10b6858b  FUN_10b6858b  fields ['0x37', '0x4c', '0x54', '0x58']
+   0x10b6bfc9  FUN_10b6bfc9  fields ['0x37', '0x4c', '0x58']
+   0x10b6c446  FUN_10b6c446  fields ['0x37', '0x4c', '0x54', '0x58']
+   0x10b8289c  FUN_10b8289c  fields ['0x37', '0x4c', '0x54', '0x58']
+   0x10b9b161  FUN_10b9b161  fields ['0x37', '0x4c', '0x54']
+   0x10b9b8e9  FUN_10b9b8e9  fields ['0x37', '0x4c', '0x50', '0x52', '0x54', '0x58']
+   0x10bc4715  FUN_10bc4715  fields ['0x37', '0x4c', '0x54', '0x58']
+   0x10bd9f55  FUN_10bd9f55  fields ['0x37', '0x4c', '0x54', '0x58']
+   0x10be4f28  FUN_10be4f28  fields ['0x37', '0x4c', '0x50']
+   0x10bea27e  FUN_10bea27e  fields ['0x52', '0x54', '0x58']
+   0x10bfefbb  FUN_10bfefbb  fields ['0x37', '0x50', '0x54']
+   0x10c21257  FUN_10c21257  fields ['0x37', '0x50', '0x54']
+
+EVERY ATTRIBUTED WRITE:
+  0x10b516f5  mov    DWORD PTR [esp+0x20],eax                      FUN_10b50c43 (0x10b50c43)
+  0x10b8290a  mov    DWORD PTR [esi+0x20],edi                      FUN_10b8289c (0x10b8289c)
+  0x10b9b284  or     DWORD PTR [esi+0x20],0x2000                   FUN_10b9b161 (0x10b9b161)
+  0x10b9be68  mov    DWORD PTR [esi+0x20],eax                      FUN_10b9b8e9 (0x10b9b8e9)
+  0x10b9bf96  or     DWORD PTR [esi+0x20],eax                      FUN_10b9b8e9 (0x10b9b8e9)
+
+========================================================================
+--bits
+========================================================================
+C11 bit reachability by an ENUMERATED, ATTRIBUTED write:
+
+  bit 0x40      set-by-immediate  0 · cleared  0 · OPAQUE (register source)  4
+      OPAQ  0x10b516f5  mov DWORD PTR [esp+0x20],eax   [FUN_10b50c43]
+      OPAQ  0x10b8290a  mov DWORD PTR [esi+0x20],edi   [FUN_10b8289c]
+      OPAQ  0x10b9be68  mov DWORD PTR [esi+0x20],eax   [FUN_10b9b8e9]
+      OPAQ  0x10b9bf96  or DWORD PTR [esi+0x20],eax   [FUN_10b9b8e9]
+  bit 0x100     set-by-immediate  0 · cleared  0 · OPAQUE (register source)  4
+      OPAQ  0x10b516f5  mov DWORD PTR [esp+0x20],eax   [FUN_10b50c43]
+      OPAQ  0x10b8290a  mov DWORD PTR [esi+0x20],edi   [FUN_10b8289c]
+      OPAQ  0x10b9be68  mov DWORD PTR [esi+0x20],eax   [FUN_10b9b8e9]
+      OPAQ  0x10b9bf96  or DWORD PTR [esi+0x20],eax   [FUN_10b9b8e9]
+  bit 0x400     set-by-immediate  0 · cleared  0 · OPAQUE (register source)  4
+      OPAQ  0x10b516f5  mov DWORD PTR [esp+0x20],eax   [FUN_10b50c43]
+      OPAQ  0x10b8290a  mov DWORD PTR [esi+0x20],edi   [FUN_10b8289c]
+      OPAQ  0x10b9be68  mov DWORD PTR [esi+0x20],eax   [FUN_10b9b8e9]
+      OPAQ  0x10b9bf96  or DWORD PTR [esi+0x20],eax   [FUN_10b9b8e9]
+  bit 0x1000    set-by-immediate  0 · cleared  0 · OPAQUE (register source)  4
+      OPAQ  0x10b516f5  mov DWORD PTR [esp+0x20],eax   [FUN_10b50c43]
+      OPAQ  0x10b8290a  mov DWORD PTR [esi+0x20],edi   [FUN_10b8289c]
+      OPAQ  0x10b9be68  mov DWORD PTR [esi+0x20],eax   [FUN_10b9b8e9]
+      OPAQ  0x10b9bf96  or DWORD PTR [esi+0x20],eax   [FUN_10b9b8e9]
+
+An OPAQUE row is a write whose source is a register: this instrument
+cannot say which bits it carries without following the register, so
+every OPAQUE row is counted AGAINST "the IL value survives".
+
+========================================================================
+--indirect
+========================================================================
+CLASS 1 -- an ADVANCED BASE reaching +0x20:
+  0x10b3ddbc  lea edi,[esi+0x20]   [FUN_10b3ddab]
+  0x10b4139a  lea eax,[ecx+0x20]   [FUN_10b41382]
+  0x10b419ba  lea eax,[ecx+0x20]   [FUN_10b419b0]
+  0x10b46ac2  lea edx,[esp+0x20]   [FUN_10b46a98]
+  0x10b519ab  lea eax,[ecx+0x20]   [FUN_10b50c43]
+  0x10b53f27  lea ebp,[edi+0x20]   [FUN_10b53e6d]
+  0x10b55112  lea edi,[ecx+0x20]   [FUN_10b550e5]
+  0x10b55803  lea esi,[ebx+0x20]   [FUN_10b55732]
+  0x10b55e4b  lea edi,[eax+0x20]   [FUN_10b55dbe]
+  0x10b5826c  lea esi,[edi+0x20]   [FUN_10b5824c]
+  0x10b58cee  lea ecx,[eax+0x20]   [FUN_10b58cd7]
+  0x10b626d9  lea ecx,[eax+0x20]   [FUN_10b62675]
+  0x10b62819  lea ecx,[eax+0x20]   [FUN_10b62675]
+  0x10b631c1  lea edx,[ecx+0x20]   [FUN_10b62f4b]
+  0x10b63c8f  lea eax,[ecx+0x20]   [FUN_10b63c77]
+  0x10b66207  lea esi,[ecx+0x20]   [FUN_10b66200]
+  0x10b66444  lea esi,[edi+0x20]   [FUN_10b6633d]
+  0x10b66896  lea edi,[esi+0x20]   [FUN_10b6683c]
+  0x10b67551  lea esi,[edi+0x20]   [FUN_10b67534]
+  0x10b6a320  lea ecx,[eax+0x20]   [FUN_10b6a311]
+  0x10b6a89d  lea esi,[ebx+0x20]   [FUN_10b6a609]
+  0x10b6c244  lea ecx,[eax+0x20]   [FUN_10b6c1da]
+  0x10b6cf66  lea edi,[eax+0x20]   [FUN_10b6cb2a]
+  0x10b6fc04  lea ecx,[eax+0x20]   [FUN_10b6fbdc]
+  0x10b6fda5  lea ecx,[eax+0x20]   [FUN_10b6fd9f]
+  0x10b6fdcc  lea ecx,[eax+0x20]   [FUN_10b6fdba]
+  0x10b70070  lea ebx,[esi+0x20]   [FUN_10b6ff92]
+  0x10b71daa  lea eax,[ebp+0x20]   [FUN_10b71d8f]
+  0x10b7820e  lea ecx,[eax+0x20]   [FUN_10b781ee]
+  0x10b96730  lea ecx,[eax+0x20]   [FUN_10b96704]
+  0x10b96e4b  lea eax,[ecx+0x20]   [FUN_10b96e1c]
+  0x10b96ecc  lea esi,[edi+0x20]   [FUN_10b96e1c]
+  0x10b99ffe  lea edx,[esp+0x20]   [FUN_10b99dfe]
+  0x10bb0c00  lea edi,[ebx+0x20]   [FUN_10bb0964]
+  0x10bbce97  lea eax,[ebx+0x20]   [FUN_10bbcdf6]
+  0x10bbcec3  lea eax,[ebx+0x20]   [FUN_10bbcdf6]
+  0x10bbe390  lea eax,[ecx+0x20]   [FUN_10bbdd2b]
+  0x10bca308  lea edi,[esi+0x20]   [FUN_10bca2f7]
+  0x10bcea7e  lea edx,[eax+0x20]   [FUN_10bcea6d]
+  0x10bd0431  lea ecx,[eax+0x20]   [FUN_10bd0424]
+  0x10bd07a0  lea eax,[ecx+0x20]   [FUN_10bd077e]
+  0x10bd2354  lea eax,[esi+0x20]   [FUN_10bd2343]
+  0x10bd243a  lea ecx,[eax+0x20]   [FUN_10bd2430]
+  0x10bd246b  lea eax,[ecx+0x20]   [FUN_10bd245e]
+  0x10bd2cd0  lea eax,[edi+0x20]   [FUN_10bd2cb5]
+  0x10bd36ea  lea edi,[esi+0x20]   [FUN_10bd36cf]
+  0x10bd7f94  lea ecx,[esi+0x20]   [FUN_10bd7f80]
+  0x10bdb1a9  lea esi,[edi+0x20]   [FUN_10bdb18a]
+  0x10bdd41d  lea ebx,[esi+0x20]   [FUN_10bdd2c8]
+  0x10bdf51c  lea esi,[esp+0x20]   [FUN_10bdf510]
+  0x10bfb63a  lea esi,[ebx+0x20]   [FUN_10bfb619]
+  0x10bfcb75  lea esi,[ebx+0x20]   [FUN_10bfca57]
+  0x10bfd067  lea eax,[ebx+0x20]   [FUN_10bfcf7c]
+  0x10c05179  lea edx,[eax+0x20]   [FUN_10c05137]
+  0x10c0e1d7  lea edx,[esp+0x20]   [FUN_10c0d57e]
+  0x10c11263  lea ecx,[edi+0x20]   [FUN_10c11219]
+  0x10c22df3  lea eax,[ecx+0x20]   [FUN_10c22db8]
+  0x10c22e1a  lea eax,[ecx+0x20]   [FUN_10c22db8]
+  0x10c2307e  lea edx,[eax+0x20]   [FUN_10c2306c]
+  0x10c24078  lea esi,[edi+0x20]   [FUN_10c24021]
+  total: 60
+
+CLASS 2 -- block copies (rep movs/stos). Any destination spanning
++0x20 would write the word without an operand at that displacement:
+  rep/movs/stos instructions in the listing: 480
+  (w-instrcount enumerated the 28 `rep movsd` sites for the +0x50
+   question and found the largest heap destination stops at +0x4f,
+   i.e. it DOES span +0x20 -- so this class is NOT empty for +0x20
+   the way it was for +0x50. Reported, not resolved.)

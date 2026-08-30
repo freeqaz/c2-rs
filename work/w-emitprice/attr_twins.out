@@ -1,0 +1,28 @@
+cell      TYPE flags  SIZE       ATTR  width   low byte  what the port can see
+fi_no            0x0   123     0x1068      2       0x68  gl_function_attrs returns 0x68
+fi_yes          0x20   123     0x38c8      2       0xc8  gl_function_attrs returns 0xc8
+fi_inl          0x20   123     0x18c8      2       0xc8  gl_function_attrs returns 0xc8
+fi_noi           0x0   123  0x1009028      4       0x28  gl_function_attrs returns 0x28
+
+CONTROLS (#3336, watched before any verdict below is quoted):
+  C1 GREEN -- fi_no ATTR reproduces P_INLINE SS2.1d's published plain-function 0x1068 on a cell that lane never compiled: 0x1068 -> True
+  C2 GREEN -- fi_noi (__declspec(noinline)) crosses 0x8000 and takes the FOUR-byte form, as SS2.1d predicts: 0x1009028 width 4 -> 32768
+  C3 GREEN -- C13's adopted bit 6 behaves: set on plain, CLEAR under __declspec(noinline) -> True
+  C4 GREEN -- the three length-matched cells share a SIZE, so any ATTR difference is the attribute and not the framing: 123/123/123 -> True
+  CONTROLS PASS
+
+THE CLAUSE BITS, per cell:
+      bit   fi_no fi_yes fi_inl fi_noi   clause
+   0x2000       0      1      0      0   C10  `[sym+0x4c] & 0x2000`  __forceinline bypass (0x10b60a28)
+    0x200       0      0      0      0   C12  `[sym+0x4c] & 0x200`   legality REFUSE (0x10b5c087)
+  0x80000       0      0      0      0   C12  `[sym+0x4c] & 0x80000` legality REFUSE (0x10b5c078)
+     0x40       1      1      1      0   C13  `[sym+0x4c] & 0x40`    INLINABLE, ADOPTED (0x10b5c09a)
+   0x1000       1      1      1      1        `[sym+0x4c] & 0x1000`  gates a sub-record decode (0x10b9bf99)
+
+fi_yes XOR fi_no  = 0x28a0   bits ['0x20', '0x80', '0x800', '0x2000']
+fi_inl XOR fi_no  = 0x8a0   bits ['0x20', '0x80', '0x800']
+fi_yes XOR fi_inl = 0x2000   bits ['0x2000']
+
+THE QUESTION THAT DECIDES WHETHER A LOW-BYTE PROXY COULD STAND IN:
+  do `__forceinline` and plain `inline` differ in the LOW BYTE gl_function_attrs returns?  0xc8 vs 0xc8 -> False
+  is C10's own bit in the low byte?  0x2000 -> no, it is bit 13.
