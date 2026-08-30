@@ -6,10 +6,10 @@
 # lanes' cargo runs on this shared box).  This waits on a FILE SENTINEL with a
 # hard deadline and reports TIMEOUT as an outcome distinct from success.
 set -u
-OUT=work/w-sizetest/cargo_test.out
+OUT=${1:-work/w-sizetest/cargo_test.out}
 i=0
 while [ "$i" -lt 80 ]; do            # 80 * 15s = 20 min ceiling
-    if grep -q 'Doc-tests' "$OUT" 2>/dev/null; then
+    if grep -q 'GATE:' "$OUT" 2>/dev/null; then
         echo "DONE (suite reached its tail)"
         break
     fi
