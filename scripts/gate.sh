@@ -4284,11 +4284,26 @@ CORPUSPY
         #     land on one directory, and no `.tmp-*` may survive.
         rm -rf "$_cs/root2"; C2RS_CORPUS_ROOT="$_cs/root2"
         _cs_gen "$_cs/wtA" "$_cs/privR1"; _cs_gen "$_cs/wtB" "$_cs/privR2"
-        ( resolve_corpus "$_cs/wtA" "$_cs/privR1" >/dev/null 2>&1
-          echo "$C2RS_CORPUS_KIND $C2RS_CORPUS_DIR" > "$_cs/r1" ) &
-        ( resolve_corpus "$_cs/wtB" "$_cs/privR2" >/dev/null 2>&1
-          echo "$C2RS_CORPUS_KIND $C2RS_CORPUS_DIR" > "$_cs/r2" ) &
+        # `|| true` and a `: "${VAR:-}"` floor on each arm, found by board #3866
+        # — the first thing that ever ran this selftest automatically. `set -e`
+        # is on, so a subshell whose `resolve_corpus` returns nonzero DIED before
+        # writing its result file, and the `cut` below then aborted the ENTIRE
+        # 205-case selftest with `r2: No such file or directory` and no case
+        # verdict at all. Under `cargo test --workspace` on a loaded box that is
+        # a flake; run by hand on an idle one it never fired.
+        #
+        # A losing arm must make this case REPORT — the loser discarding is the
+        # very thing being asserted — never kill the suite. The invariant below
+        # is unchanged: an arm that comes back `private`, empty, or on a
+        # different directory still fails the case, and now says so.
+        rm -f "$_cs/r1" "$_cs/r2"
+        ( resolve_corpus "$_cs/wtA" "$_cs/privR1" >/dev/null 2>&1 || true
+          echo "${C2RS_CORPUS_KIND:-NONE} ${C2RS_CORPUS_DIR:-NONE}" > "$_cs/r1" ) &
+        ( resolve_corpus "$_cs/wtB" "$_cs/privR2" >/dev/null 2>&1 || true
+          echo "${C2RS_CORPUS_KIND:-NONE} ${C2RS_CORPUS_DIR:-NONE}" > "$_cs/r2" ) &
         wait
+        [ -f "$_cs/r1" ] || echo "MISSING MISSING" > "$_cs/r1"
+        [ -f "$_cs/r2" ] || echo "MISSING MISSING" > "$_cs/r2"
         _cs_k1=$(cut -d' ' -f1 < "$_cs/r1"); _cs_k2=$(cut -d' ' -f1 < "$_cs/r2")
         _cs_p1=$(cut -d' ' -f2 < "$_cs/r1"); _cs_p2=$(cut -d' ' -f2 < "$_cs/r2")
         _cs_tmp=$(find "$_cs/root2" -maxdepth 1 -name '.tmp-*' | wc -l)

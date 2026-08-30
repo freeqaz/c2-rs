@@ -56,6 +56,23 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Mutex;
+
+/// **The two tests below must not run at the same time, and finding that out
+/// was the first thing running this suite automatically bought.**
+///
+/// `cargo test` runs a target's tests on N threads, so the green run and the
+/// mutant run started together — two 35-second shell suites, each forking
+/// scratch trees and racing publishers, on a box already carrying three peer
+/// lanes' gates. `gate.sh --selftest`'s concurrent-publisher case then lost a
+/// subshell to `set -e` and aborted the whole 205-case run with
+/// `r2: No such file or directory` and no case verdict at all. That arm is now
+/// fixed in `gate.sh` (board #3866) so a losing arm reports instead of killing
+/// the suite; this lock is the other half, because doubling the load on a
+/// timing-sensitive shell suite to no benefit is how flakes are manufactured.
+/// The mutant run is a CONTROLLED comparison against the green one — running it
+/// concurrently was never what it meant.
+static SELFTEST_LOCK: Mutex<()> = Mutex::new(());
 
 /// The repo root, from this crate's manifest dir (`crates/c2-harness`).
 ///
@@ -100,6 +117,7 @@ fn case_count(text: &str) -> Option<u32> {
 /// anybody who is not already running it — which, until this file, was nobody.
 #[test]
 fn gate_selftest_is_green_and_has_not_shrunk() {
+    let _serial = SELFTEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = repo_root();
     let script = root.join("scripts").join("gate.sh");
     if !script.is_file() {
@@ -150,6 +168,7 @@ fn gate_selftest_is_green_and_has_not_shrunk() {
 /// that reddened everything would satisfy the first two.
 #[test]
 fn deleting_the_tree_moved_check_reddens_the_selftest() {
+    let _serial = SELFTEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = repo_root();
     let script = root.join("scripts").join("gate.sh");
     if !script.is_file() {
