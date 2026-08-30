@@ -1,4 +1,9 @@
-# `w-sizetest` — the mask is a constant, the size test does not run, and the brackets bracket nothing
+# `w-sizetest` — the mask is a constant, and the brackets bracket nothing
+
+> **AMENDED 2026-08-30 before merge.** The second headline this rung shipped —
+> *"the size test does not run"* — is **WITHDRAWN**; see the amendment below.
+> The mask result, the `param_4 & 0xf00` finding, the ceiling exclusion and the
+> gate evidence are unaffected.
 
     Tag:       w-sizetest
     Slug:      w-sizetest
@@ -93,7 +98,71 @@ because `DAT_10c46318` turns out to have **one reader and two writers** in the
 entire image. The puzzle framing came from treating `0x10 << k` as the value
 set rather than as one arm of it.
 
-## What the size test decides, and why the answer is *nothing*
+## ⛔ AMENDED 2026-08-30 — the second headline is WITHDRAWN
+
+*Raised by the coordinator against peer lane `w-emitprice` (`#3856`–`#3862`)
+before merge. Board `#3872` and `#3873` amended in place; findings page carries
+the banner and keeps the wrong paragraph verbatim.*
+
+**This rung published *"the size test does not execute"*. It is REFUTED**, by a
+constant that was in `crates/c2-il/src/func/bundle.rs` the whole time and
+carries `PROV[O]` — the per-function option word read off real `.ex` captures:
+
+| mode | captured | bit 21 → `DAT_10c2e2fc` | bit 23 → `DAT_10c2e310` |
+|---|---|---:|---:|
+| `/Ox` favour speed | `0x00a00005` | 1 | 1 — skipped |
+| **`/O1` favour SIZE** | **`0x00200005`** | 1 | **0 — RUNS** |
+| `/Od` | `0x00800005` | **0** | 1 |
+| `/Ox` + `pragma optimize("",off)` | `0x00800004` | **0** | 1 |
+
+`/O1` is the workload's mode. **Favour-speed skips the test; favour-size runs
+it** — and `bundle.rs` independently records that `pragma optimize("s",on)`
+under `/Ox` produces the `/O1` word, which is what makes bit 23 favour-size
+rather than an interpretation. `python3 work/w-sizetest/optbits.py`.
+
+**The bit-21 half is corroborated at four modes** and gets *stronger*:
+`DAT_10c2e2fc == 0` exactly when optimization is off, and candidacy then admits
+only `ATTR & 0x2080` — which is `/Od`'s documented behaviour, derived here from
+the disassembly alone.
+
+**Two defects, and they are the same error twice — quoting a DEFAULT for a
+WRITTEN global.** The image default `1` for `DAT_10c2e310`; and the image value
+`0` for `DAT_10c2eaac`, on a global this rung itself flagged as *"14 writers and
+this lane read none of them"*. The second is now **closed properly** (both
+setters are in POGO TUs, one `only-from:pgo-client`) and the answer agrees —
+but agreeing by luck is not the same as being derived, and defect 1 is fatal
+alone.
+
+**The estimate-vs-outcome section below is unaffected; §5's exclusion is
+LOAD-BEARING rather than weakened**, because it is now about a test that runs.
+
+### What the four over-ceiling cells mean instead
+
+At `/O1` every term is pinned: skip-bit **0** `[O]`, ceiling **128** `[R]`, and
+**all four escapes closed** on the family's measured `ATTR = 0x68` plus the TU
+attribution above. **Yet four published `[O]` cells at counts 183, 211, 253 and
+260 inline at `/O1`.** A hard contradiction between a fully pinned read and
+three lanes' measurements. It is **not** the ceiling's value (the exclusion
+below covers every attainable one) and **not** the escape, so it is either
+*"`0x10b5fc86` does not load the `.gl SIZE` those lanes measured"* — `P_INLINE`
+§2.1b's surviving headline, now much better posed, and **not** the one redirect
+in the function (`0x10b5fbf3`, gated on `DAT_10c3de20 == 1`, which reads 0) —
+or a cell misattribution across three lanes. **This lane picks neither, and
+that open question is worth more than the headline it replaces.**
+
+### The lesson, which is not the one the lane set out to record
+
+**The prereg's refusals held; the claim that failed is the one the prereg never
+fenced.** `PREREG.md` §5 fences everything I anticipated wanting to claim, and
+§4.4 was a claim I did not anticipate — so it inherited none of that
+discipline. And the lane followed *read-before-probe* while breaking
+*read-before-infer*: it read the image and did not read the port, taking four
+`[O]` cells from three findings pages' prose while the settling constant sat
+two directories away. `WB_INSTRCOUNT` §7 made the mirror-image error last wave —
+reporting C4 blocked *"on a port fact never checked"* — and this lane repeated
+it in the other direction.
+
+## ~~What the size test decides, and why the answer is *nothing*~~ — the withdrawn argument, kept verbatim
 
 Factored with `ebx = 0` (both predecessors of `0x10b5fc69` are `xor ebx,ebx`):
 
@@ -111,15 +180,22 @@ elided chain has **four routes to `return 0`** — which is where its
 *"over the ceiling still passes"* comes from.
 
 **`DAT_10c2e310`'s image value is `1`.** No page in this tree recorded that;
-c2's default state is *size test off*. And bodies at `.gl SIZE` **183, 211,
+c2's default state is *size test off*. ~~And bodies at `.gl SIZE` **183, 211,
 253, 260** inline at `/O1` against a ceiling of `16 << 3 = 128`, with the
 over-ceiling escape closed by their own **measured** `ATTR = 0x68`
 (`WB_INSTRCOUNT` §2.4). So bit 23 of the per-function option word `[fn+0x1c]`
-is set and **`0x10b5fc8a` never executes on any profile this project has
-measured.**
+is set and `0x10b5fc8a` never executes on any profile this project has
+measured.~~ ⛔ **REFUTED — see the amendment above. The image default does not
+bind: `FUN_10b82338` overwrites both globals from the per-function option word,
+and the captured `/O1` word has bit 23 CLEAR.** The struck sentence is kept as
+the record of the error.
 
-One assumption left open and named rather than buried: `DAT_10c2eaac` has 14
-writers and this lane read none of them. It does not touch the mask result.
+~~One assumption left open and named rather than buried: `DAT_10c2eaac` has 14
+writers and this lane read none of them.~~ **Now CLOSED** (amendment above):
+both non-zero setters are in POGO TUs, one `only-from:pgo-client`, so it is 0
+here and the `0x10b5fcad` escape really is shut — but by TU attribution, which
+is evidence, rather than by an image default, which was not. **It does not touch
+the mask result**, which is unaffected either way.
 
 ## The brackets, excluded exhaustively
 

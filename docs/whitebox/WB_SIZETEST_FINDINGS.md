@@ -1,4 +1,55 @@
-# `WB_SIZETEST` — the mask is a constant, the size test does not run, and the brackets bracket nothing
+# `WB_SIZETEST` — the mask is a constant, and the brackets bracket nothing
+
+> ## ⛔ WITHDRAWN 2026-08-30 — **§4.4's HEADLINE IS WRONG. THE SIZE TEST *DOES* RUN AT `/O1`.**
+>
+> *Raised by the coordinator against peer lane `w-emitprice` (`#3856`–`#3862`)
+> before merge; settled by this lane against the port's own captured constants.
+> Board **#3872** and **#3873** are amended in place. **Amend-beside**: §4.1–§4.3
+> and every other section stand exactly as written, and §2, §3, §5, §6 and §7
+> are untouched.*
+>
+> **This page published *"the size test does not decide candidacy on this
+> workload — it does not RUN"*. That is REFUTED.** `crates/c2-il/src/func/bundle.rs`
+> carries the per-function option word **read off real `.ex` captures at each
+> flag setting** (`PROV[O]`, bits opaque, word compared whole):
+>
+> | mode | captured word | **bit 21** → `DAT_10c2e2fc` | **bit 23** → `DAT_10c2e310` |
+> |---|---|---:|---:|
+> | `/Ox` optimize, favour **speed** | `0x00a00005` | 1 | **1** — size test skipped |
+> | **`/O1` optimize, favour SIZE** | **`0x00200005`** | 1 | **0 — SIZE TEST RUNS** |
+> | `/Od` no optimization | `0x00800005` | **0** | 1 |
+> | `/Ox` + `pragma optimize("",off)` | `0x00800004` | **0** | 1 |
+>
+> **`/O1` is the workload's own mode and bit 23 is CLEAR in it.** `bundle.rs`
+> independently records that `#pragma optimize("s",on)` under `/Ox` produces the
+> `/O1` word — so clearing bit 23 *is* favour-size, and the mechanism reads:
+> **in favour-speed mode c2 skips the size test; in favour-size mode it runs
+> it.** Reproduce with `python3 work/w-sizetest/optbits.py`.
+>
+> **§4.4 had TWO independent defects and they are the same error twice —
+> quoting a DEFAULT for a WRITTEN global:**
+>
+> 1. It inferred `DAT_10c2e310 != 0` from downstream verdicts and leaned on the
+>    image default `1`. The captured word settles it directly and the other way.
+> 2. It wrote that the over-ceiling escape was *"closed by their own measured
+>    `ATTR = 0x68`"* — but `0x68` closes only the `0x2000`, `0x2` and `0x10`
+>    routes. The fourth, `DAT_10c2eaac != 0`, was closed by quoting its **image
+>    value**, on a global this same page named as having **14 unread writers**.
+>    That is precisely the discipline `readva.py` enforces for uninitialized
+>    sections, applied to one global and not to the other.
+>
+> **Defect 2 has since been closed properly, and the answer happens to be the
+> one §4.4 assumed — for a reason §4.4 did not have** (§4.6). That does not
+> rescue the headline: defect 1 is fatal on its own.
+>
+> **What survives, and it is most of the page:** §2 (the mask — the coordinator
+> has taken it), §3 (`param_4 & 0xf00`), §4.1–§4.3 (the tail factored, the two
+> gate globals, the image reads) — and §4.2's bit-21 read is now **corroborated
+> at four modes**, because `DAT_10c2e2fc == 0` exactly when optimization is off,
+> which is `/Od`'s documented behaviour. **§5's exclusion is not weakened but
+> LOAD-BEARING**, because it is now a statement about a test that actually runs.
+> **§4.5 is rewritten; §5.3 item 1 is struck; the §0 bullet is corrected; the §9
+> scorecard records the miss.**
 
 > **Lane `w-sizetest`, 2026-08-29. Kind: characterization. Outcome: `built`.**
 > Prereg: [`work/w-sizetest/PREREG.md`](../../work/w-sizetest/PREREG.md),
@@ -39,10 +90,13 @@
 * **There IS a caller-supplied mask in this function and it is a different
   instruction** — `param_4`, tested `& 0xf00` at `0x10b5fc01`. It refuses, it
   is `0` at two of the three call sites, and no page in this tree names it.
-* **The size test does not decide candidacy on this workload — it does not
-  RUN.** `DAT_10c2e310` skips it (`0x10b5fc84`), its image value is **`1`**,
-  and bodies with `.gl SIZE` up to **211** inline at `/O1` against a ceiling
-  of **128**. `[R]` + `[O]`, §4.
+* ~~**The size test does not decide candidacy on this workload — it does not
+  RUN.**~~ **WITHDRAWN — see the banner. The size test RUNS at `/O1`**
+  (option-word bit 23 is clear in the captured `/O1` word). What survives is
+  the factored predicate (§4.1), the two gate globals (§4.2, bit 21 corroborated
+  at four modes), the image reads (§4.3), and a **sharpened contradiction**:
+  the test runs, the ceiling is 128, every escape is closed — and four
+  published `[O]` cells inline above it anyway (§4.5).
 * **The brackets bracket nothing, exhaustively.** `DAT_10c46318` has **one
   reader and two writers**; its entire attainable value set is enumerated, and
   **no member of it reproduces the frozen verdicts on all three ladders** —
@@ -321,9 +375,15 @@ over-ceiling escape of §4.1 — and the escape is closed for them:
   is `0` with no `-pg*` switch in c2's argv at any of 22 modes (`P_INLINE`
   §6.8.6, `[O]`).
 
-> **`[R] + [O]` — at every profile this project has measured, `0x10b5fc84`
+> ~~**`[R] + [O]` — at every profile this project has measured, `0x10b5fc84`
 > jumps and `0x10b5fc8a`–`0x10b5fc90` NEVER EXECUTE. `DAT_10c2e310 != 0`, i.e.
-> option-word bit 23 is set, and the ceiling `DAT_10c46318` is never read.**
+> option-word bit 23 is set, and the ceiling `DAT_10c46318` is never read.**~~
+>
+> ### ⛔ **REFUTED — see the banner at the head of this page.** The captured
+> `/O1` option word has bit 23 **CLEAR**, so `DAT_10c2e310 = 0` and the size
+> test **runs** at `/O1`. It is skipped at `/Ox` only. The paragraph is kept
+> verbatim as the record of the error; §4.5 says what the four cells mean
+> instead, and §4.6 closes the escape this argument hand-waved.
 
 Note the corroboration this makes retrospective sense of: `w-sizebracket`
 §2.1c found `/O1` separates on emitted `.text` and **`/Ox` does not separate at
@@ -337,15 +397,88 @@ plus the absence of profile switches. If some path sets it, the `0x10b5fc99`
 chain reopens and the conclusion needs re-deriving. It does **not** reopen the
 mask result in §2, which depends on nothing here.
 
-### 4.5 So what does the size test decide?
+### 4.6 The fourth escape, closed properly `[R]` — by TU attribution, not by an image default
 
-> **On this workload: nothing. It is dead code at every profile measured.**
-> Structurally, if bit 23 were clear it would decide candidacy for exactly the
-> callees that are not `__forceinline`, carry no `ATTR & 0x2` and reach no
-> profile record — i.e. it would be the ordinary-callee boundary that four
-> pages in this tree assume it already is. **`#3830`'s headline — "neither
-> necessary nor sufficient" — is right, and it is right for a reason `#3830`
-> did not have and understates.**
+§4.4 closed `DAT_10c2eaac` by quoting its image value on a global with 14
+writers. That was the second defect. Closed properly here, because the
+withdrawal made it load-bearing:
+
+Of the 14 writers, exactly **two set it to a non-zero constant** —
+`0x10baa64d` and `0x10baf799`, both `mov DWORD PTR ds:0x10c2eaac,0x1` — and the
+rest clear it (`and …,0x0` ×2, or `mov …,reg` with the register zero). Both
+setters are attributed by `ref/FUNCS.tsv`:
+
+| setter | function | **TU** | annotation |
+|---|---|---|---|
+| `0x10baa64d` | `FUN_10baa4aa` (1,351 B) | **`pogoinline.c`** | — |
+| `0x10baf799` | `FUN_10baf51d` (750 B) | **`pogoopt.c`** | **`only-from:pgo-client`** |
+
+> **`[R]` — every setting writer of `DAT_10c2eaac` is in a POGO translation
+> unit, and one carries the explicit `only-from:pgo-client` annotation** — the
+> same annotation `WB_INSTRCOUNT` §3.1 used to rule out `FUN_10ba1eca`. With no
+> `-pg*`/`-pgi`/`-pgo` in c2's argv at any of the 22 modes this project
+> compiles (`P_INLINE` §6.8.6, `[O]`), **`DAT_10c2eaac` is 0 and the
+> `0x10b5fcad` escape is CLOSED.**
+
+*(Noted and not pursued: `FUN_10baf51d` is also one of the **three callers of
+candidacy** (§2.3). A POGO TU calling the inline-candidacy predicate is worth a
+reader's attention; it is not this lane's.)*
+
+### 4.5 So what does the size test decide? — REWRITTEN after the withdrawal
+
+**It decides candidacy for ordinary callees at `/O1`, and it is skipped at
+`/Ox`.** That is the plain reading, and it is what four pages in this tree
+already assumed. This lane's contribution is no longer a headline; it is a
+**sharpened contradiction**, and the sharpening is the useful part.
+
+At `/O1`, for a callee with `ATTR = 0x68` — which is *measured*, on the very
+family in question (`WB_INSTRCOUNT` §2.4) — every term is now pinned:
+
+| term | value at `/O1` | how |
+|---|---|---|
+| `DAT_10c2e310` (skip the test) | **0** | captured option word, bit 23 `[O]` |
+| `DAT_10c46318` (the ceiling) | **128** | `k = 3` read from `.data +0xa98` `[R]`, `0x10b5e4cc` `[R]` |
+| `ATTR & 0x2000` (`__forceinline`) | **0** | `0x68` `[O]` |
+| `ATTR & 0x2` | **0** | `0x68` `[O]` |
+| `ATTR & 0x10` | **0** | `0x68` `[O]` |
+| `DAT_10c2eaac` | **0** | both setters are POGO-TU, §4.6 `[R]` |
+
+> **Every route to candidate is therefore closed for a callee whose count is
+> ≥ 128 at `/O1`. And four published `[O]` cells with counts 183, 211, 253 and
+> 260 are INLINED at `/O1`.** That is a hard contradiction between the read and
+> three lanes' measurements, and this lane does **not** resolve it.
+
+**What the contradiction can and cannot be**, stated as an exclusion because
+that is all the evidence supports:
+
+* **It is NOT "the ceiling is some other value."** §5 enumerates
+  `DAT_10c46318`'s entire attainable range against three ladders and **no
+  member reproduces them**. Changing `k` cannot rescue this. **The withdrawal
+  makes §5 load-bearing rather than weakening it**, exactly as the coordinator
+  anticipated: §5 is now a statement about a test that runs.
+* **It is NOT the escape.** §4.6 closes the last open route by TU attribution.
+* **So it is one of two things, and this lane names both and picks neither:**
+  1. **The value loaded at `0x10b5fc86` is not the `.gl SIZE` those lanes
+     measured** — which is `P_INLINE` §2.1b's *headline*, the half that
+     survived `#3825` stripping its mechanism. The question is now much better
+     posed than §2.1b could pose it: **not "is `SIZE` reduced" (there is no
+     reducer) but "is `esi` at `0x10b5fc86` the symbol whose `.gl SIZE` was
+     measured".** The one redirect in the function, `0x10b5fbf3
+     mov esi,[esi+0x90]`, is gated on `DAT_10c3de20 == 1` and that global reads
+     0 (`P_INLINE` §6.8.6, and `.data +0xfe20` is past `SizeOfRawData`) — so it
+     is **not** the redirect, and the question stays open.
+  2. **One of the four cell attributions is wrong** — a profile, a linkage or a
+     count mis-recorded across `w-sizebracket`, `w-instrcount` and this page's
+     own restatement of them.
+
+**This is the highest-value open question the lane leaves**, and it is worth
+more than the headline it replaces: it is a contradiction between a read that
+is now pinned term by term and `[O]` data from three lanes, with the two
+survivable explanations named and the other two excluded by construction.
+
+*(`#3830`'s own headline — *"neither necessary nor sufficient"* — is unaffected
+by all of this and stands: §4.1's factoring shows the size test is one disjunct
+of four inside a conjunction, whichever way the globals fall.)*
 
 ---
 
@@ -417,11 +550,16 @@ Two things worth separating, because they are different strengths of result:
 
 Everything above is negative. The positive statement the read supports:
 
-1. **They are consistent with §4** — if the size test never runs, both ladders
-   are moved by a predicate downstream of `0x10b5fc8a`, and **there is no
-   reason a single value should fit both**, because there is no single value in
-   play. The puzzle in `WB_INSTRCOUNT` §6's last paragraph dissolves rather
-   than being solved.
+1. ~~**They are consistent with §4** — if the size test never runs, both ladders
+   are moved by a predicate downstream of `0x10b5fc8a` … the puzzle dissolves
+   rather than being solved.~~
+   **STRUCK — §4.4 is withdrawn and the size test runs at `/O1`.** The
+   exclusion in §5.2 is untouched by that (it never used §4.4 — it is an
+   enumeration over the ceiling's range against frozen verdicts), and it is now
+   **stronger in consequence**: the brackets are boundaries of a test that
+   *executes* and still cannot be reproduced by any value it can hold. The
+   puzzle does not dissolve; it moves to *"what value does `0x10b5fc86`
+   load"* (§4.5).
 2. **They are consistent with a linkage-sensitive predicate that is NOT in the
    candidacy function.** `P_INLINE` §6.5's negative result stands and this lane
    re-derived it from the full listing: **no storage-class or linkage field is
@@ -562,3 +700,29 @@ read of a listing is not a reading of control flow.**
 | **P4** | `ATTR` bit 7 has no other reader in the image | **FALSIFIED** — seven `0x2080` sites plus a bare bit-7 test at `0x10b5c9ad`. §8 item 5 |
 | **P5** | no value of `DAT_10c46318` reproduces both brackets **and none has to**; the brackets are not brackets on it | **HIT, and stronger than registered.** Made exhaustive over the whole attainable range rather than over `0x10 << k`; the external ladder excludes every `k` unconditionally, and the two static datasets disagree with each other. The sub-prediction that `DAT_10c46318` is **run-time written** is also a HIT (`.data +0x18318` is past `SizeOfRawData`) |
 | **P6** | §2.1's *"a mask held in `edi`"* is an **encoding** observation, not a semantic one, and pages have built on it as if semantic | **HIT** — and it cost a wave-21 lane commission to establish. §6 |
+
+### 9.1 The unregistered claim, and it is the one that failed
+
+**§4.4 was not a registered prediction.** The prereg's P3 is about
+`DAT_10c2e2fc` and it is scored above; **nothing in `PREREG.md` predicted
+anything about `DAT_10c2e310`**. §4.4 was reasoned to mid-lane, published as a
+headline, and **refuted before merge** by a constant that was in
+`crates/c2-il/src/func/bundle.rs` the whole time.
+
+That is worth recording in the prereg's own scorecard rather than only in the
+banner, because it is the section's lesson:
+
+* **The prereg's refusals held. The claim that failed is the one the prereg
+  never fenced.** §5's list of refusals ("I will not name a numeric ceiling",
+  "I will not conclude caller-supplied from a decompiler signature") each bound
+  a claim I *anticipated* wanting to make. §4.4 was a claim I did not
+  anticipate, and it inherited none of that discipline.
+* **The lane read the image and did not read the port.** `read-before-probe`
+  was followed; *read-before-infer* was not. The four over-ceiling cells were
+  taken from three findings pages' prose, and the option word that settles the
+  question sat two directories away carrying `PROV[O]`. `WB_INSTRCOUNT` §7 made
+  the mirror-image error last wave — reporting C4 as blocked *"on a port fact
+  never checked"* — and this page repeated it in the other direction.
+* **It is `#3505` again, at the level of a conclusion rather than a census:**
+  the argument ran on the nearest available mechanism (an image default) for a
+  quantity that is written at run time, twice in one paragraph.
