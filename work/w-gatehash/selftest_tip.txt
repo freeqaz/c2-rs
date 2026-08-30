@@ -1,0 +1,311 @@
+gate.sh --selftest: driving the real collect+decide with fabricated lane logs
+
+  ok    both-pass                        GATE: PASS — 2/2 lanes ran and every one of them graded a corpus,
+        also: a wholly green run does say PASS
+  ok    lane-B-mismatch                  GATE: FAIL — 1 lane(s) failed:
+        also: the failing lane is NAMED
+        also: a mismatch raises the alarm banner
+  ok    lane-B-vacuous                   GATE: FAIL — 1 lane(s) failed:
+  ok    lane-B-no-log-at-all             GATE: FAIL — 1 lane(s) produced NO RESULT:
+        also: a lane that never ran is NO RESULT, not a pass
+  ok    lane-B-exit-0-no-result          GATE: FAIL — 1 lane(s) produced NO RESULT:
+        also: exit 0 alone is not evidence a lane ran
+  ok    lane-B-lies-graded-0             GATE: FAIL — 1 lane(s) failed:
+  ok    lane-B-lies-with-mismatch        GATE: FAIL — 1 lane(s) failed:
+  ok    both-absent-is-not-a-skip        GATE: FAIL — 2 lane(s) produced NO RESULT:
+  ok    all-skip                         GATE: SKIPPED — all 2 lanes, the sweep, the cross and the debug row skipped,
+        also: all-skip says SKIPPED and that nothing was graded
+        also: all-skip never says PASS
+        also: and the SKIPPED headline names the debug row too
+  ok    partial-skip                     GATE: FAIL — 1 of 2 lanes skipped while 1 ran.
+  ok    tree-moved-turns-pass-red        GATE: FAIL (TREE MOVED UNDER THIS RUN) — NOTHING ABOVE IS EVIDENCE ABOUT ANY TREE.
+        also: a moved tree is REFUSED IN THE HEADLINE, not in a footnote
+        also: and the word PASS appears NOWHERE in that output
+        also: the headline carries both identities and both file counts
+        also: and says the run is evidence about no tree
+  ok    tree-still-keeps-pass            GATE: PASS — 2/2 lanes ran and every one of them graded a corpus,
+        also: the identical run with an UNMOVED tree still says PASS
+        also: and never mentions a tree that did not move
+  ok    tree-moved-turns-skipped-red     GATE: FAIL (TREE MOVED UNDER THIS RUN) — NOTHING ABOVE IS EVIDENCE ABOUT ANY TREE.
+        also: an all-skip run over a moved tree is RED, not SKIPPED
+        also: and does not also print the clean-degradation headline
+  ok    tree-still-keeps-skipped         GATE: SKIPPED — all 2 lanes, the sweep, the cross and the debug row skipped,
+        also: an unmoved all-skip run degrades cleanly exactly as before
+  ok    tree-moved-turns-sampled-red     GATE: FAIL (TREE MOVED UNDER THIS RUN) — NOTHING ABOVE IS EVIDENCE ABOUT ANY TREE.
+        also: a SAMPLED run over a moved tree is red too
+        also: the sampled headline is not printed either
+  ok    tree-moved-does-not-mask-a-mismatch GATE: FAIL — 1 lane(s) failed:
+        also: a mismatch under a moved tree still raises the alarm banner
+        also: and the failing lane is still NAMED
+        also: the tooling headline does not displace the mismatch
+  ok    sweep-clean                      GATE: PASS — 2/2 lanes ran and every one of them graded a corpus,
+        also: a full clean sweep does say PASS
+        also: the PASS line carries the sweep GRADED count over the corpus
+  ok    sweep-mismatch                   GATE: FAIL — expr-sweep failed: MISMATCH — the port emitted wrong bytes on 1 case(s)
+        also: a sweep mismatch raises the alarm banner
+        also: the failing CASE is named, by file
+  ok    sweep-short-count                GATE: FAIL — expr-sweep failed: SHORT — selected 14635 cases, reached 9107
+        also: grading fewer cases than were selected is a FAIL, not a pass
+  ok    sweep-vacuous                    GATE: FAIL — expr-sweep failed: vacuous — 0 cases reached
+  ok    sweep-no-checked-line            GATE: FAIL — expr-sweep produced NO RESULT: log has no 'checked=' line (exit 137)
+        also: a sweep that died mid-run is NO RESULT, not 0 mismatches
+  ok    sweep-no-sweeping-line           GATE: FAIL — expr-sweep produced NO RESULT: log has no 'sweeping R of T' line (exit 0)
+        also: a checked= line with no corpus count is not a result
+  ok    sweep-log-missing                GATE: FAIL — expr-sweep produced NO RESULT: the instrument produced no log at all
+  ok    sweep-clean-but-exit-1           GATE: FAIL — expr-sweep failed: graded every case cleanly but exited 1
+  ok    sweep-sampled                    GATE: PASS (SAMPLED) — 2/2 lanes ran and every one of them graded
+        also: a sampled sweep says so in the headline
+        also: a sampled sweep never prints an unqualified PASS
+  ok    sweep-skip-while-lanes-ran       GATE: FAIL — 2 lanes graded a corpus and expr-sweep skipped.
+  ok    sweep-pre-graded-count           GATE: FAIL — expr-sweep produced NO RESULT: count line has no graded=/ungraded=/unknown= — a pre-2026-08-04 sweep, whose 'checked' includes cases the oracle never ruled on
+        also: a count line with no graded= is NO RESULT, not ungraded=0
+  ok    sweep-none-graded                GATE: FAIL — expr-sweep failed: vacuous — 14635 cases reached and NONE graded
+        also: every case reached and none GRADED is vacuous, not clean
+  ok    sweep-unknown-verdict            GATE: FAIL — expr-sweep failed: UNRECOGNIZED verdict on 1 case(s) — an unenumerated verdict is the next silence
+        also: an unenumerated verdict fails instead of counting as clean
+  ok    sweep-cache-clean                GATE: PASS — 2/2 lanes ran and every one of them graded a corpus,
+        also: a clean cache line does not disturb a passing sweep
+  ok    sweep-cache-poisoned             GATE: FAIL — expr-sweep failed: CACHE POISONED/REFUSED on 1 case(s) — the capture cache served bytes this toolchain does not produce, or held entries it would not serve; this row's ORACLE side is untrustworthy on this run (C2RS_SWEEP_NO_CACHE=1 grades every case for real)
+        also: a poisoned or refused cache entry reddens the gate
+        also: and it says WHICH side of the differential is in doubt
+  ok    sweep-cache-cold                 GATE: PASS — 2/2 lanes ran and every one of them graded a corpus,
+        also: a COLD cache (hit=0) is slow and correct, never a failure
+  ok    sweep-cache-line-absent          GATE: PASS — 2/2 lanes ran and every one of them graded a corpus,
+        also: an ABSENT cache line is not a zero and not a failure
+  ok    cross-clean                      GATE: PASS — 2/2 lanes ran and every one of them graded a corpus,
+        also: a full clean cross does say PASS
+        also: the PASS line carries the cross GRADED count over the product
+  ok    cross-mismatch                   GATE: FAIL — mode-cross failed: MISMATCH — the port emitted wrong bytes on 1 case(s)
+        also: a cross mismatch raises the alarm banner
+        also: the failing CASE is named, by file
+        also: and the LANE it mismatched at is named too
+  ok    cross-short-count                GATE: FAIL — mode-cross failed: SHORT — selected 61539 cases, reached 47000
+        also: grading fewer cells than were selected is a FAIL, not a pass
+  ok    cross-log-missing                GATE: FAIL — mode-cross produced NO RESULT: the instrument produced no log at all
+  ok    cross-no-checked-line            GATE: FAIL — mode-cross produced NO RESULT: log has no 'checked=' line (exit 137)
+  ok    cross-clean-but-exit-1           GATE: FAIL — mode-cross failed: graded every case cleanly but exited 1
+  ok    cross-sampled                    GATE: PASS (SAMPLED) — 2/2 lanes ran and every one of them graded
+        also: a sampled cross says so in the headline
+        also: a sampled cross never prints an unqualified PASS
+  ok    cross-skip-while-lanes-ran       GATE: FAIL — 2 lanes graded a corpus and mode-cross skipped.
+  ok    cross-absent                     GATE: FAIL — no mode-cross verdict was produced at all.
+  ok    allskip-cross-ran                GATE: FAIL — all 2 lanes skipped but mode-cross reported PASS.
+  ok    sweep-absent                     GATE: FAIL — no expr-sweep verdict was produced at all.
+  ok    lanes-filtered                   GATE: PASS (LANES FILTERED) — 2/2 SELECTED lanes ran, out of
+  ok    short-table                      GATE: FAIL — the registry has 2 lanes and the table has 1 rows.
+  ok    empty-registry                   refused (a gate over 0 lanes cannot exist)
+  ok    duplicate-slug                   refused
+  ok    malformed-row                    refused (a row that does not parse is not a row that vanishes)
+  ok    shipped-registry                 18 lanes, 9 of them compile /EH
+  ok    corpus-shape-check               check: 0 of 60 shape markers have zero cases (baseline 0), 63 fragments all non-empty, 19638 cases
+  ok    corpus-zero-row-fails            check: 59 of 60 shape markers have zero cases (baseline 0), 1 fragments all non-empty, 1 cases
+  ok    corpus-empty-fragment-fails      FRAGMENT EMITTED ZERO CASES: 99-emits-nothing
+  ok    corpus-degenerate-fails          (no summary line)
+  ok    corpus-digest-path-independent   two trees, one digest (b5d60b046e32d7a6)
+  ok    corpus-digest-separates-corpora  a one-byte sweep.d edit is a new generation
+  ok    corpus-first-run-publishes       kind=shared
+  ok    corpus-second-tree-adopts        a DIFFERENT tree resolved to the SAME directory
+  ok    corpus-short-generation-refused  one case removed -> kind=private
+  ok    corpus-extra-case-refused        kind=private
+  ok    corpus-tampered-case-refused     same names, same count, one byte
+  ok    corpus-recovers-after-repair     kind=shared
+  ok    corpus-off-switch-stays-private  
+  ok    corpus-unwritable-root-degrades  rc=0 kind=private
+  ok    corpus-broken-generator-degrades kind=private
+  ok    corpus-concurrent-publish-converges kinds=shared/shared generations=1 tmp-left=0
+  ok    corpus-published-generation-immutable mtime unmoved across a second resolve
+  ok    gt-dump-selftest                 gt_dump selftest: 25 checks PASS (/NNN long names resolved + fallbacks; the PPC relocation table)
+  ok    pid-live-gate-is-kept            pid 2591564 (this gate) reads as LIVE
+  ok    pid-reuse-is-reapable            pid 2654941 (a live `sleep`) reads as NOT a gate
+  ok    pid-dead-is-reapable             pid 2654948 (exited) reads as dead
+  ok    pid-unattributable-is-reapable   an empty pid is not a live gate
+  ok    reaper-removes-stale             the two oldest unowned trees are gone
+  ok    reaper-keeps-recent              the newest finished run keeps its logs (keep=1)
+  ok    reaper-keeps-live-gate           a tree whose gate.pid is a running gate survives
+  ok    reaper-keeps-current             this run's own tree survives
+  ok    reaper-reaps-reused-pid          alive-but-not-a-gate is reaped, not kept forever
+  ok    reaper-touches-nothing-else      a sibling that is not a run tree is untouched
+  ok    reaper-reports-a-count           reap:   3 stale run tree(s) removed, 3 kept (1 live, 1 recent, 1 this run)
+  ok    reaper-keep-0-still-spares-live  keep=0 reaps the last finished run and no live one
+  ok    green-all-pass-is-green          every row PASS reads as green
+  ok    green-sampled-is-green           SAMPLED is a no-difference verdict too
+  ok    green-one-fail-is-not            ONE FAIL among PASSes disqualifies the tree
+  ok    green-absent-tsv-is-not          no results.tsv is NOT green — unknown never means delete
+  ok    green-empty-tsv-is-not           an empty results.tsv is not a run that passed
+  ok    strip-dry-run-removes-nothing    a dry run leaves every case on disk
+  ok    strip-dry-run-still-counts       and still prints the count it would have taken
+  ok    strip-removes-green-cases        a green tree past KEEP_CASES loses its .cpp corpus
+  ok    strip-keeps-every-log            logs, results.tsv, parts/ and cases.txt all survive the strip
+  ok    strip-spares-newest              the newest finished run keeps its cases (KEEP_CASES=1)
+  ok    strip-spares-mismatch            a tree carrying a FAIL keeps the cases its report names
+  ok    strip-says-why-it-declined       and says so, rather than silently doing nothing
+  ok    strip-leaves-a-note              the note lands where the cases were and carries the count
+  ok    strip-reports-a-count            strip:  1 kept tree(s) lost 3 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+  ok    strip-is-idempotent              strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+  ok    strip-keep-cases-0-still-spares-mismatch KEEP_CASES=0 takes the newest green tree and never the failed one
+  ok    preflight-refuses-on-space       GATE: FAIL (DISK) — out of SPACE on /tmp/c2rs-gate-2591564/selftest, before anything was graded.
+  ok    preflight-says-not-a-mismatch    the refusal names itself as a resource fault
+  ok    preflight-refuses-on-inodes      GATE: FAIL (DISK) — out of INODES on /tmp/c2rs-gate-2591564/selftest, before anything was graded.
+  ok    preflight-names-the-resource     on /tmp/c2rs-gate-2591564/selftest — space and inodes are separate; INODES bind ~7x sooner, and w-alias's red had 19 GB free
+  ok    preflight-inodeless-fs-is-not-full <WORKTREE> reports no inode table; the floor is skipped, not failed
+  ok    preflight-says-the-floor-was-skipped and it SAYS so — unreported is not unlimited
+  ok    preflight-passes-when-clear      disk:   /tmp/c2rs-gate-2591564/selftest — free 10.5 GiB / 963,865 inodes (floors: 1.0 MiB / 1 inodes)
+  ok    preflight-prints-both-counts     the clear path prints both numbers, not a status
+  ok    enospc-no-result-says-disk       GATE: FAIL — 1 lane(s) produced NO RESULT:
+        also: it is still a FAIL — a resource fault does not become a pass
+  ok    enospc-never-softens-a-mismatch  GATE: FAIL — 1 lane(s) failed:
+        also: a mismatch keeps its alarm even with ENOSPC in the same log
+        also: and never gets the resource banner
+  ok    require-graded-all-skip-fails    GATE: FAIL (NOTHING GRADED) — you asked for a graded run and got 0.
+        also: the demand turns an all-skip run RED
+        also: and it fails on a COUNT of graded units, never on a status string
+        also: the lanes-that-graded count is printed beside the sum
+        also: a demanded run that graded nothing never also says SKIPPED
+        also: nor PASS — nothing in that output can be read as green
+        also: the resolution hint rides along, so the lane is told the fix
+  ok    demand-off-all-skip-still-exits-0 GATE: SKIPPED — all 2 lanes, the sweep, the cross and the debug row skipped,
+        also: without the demand an all-skip run is UNCHANGED: SKIPPED, exit 0
+        also: and the demand banner is not printed when nobody asked for it
+  ok    require-graded-green-run-passes  GATE: PASS — 2/2 lanes ran and every one of them graded a corpus,
+        also: a run that graded 4 corpora passes WITH the demand set
+        also: the demand is silent when the count it wants is positive
+  ok    demand-off-green-run-passes      GATE: PASS — 2/2 lanes ran and every one of them graded a corpus,
+        also: and the same run passes without the demand — either way, unaffected
+  ok    require-graded-sampled-satisfies GATE: PASS (SAMPLED) — 2/2 lanes ran and every one of them graded
+        also: a SAMPLED run graded something, so the demand is met
+        also: the demand does not moonlight as a completeness check
+  ok    require-graded-partial-skip-keeps-its-own-message GATE: FAIL — 1 of 2 lanes skipped while 1 ran.
+        also: a partial skip still fails as a PARTIAL SKIP
+        also: the demand did not duplicate a check that already existed
+  ok    require-graded-never-shadows-a-mismatch GATE: FAIL — 1 lane(s) failed:
+        also: a mismatch under the demand still raises the mismatch alarm
+        also: and is never relabelled as a nothing-graded run
+  ok    hint-names-every-override        C2RS_COMPILERS / C2RS_WIBO / C2RS_CL_EXE / C2RS_C2_DLL
+  ok    hint-names-the-one-command-that-fixes-it a lane in a worktree is told the command, not just the symptom
+  ok    hint-does-not-name-c2rs-dc3      C2RS_DC3 is status.sh's dc3 SOURCE tree; no lane in this gate reads it
+  ok    hint-overrides-still-read-by-the-resolver every C2RS_* the hint prints is still read by Toolchain::locate
+  ok    hint-reads-the-version-dir-from-source the toolchain dir printed is the one crates/c2-reference declares (X360/16.00.11886.00)
+  ok    hint-marks-absent-paths-missing  against a tree with no toolchain, all four defaults read MISSING (4 of 4)
+  ok    hint-does-not-claim-they-exist   and it does not then print the everything-is-present note
+  ok    hint-declines-to-blame-a-present-path every default present -> the hint says the cause is elsewhere, not 'found, found, found'
+  ok    hatchred-clean-log-passes        PASS  (no detail, as required for a clean PASS)
+  ok    hatchred-dirty-tree-refuses      REFUSED  DIRTY-TREE hatch_red.py refused: crates/ was written since it looked
+  ok    hatchred-stale-hatch-is-not-a-broken-guard REFUSED  HATCH-STALE `hatch.py apply` cannot hatch this tree, so the arms have no tree to run on (board #1389)
+  ok    hatchred-failed-arm-is-a-fail    FAIL  ARMS-FAILED FAILED: R1 DIRTY-NOHATCH
+  ok    hatchred-short-run-is-not-a-pass FAIL  TRUNCATED 9 of 11 declared arms ran — a short run is not a pass
+  ok    hatchred-no-red-arms-is-vacuous  FAIL  VACUOUS 0 red and 11 green do not account for 11 arms — a run with no red arms proves nothing and a run with no controls proves less
+  ok    hatchred-green-then-nonzero-exit FAIL  EXIT reported every arm passing and then exited 3
+  ok    hatchred-empty-log-is-no-result  NO-RESULT  NO-LOG hatch_red.py produced no output at all
+  ok    hatchred-junk-log-is-no-result   NO-RESULT  UNRECOGNIZED no ALL-ARMS-PASS line and no FAILED line — an unenumerated outcome is the next silence
+  ok    hatchred-every-refusal-leads-with-its-own-word 7 distinct leading words across 7 refusal shapes
+  ok    hatchred-pass-is-an-unqualified-pass GATE: PASS — 2/2 lanes ran and every one of them graded a corpus,
+  ok    hatchred-fail-fails-the-gate     GATE: FAIL — hatch-red: ARMS-FAILED FAILED: R1 DIRTY-NOHATCH
+  ok    hatchred-no-result-fails-the-gate GATE: FAIL — hatch-red produced NO RESULT: MISSING no python3, and the arms are a python script
+  ok    hatchred-residue-fails-the-gate  GATE: FAIL — hatch-red: RESIDUE the arms left crates/ modified
+  ok    hatchred-absent-tuple-fails-the-gate GATE: FAIL — no hatch-red verdict was produced at all.
+  ok    hatchred-unknown-verdict-fails-the-gate GATE: FAIL — hatch-red reported an unrecognized verdict 'WOBBLY'.
+  ok    hatchred-refused-exits-zero      GATE: PASS (HATCH-RED REFUSED) — 2/2 lanes ran and every one of them graded a corpus,
+        also: a REFUSED hatch row never prints an unqualified PASS
+        also: and it NAMES the files it refused over
+  ok    hatchred-does-not-satisfy-require-graded GATE: FAIL (NOTHING GRADED) — you asked for a graded run and got 0.
+        also: an all-skip run with 11 green arms still graded nothing
+  ok    ladderred-clean-log-passes       PASS  (no detail, as required for a clean PASS)
+  ok    ladderred-failed-arm-is-a-fail   FAIL  LADDER-ARMS-FAILED FAILED: W2 EMPTY-TABLE
+  ok    ladderred-short-run-is-not-a-pass FAIL  LADDER-TRUNCATED 3 of 5 declared arms ran — a short run is not a pass
+  ok    ladderred-no-red-arms-is-vacuous FAIL  LADDER-VACUOUS 0 red and 5 green do not account for 5 arms
+  ok    ladderred-green-then-nonzero-exit FAIL  LADDER-EXIT reported every arm passing and then exited 3
+  ok    ladderred-empty-log-is-no-result NO-RESULT  LADDER-NO-LOG ladder_red.py produced no output at all
+  ok    ladderred-junk-log-is-no-result  NO-RESULT  LADDER-UNRECOGNIZED no ALL-ARMS-PASS line and no FAILED line — an unenumerated outcome is the next silence
+  ok    ladderred-shares-no-word-with-hatchred 12 distinct leading words across 12 refusal shapes on BOTH rows
+  ok    ladderred-pass-is-an-unqualified-pass GATE: PASS — 2/2 lanes ran and every one of them graded a corpus,
+  ok    ladderred-fail-fails-the-gate    GATE: FAIL — ladder-red: LADDER-ARMS-FAILED FAILED: W2 EMPTY-TABLE
+  ok    ladderred-no-result-fails-the-gate GATE: FAIL — ladder-red produced NO RESULT: LADDER-MISSING no python3, and the arms are a python script
+  ok    ladderred-nosubject-fails-the-gate GATE: FAIL — ladder-red produced NO RESULT: LADDER-NOSUBJECT work/w-front3/ladder.py is not in this tree, so there is nothing for the arms to fire
+  ok    ladderred-residue-fails-the-gate GATE: FAIL — ladder-red: LADDER-RESIDUE the arms modified crates/, which they have no path to do: crates/c2-il/src/func/body/expr.rs
+  ok    ladderred-absent-tuple-fails-the-gate GATE: FAIL — no ladder-red verdict was produced at all.
+        also: and it is NOT the hatch row absent check wearing this case name
+  ok    ladderred-unknown-verdict-fails-the-gate GATE: FAIL — ladder-red reported an unrecognized verdict 'WOBBLY'.
+  ok    ladderred-refused-exits-zero     GATE: PASS (LADDER-RED REFUSED) — 2/2 lanes ran and every one of them graded a corpus,
+        also: a REFUSED ladder row never prints an unqualified PASS
+        also: and it NAMES the file it refused over
+  ok    bothrows-refused-print-both-suffixes GATE: PASS (HATCH-RED REFUSED) (LADDER-RED REFUSED) — 2/2 lanes ran and every one of them graded a corpus,
+  ok    ladderred-does-not-satisfy-require-graded GATE: FAIL (NOTHING GRADED) — you asked for a graded run and got 0.
+        also: an all-skip run with 5 green ladder arms still graded nothing
+  ok    debuglane-clean-log-passes       PASS  (no detail, as required for a clean PASS)
+  ok    debuglane-panic-is-a-fail        FAIL  DBG-PANIC the debug binary PANICKED 3 time(s) — a false debug_assert or an arithmetic overflow, and NO release row can express either
+  ok    debuglane-mismatch-outranks-panic FAIL  DBG-MISMATCH the DEBUG build emitted wrong bytes on 2 fixture(s) (1 panic(s) alongside)
+  ok    debuglane-all-skip-is-a-skip     SKIP  toolchain absent
+  ok    debuglane-partial-skip-is-a-fail FAIL  DBG-PARTIALSKIP 1 of 2 debug lanes skipped while 1 ran — absence skips every lane, so this is a fault
+  ok    debuglane-short-run-is-not-a-pass FAIL  DBG-SHORT declared 2 lanes and only 1 ran — a short run is not a pass
+  ok    debuglane-short-table-is-not-a-pass FAIL  DBG-COUNT declared 2 lanes and printed 1 result line(s) — a lane the loop never reached is a lane that did not run
+  ok    debuglane-none-graded-is-vacuous FAIL  DBG-VACUOUS 2 lanes ran and NONE graded a fixture — mismatch=0 over graded=0 is the vacuous green this file forbids
+  ok    debuglane-failed-lane-is-a-fail  FAIL  DBG-FAILED 1 debug lane(s) reported FAIL with no panic and no mismatch — see the log for which guard fired
+  ok    debuglane-green-then-nonzero-exit FAIL  DBG-EXIT every lane reported clean and the row then exited 3
+  ok    debuglane-no-total-is-no-result  NO-RESULT  DBG-NOTOTAL log has no DEBUG-LANE-TOTAL line (exit 1) — the debug build or the run died before it could report
+  ok    debuglane-malformed-total-is-no-result NO-RESULT  DBG-MALFORMED the DEBUG-LANE-TOTAL line carries no lanes=/ran=/failed= — an unparseable total is a row that did not report, not a row reporting zeros
+  ok    debuglane-empty-log-is-no-result NO-RESULT  DBG-NOLOG the debug row produced no output at all
+  ok    debuglane-every-refusal-leads-with-its-own-word 10 distinct leading words across 10 refusal shapes
+  ok    debuglane-shares-no-word-with-the-other-rows 22 distinct words across all three instrument rows' 22 refusal shapes
+  ok    debuglane-pass-is-an-unqualified-pass GATE: PASS — 2/2 lanes ran and every one of them graded a corpus,
+        also: the green run RENDERS the debug row in the table
+        also: and prints the panic count even when it is zero (#1002)
+  ok    debuglane-panic-fails-the-gate   GATE: FAIL — debug-lane: DBG-PANIC the debug binary PANICKED 3 time(s) — a false debug_assert or an arithmetic overflow, and NO release row can express either
+        also: and it says so in a banner of its own
+        also: naming what makes the row non-redundant
+  ok    debuglane-mismatch-fails-the-gate GATE: FAIL — debug-lane: DBG-MISMATCH the DEBUG build emitted wrong bytes on 2 fixture(s) (1 panic(s) alongside)
+        also: a debug mismatch raises the same alarm banner a release one does
+        also: and does NOT lead with the panic banner
+  ok    debuglane-no-result-fails-the-gate GATE: FAIL — debug-lane produced NO RESULT: DBG-NOTOTAL log has no DEBUG-LANE-TOTAL line (exit 1) — the debug build or the run died before it could report
+  ok    debuglane-absent-tuple-fails-the-gate GATE: FAIL — no debug-lane verdict was produced at all.
+        also: and not by stealing hatch-red absent headline
+        also: and not by stealing ladder-red absent headline
+  ok    debuglane-unknown-verdict-fails-the-gate GATE: FAIL — debug-lane reported an unrecognized verdict 'WOBBLY'.
+  ok    debuglane-all-skip-exits-zero    GATE: SKIPPED — all 2 lanes, the sweep, the cross and the debug row skipped,
+        also: an all-skip run with a skipped debug row never says PASS
+  ok    debuglane-ran-while-lanes-skipped GATE: FAIL — all 2 lanes skipped but debug-lane reported PASS.
+  ok    debuglane-skipped-while-lanes-ran GATE: FAIL — 2 lanes graded a corpus and debug-lane skipped.
+  ok    debuglane-does-not-inflate-the-lane-count graded: 394 fixture-verdicts across all lanes
+  ok    require-graded-refuses-reap-only --require-graded --reap-only exits 2 (want 2 = usage, a contradiction)
+  ok    require-graded-refuses-before-reaping and refuses BEFORE creating a run tree or reaping anything
+  ok    require-graded-env-leaves-list-alone an exported demand does not break --list (exit 0)
+  ok    require-graded-says-when-it-does-not-apply and SAYS so on stderr — a demand quietly ignored is this file's own bug class
+
+
+tree integrity (boards #2668 / #2907):
+    PASS  hash-moves-when-content-moves      6df5faa203c3 -> a0f3c84c49e2 at one unchanged HEAD
+    PASS  hash-reports-its-file-count        3 files, one in each graded directory
+    PASS  hash-covers-crates                 editing the TRACKED crates/probe.rs moves the identity
+    PASS  hash-covers-fixtures               editing the TRACKED fixtures/f.cpp moves the identity
+    PASS  hash-covers-scripts                editing the TRACKED scripts/s.sh moves the identity
+    PASS  hash-is-deterministic              two reads of an unchanged tree agree
+    PASS  list-probe-writes-nothing          an uncommitted crates/ edit survives --list
+    PASS  dirty-tree-refused-and-preserved   REFUSED DIRTY-TREE, edit intact
+    PASS  interlock-precedes-every-invocation interlock at body line 36, first invocation at 68
+    PASS  counterfactual-list-probe-was-destructive 0d0a74d2's --list ate the edit; A2 is a real assertion
+    PASS  counterfactual-row-now-preserves   with 0d0a74d2's file the row's own interlock now saves the edit
+    PASS  counterfactual-interlock-was-second 0d0a74d2 ran the probe at body line 21, interlock at 30
+    PASS  ignored-byproduct-cannot-move-id   a real .pyc appeared under scripts/; identity held at bf68f019c0ce:4
+    PASS  untracked-source-still-moves-id    an untracked, unignored scripts/ file: 4 -> 5 files
+    PASS  ignore-everything-does-not-blind-id a root inside an ignored path: identity is 3 files and still moves
+    PASS  counterfactual-pre3048-id-moved    31a83377's hash: bf68f019c0ce:4 -> b74eae31c3d7:5 on a real .pyc; B1 is a real assertion
+    tree integrity: 16 arms, 0 failed (boards #2668 / #2907)
+  ok    tree-integrity-arms-all-pass     the gate cannot report a tree it did not grade (16 arms)
+  ok    tree-integrity-arms-not-truncated 16 arms ran (floor 16) — a short run of them is not a pass
+  ok    tree-integrity-counterfactual-ran all four pre-lane counterfactuals resolved and failed as required
+  ok    rowliveness-pass-is-silent       an executing row prints no note
+  ok    rowliveness-pass-records-zero    and is recorded at 0
+  ok    rowliveness-fail-counts-as-executed a red row RAN — it is not a stale row
+  ok    rowliveness-refused-counts-one   hatch-red: REFUSED for 1 consecutive run(s) (first seen 2026-08-18)
+  ok    rowliveness-refused-accumulates  hatch-red: REFUSED for 3 consecutive run(s) (first seen 2026-08-18)
+  ok    rowliveness-first-seen-is-not-today the date is the FIRST refusal's, not this run's
+  ok    rowliveness-execution-resets     a run that executed clears the counter
+  ok    rowliveness-reset-is-persisted   and the reset reaches the file
+  ok    rowliveness-restarts-after-reset hatch-red: REFUSED for 1 consecutive run(s) (first seen 2026-08-22)
+  ok    rowliveness-noresult-does-not-execute ladder-red: NO-RESULT for 1 consecutive run(s) (first seen 2026-08-20)
+  ok    rowliveness-absent-tuple-is-named debug-lane: ABSENT for 1 consecutive run(s) (first seen 2026-08-20)
+  ok    rowliveness-skip-does-not-execute a skipped row did not run either
+  ok    rowliveness-rows-are-independent 6 rows survive the rewrites, each with its own count
+  ok    rowliveness-corrupt-count-reads-zero lane-Z: REFUSED for 1 consecutive run(s) (first seen 2026-08-20)
+  ok    rowliveness-empty-file-is-off    an empty history path disables the counter
+  ok    rowliveness-classifier-discriminates PASS/FAIL executed; REFUSED/NO-RESULT/SKIP/absent did not
+gate.sh --selftest: PASS — 205 cases, the gate fails on every one that should.

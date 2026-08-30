@@ -573,6 +573,15 @@ if [ "${C2RS_GATE_REQUIRE_GRADED:-0}" = 1 ]; then require_graded=1; fi
 allow_dirty=0
 if [ "${C2RS_GATE_ALLOW_DIRTY_CRATES:-0}" = 1 ]; then allow_dirty=1; fi
 
+# DID THE GRADED TREE MOVE UNDER THIS RUN? — board #3835, lane `w-gatehash`.
+# Set from the two identities near the end of the run mode and read by `decide`,
+# which is the ONLY thing that prints a `GATE:` verdict line. Initialised here,
+# beside the other two, so that (a) `--selftest` can drive it per case and (b) an
+# exported `gate_tree_moved=1` in the caller's environment cannot poison a run —
+# it is a computed fact about this process, never an input.
+gate_tree_moved=0
+gate_tree_moved_detail=""
+
 while [ $# -gt 0 ]; do
     case "$1" in
         --allow-dirty-crates) allow_dirty=1 ;;
@@ -3168,6 +3177,71 @@ decide() {
     # a status* — and it is summed across the whole gate rather than read off any
     # one instrument, because "this run graded something" is a fact about the run.
     # --------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
+    # AND THE SAME PLACEMENT ARGUMENT, FOR THE TREE THIS VERDICT IS ABOUT.
+    # Board **#3835**, lane `w-gatehash`, closing an eighteen-day-old hole in
+    # `w-gatefix`'s own instrument (#2943).
+    #
+    # The two identities have been compared since 2026-08-10 and a mismatch has
+    # set the exit status to 1 ever since. **What it never did was move the
+    # headline**, because the comparison lived in the epilogue and the epilogue
+    # runs after `decide` has already printed `GATE: PASS`. So a run whose tree
+    # moved read, in this order:
+    #
+    #     GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
+    #     ...  (14 lines) ...
+    #     *** THE TREE MOVED UNDER THIS RUN — it began at c1eb31f530bd
+    #
+    # and every reading convention this project has points at the first line:
+    #
+    #   * every dispatch brief says *"read the `GATE:` verdict LINE, never the
+    #     exit code"* — because `REFUSED` exits 0, so a status is not evidence;
+    #   * `scripts/gate_identity_diff.sh`, which every merge touching `crates/`
+    #     is bound by, says in its own header that it reads **neither** `GATE:`
+    #     nor any exit status. Its 21 count-bearing rows are printed above here,
+    #     i.e. before the epilogue's identity exists at all.
+    #
+    # Lane `w-globset` then hit it for real: 808 files at the start, 810 at the
+    # end, `GATE: PASS`, and it caught the run only because it happened to read
+    # both hash lines. It filed #3835 as *"nothing compares them"* — a check that
+    # fires, exits 1, and is still read as absent is a check that is not being
+    # delivered. `w-gatehash` reproduced it at 810 -> 811 before changing a line.
+    #
+    # It is placed HERE, sharing `--require-graded`'s seam, for that block's own
+    # reason: everything above returns 1 and everything below returns 0 in some
+    # form, so one check covers `PASS`, `PASS (SAMPLED)`, `PASS (LANES FILTERED)`,
+    # `SKIPPED` **and every zero-exit outcome a future lane adds**, which an
+    # enumeration of today's headlines would not.
+    #
+    # FAIL and not REFUSED, deliberately: `REFUSED` exits 0 in this file, and
+    # exiting 0 is how `hatch-red` stayed dead for 1,681 commits. A moved tree is
+    # not a check the gate declines to run — it is a verdict already known to be
+    # unattributable, and the caller must not be able to bank it.
+    #
+    # NOT placed first in `decide`, also deliberately: a real `FAIL` — a mismatch
+    # above all — is already red and already named, and CLAUDE.md ranks a mismatch
+    # above every other piece of work. Pre-empting the alarm banner with a tooling
+    # headline would trade one misread verdict for another. The epilogue states
+    # the movement on every path regardless, red or green.
+    # --------------------------------------------------------------------------
+    if [ "${gate_tree_moved:-0}" -eq 1 ]; then
+        echo
+        echo "GATE: FAIL (TREE MOVED UNDER THIS RUN) — NOTHING ABOVE IS EVIDENCE ABOUT ANY TREE."
+        echo "  $gate_tree_moved_detail"
+        echo "  The rows above were produced partly from each, so the verdict they would"
+        echo "  have supported belongs to neither. Find what wrote to $GRADED_DIRS"
+        echo "  during the run — a gate row, a peer session in the same worktree, a killed"
+        echo "  process — and re-run. Do NOT quote this run's counts: a required-zero"
+        echo "  identity diff taken against this table is a diff between two trees."
+        echo
+        echo "  The commonest cause is authoring in the worktree a base gate is running in"
+        echo "  (board #3835). Take the base BEFORE touching crates/, or take it on a"
+        echo "  detached checkout. The second commonest is a fresh worktree writing its"
+        echo "  first __pycache__ (board #3048) — one gitignored file, once, harmless in"
+        echo "  substance and still not gradeable, so it still says this."
+        return 1
+    fi
+
     if [ "${require_graded:-0}" -eq 1 ]; then
         _d_units=$(( _d_graded + $(num "$_d_swg") + $(num "$_d_cxg") ))
         if [ "$_d_units" -eq 0 ]; then
@@ -3508,6 +3582,17 @@ if [ "$mode" = selftest ]; then
     DB_OK='PASS|2|2|181|0||762|0'
     DB_SKIP='SKIP|0|2|0|0|toolchain absent|0|0'
     DB_FOR_CASE="$DB_OK"
+    # The graded-tree identity (board #3835). Every pre-existing case runs with an
+    # UNMOVED tree, so its verdict is exactly what it was before this check
+    # existed; the check's own cases set it to 1 for one case and `run_case`
+    # clears it afterwards — same discipline as the five tuples above, because a
+    # per-case flag that leaks is a selftest whose later cases assert the wrong
+    # thing. `gate_tree_moved` itself is also cleared after every case, so the
+    # `decide` call sites further down that do not go through `run_case` cannot
+    # inherit it either.
+    TREE_MOVED_FOR_CASE=0
+    gate_tree_moved=0
+    gate_tree_moved_detail="It began at aaaaaaaaaaaa (808 files) and ended at bbbbbbbbbbbb (810 files)."
 
     check_that() {  # <label> <ok?0/1>
         if [ "$2" -eq 0 ]; then
@@ -3537,11 +3622,14 @@ if [ "$mode" = selftest ]; then
         done
         collect "$st/reg.tsv" "$CASE_DIR" "$CASE_DIR/results.tsv"
         _rc_got=PASS
+        gate_tree_moved="$TREE_MOVED_FOR_CASE"
         if ! decide "$st/reg.tsv" "$CASE_DIR/results.tsv" "" "$SWEEP_FOR_CASE" "" \
                 "$CROSS_FOR_CASE" "$HR_FOR_CASE" "$LR_FOR_CASE" "$DB_FOR_CASE" \
                 > "$CASE_DIR/out.txt" 2>&1; then
             _rc_got=FAIL
         fi
+        gate_tree_moved=0
+        TREE_MOVED_FOR_CASE=0
         SWEEP_FOR_CASE="$SWEEP_OK"
         CROSS_FOR_CASE="$CROSS_OK"
         HR_FOR_CASE="$HR_OK"
@@ -3600,6 +3688,70 @@ if [ "$mode" = selftest ]; then
     saw    'the debug row skipped' 'and the SKIPPED headline names the debug row too'
 
     run_case partial-skip FAIL "A=$P" "B=$S"
+
+    # ---- THE GRADED TREE MOVED UNDER THE RUN (board #3835) ----------------------
+    #
+    # `w-gatefix` (#2943) has compared the two identities since 2026-08-10 and a
+    # difference has exited 1 ever since. It ran in the EPILOGUE, after `decide`
+    # had printed the headline, so the transcript said `GATE: PASS` and then, 14
+    # lines later, that the verdict was evidence about neither tree. `w-globset`
+    # hit it live at 808 -> 810 files and filed it as *"nothing compares them"* —
+    # which is what an existing check looks like when it cannot reach the one line
+    # the readers read. `w-gatehash` reproduced it end-to-end at 810 -> 811 before
+    # touching this file.
+    #
+    # These cases drive the real `decide` through the real flag. **Each headline
+    # case is paired with its control**, because a check that reddens everything
+    # is indistinguishable from a check that works, and the pairing is what tells
+    # them apart (#3336).
+
+    TREE_MOVED_FOR_CASE=1
+    run_case tree-moved-turns-pass-red FAIL "A=$P" "B=$P"
+    saw    'GATE: FAIL (TREE MOVED UNDER THIS RUN)' 'a moved tree is REFUSED IN THE HEADLINE, not in a footnote'
+    saw_no 'GATE: PASS' 'and the word PASS appears NOWHERE in that output'
+    saw    '808 files' 'the headline carries both identities and both file counts'
+    saw    'evidence about neither tree\|EVIDENCE ABOUT ANY TREE' 'and says the run is evidence about no tree'
+    # THE CONTROL. Same two green lanes, same tuples, tree did not move.
+    run_case tree-still-keeps-pass PASS "A=$P" "B=$P"
+    saw    'GATE: PASS' 'the identical run with an UNMOVED tree still says PASS'
+    saw_no 'TREE MOVED' 'and never mentions a tree that did not move'
+
+    # A moved tree outranks the toolchain-absent degradation. `GATE: SKIPPED`
+    # exits 0 by design (CLAUDE.md's degrade-cleanly requirement) and skipping
+    # over a tree that changed mid-run is still not attributable to a tree.
+    SWEEP_FOR_CASE='SKIP|0|0|0|0|toolchain absent'
+    CROSS_FOR_CASE='SKIP|0|0|0|0|toolchain absent'
+    DB_FOR_CASE="$DB_SKIP"
+    TREE_MOVED_FOR_CASE=1
+    run_case tree-moved-turns-skipped-red FAIL "A=$S" "B=$S"
+    saw    'GATE: FAIL (TREE MOVED UNDER THIS RUN)' 'an all-skip run over a moved tree is RED, not SKIPPED'
+    saw_no 'GATE: SKIPPED' 'and does not also print the clean-degradation headline'
+    # THE CONTROL, and it is the one that matters most: the toolchain-absent
+    # path must be UNCHANGED when nothing moved, or this check has broken the
+    # portable lane for every box without compilers.
+    SWEEP_FOR_CASE='SKIP|0|0|0|0|toolchain absent'
+    CROSS_FOR_CASE='SKIP|0|0|0|0|toolchain absent'
+    DB_FOR_CASE="$DB_SKIP"
+    run_case tree-still-keeps-skipped PASS "A=$S" "B=$S"
+    saw    'GATE: SKIPPED' 'an unmoved all-skip run degrades cleanly exactly as before'
+
+    # And the sampled headline, which is the third zero-exit outcome and the one
+    # a naive fix aimed at the word PASS would miss.
+    SWEEP_FOR_CASE='SAMPLED|400|400|14635|0|a STRIDED sample, not the corpus|397|3'
+    TREE_MOVED_FOR_CASE=1
+    run_case tree-moved-turns-sampled-red FAIL "A=$P" "B=$P"
+    saw    'GATE: FAIL (TREE MOVED UNDER THIS RUN)' 'a SAMPLED run over a moved tree is red too'
+    saw_no 'GATE: PASS (SAMPLED)' 'the sampled headline is not printed either'
+
+    # A REAL FAILURE STILL SPEAKS FIRST. CLAUDE.md ranks a mismatch above every
+    # other piece of work, so the tree check must not pre-empt the alarm banner —
+    # the run is already red and already named, and the epilogue states the
+    # movement on every path. This is the placement decision, asserted.
+    TREE_MOVED_FOR_CASE=1
+    run_case tree-moved-does-not-mask-a-mismatch FAIL "A=$P" "B=$M"
+    saw    'ALARM' 'a mismatch under a moved tree still raises the alarm banner'
+    saw    '^    B ' 'and the failing lane is still NAMED'
+    saw_no 'GATE: FAIL (TREE MOVED UNDER THIS RUN)' 'the tooling headline does not displace the mismatch'
 
     # ---- the SWEEP row (board #232) --------------------------------------------
     # Every one of these drives the real `sweep_verdict` + `decide` path. The gate
@@ -5331,7 +5483,15 @@ $(printf '%s\n' "$_lr_words" | grep .)"
     # count reads 0 rather than printing a wrong age, that an empty path is the
     # off switch `--selftest` itself depends on, and one anti-vacuity case that a
     # deleted classifier could not satisfy.
-    if [ "$cases" -lt 199 ]; then
+    # …and **205** after `w-gatehash` added the graded-tree-moved check (board
+    # #3835): 6 cases — a would-be PASS, a would-be SKIPPED and a would-be
+    # SAMPLED each turned red in the HEADLINE, two of them paired with the
+    # control that proves the check is not simply reddening everything (the
+    # all-skip control is the load-bearing one: it is CLAUDE.md's degrade-cleanly
+    # path and it must be untouched), and one that a mismatch under a moved tree
+    # still reaches the alarm banner rather than being displaced by a tooling
+    # headline.
+    if [ "$cases" -lt 205 ]; then
         echo "gate.sh --selftest: FAIL — only $cases cases ran; the selftest itself was"
         echo "  truncated, and a truncated selftest is the failure it exists to catch."
         exit 1
@@ -5823,25 +5983,49 @@ printf 'disk:   %s low-water this run — %s and %s inodes free (start: %s / %s)
 # is a thing that can now be SAID rather than discovered later from a binary
 # hash that did not match.
 # --------------------------------------------------------------------------------
+# THE SECOND IDENTITY IS TAKEN BEFORE `decide`, NOT AFTER IT (board #3835).
+#
+# It has to be, for `decide` to be able to say so in the headline — and the
+# window it covers does not narrow by a single writer, which is the only thing
+# that could have been lost. Between the last row above and `decide` there is
+# one `printf` of the disk low-water mark; `decide` itself reads `results.tsv`
+# and the per-row logs out of `$work`, which is `/tmp/c2rs-gate-$$` and is not
+# under $GRADED_DIRS. Nothing in either can write into `crates/ fixtures/
+# scripts/`. Every row that CAN — the lane leg, the sweep, the cross, the debug
+# row, `hatch-red`'s splice — has already finished.
+GRADED_TREE_1=$(graded_tree_hash "$repo_root")
+GRADED_IGNORED_1=$(graded_ignored_count "$repo_root")
+if [ "$GRADED_TREE_0" != "$GRADED_TREE_1" ]; then
+    gate_tree_moved=1
+    gate_tree_moved_detail="It began at ${GRADED_TREE_0%%:*} (${GRADED_TREE_0##*:} files) and ended at ${GRADED_TREE_1%%:*} (${GRADED_TREE_1##*:} files)."
+fi
+
 gate_status=0
 decide "$reg" "$work/results.tsv" "$work" "$sweep_res" "$filtered" "$cross_res" "$hr_res" "$lr_res" \
     "$debug_res" || gate_status=$?
 
-GRADED_TREE_1=$(graded_tree_hash "$repo_root")
 echo
-GRADED_IGNORED_1=$(graded_ignored_count "$repo_root")
 echo "graded tree: ${GRADED_TREE_1%%:*}  (${GRADED_TREE_1##*:} files: $GRADED_DIRS, content-hashed)"
 echo "  $GRADED_IGNORED_1 gitignored byproduct file(s) under those directories were NOT hashed"
 echo "  (board #3048; it was $GRADED_IGNORED_0 at the start of this run). The subtraction is"
 echo "  printed at BOTH ends on purpose: a denominator nobody prints on both sides of a"
 echo "  change is a denominator that grows unwatched (#1002). A rise here is not a failure —"
 echo "  it is the gate saying which of its own byproducts it declined to grade itself on."
+# THIS BLOCK IS NOW THE SECOND STATEMENT OF THE SAME FACT, AND IT IS KEPT ON
+# PURPOSE (board #3835). `decide` has already refused the run in the headline —
+# that is the enforcement, because the headline is what gets read. What survives
+# here is the DETAIL and a redundant `gate_status=1`: if a future edit moves,
+# renames or drops the check inside `decide`, the run still exits nonzero rather
+# than silently returning to eighteen days of green transcripts over moved trees.
+# Two places asserting one fact is the arrangement this file already uses for
+# `expr_sweep.sh`'s short-run refusal, and for the same reason.
 if [ "$GRADED_TREE_0" != "$GRADED_TREE_1" ]; then
     echo "  *** THE TREE MOVED UNDER THIS RUN — it began at ${GRADED_TREE_0%%:*}"
     echo "      (${GRADED_TREE_0##*:} files) and ended at ${GRADED_TREE_1%%:*} (${GRADED_TREE_1##*:} files)."
     echo "      The verdict above was produced partly from each, so it is evidence"
     echo "      about NEITHER tree. Find what wrote to $GRADED_DIRS during the run"
     echo "      (a gate row, a peer session, a killed process) and re-run."
+    echo "      The GATE: line above says so too — it is the one that is read."
     gate_status=1
 fi
 if [ -n "$gate_dirty" ]; then
