@@ -1,0 +1,60 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running unittests src/lib.rs (target/debug/deps/c2_core-e2b98bdb77b52971)
+
+running 6 tests
+test surface::tests::bless_the_domain_baseline ... ignored, regenerates the committed baseline; run deliberately
+test surface::tests::every_surface_marker_names_a_registered_surface_and_back ... ok
+test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+test surface::tests::every_surface_has_a_nonempty_domain_and_a_real_refusal_boundary ... ok
+test surface::tests::the_rendered_domain_is_deterministic_and_committable ... ok
+test surface::tests::every_boundary_named_const_is_covered_by_a_surface_or_listed_uncovered ... FAILED
+
+failures:
+
+---- surface::tests::the_decision_surface_domain_matches_the_committed_baseline stdout ----
+
+thread 'surface::tests::the_decision_surface_domain_matches_the_committed_baseline' (2527840) panicked at crates/c2-core/src/surface.rs:514:9:
+THE DECISION-SURFACE DOMAIN MOVED — 3185 line(s) of 5278 differ from crates/c2-core/src/surface/DOMAIN.txt.
+
+This is board #3723's check. A required-zero byte delta and a 0-line gate identity diff are BOTH silent about the lines below: they are points the corpus does not reach.
+
+If the change is intended, re-bless the baseline
+(cargo test -p c2-core --lib surface::tests::bless -- --ignored)
+and the widening becomes a reviewable text diff, which is the whole point. If it is not intended, you have just been told about an emit widening no fixture would have caught.
+
+  - ## summary  splice.budget  cells=985 admit=381 refuse=604 values={B=1000,B=1002,B=34998,B=35000,admit,budget=parent,global=0,global=1,global=1000,global=39,global=40,global=41,level=1,level=16,level=17,level=18,level=2,level=3,level=5,level=6,local=0,local=1000,local=41}
+  + splice.budget  seeded caller=000000 n=1 i=0 callee=none  level=2,budget=1000,total=0
+  - 
+  + splice.budget  seeded caller=000000 n=1 i=0 callee=000000  level=2,budget=1000,total=0
+  - ## surface  mangle.string_comdat
+  + splice.budget  seeded caller=000000 n=1 i=0 callee=000040  level=2,budget=1000,total=40
+  - ##   site      coff/mangle.rs
+  + splice.budget  seeded caller=000000 n=1 i=0 callee=000041  level=2,budget=959,total=41
+  - ##   boundary  how many of a string literal's own bytes reach the `??_C@…` COMDAT name's escaped-text field, and which literals have no measured name at all
+  + splice.budget  seeded caller=000000 n=1 i=0 callee=001200  REFUSE S6-budget-unaffordable
+  - ##   cite      docs/SYMBOL.md §5 and its CORRECTION; board #3746 (this row is one of the four it names as a real boundary with no domain)
+  + splice.budget  seeded caller=000000 n=2 i=0 callee=none  level=2,budget=500,total=0
+  - ##   guards    LITERAL_TEXT_BYTE_LIMIT
+  + splice.budget  seeded caller=000000 n=2 i=0 callee=000000  level=2,budget=500,total=0
+  - mangle.string_comdat  len-1x n=00  ??_C@_00CNPNBAHC@?$AA@
+  + splice.budget  seeded caller=000000 n=2 i=0 callee=000040  level=2,budget=500,total=40
+  - mangle.string_comdat  len-1x n=01  ??_C@_01MCMALHOG@a?$AA@
+  + splice.budget  seeded caller=000000 n=2 i=0 callee=000041  level=2,budget=479,total=41
+  - mangle.string_comdat  len-1x n=02  ??_C@_02DFENNNBM@aa?$AA@
+  + splice.budget  seeded caller=000000 n=2 i=0 callee=001200  REFUSE S6-budget-unaffordable
+  - mangle.string_comdat  len-1x n=03  ??_C@_03GINCELHE@aaa?$AA@
+  + splice.budget  seeded caller=000000 n=2 i=1 callee=none  level=2,budget=1000,total=0
+  - mangle.string_comdat  len-1x n=04  ??_C@_04CLOGDNII@aaaa?$AA@
+  + splice.budget  seeded caller=000000 n=2 i=1 callee=000000  level=2,budget=1000,total=0
+  - mangle.string_comdat  len-1x n=05  ??_C@_05JPKOLHMJ@aaaaa?$AA@
+  + splice.budget  seeded caller=000000 n=2 i=1 callee=000040  level=2,budget=1000,total=40
+  - mangle.string_comdat  len-1x n=06  ??_C@_06JOMBIOEF@aaaaaa?$AA@
+  + splice.budget  seeded caller=000000 n=2 i=1 callee=000041  level=2,budget=959,total=41
+  - mangle.string_comdat  len-1x n=07  ??_C@_07HKMOCOHH@aaaaaaa?$AA@
+  + splice.budget  seeded caller=000000 n=2 i=1 callee=001200  REFUSE S6-budget-unaffordable
+  - mangle.string_comdat  len-1x n=08  ??_C@_08LCPNHAFH@aaaaaaaa?$AA@
+  + splice.budget  seeded caller=000000 n=3 i=0 callee=none  level=2,budget=333,total=0
+  - mangle.string_comdat  len-1x n=09  ??_C@_09IJFLGDMB@aaaaaaaaa?$AA@
+  + splice.budget  seeded caller=000000 n=3 i=0 callee=000000  level=2,budget=333,total=0
+  - mangle.string_comdat  len-1x n=10  ??_C@_0L@JAAMPDKD@aaaaaaaaaa?$AA@
+  + splice.budget  seeded caller=000000 n=3 i=0 callee=000040  level=2,budget=333,total=40

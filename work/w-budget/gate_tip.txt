@@ -1,0 +1,121 @@
+lane gate: preflight on /tmp
+  keep    /tmp/c2rs-gate-2704368       LIVE — pid 2704368 is a running gate (a concurrent lane)
+  keep    /tmp/c2rs-gate-3107840       LIVE — pid 3107840 is a running gate (a concurrent lane)
+  keep    /tmp/c2rs-gate-3283922       LIVE — pid 3283922 is a running gate (a concurrent lane)
+  keep    /tmp/c2rs-gate-3368784       this run
+  keep    /tmp/c2rs-gate-2757001       recent — 1 of 3 finished runs kept for their logs
+  keep    /tmp/c2rs-gate-2591564       recent — 2 of 3 finished runs kept for their logs
+          cases KEPT — results.tsv is absent or carries a non-PASS row
+  keep    /tmp/c2rs-gate-2333642       recent — 3 of 3 finished runs kept for their logs
+reap:   0 stale run tree(s) removed, 7 kept (3 live, 3 recent, 1 this run)
+strip:  0 kept tree(s) lost 0 regenerable cases; 1 newest kept theirs (C2RS_GATE_KEEP_CASES=1)
+disk:   /tmp — free 10.7 GiB / 963,813 inodes (floors: 2.0 GiB / 150,000 inodes)
+
+lane gate: 18 lanes from <HOME>/code/milohax/c2-rs/.claude/worktrees/agent-a3f0472b8c89103d4/scripts/lanes.txt
+  run dir: /tmp/c2rs-gate-3368784   (per-lane run dirs under /tmp/c2rs-gate-3368784/lanes/)
+  row history: <HOME>/code/milohax/c2-rs/.claude/worktrees/agent-a3f0472b8c89103d4/work/gate_row_history.tsv   (board #3339)
+  graded tree: ba25968341ce  (810 files under crates fixtures scripts, content-hashed)
+               1 gitignored byproduct file(s) under those directories were NOT hashed (board #3048)
+
+hatch-red:       work/w-hatch/hatch_red.py  (no toolchain; fires hatch.py's refusals)
+  PASS  
+ladder-red:      work/w-ladders/ladder_red.py  (no toolchain; fires ladder.py's width-table refusal)
+  PASS  
+building the harness (no-op if current)
+   Compiling c2-il v0.1.0 (<HOME>/code/milohax/c2-rs/.claude/worktrees/agent-a3f0472b8c89103d4/crates/c2-il)
+   Compiling c2-core v0.1.0 (<HOME>/code/milohax/c2-rs/.claude/worktrees/agent-a3f0472b8c89103d4/crates/c2-core)
+   Compiling c2-reference v0.1.0 (<HOME>/code/milohax/c2-rs/.claude/worktrees/agent-a3f0472b8c89103d4/crates/c2-reference)
+   Compiling c2-harness v0.1.0 (<HOME>/code/milohax/c2-rs/.claude/worktrees/agent-a3f0472b8c89103d4/crates/c2-harness)
+    Finished `release` profile [optimized] target(s) in 16.08s
+harness: /tmp/c2rs-gate-3368784/c2rs
+  pinned from <HOME>/code/milohax/c2-rs/.claude/worktrees/agent-a3f0472b8c89103d4/target/release/c2rs  built 2026-08-30 03:09:10
+  sha 0cee04c59765  tree a80ed05b9
+
+wall clock: 9s for 18 lanes at --jobs 16 (C2RS_JOBS=8)
+
+generated sweep: scripts/expr_sweep.sh /tmp/c2rs-gate-3368784/sweep 0  (jobs 16)
+  sweeping 19638 of 19638 generated cases
+    grading at 16 job(s)
+  checked=19638 mismatches=0 graded=19542 ungraded=96 unknown=0
+  cache: hit=19542 miss=96 validated=182 cache-bad=0 (of 19638 cases)
+  corpus: PRIVATE <HOME>/code/milohax/c2-rs/.claude/worktrees/agent-a3f0472b8c89103d4/work/expr-sweep/cases — REFUSED the shared generation <HOME>/code/milohax/c2-rs/work/corpus/gen-e202d3cbb2405666
+    It is NOT byte-identical to what this tree's own generator just
+    produced, so this run grades its own cases, COLD. That is slow and
+    correct. A shared generation is content-addressed and should never
+    diverge; if this repeats, it is foreign: rm -rf '<HOME>/code/milohax/c2-rs/work/corpus/gen-e202d3cbb2405666'
+  (224s)
+
+mode cross:      scripts/mode_cross.sh /tmp/c2rs-gate-3368784/cross 0  (jobs 16)
+  assigned 19638 cases over 18 lanes = 92288 cells (full cross would be 353484)
+  sweeping 92288 of 92288 case-lane cells (cross of 19638 cases x <HOME>/code/milohax/c2-rs/.claude/worktrees/agent-a3f0472b8c89103d4/scripts/lanes.txt; the full 12x product is 353484)
+  checked=92288 mismatches=0 graded=91900 ungraded=388 unknown=0
+  cache: hit=91900 miss=388 validated=910 cache-bad=0 (of 92288 cells)
+  corpus: PRIVATE <HOME>/code/milohax/c2-rs/.claude/worktrees/agent-a3f0472b8c89103d4/work/mode-cross/cases — REFUSED the shared generation <HOME>/code/milohax/c2-rs/work/corpus/gen-e202d3cbb2405666
+    It is NOT byte-identical to what this tree's own generator just
+    produced, so this run grades its own cases, COLD. That is slow and
+    correct. A shared generation is content-addressed and should never
+    diverge; if this repeats, it is foreign: rm -rf '<HOME>/code/milohax/c2-rs/work/corpus/gen-e202d3cbb2405666'
+  (184s)
+
+debug lane:      scripts/debug_lane.sh  (DEBUG profile — the only row that can
+                 execute a debug_assert or trap an arithmetic overflow)
+  debug lane: 18 lanes x 392 fixtures at 16 lane(s) at once, binary=/tmp/c2rs-gate-3368784/debuglane/c2rs
+  DEBUG-LANE-TOTAL lanes=18 ran=18 failed=0
+  (21s)
+
+disk:   /tmp low-water this run — 10.4 GiB and 962,941 inodes free (start: 10.7 GiB / 963,813)
+
+LANE                 VERDICT     graded/total  match  mismatch  flags
+-------------------- ---------- ------------- ------ --------- --------------------
+O1                   PASS          392/392       187         0  /O1
+O1-EHsc              PASS          392/392       188         0  /O1 /EHsc
+O1-Oi                PASS          392/392       189         0  /O1 /Oi
+O1-Oi-EHsc           PASS          392/392       190         0  /O1 /Oi /EHsc
+Ox                   PASS          392/392       158         0  /Ox
+Ox-EHsc              PASS          392/392       158         0  /Ox /EHsc
+Ox-Gy                PASS          392/392       158         0  /Ox /Gy
+Ox-Gy-EHsc           PASS          392/392       158         0  /Ox /Gy /EHsc
+O2                   PASS          392/392       164         0  /O2
+O2-EHsc              PASS          392/392       164         0  /O2 /EHsc
+Od                   PASS          392/392        21         0  /Od
+Od-EHsc              PASS          392/392        21         0  /Od /EHsc
+O1-Oi-GR             PASS          392/392       189         0  /O1 /Oi /GR
+O1-Oi-EHsc-GR        PASS          392/392       190         0  /O1 /Oi /EHsc /GR
+Ox-GR                PASS          392/392       158         0  /Ox /GR
+Ox-EHsc-GR           PASS          392/392       158         0  /Ox /EHsc /GR
+Od-GR                PASS          392/392        21         0  /Od /GR
+Od-EHsc-GR           PASS          392/392        21         0  /Od /EHsc /GR
+expr-sweep           PASS        19638/19638   19542         0  generated cases (of 19638)
+mode-cross           PASS        92288/92288   91900         0  case-lane cells (of 92288)
+hatch-red            PASS           14/14         11       n/a  arms (3 green controls)
+ladder-red           PASS            5/5           3       n/a  arms (2 green controls)
+debug-lane           PASS           18/18       2493         0  DEBUG-profile lanes (7056 graded, 0 panic)
+
+ROW LIVENESS: every row executed this run (board #3339).
+
+lanes:  18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT
+graded: 7056 fixture-verdicts across all lanes
+sweep:  PASS — 19638 of 19638 selected cases reached, 19542 GRADED by the
+        oracle (96 ungraded: no reference obj), 0 mismatch (corpus 19638)
+cross:  PASS — 91900 of 92288 selected cells graded, 0 mismatch (product 92288)
+debug:  PASS — 18 of 18 lanes through a DEBUG-profile c2rs,
+        7056 fixture-verdicts, match 2493, 0 mismatch, 0 PANIC
+logs:   /tmp/c2rs-gate-3368784/<lane>.log, /tmp/c2rs-gate-3368784/sweep.log, /tmp/c2rs-gate-3368784/cross.log, /tmp/c2rs-gate-3368784/debuglane.log
+
+GATE: PASS — 18/18 lanes ran and every one of them graded a corpus,
+  the sweep graded 19542 of 19638 generated cases and the cross graded
+  91900 of 92288 case-lane cells, with 0 mismatches anywhere
+  (96 sweep cases carried ungraded — the reference rejects the source),
+  and 18/18 lanes ran again through a DEBUG-profile c2rs for
+  7056 more fixture-verdicts at 0 panics — the one row here that can
+  express a false debug_assert or an arithmetic overflow at all.
+
+graded tree: ba25968341ce  (810 files: crates fixtures scripts, content-hashed)
+  1 gitignored byproduct file(s) under those directories were NOT hashed
+  (board #3048; it was 1 at the start of this run). The subtraction is
+  printed at BOTH ends on purpose: a denominator nobody prints on both sides of a
+  change is a denominator that grows unwatched (#1002). A rise here is not a failure —
+  it is the gate saying which of its own byproducts it declined to grade itself on.
+  This is the identity of what was graded. It is a hash of file CONTENT, not
+  a commit — HEAD is what lied in #2907, and a commit id is silent about
+  uncommitted work, a half-restored tree and a concurrent writer alike.

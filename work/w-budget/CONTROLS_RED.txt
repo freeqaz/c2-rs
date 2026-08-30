@@ -1,0 +1,112 @@
+w-budget — THE CONTROLS, WATCHED RED
+====================================
+
+Under work/w-budget/PREREG.md §2. Board #3849. `#3336`: a control nobody has
+seen fail is decoration, and this lane's whole grade rests on two instruments
+that assert a GREEN.
+
+Absolute paths are replaced with <HOME> throughout
+(scripts/tracked_artifact_audit.sh class 3).
+
+
+C-0.  THE FIRST RUN OF THE REGISTERED CHECKS, before anything was blessed
+------------------------------------------------------------------------
+Full transcript: work/w-budget/controls_red_before_bless.txt
+
+  E1  surface::tests::the_decision_surface_domain_matches_the_committed_baseline
+      RED  — "THE DECISION-SURFACE DOMAIN MOVED — 3185 line(s) of 5278 differ"
+  E4  surface::tests::every_boundary_named_const_is_covered_by_a_surface_or_listed_uncovered
+      RED  — INLINE_GROWTH_TOTAL_MAX covered by no surface, listed in no
+             UNCOVERED row
+
+E1's 3,185 is its own line-INDEX diff over a file that grew. The CONTENT diff,
+after blessing, is +359 / -1 with the single deletion being the splice.budget
+summary line and zero pre-existing rows moved. Both numbers are published;
+quoting only the flattering one is how a number stops meaning anything.
+
+
+C-1a. THE GUARD IS REACHABLE — #3746's rule, executed
+------------------------------------------------------
+"A `guards` entry whose domain cannot reach its const is a false coverage
+claim." Two of `w-inlbudget`'s seven original entries were false and moved zero
+lines, so the claim is tested and not asserted.
+
+  mutation   crates/c2-core/src/splice.rs
+             pub const INLINE_GROWTH_TOTAL_MAX: i64 = 35_000;  ->  35_001
+  observed   test surface::tests::the_decision_surface_domain_matches_the_committed_baseline ... FAILED
+             THE DECISION-SURFACE DOMAIN MOVED — 38 line(s) of 5278 differ
+  restored   git checkout -- crates/c2-core/src/splice.rs && touch <same file>
+  verified   "Compiling c2-core v0.1.0" appeared on the next run, so the
+             RESTORED source was rebuilt and the closing green is not the
+             mutant binary (the cp/mv mtime trap the brief names)
+             test ... ok
+
+38 lines is the right order of magnitude and not a coincidence: the cap-sweep
+block holds the model's field at four values the const does not follow, and the
+seeded block's C16 arm moves at the two caller counts that straddle 35,000.
+
+
+C-1b. THE PARAMETER REACHES THE DECISION, not just the renderer
+----------------------------------------------------------------
+PREREG §2's registered falsifier for the whole lane: "if the domain does not
+move under RDC-1, the parameter is not reaching the decision and the adoption
+is decoration."
+
+The strongest form of that is to CUT THE WIRE at the production walk and
+require the port's own behaviour to change.
+
+  mutation   crates/c2-core/src/splice.rs, splice_body_why
+                 let mut exp = match tu.instr_count(&f.mangled_name) {
+                     Some(c) => Expansion::at_pass_entry_seeded(model, c),
+                     None => Expansion::at_pass_entry(),
+                 };
+             ->  let mut exp = Expansion::at_pass_entry();
+  observed   test splice::tests::the_walk_seeds_from_the_callers_own_count ... FAILED
+             panicked at crates/c2-core/src/splice.rs:2778:
+               a caller c2 reads as 65,535 instructions inlines nothing
+             40 passed; 1 failed
+  restored   git checkout -- <file> && touch <file>
+  verified   "Compiling c2-core v0.1.0" on the next run; 41 passed; 0 failed
+
+The failing assertion is RDC-1 itself: the SAME two functions, the SAME
+TuContext, ONE NUMBER different — 600 splices, 65,535 refuses
+`S6-budget-caller-huge`. With the wire cut the caller's count never reaches the
+decision and the refusal disappears, which is exactly what "the adoption is
+decoration" would look like.
+
+Note what this control does NOT redden, deliberately: with the wire cut the
+DOMAIN is unchanged, because `surface_rows` builds its `Expansion`s directly.
+That is why the control is a test and not a domain diff — the domain proves the
+model refuses at those points, and this proves the WALK gets there.
+
+
+C-1c. THE BOUNDARY, AS COMMITTED
+---------------------------------
+The four rows RDC-1 is about, quoted from crates/c2-core/src/surface/DOMAIN.txt
+at this tip. No fixture and no workload TU can produce any of them: `S2` refuses
+a two-call body upstream, and the `.gl` reader refuses the `0x81..=0xff`
+encoding whole-file.
+
+  splice.budget  seeded caller=035000 n=1 i=0 callee=none  level=2,budget=35000,total=35000
+  splice.budget  seeded caller=035001 n=1 i=0 callee=none  REFUSE S6-budget-caller-huge
+  splice.budget  seeded caller=065409 n=1 i=0 callee=none  REFUSE S6-budget-caller-huge
+  splice.budget  seeded caller=065535 n=1 i=0 callee=none  REFUSE S6-budget-caller-huge
+
+`jg`, so the cap value itself admits; 65,409..65,535 is c2's sign-extension band
+for the `0x81..=0xff` `SIZE` form (WB_INSTRCOUNT_FINDINGS §4).
+
+
+C-2.  THE CLAUSE TABLE'S OWN CONTROLS, re-run at this tip
+----------------------------------------------------------
+Not this lane's, and re-run because this lane moved three `state` cells:
+
+  the_clause_table_check_goes_red_on_a_planted_defect ......... ok
+  check_six_goes_red_on_a_planted_citation_footprint .......... ok
+  the_generator_goes_red_when_the_page_is_edited_by_hand ...... ok
+  the_generator_goes_red_when_the_page_loses_its_markers ...... ok
+
+And one that fired for real rather than by plant: writing an address literal
+into clause_table.rs's own doc comment reddened C24's CITES cell while that
+comment was being written — `cites_in_crates`' third declared blindness,
+happening on the file most likely to discuss these clauses. The address was
+removed rather than frozen as a mention.
