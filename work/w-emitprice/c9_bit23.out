@@ -1,0 +1,23 @@
+C1 GREEN -- both mode words parsed out of crates/c2-il/src/func/bundle.rs: True
+C2 GREEN -- and they are the values opt_mode_of_word admits: True
+C3 (must be False -- the shift is load-bearing): bit 21 separates the two modes = False
+
+CONTROLS PASS
+
+DAT_10c2e310 = (option_word >> 23) & 1     PROV[R] shr ecx,0x17 @ 0x10b8238d
+source of the words: crates/c2-il/src/func/bundle.rs (read at run time, so this cannot go stale)
+
+const                               value   bit 23   C8 size test   what c2 does
+OPT_WORD_O1                      0x200005        0   RUNS           favour SIZE
+OPT_WORD_OX                      0xa00005        1   SKIPPED        favour SPEED
+OPT_WORD_O1_NO_FP_CONTRACT       0x200001        0   RUNS           favour SIZE
+OPT_WORD_OX_NO_FP_CONTRACT       0xa00001        1   SKIPPED        favour SPEED
+
+=> at /O1  (the workload's own profile) the bit is 0: C9's arm is NOT taken and C8's size test RUNS.
+=> at /Ox (/O2) the bit is 1: C9's arm IS taken and the size test is SKIPPED.
+
+WHICH EXPLAINS AN ANOMALY P_INLINE SS2.1c LEFT AS A HYPOTHESIS:
+  SS2.1c: "/Ox is NOT SEPARATING -- 320 B inlined beside 196 B kept ...
+   Consistent with SS2.1's favour-speed bit turning this very test off."
+  It was consistent; now it is derived. A size test that does not run
+  is exactly what a non-separating size bracket looks like.
