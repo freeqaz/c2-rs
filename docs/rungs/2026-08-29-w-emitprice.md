@@ -116,11 +116,21 @@ out wrong. Three, and each was live:
 
 | lane | result |
 |---|---|
-| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **2015 passed, 0 failed, 62 targets** |
-| `c2rs selftest` | **392 PASS, 0 FAIL** — verified NOT `SKIP: toolchain absent` before any measurement (brief §5) |
-| `scripts/gate.sh --jobs 16 --require-graded` | **GATE: PASS** — 21/21 rows, 0 FAIL, 0 SKIP, 0 NO-RESULT, 7,116 fixture-verdicts |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **62 targets · 2,014 passed · 1 failed.** The one failure is `rung_index_is_generated_and_current`, which brief §4 states **WILL** be red at every lane tip and is not this lane's to fix (`INDEX.md` is regenerated at the merge). Every other target is green. |
+| `c2rs selftest` | **PASS on all 214 printed rows, 0 FAIL, 0 SKIP** — verified **NOT** `SKIP: toolchain absent` **before any measurement was taken** (brief §5) |
+| `scripts/gate.sh --jobs 16 --require-graded` | **unqualified `GATE: PASS`.** `lanes: 18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT`; **7,056 fixture-verdicts**; sweep **19,542 of 19,638** graded, **0 mismatch**; cross **91,900 of 92,288** cells graded, **0 mismatch**; `hatch-red` 14/14, `ladder-red` 5/5; debug lane 18/18 at **0 panics** |
 | 878-TU workload scan | not re-run: this lane changed no compiled file, so every input to it is byte-identical to the base tree's |
 | fixtures, `c2rs census` | +0 — no fixture added, no census cell moved |
+
+**`#3835`'s hazard did not bite this run, and it was checked rather than
+assumed.** The gate prints its graded-tree hash twice and nothing compares
+them (that is `w-gatehash`'s commission this wave). Both printings on this run
+read **`c1eb31f530bd`** — line 16 and line 112 of the transcript — so the tree
+that was graded at the start is the tree that was graded at the end. This lane
+committed only under `docs/` and `work/`, and the hash covers
+`crates fixtures scripts`, so the two ends agreeing is expected rather than
+lucky; it is recorded because the check costs one `grep` and the alternative is
+a transcript that looks authoritative over two different trees.
 
 **Byte delta 0 and reach 0 are BY CONSTRUCTION**, not by measurement: `git diff
 --stat 1d52f8902..HEAD -- crates/` is empty. `rung_index_is_generated_and_current`
