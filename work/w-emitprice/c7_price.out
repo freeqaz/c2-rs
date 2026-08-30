@@ -1,0 +1,34 @@
+C1 (GREEN expected, 168): unique cells = 168
+C2 (RED expected: thr=0 -> 0 false-inline, many false-keep): 0 / 120 of 168
+C3 (RED expected: thr=inf -> many false-inline, 0 false-keep): 48 / 0 of 168
+C4 (GREEN expected, w-lowerband SS6.7.1 /O1 = 8 and 8): .gl SIZE < 128 on 82 /O1 cells -> 8 kept-below / 8 inlined-above
+
+CONTROLS PASS
+cells: 168 unique tags, from work/w-sizebracket/series.jsonl (committed; nothing recompiled)
+
+THE CONSEQUENCE OF EACH ERROR FLIPS BETWEEN THE TWO SEAMS:
+  ACCEPT seam (splice.rs S7) : FALSE-INLINE = WRONG EMIT · FALSE-KEEP = lost reach
+  FENCE  seam (comdat.rs)    : FALSE-INLINE = lost reach · FALSE-KEEP = WRONG EMIT
+PROGRESS_METRIC SS5.2: a wrong emit scores STRICTLY BELOW the refusal it
+replaced, so the two columns may never be summed and never traded.
+
+--- profile O1 (82 cells)  <- THE WORKLOADS OWN PROFILE ---
+rule                                                                  n  FALSE-INLINE   FALSE-KEEP
+splice::INLINE_UNBOUNDED_BYTES  [ACCEPT seam: FALSE-INLINE = wrong emit]   82             0            5
+comdat::INLINE_DECLINE_LOOP_BYTES [FENCE seam: FALSE-KEEP = wrong emit]   82             0            4
+comdat::INLINE_DECLINE_BYTES     [FENCE seam: FALSE-KEEP = wrong emit]   82             3            0
+C7 ADOPTED: 128 raw as a byte count                                  82             3            0
+C7 ADOPTED: 128 instrs x 4 B/PPC word (1:1 instrs:words)             82            24            0
+C7 ADOPTED through a converter FITTED to the /O1 bracket (108,116]   82             0            0
+[c2 unit] .gl SIZE < 128 -- w-lowerband SS6.7.1s own grading         82             8            8
+
+--- profile Ox (86 cells) ---
+rule                                                                  n  FALSE-INLINE   FALSE-KEEP
+splice::INLINE_UNBOUNDED_BYTES  [ACCEPT seam: FALSE-INLINE = wrong emit]   86             0           33
+comdat::INLINE_DECLINE_LOOP_BYTES [FENCE seam: FALSE-KEEP = wrong emit]   86             0           19
+comdat::INLINE_DECLINE_BYTES     [FENCE seam: FALSE-KEEP = wrong emit]   86             0           12
+C7 ADOPTED: 128 raw as a byte count                                  86             0           12
+C7 ADOPTED: 128 instrs x 4 B/PPC word (1:1 instrs:words)             86            23            0
+C7 ADOPTED through a converter FITTED to the /O1 bracket (108,116]   86             0           12
+[c2 unit] .gl SIZE < 128 -- w-lowerband SS6.7.1s own grading         86             2            8
+
