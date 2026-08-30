@@ -258,6 +258,18 @@ pub struct BudgetModel {
     /// not mean "leaves no trace"**: `mov ds:0x10c3f5d0,eax` at `0x10b6240a`
     /// runs unconditionally, before the test.
     pub forceinline_charged: bool,
+    /// **C16's ceiling on the running growth total.** c2 declines the site when
+    /// the total exceeds this.
+    ///
+    /// It is numerically the same 35,000 as [`INLINE_BUDGET_CEILING`] and it is
+    /// a **different constant at a different site**, so it is a separate field
+    /// and a separate name: a permuter that moves the seed's clamp must be able
+    /// to leave the growth ceiling where it is, and a reader must not infer one
+    /// from the other.
+    ///
+    /// PROV[R] `cmp DWORD PTR ds:0x10c3f5cc,0x88b8` at `0x10b60a63`. See
+    /// [`INLINE_GROWTH_TOTAL_MAX`].
+    pub growth_total_max: i64,
 }
 
 /// **THE DEFAULT** — c2's model as read. Index 0 of [`BUDGET_MODELS`], the only
@@ -277,6 +289,7 @@ pub const BUDGET_C2: BudgetModel = BudgetModel {
     max_level: INLINE_MAXLEVEL_UNBOUNDED,
     charge_exempt_at_or_below: INLINE_CHARGE_EXEMPT_MAX,
     forceinline_charged: false,
+    growth_total_max: INLINE_GROWTH_TOTAL_MAX,
 };
 
 /// **The model the port implicitly held before this lane** — no division, so
@@ -374,34 +387,100 @@ pub const INLINE_MAXLEVEL_UNBOUNDED: i64 = 255;
 /// `0x10b625b6`.
 pub const INLINE_CHARGE_EXEMPT_MAX: i64 = 40;
 
-/// **The nested pass's budget, as much of it as the port can know.**
+/// **C16's ceiling on c2's running growth total `DAT_10c3f5cc`.** c2 declines
+/// the site when the total is **strictly greater** than this — `jg`, so the
+/// value itself still admits.
 ///
-/// The port cannot evaluate `B`. `B` is `clamp(2 × WORD [fn+0x50], 1000,
-/// 35000)` and `WORD [fn+0x50]` is a **pre-codegen instruction count**, which
-/// §2.1b measured as an *upper bound* on the tested quantity and not the
-/// quantity (`arith_012` and `mix_008`, identical `SIZE` 115, opposite
-/// verdicts). Consuming it would be adopting a bound as though it were the
-/// value — `P_INLINE.md` §6.2 item 3 says so in those words.
+/// The total is seeded from the caller's own instruction count
+/// (`0x10b62703`, C2) and added to by every expanded callee (`0x10b625c1`,
+/// C19) — and that `add` is **not** gated by C18's 40 test, which the
+/// `sub` one instruction above it is. `CLAUSES.tsv` C19 states the two as one
+/// clause and records neither asymmetry.
 ///
-/// So the type carries the **divisor**, not a number: at `k = 1` the nested
-/// budget *is* the parent's for every possible `B`, and that is a fact the port
-/// can act on. At `k ≥ 2` it is `B / k`, which it cannot.
+/// **Numerically 35,000, like [`INLINE_BUDGET_CEILING`], and deliberately not
+/// spelled as it.** They are two immediates at two addresses governing two
+/// quantities — a clamp on the seed and a cap on the accumulated total — and
+/// the decision-surface clause is about making each separately settable.
+///
+/// PROV[R] `DISCLOSURE W-BUDGET-1` — `cmp DWORD PTR ds:0x10c3f5cc,0x88b8` /
+/// `jg 0x10b609f3` at `0x10b60a63`.
+pub const INLINE_GROWTH_TOTAL_MAX: i64 = 35_000;
+
+/// **The nested pass's budget — a divisor when `B` is unknown, a NUMBER when it
+/// is.**
+///
+/// # THE STATE THIS TYPE WAS IN BEFORE LANE `w-budget`, and what changed
+///
+/// This type used to carry the **divisor and never a number**, because the port
+/// had no `B`: `splice.rs`'s own words were *"The port has no honest
+/// `caller_instrs` to pass."* `B` is `clamp(2 × WORD [[fn]+0x50], 1000, 35000)`,
+/// and `WORD [[fn]+0x50]` is the `.gl` function record's `SIZE` field — **which
+/// the port already decoded and threw away** (`P_INLINE.md` §6.2 item 3 and
+/// C24's own note). `w-instrcount` read where it comes from; the port now reads
+/// the value ([`c2_il::func::gl_function_instr_counts`]).
+///
+/// **The objection that stood against consuming it, and why it does not reach
+/// here.** §6.2 item 3 says consuming `SIZE` *"would be adopting a bound as
+/// though it were the quantity"*, on §2.1b's matched pair `arith_012` /
+/// `mix_008` — identical `SIZE` 115, opposite verdicts. That measurement is
+/// about **C8, the candidacy size test**, and `WB_INSTRCOUNT_FINDINGS` §2.4
+/// settled what it shows: **every identified input to that predicate is
+/// identical across the pair**, including `ATTR`, so the separator is provably
+/// *downstream* of the candidacy predicate `FUN_10b5fb5f`'s size compare and is
+/// not this field being wrong. (The address is named on that page and
+/// deliberately not repeated here: it is C8's, and a new citation of another
+/// row's address moves that row's frozen `cites` footprint for a **mention**.)
+/// Meanwhile
+/// §2.1a/§2.2's census establishes that `[sym+0x50]` has **one writer in the
+/// image** and **no reducer**, so between the `.gl` and `0x10b626f7` the value
+/// is unchanged. For the **budget seed** the field is not a bound on the
+/// quantity — it *is* the quantity, read instruction by instruction.
+///
+/// So: at `k = 1` the nested budget is the parent's for every possible `B`, and
+/// that was already actionable. At `k ≥ 2` it is `B / k`, which is now a number
+/// whenever the caller's count was readable and a refusal when it was not.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum NestedBudget {
-    /// The divisor is 1: the nested budget is the parent's, undivided,
-    /// **independently of `B`**.
+    /// The divisor is 1 **and no `B` is in hand**: the nested budget is the
+    /// parent's, undivided, **independently of `B`**.
     Parent,
-    /// `parent / k`, `k ≥ 2` — not evaluable without `B`.
+    /// `parent / k`, `k ≥ 2`, **and no `B` is in hand** — not evaluable.
     Divided {
         /// c2's `n − i + 1` at this site.
         k: i64,
     },
+    /// **The budget as a number**, in c2's pre-codegen instruction units.
+    ///
+    /// Reachable only when the caller's `.gl` `SIZE` was readable, which is what
+    /// makes this variant the whole of lane `w-budget`: with it, `k ≥ 2` divides
+    /// (`idiv` at `0x10b623ec`) instead of refusing.
+    Amount(i64),
 }
 
 impl NestedBudget {
     /// True when the port can name the nested budget without knowing `B`.
+    ///
+    /// **Deliberately still false for [`NestedBudget::Amount`]** — an `Amount`
+    /// is a budget the port knows *because* it knows `B`, which is the opposite
+    /// of this predicate's question. [`NestedBudget::is_evaluable`] is the one a
+    /// refusal should ask.
     pub fn is_evaluable_without_b(&self) -> bool {
         matches!(self, NestedBudget::Parent)
+    }
+
+    /// True when the port can act on this budget at all — either because the
+    /// divisor is the identity, or because it holds the number.
+    pub fn is_evaluable(&self) -> bool {
+        !matches!(self, NestedBudget::Divided { .. })
+    }
+
+    /// The budget as a number, when there is one. `Parent` has none: it is a
+    /// statement *about* an unknown, not a value.
+    pub fn amount(&self) -> Option<i64> {
+        match self {
+            NestedBudget::Amount(b) => Some(*b),
+            _ => None,
+        }
     }
 }
 
@@ -416,18 +495,33 @@ pub struct Expansion {
     pub level_base: i64,
     /// What the nested pass's budget is, relative to this one's.
     pub budget: NestedBudget,
+    /// **c2's running growth total, `DAT_10c3f5cc`** — C2 seeds it from the
+    /// caller's own instruction count at `0x10b62703`, C19 adds every expanded
+    /// callee's count at `0x10b625c1`, and C16 declines against it at
+    /// `0x10b60a63`.
+    ///
+    /// **`None` is UNASKED**, and it is the state every `Expansion` was in
+    /// before lane `w-budget`: no count was readable, so the port carries no
+    /// total and C16 is inert. Every consumer must read it that way.
+    pub growth_total: Option<i64>,
 }
 
 impl BudgetModel {
     /// §2.2 / C3's seed. `B = clamp(multiplier × caller_instrs, floor,
     /// ceiling)`.
     ///
-    /// The port has no honest `caller_instrs` to pass — see [`NestedBudget`] —
-    /// so **nothing in `crates/` calls this on a production path**. It is here
-    /// because a model with the clamp missing is not c2's model, and because
-    /// the decision surface renders it, which is what makes
+    /// **AMENDED 2026-08-30, lane `w-budget`: this IS on a production path
+    /// now.** It used to say *"the port has no honest `caller_instrs` to pass —
+    /// so nothing in `crates/` calls this on a production path"*, and that was
+    /// true until `w-instrcount` resolved where the number comes from. It is the
+    /// `.gl` function record's `SIZE` field, which the port already decoded and
+    /// discarded; [`c2_il::func::gl_function_instr_counts`] returns it and
+    /// [`Expansion::at_pass_entry_seeded`] passes it here.
+    ///
+    /// It is still rendered by the decision surface, which is what makes
     /// [`INLINE_BUDGET_FLOOR`] and [`INLINE_BUDGET_CEILING`] covered rather
-    /// than merely named.
+    /// than merely named. PROV[R] the load `0x10b626f5`/`0x10b626f7` and the
+    /// seed store `0x10b62703`; DISCLOSURE `W-BUDGET-1`.
     pub fn seed(&self, caller_instrs: i64) -> i64 {
         let doubled = self.seed_multiplier.saturating_mul(caller_instrs);
         // c2's order: `max` against the floor first (`0x10b6270f`), then `min`
@@ -456,11 +550,18 @@ impl BudgetModel {
     /// its own run, or a run of no sites. The refusals the port owes are
     /// [`port_enter_site`]'s, and they are deliberately a different function so
     /// that the model can still be *asked* about the region the port refuses.
+    ///
+    /// `callee_instrs` is the count of the callee **being entered**, or `None`
+    /// when it was not readable. It feeds C18/C19's charge and nothing else
+    /// here; the accept/decline arms it participates in are
+    /// [`Self::declines_at_growth_total`] and [`Self::declines_unaffordable`],
+    /// which [`port_enter_site`] asks in c2's own order.
     pub fn enter_site(
         &self,
         at: Expansion,
         n_sites: i64,
         site_index: i64,
+        callee_instrs: Option<i64>,
     ) -> Result<Expansion, &'static str> {
         if n_sites < 1 {
             return Err("budget-no-sites");
@@ -469,11 +570,78 @@ impl BudgetModel {
             return Err("budget-site-index-out-of-run");
         }
         let k = self.divisor(n_sites, site_index);
+        // **C18/C19's charge, applied before the division** — c2's order:
+        // `FUN_10b6242a` subtracts from `*budget` (`0x10b625bb`) and adds to
+        // `DAT_10c3f5cc` (`0x10b625c1`) as it expands the site, and the nested
+        // pass then divides what is left (`idiv` at `0x10b623ec`).
+        //
+        // `forceinline = false` for the same reason [`port_enter_site`] passes
+        // it: the port cannot read `[sym+0x4c] & 0x2000`, so it takes the
+        // charge rather than assuming the bypass. That is the direction that
+        // charges MORE, which is the safe one for a growth cap.
+        let (local, global) = match callee_instrs {
+            Some(ci) => self.charge(ci, false),
+            None => (0, 0),
+        };
+        let budget = match at.budget {
+            NestedBudget::Amount(b) => NestedBudget::Amount((b - local) / k),
+            // No `B`: the divisor is all the port can say, exactly as before.
+            _ if k == 1 => NestedBudget::Parent,
+            _ => NestedBudget::Divided { k },
+        };
         Ok(Expansion {
             level: at.level + self.site_level_delta,
             level_base: at.level_base,
-            budget: if k == 1 { NestedBudget::Parent } else { NestedBudget::Divided { k } },
+            budget,
+            // `None + anything` stays `None`: no count was readable, so the port
+            // has no total and C16 stays inert — the pre-`w-budget` behaviour,
+            // preserved by construction rather than by care.
+            growth_total: at.growth_total.map(|t| t + global),
         })
+    }
+
+    /// **C16.** `35000 < DAT_10c3f5cc ⇒ decline`, asked of the total *as it
+    /// stands before this site is charged* — which is where c2 asks it
+    /// (`FUN_10b60930` runs before `FUN_10b6242a`).
+    ///
+    /// `None` is UNASKED and can never decline: without a count there is no
+    /// total, and a port that refused on the absence of a number would be
+    /// refusing on its own ignorance rather than on c2's rule.
+    ///
+    /// PROV[R] `cmp DWORD PTR ds:0x10c3f5cc,0x88b8` / `jg 0x10b609f3` at
+    /// `0x10b60a63`. The comparison is `jg`, so the ceiling value itself
+    /// admits. See [`INLINE_GROWTH_TOTAL_MAX`].
+    pub fn declines_at_growth_total(&self, at: Expansion) -> bool {
+        at.growth_total.is_some_and(|t| t > self.growth_total_max)
+    }
+
+    /// **C17.** `budget < instrs && instrs > 0x28 ⇒ decline`.
+    ///
+    /// Both operands are needed and both can be missing: without a `B` the
+    /// budget is not a number, and without the callee's `.gl` `SIZE` the count
+    /// is not either. Either absence is UNASKED and admits.
+    ///
+    /// PROV[R] `cmp DWORD PTR [ebp+0x10],eax` / `jge 0x10b60a81` at
+    /// `0x10b60a73`, then `cmp eax,0x28` / `ja 0x10b609f3` at `0x10b60a78`.
+    /// The second comparison is C18's constant at its **first** copy; C18's row
+    /// cites the second, `0x10b625b6`, and they are one number at two sites.
+    ///
+    /// # Why the port may evaluate this at all, and exactly how far
+    ///
+    /// `[ebp+0x10]` is the budget **threaded through c2's driver recursion**,
+    /// and `WB_INSTRCOUNT_FINDINGS` §7 records C17 as *"blocker removed, still
+    /// not adoptable"* on the grounds that *"the port has no driver to thread it
+    /// through"*. The port's chain walk **is** that threading — `Expansion`
+    /// steps down the chain — but only for a chain, and c2's driver has
+    /// **fan-out**. On the set the port admits the two coincide exactly: `S2`
+    /// requires one call site per link, so c2 expands precisely the port's
+    /// chain and charges precisely the port's charges. Off that set the port
+    /// has already refused.
+    pub fn declines_unaffordable(&self, at: Expansion, callee_instrs: Option<i64>) -> bool {
+        let (Some(b), Some(ci)) = (at.budget.amount(), callee_instrs) else {
+            return false;
+        };
+        b < ci && ci > self.charge_exempt_at_or_below
     }
 
     /// **The base-relative depth arms — C14, and one clause the 24-row table
@@ -560,7 +728,37 @@ impl Expansion {
     /// The pass entry's state — `FUN_10b61ee1(fn, level = 1, budget = B, 0,
     /// 1e8, 0)`, `0x10b6276e`, with `DAT_10c3f50c` zeroed at `0x10b6274c`.
     pub fn at_pass_entry() -> Expansion {
-        Expansion { level: 1, level_base: 0, budget: NestedBudget::Parent }
+        Expansion {
+            level: 1,
+            level_base: 0,
+            budget: NestedBudget::Parent,
+            // No count in hand. This is the entry state for every caller whose
+            // `.gl` `SIZE` was unreadable, and it is exactly the state the port
+            // was in everywhere before lane `w-budget`.
+            growth_total: None,
+        }
+    }
+
+    /// **The pass entry WITH c2's seed** — `FUN_10b61ee1(fn, level = 1,
+    /// budget = B, …)` with `B` an actual number and `DAT_10c3f5cc` seeded.
+    ///
+    /// `caller_instrs` is the caller's own `.gl` `SIZE`, which is what c2 loads
+    /// at `0x10b626f5`/`0x10b626f7`. c2 does two things with it in six
+    /// instructions and this constructor is both of them:
+    ///
+    /// ```text
+    /// 10b62703:  mov ds:0x10c3f5cc,eax   <- C2, the running total's SEED
+    /// 10b62708:  add eax,eax             <- C3, the budget's
+    /// ```
+    ///
+    /// PROV[R] DISCLOSURE `W-BUDGET-1`.
+    pub fn at_pass_entry_seeded(model: &BudgetModel, caller_instrs: i64) -> Expansion {
+        Expansion {
+            level: 1,
+            level_base: 0,
+            budget: NestedBudget::Amount(model.seed(caller_instrs)),
+            growth_total: Some(caller_instrs),
+        }
     }
 }
 
@@ -585,13 +783,22 @@ pub fn port_enter_site(
     at: Expansion,
     n_sites: i64,
     site_index: i64,
+    callee_instrs: Option<i64>,
 ) -> Result<Expansion, &'static str> {
-    let next = model.enter_site(at, n_sites, site_index).map_err(|e| match e {
+    let next = model.enter_site(at, n_sites, site_index, callee_instrs).map_err(|e| match e {
         "budget-no-sites" => "S6-budget-no-sites",
         _ => "S6-budget-site-index",
     })?;
-    if !next.budget.is_evaluable_without_b() {
-        // `n ≥ 2`. c2 divides; the port cannot, because `B` is unreadable.
+    if !next.budget.is_evaluable() {
+        // `n ≥ 2` **and no `B`**. c2 divides; the port cannot, because the
+        // caller's count was not readable.
+        //
+        // **THIS IS NO LONGER A BLANKET REFUSAL** (lane `w-budget`). Before, it
+        // fired at every `n ≥ 2` because `B` was unknowable; now it fires only
+        // where the caller's `.gl` `SIZE` was unreadable — a whole-file refusal
+        // of the reader, the `0x81..=0xff` encoding, or a name with no record.
+        // Where the count IS in hand the divide is `idiv`'s arithmetic and the
+        // port evaluates c2's own arms below instead of declining to look.
         return Err("S6-budget-divided");
     }
     if model.declines_at_depth(next) {
@@ -602,6 +809,20 @@ pub fn port_enter_site(
     // port cannot see that bit, so it passes `false` and takes the test.
     if model.declines_at_maxlevel(next, false) {
         return Err("S6-budget-maxlevel");
+    }
+    // **C16 and C17, asked of the state BEFORE this site is charged** — which
+    // is where c2 asks them. `FUN_10b60930`'s accept/decline runs on the
+    // caller's current `DAT_10c3f5cc` and current `*budget`; `FUN_10b6242a`
+    // charges afterwards, and `enter_site` above has already applied that
+    // charge to `next`. So both arms read `at`, not `next`, and getting that
+    // backwards would decline one site early — a precedence error a byte delta
+    // cannot see, which is this module's standing reason for spelling orders
+    // out (see [`BudgetModel::declines_at_maxlevel`]'s own note).
+    if model.declines_at_growth_total(at) {
+        return Err("S6-budget-caller-huge");
+    }
+    if model.declines_unaffordable(at, callee_instrs) {
+        return Err("S6-budget-unaffordable");
     }
     Ok(next)
 }
@@ -647,8 +868,13 @@ pub fn surface_rows() -> Vec<crate::surface::Row> {
                 for &(level, base) in
                     &[(1i64, 0i64), (2, 0), (16, 0), (17, 0), (2, 1), (5, 1), (17, 1), (18, 1)]
                 {
-                    let at = Expansion { level, level_base: base, budget: NestedBudget::Parent };
-                    let outcome = match port_enter_site(m, at, n, i) {
+                    let at = Expansion {
+                        level,
+                        level_base: base,
+                        budget: NestedBudget::Parent,
+                        growth_total: None,
+                    };
+                    let outcome = match port_enter_site(m, at, n, i, None) {
                         Ok(e) => format!("level={},budget=parent", e.level),
                         Err(why) => format!("{} {why}", crate::surface::REFUSE),
                     };
@@ -682,7 +908,12 @@ pub fn surface_rows() -> Vec<crate::surface::Row> {
         let m = BudgetModel { name: "sweep", max_level: ml, ..BUDGET_C2 };
         for &level in &[1i64, 3, 255, 300] {
             for fi in [false, true] {
-                let at = Expansion { level, level_base: 0, budget: NestedBudget::Parent };
+                let at = Expansion {
+                    level,
+                    level_base: 0,
+                    budget: NestedBudget::Parent,
+                    growth_total: None,
+                };
                 rows.push(crate::surface::Row::new(
                     format!("maxlevel={ml:03} level={level:03} forceinline={}", fi as u8),
                     if m.declines_at_maxlevel(at, fi) {
@@ -692,6 +923,87 @@ pub fn surface_rows() -> Vec<crate::surface::Row> {
                     },
                 ));
             }
+        }
+    }
+    // ---- THE THREADED COUNT, lane `w-budget` ------------------------------
+    //
+    // Everything above renders with **no count in hand**, which is the state
+    // the port was in everywhere before this lane — so every line above is
+    // unchanged by it, and the block below is the whole of what moved.
+    //
+    // THIS IS THE `#3723` BLOCK. A required-zero byte delta cannot see any of
+    // it, because `S2` refuses a two-call body before the walk begins and the
+    // `.gl` reader refuses the `0x81..=0xff` encoding before a count above
+    // 65,408 can reach the port. Both regions are enumerated here anyway, at
+    // values no fixture can produce, which is the whole mechanism: a widening
+    // has one way forward and it is a text diff somebody reads.
+    //
+    // The caller counts are chosen to straddle every boundary the seed and the
+    // growth cap have:
+    //
+    //   0, 1            the floor's far side
+    //   499/500/501     `2 x c` crossing the 1000 floor
+    //   17_499/17_500   `2 x c` crossing the 35_000 ceiling
+    //   35_000/35_001   `DAT_10c3f5cc`'s OWN cap, C16 — the seed alone puts a
+    //                   caller over it, which is c2 declining the caller's very
+    //                   first site because the caller is huge
+    //   65_409, 65_535  **c2's `0x81..=0xff` sign-extension band**
+    //                   (`WB_INSTRCOUNT_FINDINGS` §4). c2 reads a caller in this
+    //                   state as ~65k instructions and declines everything. The
+    //                   port's `.gl` reader REFUSES that encoding whole-file, so
+    //                   no such count can arrive — and the model is asked here
+    //                   anyway, because "unreachable" is a claim about the
+    //                   reader and this file is about the decision.
+    for &c in &[0i64, 1, 499, 500, 501, 17_499, 17_500, 35_000, 35_001, 65_409, 65_535] {
+        for n in 1..=3i64 {
+            for i in 0..n {
+                // Callee counts across C18's 40 and past the 1000 floor, so
+                // C17's arm is reachable in the domain and not merely named.
+                for &ci in &[None, Some(0i64), Some(40), Some(41), Some(1_200)] {
+                    let at = Expansion::at_pass_entry_seeded(&BUDGET_C2, c);
+                    let outcome = match port_enter_site(&BUDGET_C2, at, n, i, ci) {
+                        Ok(e) => format!(
+                            "level={},budget={},total={}",
+                            e.level,
+                            e.budget.amount().map_or("parent".to_string(), |b| b.to_string()),
+                            e.growth_total.map_or("-".to_string(), |t| t.to_string()),
+                        ),
+                        Err(why) => format!("{} {why}", crate::surface::REFUSE),
+                    };
+                    rows.push(crate::surface::Row::new(
+                        format!(
+                            "seeded caller={c:06} n={n} i={i} callee={}",
+                            ci.map_or("none".to_string(), |v| format!("{v:06}")),
+                        ),
+                        outcome,
+                    ));
+                }
+            }
+        }
+    }
+    // The growth cap ITSELF, swept independently of the seed. `#3746`'s trap
+    // one field over: `BUDGET_C2.growth_total_max` IS `INLINE_GROWTH_TOTAL_MAX`,
+    // so a sweep that only moved the caller count would move the compared value
+    // and the constant together on the seeded rows above. Here the model's field
+    // is held at named values the constant does not follow, which is what makes
+    // the constant a reachable boundary rather than a covered name.
+    for &cap in &[0i64, 1_000, INLINE_GROWTH_TOTAL_MAX, 65_535] {
+        let m = BudgetModel { name: "cap-sweep", growth_total_max: cap, ..BUDGET_C2 };
+        for &total in &[0i64, 999, 1_000, 1_001, 35_000, 35_001, 65_535] {
+            let at = Expansion {
+                level: 1,
+                level_base: 0,
+                budget: NestedBudget::Amount(1_000),
+                growth_total: Some(total),
+            };
+            rows.push(crate::surface::Row::new(
+                format!("growthcap={cap:06} total={total:06}"),
+                if m.declines_at_growth_total(at) {
+                    format!("{} C16-decline", crate::surface::REFUSE)
+                } else {
+                    "admit".to_string()
+                },
+            ));
         }
     }
     rows
@@ -743,6 +1055,19 @@ pub struct TuContext<'a> {
     /// which is 1,774 differs deep. Folding them together is how
     /// `refused:blocked` got printed 1,774 times and named nothing.
     rows: Vec<(&'a str, Option<&'a IlFunction>, Option<u32>)>,
+    /// **c2's pre-codegen instruction count per name**, sorted, from the `.gl`
+    /// function record's `SIZE` field ([`c2_il::func::gl_function_instr_counts`]).
+    ///
+    /// Carried here rather than on [`IlFunction`] because it is a **whole-bundle
+    /// fact keyed by the record binding**, which is what this type already is —
+    /// and because the binding is the whole hazard. The count is looked up
+    /// through the same names [`TuContext::definition`] resolves, so the callee
+    /// side cannot get one function's body and another's count.
+    ///
+    /// **Empty is the pre-`w-budget` state and is a legal, silent one**: every
+    /// consumer treats a missing count as UNASKED and behaves exactly as it did
+    /// before this vector existed.
+    counts: Vec<(&'a str, i64)>,
 }
 
 impl<'a> TuContext<'a> {
@@ -840,7 +1165,52 @@ impl<'a> TuContext<'a> {
                 (n, def, w)
             })
             .collect();
-        Self { empty, rows }
+        Self { empty, rows, counts: Vec::new() }
+    }
+
+    /// **Attach c2's per-function instruction counts** — the `.gl` `SIZE` field,
+    /// keyed by the same record names this context's rows are keyed by.
+    ///
+    /// Additive and chained rather than a new constructor, so that every
+    /// existing caller keeps the behaviour it had: a context with no counts is
+    /// the pre-`w-budget` context exactly, and the budget model then refuses
+    /// `n ≥ 2` as it always did.
+    ///
+    /// A name supplied twice with two different counts is **dropped**, not
+    /// resolved to either — [`TuContext::definition`]'s rule, one field over,
+    /// and for the same reason: two spellings of one name would have to be told
+    /// apart by something this type does not have.
+    pub fn with_instr_counts(
+        mut self,
+        counts: impl IntoIterator<Item = (&'a str, i64)>,
+    ) -> Self {
+        let mut v: Vec<(&'a str, i64)> = counts.into_iter().collect();
+        v.sort_by_key(|(n, _)| *n);
+        v.dedup_by(|b, a| a.0 == b.0 && a.1 == b.1);
+        // Any name still repeated disagrees with itself; remove every copy.
+        let mut out: Vec<(&'a str, i64)> = Vec::with_capacity(v.len());
+        let mut i = 0usize;
+        while i < v.len() {
+            let j = v[i..].iter().take_while(|(n, _)| *n == v[i].0).count();
+            if j == 1 {
+                out.push(v[i]);
+            }
+            i += j;
+        }
+        self.counts = out;
+        self
+    }
+
+    /// **c2's instruction count for `name`**, or `None` when it was not
+    /// readable — no `.gl`, a `.gl` the reader refused, the `0x81..=0xff`
+    /// encoding, no record, or two records disagreeing.
+    ///
+    /// `None` is UNASKED and never a zero: a function of zero instructions and
+    /// a function whose count nobody could read are different facts, and only
+    /// the first may seed a budget.
+    pub fn instr_count(&self, name: &str) -> Option<i64> {
+        let i = self.counts.binary_search_by(|(n, _)| (*n).cmp(name)).ok()?;
+        Some(self.counts[i].1)
     }
 
     /// [`TuContext::of_named`] over `IlFunction::mangled_name` with no per
@@ -1328,11 +1698,22 @@ pub fn splice_body_why<'a>(
     // fixture, because `S2` already refused a two-call body, and registered as a
     // decision surface for exactly that reason (board `#3723`).
     let model = &BUDGET_MODELS[0];
-    let mut exp = port_enter_site(
+    // **THE SEED, and it is the whole of lane `w-budget`.** c2's pass entry
+    // loads the CALLER's own count and makes two things out of it — the running
+    // growth total (C2, `0x10b62703`) and the budget (C3, `0x10b62708`). The
+    // port now has that count: it is the `.gl` `SIZE` field it already decoded
+    // and used to discard. When it is unreadable the entry state is the one
+    // this walk always had, and every arm keyed on a number stays inert.
+    let mut exp = match tu.instr_count(&f.mangled_name) {
+        Some(c) => Expansion::at_pass_entry_seeded(model, c),
+        None => Expansion::at_pass_entry(),
+    };
+    exp = port_enter_site(
         model,
-        Expansion::at_pass_entry(),
+        exp,
         predicate_site_count(f, selected),
         0,
+        tu.instr_count(callee),
     )
     .map_err(SpliceDecline::Refused)?;
     loop {
@@ -1423,8 +1804,16 @@ pub fn splice_body_why<'a>(
             // advances by `BYTE [site+0x18]`, which this lane read as `1`
             // (`0x10b602ce`), so `exp.level` counts the walk's depth in exactly
             // c2's units.
-            exp = port_enter_site(model, exp, predicate_site_count(g, &g_sel), 0)
-                .map_err(SpliceDecline::Refused)?;
+            exp = port_enter_site(
+                model,
+                exp,
+                predicate_site_count(g, &g_sel),
+                0,
+                // The count of the callee this step ENTERS — `next`, not `g`.
+                // `g` is the link already entered and already charged.
+                tu.instr_count(next),
+            )
+            .map_err(SpliceDecline::Refused)?;
             if exp.level > ceiling {
                 // Unreachable while `seen` is checked above — a step either
                 // repeats a name or admits a new one, and the bundle has
@@ -2188,14 +2577,20 @@ mod tests {
     /// before the walk starts — which is why it is *also* a registered decision
     /// surface. A test can only assert the point it was written for; the domain
     /// enumerates the region.
+    ///
+    /// **AMENDED by lane `w-budget`: the refusal is now conditional on there
+    /// being no count.** `#1020`'s hazard is unchanged *where the hazard is* —
+    /// a caller whose count the port could not read still has nothing to
+    /// divide — and the sibling test below is the other half.
     #[test]
     fn two_call_sites_refuse_by_name_and_do_not_guess() {
         let m = &BUDGET_MODELS[0];
         let at = Expansion::at_pass_entry();
-        assert_eq!(port_enter_site(m, at, 1, 0).map(|e| e.budget), Ok(NestedBudget::Parent));
+        assert_eq!(at.growth_total, None, "the unseeded entry state carries no total");
+        assert_eq!(port_enter_site(m, at, 1, 0, None).map(|e| e.budget), Ok(NestedBudget::Parent));
         for n in 2..=6i64 {
             for i in 0..n {
-                let got = port_enter_site(m, at, n, i);
+                let got = port_enter_site(m, at, n, i, None);
                 if m.divisor(n, i) == 1 {
                     // The LAST site of a run: c2's counter has reached 1 and the
                     // division is the identity there too. It is admitted, and
@@ -2211,6 +2606,185 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// **THE ADOPTION, ASSERTED WHERE IT HAPPENS.** With a count in hand,
+    /// `n ≥ 2` is a *computed verdict* rather than a blanket refusal — which is
+    /// the whole of lane `w-budget`.
+    ///
+    /// The arithmetic is c2's: `B = clamp(2 × 600, 1000, 35000) = 1200`, and at
+    /// site 0 of 3 the nested pass gets `1200 / 3 = 400` (`idiv` at
+    /// `0x10b623ec`, divisor `n − i` at the 0-based index).
+    #[test]
+    fn a_readable_caller_count_turns_the_divided_refusal_into_a_number() {
+        let m = &BUDGET_MODELS[0];
+        let at = Expansion::at_pass_entry_seeded(m, 600);
+        assert_eq!(at.budget, NestedBudget::Amount(1_200), "C3's clamp on 2 x 600");
+        assert_eq!(at.growth_total, Some(600), "C2 seeds the total from the same count");
+
+        for n in 1..=6i64 {
+            for i in 0..n {
+                let got = port_enter_site(m, at, n, i, None);
+                assert!(
+                    got.is_ok(),
+                    "n={n} i={i}: with B in hand the port DIVIDES; it does not refuse"
+                );
+                assert_eq!(
+                    got.unwrap().budget,
+                    NestedBudget::Amount(1_200 / m.divisor(n, i)),
+                    "n={n} i={i}: the nested budget is B / (n - i)"
+                );
+            }
+        }
+        // And the refusal is still there for the case that is still honestly
+        // unevaluable — no count.
+        assert_eq!(
+            port_enter_site(m, Expansion::at_pass_entry(), 3, 0, None),
+            Err("S6-budget-divided")
+        );
+    }
+
+    /// **C16, and the `0x81..=0xff` hazard as a modelled point.**
+    ///
+    /// `WB_INSTRCOUNT_FINDINGS` §4: a `.gl` `SIZE` byte in `0x81..=0xff` is one
+    /// signed byte in c2, so the caller reads as 65,409..65,535, the seed puts
+    /// `DAT_10c3f5cc` above 35,000, and **C16 declines the caller's very first
+    /// site**. That is c2's behaviour and the model reproduces it.
+    ///
+    /// It is asserted here and it cannot arrive through the port: the `.gl`
+    /// reader refuses that encoding whole-file. Two different statements, and
+    /// the test says which is which.
+    #[test]
+    fn a_caller_over_the_growth_cap_declines_its_first_site() {
+        let m = &BUDGET_MODELS[0];
+        assert_eq!(m.growth_total_max, INLINE_GROWTH_TOTAL_MAX);
+        // At the cap exactly, `jg` still admits.
+        let at = Expansion::at_pass_entry_seeded(m, INLINE_GROWTH_TOTAL_MAX);
+        assert!(port_enter_site(m, at, 1, 0, None).is_ok(), "35000 is not > 35000");
+        // One past it, and anywhere in c2's sign-extension band, it declines.
+        for c in [INLINE_GROWTH_TOTAL_MAX + 1, 65_409, 65_535] {
+            assert_eq!(
+                port_enter_site(m, Expansion::at_pass_entry_seeded(m, c), 1, 0, None),
+                Err("S6-budget-caller-huge"),
+                "caller count {c}"
+            );
+        }
+        // Without a count there is no total and C16 cannot fire — the port must
+        // never refuse on its own ignorance.
+        assert!(!m.declines_at_growth_total(Expansion::at_pass_entry()));
+    }
+
+    /// **C17, and the first-site theorem it obeys.**
+    ///
+    /// `WB_INSTRCOUNT_FINDINGS` §5.2: `B ≥ 1000` for every caller, so at an
+    /// undrained budget C17 cannot decline a callee counting below 1000 — and
+    /// the caller's own size only scales `B` upward. The arm is reachable only
+    /// once the budget has been drained or the callee is very large, and both
+    /// are asserted rather than argued.
+    #[test]
+    fn the_affordability_arm_obeys_the_first_site_theorem() {
+        let m = &BUDGET_MODELS[0];
+        let entry = Expansion::at_pass_entry_seeded(m, 0);
+        assert_eq!(entry.budget, NestedBudget::Amount(INLINE_BUDGET_FLOOR));
+        for ci in [0i64, 40, 41, 999, 1_000] {
+            assert!(
+                port_enter_site(m, entry, 1, 0, Some(ci)).is_ok(),
+                "callee {ci} is affordable at the floor: the first site cannot decline"
+            );
+        }
+        // Past the floor it declines — and only when the callee is ALSO over
+        // C18's 40, which is the `&&` in c2's pair of jumps.
+        assert_eq!(
+            port_enter_site(m, entry, 1, 0, Some(1_001)),
+            Err("S6-budget-unaffordable")
+        );
+        let broke = Expansion {
+            budget: NestedBudget::Amount(10),
+            ..Expansion::at_pass_entry_seeded(m, 0)
+        };
+        assert!(
+            port_enter_site(m, broke, 1, 0, Some(40)).is_ok(),
+            "40 is not > 40: C18's exemption is what stops C17 firing on a small callee"
+        );
+        assert_eq!(
+            port_enter_site(m, broke, 1, 0, Some(41)),
+            Err("S6-budget-unaffordable")
+        );
+        // Either operand missing is UNASKED and admits.
+        assert!(!m.declines_unaffordable(broke, None));
+        assert!(!m.declines_unaffordable(Expansion::at_pass_entry(), Some(10_000)));
+    }
+
+    /// **C19's charge, on the production walk's own state.** The local
+    /// subtraction is gated by C18's 40 and the global add is not — so a run of
+    /// small callees drains nothing and still accumulates growth, which is the
+    /// asymmetry `CLAUSES.tsv` C19 states as one clause.
+    #[test]
+    fn the_charge_moves_the_budget_and_the_total_by_different_amounts() {
+        let m = &BUDGET_MODELS[0];
+        let at = Expansion::at_pass_entry_seeded(m, 600);
+        let after = port_enter_site(m, at, 1, 0, Some(40)).unwrap();
+        assert_eq!(after.budget, NestedBudget::Amount(1_200), "at 40 the budget is untouched");
+        assert_eq!(after.growth_total, Some(640), "and the total is charged anyway");
+        let after = port_enter_site(m, at, 1, 0, Some(41)).unwrap();
+        assert_eq!(after.budget, NestedBudget::Amount(1_159), "past 40 both move");
+        assert_eq!(after.growth_total, Some(641));
+    }
+
+    /// **The count reaches the walk through `TuContext`, and a name it does not
+    /// carry gets no answer.** The lookup is the binding hazard (#918), so it is
+    /// asserted rather than assumed: one name in, one count out, and a
+    /// disagreeing duplicate silently yields nothing rather than either value.
+    #[test]
+    fn the_context_answers_a_count_only_for_a_name_it_unambiguously_carries() {
+        let tu = TuContext::none().with_instr_counts(vec![
+            ("?a@@YAXXZ", 7i64),
+            ("?b@@YAXXZ", 11),
+            ("?dup@@YAXXZ", 3),
+            ("?dup@@YAXXZ", 4),
+            ("?same@@YAXXZ", 5),
+            ("?same@@YAXXZ", 5),
+        ]);
+        assert_eq!(tu.instr_count("?a@@YAXXZ"), Some(7));
+        assert_eq!(tu.instr_count("?b@@YAXXZ"), Some(11));
+        assert_eq!(tu.instr_count("?dup@@YAXXZ"), None, "two counts, no answer");
+        assert_eq!(tu.instr_count("?same@@YAXXZ"), Some(5), "agreeing rows are one fact");
+        assert_eq!(tu.instr_count("?missing@@YAXXZ"), None);
+        // A context with no counts at all is the pre-`w-budget` context.
+        assert_eq!(TuContext::none().instr_count("?a@@YAXXZ"), None);
+    }
+
+    /// **THE PRODUCTION REACH, and the reason this is not `#3336`'s
+    /// decoration.** A criterion that cannot fail abstains rather than passes —
+    /// so the seed has to be shown arriving through the walk the emitter runs,
+    /// not only through a hand-built `Expansion`.
+    ///
+    /// `t01`'s two functions, with a count attached to the caller: the splice
+    /// still fires (byte-neutrality) **and** the count is what the caller's own
+    /// name resolves to, which is the binding the walk uses.
+    #[test]
+    fn the_walk_seeds_from_the_callers_own_count() {
+        let funcs = vec![leaf("?g@@YAHH@Z"), tail("?f@@YAHH@Z", "?g@@YAHH@Z")];
+        let sel = select_function(&funcs[1], OptMode::O1).unwrap();
+        let tu = TuContext::of(&funcs)
+            .with_instr_counts(vec![("?f@@YAHH@Z", 600i64), ("?g@@YAHH@Z", 12)]);
+        assert_eq!(tu.instr_count(&funcs[1].mangled_name), Some(600));
+        assert!(
+            splice_body_why(&funcs[1], &sel, OptMode::O1, &tu).is_ok(),
+            "the seed must not move the splice: this is the byte-neutrality claim"
+        );
+        // And with a caller over the growth cap it declines — the same body, the
+        // same context, one number different. This is the refusal-domain control
+        // in miniature: no fixture can produce it, and the port answers.
+        let huge = TuContext::of(&funcs)
+            .with_instr_counts(vec![("?f@@YAHH@Z", 65_535i64), ("?g@@YAHH@Z", 12)]);
+        assert!(
+            matches!(
+                splice_body_why(&funcs[1], &sel, OptMode::O1, &huge),
+                Err(SpliceDecline::Refused("S6-budget-caller-huge"))
+            ),
+            "a caller c2 reads as 65,535 instructions inlines nothing"
+        );
     }
 
     /// The divisor is c2's `n − i + 1` on a 1-based index — the counter is
@@ -2339,7 +2913,8 @@ mod tests {
                     &BUDGET_MODELS[0],
                     Expansion::at_pass_entry(),
                     predicate_site_count(&caller, &sel),
-                    0
+                    0,
+                    None
                 ),
                 Err("S6-budget-divided")
             );
@@ -2358,12 +2933,12 @@ mod tests {
         let m = &BUDGET_MODELS[0];
         for level in [1i64, 17, 100, 10_000] {
             assert!(
-                !m.declines_at_depth(Expansion { level, level_base: 0, budget: NestedBudget::Parent }),
+                !m.declines_at_depth(Expansion { level, level_base: 0, budget: NestedBudget::Parent, growth_total: None }),
                 "base 0: c2 jumps past the comparison entirely"
             );
         }
-        assert!(!m.declines_at_depth(Expansion { level: 17, level_base: 1, budget: NestedBudget::Parent }));
-        assert!(m.declines_at_depth(Expansion { level: 18, level_base: 1, budget: NestedBudget::Parent }));
+        assert!(!m.declines_at_depth(Expansion { level: 17, level_base: 1, budget: NestedBudget::Parent, growth_total: None }));
+        assert!(m.declines_at_depth(Expansion { level: 18, level_base: 1, budget: NestedBudget::Parent, growth_total: None }));
     }
 
     /// **C15, and the arm no clause names.** Lane `w-inlclause`,
@@ -2385,7 +2960,12 @@ mod tests {
 
         // 1. Vacuous at the default, at every level, either way on the bypass.
         for level in [1i64, 2, 255, 256, 100_000] {
-            let at = Expansion { level, level_base: 0, budget: NestedBudget::Parent };
+            let at = Expansion {
+                level,
+                level_base: 0,
+                budget: NestedBudget::Parent,
+                growth_total: None,
+            };
             for fi in [false, true] {
                 assert!(
                     !c2.declines_at_maxlevel(at, fi),
@@ -2396,18 +2976,39 @@ mod tests {
 
         // 2. With maxlevel set, the arm fires — and `__forceinline` skips it.
         let m2 = &BUDGET_MAXLEVEL_2;
-        let deep = Expansion { level: 3, level_base: 0, budget: NestedBudget::Parent };
+        let deep = Expansion {
+            level: 3,
+            level_base: 0,
+            budget: NestedBudget::Parent,
+            growth_total: None,
+        };
         assert!(m2.declines_at_maxlevel(deep, false), "3 > 2: c2 declines");
         assert!(!m2.declines_at_maxlevel(deep, true), "`jne 0x10b60a3c` skips exactly this test");
         assert_eq!(
-            port_enter_site(m2, Expansion { level: 2, level_base: 0, budget: NestedBudget::Parent }, 1, 0),
+            port_enter_site(
+                m2,
+                Expansion {
+                    level: 2,
+                    level_base: 0,
+                    budget: NestedBudget::Parent,
+                    growth_total: None,
+                },
+                1,
+                0,
+                None,
+            ),
             Err("S6-budget-maxlevel"),
             "the port passes forceinline = false: it cannot read the bit"
         );
 
         // 3. The relative arm, which is upstream of the bypass and of the
         //    `!= 0xff` guard, and which no clause of the 24 names.
-        let rel = Expansion { level: 6, level_base: 1, budget: NestedBudget::Parent };
+        let rel = Expansion {
+            level: 6,
+            level_base: 1,
+            budget: NestedBudget::Parent,
+            growth_total: None,
+        };
         assert!(
             !c2.declines_at_depth(rel),
             "level - base = 5, under both 16 and 255"

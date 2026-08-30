@@ -1103,9 +1103,9 @@ reach.branch  form=bc-dnz disp=-0033554436  REFUSE unmeasured-backward
 
 ## surface  splice.budget
 ##   site      splice.rs
-##   boundary  c2's inline growth budget across a recursive expansion — the seed clamp, the per-site division, the level, the charge, and the site count at which the port must REFUSE because `B` is unreadable
-##   cite      docs/whitebox/ref/P_INLINE.md §6.6.2; c2 `0x10b623ec` (the idiv), `0x10b602ce` (the level increment); DISCLOSURE W-INLBUDGET-1; board #3762, #1020, #3719
-##   guards    INLINE_BUDGET_FLOOR INLINE_BUDGET_CEILING INLINE_LEVEL_DEPTH_CAP INLINE_CHARGE_EXEMPT_MAX
+##   boundary  c2's inline growth budget across a recursive expansion — the seed clamp, the per-site division, the level, the charge, the running growth total and the caller size at which it caps, and the site count at which the port must REFUSE because the caller's instruction count was unreadable
+##   cite      docs/whitebox/ref/P_INLINE.md §6.6.2; docs/whitebox/WB_INSTRCOUNT_FINDINGS.md §1, §4, §5.2; c2 `0x10b623ec` (the idiv), `0x10b602ce` (the level increment); DISCLOSURE W-INLBUDGET-1, W-BUDGET-1; board #3762, #1020, #3719, #3849
+##   guards    INLINE_BUDGET_FLOOR INLINE_BUDGET_CEILING INLINE_LEVEL_DEPTH_CAP INLINE_CHARGE_EXEMPT_MAX INLINE_GROWTH_TOTAL_MAX
 splice.budget  model=c2-read seed caller_instrs=000000  B=1000
 splice.budget  model=c2-read seed caller_instrs=000001  B=1000
 splice.budget  model=c2-read seed caller_instrs=000400  B=1000
@@ -2091,7 +2091,365 @@ splice.budget  maxlevel=256 level=255 forceinline=0  admit
 splice.budget  maxlevel=256 level=255 forceinline=1  admit
 splice.budget  maxlevel=256 level=300 forceinline=0  REFUSE C15-decline
 splice.budget  maxlevel=256 level=300 forceinline=1  admit
-## summary  splice.budget  cells=985 admit=381 refuse=604 values={B=1000,B=1002,B=34998,B=35000,admit,budget=parent,global=0,global=1,global=1000,global=39,global=40,global=41,level=1,level=16,level=17,level=18,level=2,level=3,level=5,level=6,local=0,local=1000,local=41}
+splice.budget  seeded caller=000000 n=1 i=0 callee=none  level=2,budget=1000,total=0
+splice.budget  seeded caller=000000 n=1 i=0 callee=000000  level=2,budget=1000,total=0
+splice.budget  seeded caller=000000 n=1 i=0 callee=000040  level=2,budget=1000,total=40
+splice.budget  seeded caller=000000 n=1 i=0 callee=000041  level=2,budget=959,total=41
+splice.budget  seeded caller=000000 n=1 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000000 n=2 i=0 callee=none  level=2,budget=500,total=0
+splice.budget  seeded caller=000000 n=2 i=0 callee=000000  level=2,budget=500,total=0
+splice.budget  seeded caller=000000 n=2 i=0 callee=000040  level=2,budget=500,total=40
+splice.budget  seeded caller=000000 n=2 i=0 callee=000041  level=2,budget=479,total=41
+splice.budget  seeded caller=000000 n=2 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000000 n=2 i=1 callee=none  level=2,budget=1000,total=0
+splice.budget  seeded caller=000000 n=2 i=1 callee=000000  level=2,budget=1000,total=0
+splice.budget  seeded caller=000000 n=2 i=1 callee=000040  level=2,budget=1000,total=40
+splice.budget  seeded caller=000000 n=2 i=1 callee=000041  level=2,budget=959,total=41
+splice.budget  seeded caller=000000 n=2 i=1 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000000 n=3 i=0 callee=none  level=2,budget=333,total=0
+splice.budget  seeded caller=000000 n=3 i=0 callee=000000  level=2,budget=333,total=0
+splice.budget  seeded caller=000000 n=3 i=0 callee=000040  level=2,budget=333,total=40
+splice.budget  seeded caller=000000 n=3 i=0 callee=000041  level=2,budget=319,total=41
+splice.budget  seeded caller=000000 n=3 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000000 n=3 i=1 callee=none  level=2,budget=500,total=0
+splice.budget  seeded caller=000000 n=3 i=1 callee=000000  level=2,budget=500,total=0
+splice.budget  seeded caller=000000 n=3 i=1 callee=000040  level=2,budget=500,total=40
+splice.budget  seeded caller=000000 n=3 i=1 callee=000041  level=2,budget=479,total=41
+splice.budget  seeded caller=000000 n=3 i=1 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000000 n=3 i=2 callee=none  level=2,budget=1000,total=0
+splice.budget  seeded caller=000000 n=3 i=2 callee=000000  level=2,budget=1000,total=0
+splice.budget  seeded caller=000000 n=3 i=2 callee=000040  level=2,budget=1000,total=40
+splice.budget  seeded caller=000000 n=3 i=2 callee=000041  level=2,budget=959,total=41
+splice.budget  seeded caller=000000 n=3 i=2 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000001 n=1 i=0 callee=none  level=2,budget=1000,total=1
+splice.budget  seeded caller=000001 n=1 i=0 callee=000000  level=2,budget=1000,total=1
+splice.budget  seeded caller=000001 n=1 i=0 callee=000040  level=2,budget=1000,total=41
+splice.budget  seeded caller=000001 n=1 i=0 callee=000041  level=2,budget=959,total=42
+splice.budget  seeded caller=000001 n=1 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000001 n=2 i=0 callee=none  level=2,budget=500,total=1
+splice.budget  seeded caller=000001 n=2 i=0 callee=000000  level=2,budget=500,total=1
+splice.budget  seeded caller=000001 n=2 i=0 callee=000040  level=2,budget=500,total=41
+splice.budget  seeded caller=000001 n=2 i=0 callee=000041  level=2,budget=479,total=42
+splice.budget  seeded caller=000001 n=2 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000001 n=2 i=1 callee=none  level=2,budget=1000,total=1
+splice.budget  seeded caller=000001 n=2 i=1 callee=000000  level=2,budget=1000,total=1
+splice.budget  seeded caller=000001 n=2 i=1 callee=000040  level=2,budget=1000,total=41
+splice.budget  seeded caller=000001 n=2 i=1 callee=000041  level=2,budget=959,total=42
+splice.budget  seeded caller=000001 n=2 i=1 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000001 n=3 i=0 callee=none  level=2,budget=333,total=1
+splice.budget  seeded caller=000001 n=3 i=0 callee=000000  level=2,budget=333,total=1
+splice.budget  seeded caller=000001 n=3 i=0 callee=000040  level=2,budget=333,total=41
+splice.budget  seeded caller=000001 n=3 i=0 callee=000041  level=2,budget=319,total=42
+splice.budget  seeded caller=000001 n=3 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000001 n=3 i=1 callee=none  level=2,budget=500,total=1
+splice.budget  seeded caller=000001 n=3 i=1 callee=000000  level=2,budget=500,total=1
+splice.budget  seeded caller=000001 n=3 i=1 callee=000040  level=2,budget=500,total=41
+splice.budget  seeded caller=000001 n=3 i=1 callee=000041  level=2,budget=479,total=42
+splice.budget  seeded caller=000001 n=3 i=1 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000001 n=3 i=2 callee=none  level=2,budget=1000,total=1
+splice.budget  seeded caller=000001 n=3 i=2 callee=000000  level=2,budget=1000,total=1
+splice.budget  seeded caller=000001 n=3 i=2 callee=000040  level=2,budget=1000,total=41
+splice.budget  seeded caller=000001 n=3 i=2 callee=000041  level=2,budget=959,total=42
+splice.budget  seeded caller=000001 n=3 i=2 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000499 n=1 i=0 callee=none  level=2,budget=1000,total=499
+splice.budget  seeded caller=000499 n=1 i=0 callee=000000  level=2,budget=1000,total=499
+splice.budget  seeded caller=000499 n=1 i=0 callee=000040  level=2,budget=1000,total=539
+splice.budget  seeded caller=000499 n=1 i=0 callee=000041  level=2,budget=959,total=540
+splice.budget  seeded caller=000499 n=1 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000499 n=2 i=0 callee=none  level=2,budget=500,total=499
+splice.budget  seeded caller=000499 n=2 i=0 callee=000000  level=2,budget=500,total=499
+splice.budget  seeded caller=000499 n=2 i=0 callee=000040  level=2,budget=500,total=539
+splice.budget  seeded caller=000499 n=2 i=0 callee=000041  level=2,budget=479,total=540
+splice.budget  seeded caller=000499 n=2 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000499 n=2 i=1 callee=none  level=2,budget=1000,total=499
+splice.budget  seeded caller=000499 n=2 i=1 callee=000000  level=2,budget=1000,total=499
+splice.budget  seeded caller=000499 n=2 i=1 callee=000040  level=2,budget=1000,total=539
+splice.budget  seeded caller=000499 n=2 i=1 callee=000041  level=2,budget=959,total=540
+splice.budget  seeded caller=000499 n=2 i=1 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000499 n=3 i=0 callee=none  level=2,budget=333,total=499
+splice.budget  seeded caller=000499 n=3 i=0 callee=000000  level=2,budget=333,total=499
+splice.budget  seeded caller=000499 n=3 i=0 callee=000040  level=2,budget=333,total=539
+splice.budget  seeded caller=000499 n=3 i=0 callee=000041  level=2,budget=319,total=540
+splice.budget  seeded caller=000499 n=3 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000499 n=3 i=1 callee=none  level=2,budget=500,total=499
+splice.budget  seeded caller=000499 n=3 i=1 callee=000000  level=2,budget=500,total=499
+splice.budget  seeded caller=000499 n=3 i=1 callee=000040  level=2,budget=500,total=539
+splice.budget  seeded caller=000499 n=3 i=1 callee=000041  level=2,budget=479,total=540
+splice.budget  seeded caller=000499 n=3 i=1 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000499 n=3 i=2 callee=none  level=2,budget=1000,total=499
+splice.budget  seeded caller=000499 n=3 i=2 callee=000000  level=2,budget=1000,total=499
+splice.budget  seeded caller=000499 n=3 i=2 callee=000040  level=2,budget=1000,total=539
+splice.budget  seeded caller=000499 n=3 i=2 callee=000041  level=2,budget=959,total=540
+splice.budget  seeded caller=000499 n=3 i=2 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000500 n=1 i=0 callee=none  level=2,budget=1000,total=500
+splice.budget  seeded caller=000500 n=1 i=0 callee=000000  level=2,budget=1000,total=500
+splice.budget  seeded caller=000500 n=1 i=0 callee=000040  level=2,budget=1000,total=540
+splice.budget  seeded caller=000500 n=1 i=0 callee=000041  level=2,budget=959,total=541
+splice.budget  seeded caller=000500 n=1 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000500 n=2 i=0 callee=none  level=2,budget=500,total=500
+splice.budget  seeded caller=000500 n=2 i=0 callee=000000  level=2,budget=500,total=500
+splice.budget  seeded caller=000500 n=2 i=0 callee=000040  level=2,budget=500,total=540
+splice.budget  seeded caller=000500 n=2 i=0 callee=000041  level=2,budget=479,total=541
+splice.budget  seeded caller=000500 n=2 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000500 n=2 i=1 callee=none  level=2,budget=1000,total=500
+splice.budget  seeded caller=000500 n=2 i=1 callee=000000  level=2,budget=1000,total=500
+splice.budget  seeded caller=000500 n=2 i=1 callee=000040  level=2,budget=1000,total=540
+splice.budget  seeded caller=000500 n=2 i=1 callee=000041  level=2,budget=959,total=541
+splice.budget  seeded caller=000500 n=2 i=1 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000500 n=3 i=0 callee=none  level=2,budget=333,total=500
+splice.budget  seeded caller=000500 n=3 i=0 callee=000000  level=2,budget=333,total=500
+splice.budget  seeded caller=000500 n=3 i=0 callee=000040  level=2,budget=333,total=540
+splice.budget  seeded caller=000500 n=3 i=0 callee=000041  level=2,budget=319,total=541
+splice.budget  seeded caller=000500 n=3 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000500 n=3 i=1 callee=none  level=2,budget=500,total=500
+splice.budget  seeded caller=000500 n=3 i=1 callee=000000  level=2,budget=500,total=500
+splice.budget  seeded caller=000500 n=3 i=1 callee=000040  level=2,budget=500,total=540
+splice.budget  seeded caller=000500 n=3 i=1 callee=000041  level=2,budget=479,total=541
+splice.budget  seeded caller=000500 n=3 i=1 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000500 n=3 i=2 callee=none  level=2,budget=1000,total=500
+splice.budget  seeded caller=000500 n=3 i=2 callee=000000  level=2,budget=1000,total=500
+splice.budget  seeded caller=000500 n=3 i=2 callee=000040  level=2,budget=1000,total=540
+splice.budget  seeded caller=000500 n=3 i=2 callee=000041  level=2,budget=959,total=541
+splice.budget  seeded caller=000500 n=3 i=2 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000501 n=1 i=0 callee=none  level=2,budget=1002,total=501
+splice.budget  seeded caller=000501 n=1 i=0 callee=000000  level=2,budget=1002,total=501
+splice.budget  seeded caller=000501 n=1 i=0 callee=000040  level=2,budget=1002,total=541
+splice.budget  seeded caller=000501 n=1 i=0 callee=000041  level=2,budget=961,total=542
+splice.budget  seeded caller=000501 n=1 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000501 n=2 i=0 callee=none  level=2,budget=501,total=501
+splice.budget  seeded caller=000501 n=2 i=0 callee=000000  level=2,budget=501,total=501
+splice.budget  seeded caller=000501 n=2 i=0 callee=000040  level=2,budget=501,total=541
+splice.budget  seeded caller=000501 n=2 i=0 callee=000041  level=2,budget=480,total=542
+splice.budget  seeded caller=000501 n=2 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000501 n=2 i=1 callee=none  level=2,budget=1002,total=501
+splice.budget  seeded caller=000501 n=2 i=1 callee=000000  level=2,budget=1002,total=501
+splice.budget  seeded caller=000501 n=2 i=1 callee=000040  level=2,budget=1002,total=541
+splice.budget  seeded caller=000501 n=2 i=1 callee=000041  level=2,budget=961,total=542
+splice.budget  seeded caller=000501 n=2 i=1 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000501 n=3 i=0 callee=none  level=2,budget=334,total=501
+splice.budget  seeded caller=000501 n=3 i=0 callee=000000  level=2,budget=334,total=501
+splice.budget  seeded caller=000501 n=3 i=0 callee=000040  level=2,budget=334,total=541
+splice.budget  seeded caller=000501 n=3 i=0 callee=000041  level=2,budget=320,total=542
+splice.budget  seeded caller=000501 n=3 i=0 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000501 n=3 i=1 callee=none  level=2,budget=501,total=501
+splice.budget  seeded caller=000501 n=3 i=1 callee=000000  level=2,budget=501,total=501
+splice.budget  seeded caller=000501 n=3 i=1 callee=000040  level=2,budget=501,total=541
+splice.budget  seeded caller=000501 n=3 i=1 callee=000041  level=2,budget=480,total=542
+splice.budget  seeded caller=000501 n=3 i=1 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=000501 n=3 i=2 callee=none  level=2,budget=1002,total=501
+splice.budget  seeded caller=000501 n=3 i=2 callee=000000  level=2,budget=1002,total=501
+splice.budget  seeded caller=000501 n=3 i=2 callee=000040  level=2,budget=1002,total=541
+splice.budget  seeded caller=000501 n=3 i=2 callee=000041  level=2,budget=961,total=542
+splice.budget  seeded caller=000501 n=3 i=2 callee=001200  REFUSE S6-budget-unaffordable
+splice.budget  seeded caller=017499 n=1 i=0 callee=none  level=2,budget=34998,total=17499
+splice.budget  seeded caller=017499 n=1 i=0 callee=000000  level=2,budget=34998,total=17499
+splice.budget  seeded caller=017499 n=1 i=0 callee=000040  level=2,budget=34998,total=17539
+splice.budget  seeded caller=017499 n=1 i=0 callee=000041  level=2,budget=34957,total=17540
+splice.budget  seeded caller=017499 n=1 i=0 callee=001200  level=2,budget=33798,total=18699
+splice.budget  seeded caller=017499 n=2 i=0 callee=none  level=2,budget=17499,total=17499
+splice.budget  seeded caller=017499 n=2 i=0 callee=000000  level=2,budget=17499,total=17499
+splice.budget  seeded caller=017499 n=2 i=0 callee=000040  level=2,budget=17499,total=17539
+splice.budget  seeded caller=017499 n=2 i=0 callee=000041  level=2,budget=17478,total=17540
+splice.budget  seeded caller=017499 n=2 i=0 callee=001200  level=2,budget=16899,total=18699
+splice.budget  seeded caller=017499 n=2 i=1 callee=none  level=2,budget=34998,total=17499
+splice.budget  seeded caller=017499 n=2 i=1 callee=000000  level=2,budget=34998,total=17499
+splice.budget  seeded caller=017499 n=2 i=1 callee=000040  level=2,budget=34998,total=17539
+splice.budget  seeded caller=017499 n=2 i=1 callee=000041  level=2,budget=34957,total=17540
+splice.budget  seeded caller=017499 n=2 i=1 callee=001200  level=2,budget=33798,total=18699
+splice.budget  seeded caller=017499 n=3 i=0 callee=none  level=2,budget=11666,total=17499
+splice.budget  seeded caller=017499 n=3 i=0 callee=000000  level=2,budget=11666,total=17499
+splice.budget  seeded caller=017499 n=3 i=0 callee=000040  level=2,budget=11666,total=17539
+splice.budget  seeded caller=017499 n=3 i=0 callee=000041  level=2,budget=11652,total=17540
+splice.budget  seeded caller=017499 n=3 i=0 callee=001200  level=2,budget=11266,total=18699
+splice.budget  seeded caller=017499 n=3 i=1 callee=none  level=2,budget=17499,total=17499
+splice.budget  seeded caller=017499 n=3 i=1 callee=000000  level=2,budget=17499,total=17499
+splice.budget  seeded caller=017499 n=3 i=1 callee=000040  level=2,budget=17499,total=17539
+splice.budget  seeded caller=017499 n=3 i=1 callee=000041  level=2,budget=17478,total=17540
+splice.budget  seeded caller=017499 n=3 i=1 callee=001200  level=2,budget=16899,total=18699
+splice.budget  seeded caller=017499 n=3 i=2 callee=none  level=2,budget=34998,total=17499
+splice.budget  seeded caller=017499 n=3 i=2 callee=000000  level=2,budget=34998,total=17499
+splice.budget  seeded caller=017499 n=3 i=2 callee=000040  level=2,budget=34998,total=17539
+splice.budget  seeded caller=017499 n=3 i=2 callee=000041  level=2,budget=34957,total=17540
+splice.budget  seeded caller=017499 n=3 i=2 callee=001200  level=2,budget=33798,total=18699
+splice.budget  seeded caller=017500 n=1 i=0 callee=none  level=2,budget=35000,total=17500
+splice.budget  seeded caller=017500 n=1 i=0 callee=000000  level=2,budget=35000,total=17500
+splice.budget  seeded caller=017500 n=1 i=0 callee=000040  level=2,budget=35000,total=17540
+splice.budget  seeded caller=017500 n=1 i=0 callee=000041  level=2,budget=34959,total=17541
+splice.budget  seeded caller=017500 n=1 i=0 callee=001200  level=2,budget=33800,total=18700
+splice.budget  seeded caller=017500 n=2 i=0 callee=none  level=2,budget=17500,total=17500
+splice.budget  seeded caller=017500 n=2 i=0 callee=000000  level=2,budget=17500,total=17500
+splice.budget  seeded caller=017500 n=2 i=0 callee=000040  level=2,budget=17500,total=17540
+splice.budget  seeded caller=017500 n=2 i=0 callee=000041  level=2,budget=17479,total=17541
+splice.budget  seeded caller=017500 n=2 i=0 callee=001200  level=2,budget=16900,total=18700
+splice.budget  seeded caller=017500 n=2 i=1 callee=none  level=2,budget=35000,total=17500
+splice.budget  seeded caller=017500 n=2 i=1 callee=000000  level=2,budget=35000,total=17500
+splice.budget  seeded caller=017500 n=2 i=1 callee=000040  level=2,budget=35000,total=17540
+splice.budget  seeded caller=017500 n=2 i=1 callee=000041  level=2,budget=34959,total=17541
+splice.budget  seeded caller=017500 n=2 i=1 callee=001200  level=2,budget=33800,total=18700
+splice.budget  seeded caller=017500 n=3 i=0 callee=none  level=2,budget=11666,total=17500
+splice.budget  seeded caller=017500 n=3 i=0 callee=000000  level=2,budget=11666,total=17500
+splice.budget  seeded caller=017500 n=3 i=0 callee=000040  level=2,budget=11666,total=17540
+splice.budget  seeded caller=017500 n=3 i=0 callee=000041  level=2,budget=11653,total=17541
+splice.budget  seeded caller=017500 n=3 i=0 callee=001200  level=2,budget=11266,total=18700
+splice.budget  seeded caller=017500 n=3 i=1 callee=none  level=2,budget=17500,total=17500
+splice.budget  seeded caller=017500 n=3 i=1 callee=000000  level=2,budget=17500,total=17500
+splice.budget  seeded caller=017500 n=3 i=1 callee=000040  level=2,budget=17500,total=17540
+splice.budget  seeded caller=017500 n=3 i=1 callee=000041  level=2,budget=17479,total=17541
+splice.budget  seeded caller=017500 n=3 i=1 callee=001200  level=2,budget=16900,total=18700
+splice.budget  seeded caller=017500 n=3 i=2 callee=none  level=2,budget=35000,total=17500
+splice.budget  seeded caller=017500 n=3 i=2 callee=000000  level=2,budget=35000,total=17500
+splice.budget  seeded caller=017500 n=3 i=2 callee=000040  level=2,budget=35000,total=17540
+splice.budget  seeded caller=017500 n=3 i=2 callee=000041  level=2,budget=34959,total=17541
+splice.budget  seeded caller=017500 n=3 i=2 callee=001200  level=2,budget=33800,total=18700
+splice.budget  seeded caller=035000 n=1 i=0 callee=none  level=2,budget=35000,total=35000
+splice.budget  seeded caller=035000 n=1 i=0 callee=000000  level=2,budget=35000,total=35000
+splice.budget  seeded caller=035000 n=1 i=0 callee=000040  level=2,budget=35000,total=35040
+splice.budget  seeded caller=035000 n=1 i=0 callee=000041  level=2,budget=34959,total=35041
+splice.budget  seeded caller=035000 n=1 i=0 callee=001200  level=2,budget=33800,total=36200
+splice.budget  seeded caller=035000 n=2 i=0 callee=none  level=2,budget=17500,total=35000
+splice.budget  seeded caller=035000 n=2 i=0 callee=000000  level=2,budget=17500,total=35000
+splice.budget  seeded caller=035000 n=2 i=0 callee=000040  level=2,budget=17500,total=35040
+splice.budget  seeded caller=035000 n=2 i=0 callee=000041  level=2,budget=17479,total=35041
+splice.budget  seeded caller=035000 n=2 i=0 callee=001200  level=2,budget=16900,total=36200
+splice.budget  seeded caller=035000 n=2 i=1 callee=none  level=2,budget=35000,total=35000
+splice.budget  seeded caller=035000 n=2 i=1 callee=000000  level=2,budget=35000,total=35000
+splice.budget  seeded caller=035000 n=2 i=1 callee=000040  level=2,budget=35000,total=35040
+splice.budget  seeded caller=035000 n=2 i=1 callee=000041  level=2,budget=34959,total=35041
+splice.budget  seeded caller=035000 n=2 i=1 callee=001200  level=2,budget=33800,total=36200
+splice.budget  seeded caller=035000 n=3 i=0 callee=none  level=2,budget=11666,total=35000
+splice.budget  seeded caller=035000 n=3 i=0 callee=000000  level=2,budget=11666,total=35000
+splice.budget  seeded caller=035000 n=3 i=0 callee=000040  level=2,budget=11666,total=35040
+splice.budget  seeded caller=035000 n=3 i=0 callee=000041  level=2,budget=11653,total=35041
+splice.budget  seeded caller=035000 n=3 i=0 callee=001200  level=2,budget=11266,total=36200
+splice.budget  seeded caller=035000 n=3 i=1 callee=none  level=2,budget=17500,total=35000
+splice.budget  seeded caller=035000 n=3 i=1 callee=000000  level=2,budget=17500,total=35000
+splice.budget  seeded caller=035000 n=3 i=1 callee=000040  level=2,budget=17500,total=35040
+splice.budget  seeded caller=035000 n=3 i=1 callee=000041  level=2,budget=17479,total=35041
+splice.budget  seeded caller=035000 n=3 i=1 callee=001200  level=2,budget=16900,total=36200
+splice.budget  seeded caller=035000 n=3 i=2 callee=none  level=2,budget=35000,total=35000
+splice.budget  seeded caller=035000 n=3 i=2 callee=000000  level=2,budget=35000,total=35000
+splice.budget  seeded caller=035000 n=3 i=2 callee=000040  level=2,budget=35000,total=35040
+splice.budget  seeded caller=035000 n=3 i=2 callee=000041  level=2,budget=34959,total=35041
+splice.budget  seeded caller=035000 n=3 i=2 callee=001200  level=2,budget=33800,total=36200
+splice.budget  seeded caller=035001 n=1 i=0 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=1 i=0 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=1 i=0 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=1 i=0 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=1 i=0 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=2 i=0 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=2 i=0 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=2 i=0 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=2 i=0 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=2 i=0 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=2 i=1 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=2 i=1 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=2 i=1 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=2 i=1 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=2 i=1 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=0 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=0 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=0 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=0 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=0 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=1 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=1 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=1 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=1 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=1 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=2 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=2 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=2 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=2 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=035001 n=3 i=2 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=1 i=0 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=1 i=0 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=1 i=0 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=1 i=0 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=1 i=0 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=2 i=0 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=2 i=0 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=2 i=0 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=2 i=0 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=2 i=0 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=2 i=1 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=2 i=1 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=2 i=1 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=2 i=1 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=2 i=1 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=0 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=0 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=0 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=0 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=0 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=1 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=1 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=1 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=1 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=1 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=2 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=2 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=2 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=2 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065409 n=3 i=2 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=1 i=0 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=1 i=0 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=1 i=0 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=1 i=0 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=1 i=0 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=2 i=0 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=2 i=0 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=2 i=0 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=2 i=0 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=2 i=0 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=2 i=1 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=2 i=1 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=2 i=1 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=2 i=1 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=2 i=1 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=0 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=0 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=0 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=0 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=0 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=1 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=1 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=1 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=1 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=1 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=2 callee=none  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=2 callee=000000  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=2 callee=000040  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=2 callee=000041  REFUSE S6-budget-caller-huge
+splice.budget  seeded caller=065535 n=3 i=2 callee=001200  REFUSE S6-budget-caller-huge
+splice.budget  growthcap=000000 total=000000  admit
+splice.budget  growthcap=000000 total=000999  REFUSE C16-decline
+splice.budget  growthcap=000000 total=001000  REFUSE C16-decline
+splice.budget  growthcap=000000 total=001001  REFUSE C16-decline
+splice.budget  growthcap=000000 total=035000  REFUSE C16-decline
+splice.budget  growthcap=000000 total=035001  REFUSE C16-decline
+splice.budget  growthcap=000000 total=065535  REFUSE C16-decline
+splice.budget  growthcap=001000 total=000000  admit
+splice.budget  growthcap=001000 total=000999  admit
+splice.budget  growthcap=001000 total=001000  admit
+splice.budget  growthcap=001000 total=001001  REFUSE C16-decline
+splice.budget  growthcap=001000 total=035000  REFUSE C16-decline
+splice.budget  growthcap=001000 total=035001  REFUSE C16-decline
+splice.budget  growthcap=001000 total=065535  REFUSE C16-decline
+splice.budget  growthcap=035000 total=000000  admit
+splice.budget  growthcap=035000 total=000999  admit
+splice.budget  growthcap=035000 total=001000  admit
+splice.budget  growthcap=035000 total=001001  admit
+splice.budget  growthcap=035000 total=035000  admit
+splice.budget  growthcap=035000 total=035001  REFUSE C16-decline
+splice.budget  growthcap=035000 total=065535  REFUSE C16-decline
+splice.budget  growthcap=065535 total=000000  admit
+splice.budget  growthcap=065535 total=000999  admit
+splice.budget  growthcap=065535 total=001000  admit
+splice.budget  growthcap=065535 total=001001  admit
+splice.budget  growthcap=065535 total=035000  admit
+splice.budget  growthcap=065535 total=035001  admit
+splice.budget  growthcap=065535 total=065535  admit
+## summary  splice.budget  cells=1343 admit=607 refuse=736 values={B=1000,B=1002,B=34998,B=35000,admit,budget=1000,budget=1002,budget=11266,budget=11652,budget=11653,budget=11666,budget=16899,budget=16900,budget=17478,budget=17479,budget=17499,budget=17500,budget=319,budget=320,budget=333,budget=334,budget=33798,budget=33800,budget=34957,budget=34959,budget=34998,budget=35000,budget=479,budget=480,budget=500,budget=501,budget=959,budget=961,budget=parent,global=0,global=1,global=1000,global=39,global=40,global=41,level=1,level=16,level=17,level=18,level=2,level=3,level=5,level=6,local=0,local=1000,local=41,total=0,total=1,total=17499,total=17500,total=17539,total=17540,total=17541,total=18699,total=18700,total=35000,total=35040,total=35041,total=36200,total=40,total=41,total=42,total=499,total=500,total=501,total=539,total=540,total=541,total=542}
 
 ## surface  mangle.string_comdat
 ##   site      coff/mangle.rs

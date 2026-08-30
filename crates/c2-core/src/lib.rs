@@ -677,7 +677,28 @@ impl PortC2 {
         // also indexes every definition this bundle can splice FROM. One context,
         // two mechanisms, one name binding — `TuContext` derefs to the E half so
         // nothing about the elision changed.
-        let tu_empty = splice::TuContext::of(&funcs);
+        // **AND MECHANISM I's BUDGET SEED** (lane `w-budget`): the `.gl`
+        // function record's `SIZE` field, c2's pre-codegen instruction count, is
+        // what `BudgetModel::seed` needs and what the port used to decode and
+        // discard. Keyed on `IlFunction::mangled_name`, which is the key
+        // `TuContext::of` builds its rows with above — one binding, as #918
+        // requires. A bundle with no `.gl`, or one the reader refuses, supplies
+        // no counts and the budget model is then exactly what it was.
+        //
+        // **It reaches no emitted byte through THIS caller**, and that is not an
+        // accident to be tidied: the loop below refuses, at the whole-obj level
+        // and on both paths, any bundle in which mechanism I fires. The seed is
+        // supplied here so that the two contexts the port builds are the same
+        // context — the FBM instrument's `tu_empty_callees` is where the splice
+        // actually composes bodies, and one composition with two divergent
+        // contexts is the defect `TuContext` exists to prevent.
+        let instr_counts = il.get("gl").and_then(c2_il::func::gl_function_instr_counts);
+        let tu_empty = splice::TuContext::of(&funcs).with_instr_counts(
+            funcs.iter().filter_map(|f| {
+                let c = instr_counts.as_ref()?.get(f.mangled_name.as_str())?;
+                Some((f.mangled_name.as_str(), i64::from(*c)))
+            }),
+        );
 
         // **MECHANISM I IS REFUSED AT THE WHOLE-OBJ LEVEL, on BOTH paths.**
         //

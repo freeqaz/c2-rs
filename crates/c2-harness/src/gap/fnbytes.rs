@@ -712,6 +712,12 @@ pub fn tu_empty_callees<'a>(
     // with a readable `no_effect_callee` contributes an E edge, its verdict
     // does not move — still `Blocked`, still `fnbyte-refused` — and
     // `IlBundle::functions` still refuses its TU.
+    //
+    // **AND MECHANISM I's BUDGET SEED comes with it** (lane `w-budget`): each
+    // row's `.gl` `SIZE` field, c2's pre-codegen instruction count, under the
+    // same `emit_name` key the rows themselves are built with. A row with no
+    // count contributes nothing and the splice's budget model then behaves
+    // exactly as it did before the field existed.
     TuContext::of_rows(census.iter().filter_map(|(c, g)| {
         let name = c.emit_name.as_deref()?;
         // The two refused facts are **mutually exclusive by construction** — one
@@ -726,6 +732,9 @@ pub fn tu_empty_callees<'a>(
             None => c.no_effect_callee.as_deref().map(Reduction::NoEffectCall),
         };
         Some((name, reduction, c.opt_word))
+    }))
+    .with_instr_counts(census.iter().filter_map(|(c, _)| {
+        Some((c.emit_name.as_deref()?, i64::from(c.gl_instr_count?)))
     }))
 }
 
