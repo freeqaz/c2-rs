@@ -1,0 +1,30 @@
+ImageBase 0x10b00000  compilers/X360/16.00.11886.00/c2.dll (1347072 bytes)
+  .text    VA 0x10b01000..0x10c2dc7c  raw 0x400..0x12d200
+  .data    VA 0x10c2e000..0x10c70750  raw 0x12d200..0x13be00
+  .rsrc    VA 0x10c71000..0x10c713e8  raw 0x13be00..0x13c200
+  .reloc   VA 0x10c72000..0x10c7ea8a  raw 0x13c200..0x148e00
+
+0x10c2ea98 -> section .data +0xa98
+  DWORD = 0x00000003 = 3
+  bytes -16..+16: 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+0x10c46318 -> section .data +0x18318
+  UNINITIALIZED (past SizeOfRawData=0xec00): reads as 0 at load; NOT an image value
+
+0x10c2e2fc -> section .data +0x2fc
+  DWORD = 0x00000000 = 0
+  bytes -16..+16: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+0x10c2e310 -> section .data +0x310
+  DWORD = 0x00000001 = 1
+  bytes -16..+16: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+0x10c3de20 -> section .data +0xfe20
+  UNINITIALIZED (past SizeOfRawData=0xec00): reads as 0 at load; NOT an image value
+
+0x10c6f1c8 -> section .data +0x411c8
+  UNINITIALIZED (past SizeOfRawData=0xec00): reads as 0 at load; NOT an image value
+
+0x10c2eaac -> section .data +0xaac
+  DWORD = 0x00000000 = 0
+  bytes -16..+16: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00

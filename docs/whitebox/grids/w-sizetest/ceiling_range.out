@@ -1,0 +1,33 @@
+ATTAINABLE VALUES of DAT_10c46318, over every k
+  (k >= 7 all give 1000; k <= 6 give 16 << (k & 31), so NEGATIVE k
+   aliases onto the same power-of-two ladder and adds nothing new)
+  positive: 16, 32, 64, 128, 256, 512, 1000, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216, 33554432, 67108864, 134217728, 268435456, 536870912, 1073741824
+  non-positive: -2147483648, 0
+
+=== GRID-I STATIC  (A family) ===  (WB_INSTRCOUNT_FINDINGS.md §6)
+    counts [253, 260, 267, 274]   frozen ['inl', 'inl', 'called', 'called']
+    attainable ceilings strictly inside the span (253,274]: [256]
+    ceilings that REPRODUCE the frozen verdicts: NONE — the size test cannot move this ladder at ANY k
+      ceiling 256   predicts ['inl', 'called', 'called', 'called']   vs frozen ['inl', 'inl', 'called', 'called']   MISMATCH
+
+=== GRID-I EXTERNAL (B family) ===  (WB_INSTRCOUNT_FINDINGS.md §6)
+    counts [85, 92, 99, 106]   frozen ['inl', 'inl', 'called', 'called']
+    attainable ceilings strictly inside the span (85,106]: NONE
+    ceilings that REPRODUCE the frozen verdicts: NONE — the size test cannot move this ladder at ANY k
+
+=== D family, static chain (12 cells, O1==O2) ===  (WB_INSTRCOUNT_FINDINGS.md §5.1, §6)
+    counts [183, 365, 855]   frozen ['inl', 'called', 'called']
+    attainable ceilings strictly inside the span (183,855]: [256, 512]
+    ceilings that REPRODUCE the frozen verdicts: [256]   (k = [[-28, 4]])
+      ceiling 256   predicts ['inl', 'called', 'called']   vs frozen ['inl', 'called', 'called']   MATCH
+      ceiling 512   predicts ['inl', 'inl', 'called']   vs frozen ['inl', 'called', 'called']   MISMATCH
+
+CEILINGS CONSISTENT WITH ALL THREE LADDERS AT ONCE: NONE
+
+Read this as the exclusion it is: `DAT_10c46318` is a ONE-READER,
+TWO-WRITER global whose entire range is enumerated above, and no
+member of that range reproduces the frozen verdicts on all three
+ladders.  So the published brackets are not brackets ON IT, and the
+size test at 0x10b5fc8a is not the predicate that moved any of them.
+This lane names no replacement value — #3732 refuted 128 with 8
+counterexamples each way and a fitted substitute is the same error.

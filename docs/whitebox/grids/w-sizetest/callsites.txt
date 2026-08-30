@@ -1,0 +1,58 @@
+direct call sites of 0x10b5fb5f: 3
+  10b6025d
+  10ba18fc
+  10baf63e
+
+--- 10b6025d, 14 preceding instructions ---
+  10b6022b: mov    ds:0x10c2e2e0,eax                       eax
+  10b60230: mov    ecx,esi                                 ecx,esi
+  10b60232: call   0x10b5cc8c                              
+  10b60237: test   eax,eax                                 eax
+  10b60239: je     0x10b604b1                              
+  10b6023f: test   BYTE PTR [esi+0x34],0x1                 esi
+  10b60243: jne    0x10b604b1                              
+  10b60249: mov    ecx,esi                                 ecx,esi
+  10b6024b: call   0x10b5bfae                              
+  10b60250: mov    edx,DWORD PTR [ebp-0x14]                edx,ebp
+  10b60253: push   0x0                                     
+  10b60255: push   DWORD PTR [ebp-0x24]                    ebp
+  10b60258: mov    ebx,eax                                 eax,ebx
+  10b6025a: push   DWORD PTR [ebp+0x8]                     ebp
+  10b6025d: call   0x10b5fb5f                              
+
+--- 10ba18fc, 14 preceding instructions ---
+  10ba18d2: jne    0x10ba190f                              
+  10ba18d4: mov    eax,DWORD PTR [esp+0x10]                eax
+  10ba18d8: mov    eax,DWORD PTR [eax+0x4]                 eax
+  10ba18db: test   DWORD PTR [eax+0xb1],0x2000             eax
+  10ba18e5: je     0x10ba190b                              
+  10ba18e7: mov    eax,DWORD PTR [ebp+0x0]                 eax,ebp
+  10ba18ea: mov    eax,DWORD PTR [eax+0x20]                eax
+  10ba18ed: push   0x1                                     
+  10ba18ef: shr    eax,0xc                                 eax
+  10ba18f2: push   0x0                                     
+  10ba18f4: and    eax,0x1                                 eax
+  10ba18f7: push   eax                                     eax
+  10ba18f8: mov    edx,ebp                                 edx,ebp
+  10ba18fa: mov    ecx,ebx                                 ebx,ecx
+  10ba18fc: call   0x10b5fb5f                              
+
+--- 10baf63e, 14 preceding instructions ---
+  10baf61a: shr    eax,0x2                                 eax
+  10baf61d: and    eax,0x1                                 eax
+  10baf620: push   eax                                     eax
+  10baf621: call   0x10b5c95b                              
+  10baf626: mov    ecx,DWORD PTR [ebp-0x4]                 ecx,ebp
+  10baf629: mov    DWORD PTR [ebp-0x1c],eax                eax,ebp
+  10baf62c: mov    eax,DWORD PTR [esi]                     eax,esi
+  10baf62e: mov    eax,DWORD PTR [eax+0x20]                eax
+  10baf631: push   0x0                                     
+  10baf633: shr    eax,0xc                                 eax
+  10baf636: push   0x0                                     
+  10baf638: and    eax,0x1                                 eax
+  10baf63b: push   eax                                     eax
+  10baf63c: mov    edx,esi                                 edx,esi
+  10baf63e: call   0x10b5fb5f                              
+
+Summary: an inbound register parameter must be WRITTEN at the call site.
+Scan the register column above for the register in question.
