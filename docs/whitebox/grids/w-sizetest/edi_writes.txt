@@ -1,0 +1,5 @@
+writes to edi in [10b5fb5f,10b5fcd8):
+   10b5fb83: xor    edi,edi                          
+   10b5fc31: mov    edi,0x2000                       
+   10b5fcd1: pop    edi                              
+   (edi is CALLEE-SAVED: calls in range preserve it)

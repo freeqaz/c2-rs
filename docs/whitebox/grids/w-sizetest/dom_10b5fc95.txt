@@ -1,0 +1,44 @@
+dominators of 10b5fc95  (43 instructions, entry 10b5fb5f)
+   10b5fb5f: push   ebp
+   10b5fb60: mov    ebp,esp
+   10b5fb62: push   ecx
+   10b5fb63: push   ecx
+   10b5fb64: push   ebx
+   10b5fb65: mov    ebx,ecx
+   10b5fb67: push   esi
+   10b5fb68: mov    DWORD PTR [ebp-0x4],edx
+   10b5fb6b: mov    DWORD PTR [ebp-0x8],ebx
+   10b5fb6e: call   0x10b5bfae
+   10b5fb73: test   BYTE PTR [ebx+0x34],0x1
+   10b5fb77: mov    esi,eax
+   10b5fb79: je     0x10b5fb82
+   10b5fb82: push   edi
+   10b5fb83: xor    edi,edi
+   10b5fb85: cmp    DWORD PTR ds:0x10c2e308,edi
+   10b5fb8b: je     0x10b5fbbd
+   10b5fbbf: cmp    eax,edi
+   10b5fbc1: je     0x10b5fbcb
+   10b5fbde: cmp    DWORD PTR ds:0x10c3de20,0x1
+   10b5fbe5: jne    0x10b5fbf9
+   10b5fbf9: mov    ebx,DWORD PTR [esi+0x4c]
+   10b5fbfc: test   bl,0x10
+   10b5fbff: je     0x10b5fc0e
+   10b5fc0e: mov    edx,DWORD PTR [ebp-0x4]
+   10b5fc11: mov    ecx,esi
+   10b5fc13: call   0x10b5c06b
+   10b5fc18: test   eax,eax
+   10b5fc1a: je     0x10b5fcca
+   10b5fc20: cmp    DWORD PTR [ebp+0x8],edi
+   10b5fc23: je     0x10b5fc31
+   10b5fc31: mov    edi,0x2000
+   10b5fc36: test   edi,ebx
+   10b5fc38: jne    0x10b5fc67
+   10b5fc69: cmp    DWORD PTR ds:0x10c3de20,0x2
+   10b5fc70: jne    0x10b5fc7e
+   10b5fc7e: cmp    DWORD PTR ds:0x10c2e310,ebx
+   10b5fc84: jne    0x10b5fcb9
+   10b5fc86: movzx  eax,WORD PTR [esi+0x50]
+   10b5fc8a: cmp    eax,DWORD PTR ds:0x10c46318
+   10b5fc90: jl     0x10b5fcb9
+   10b5fc92: mov    eax,DWORD PTR [esi+0x4c]
+   10b5fc95: test   edi,eax

@@ -1,0 +1,45 @@
+=== 0x10c2e2fc === 160 operand(s)
+  write  8
+  read   152
+  ambig  0
+  imm    0
+    [WRITE] 10b7e776: mov    DWORD PTR ds:0x10c2e2fc,edi
+    [WRITE] 10b7e867: mov    DWORD PTR ds:0x10c2e2fc,edi
+    [WRITE] 10b7e89b: mov    DWORD PTR ds:0x10c2e2fc,edi
+    [WRITE] 10b823e7: mov    DWORD PTR ds:0x10c2e2fc,edx
+    [WRITE] 10b82469: mov    DWORD PTR ds:0x10c2e2fc,edi
+    [WRITE] 10b824a0: mov    DWORD PTR ds:0x10c2e2fc,edi
+    [WRITE] 10c21a9f: and    DWORD PTR ds:0x10c2e2fc,0x0
+    [WRITE] 10c21ac1: mov    ds:0x10c2e2fc,eax
+
+=== 0x10c46318 === 3 operand(s)
+  write  2
+  read   1
+  ambig  0
+  imm    0
+    [WRITE] 10b5e4d7: mov    DWORD PTR ds:0x10c46318,0x3e8
+    [WRITE] 10b5e4e8: mov    ds:0x10c46318,eax
+    [read] 10b5fc8a: cmp    eax,DWORD PTR ds:0x10c46318
+
+=== 0x10c2e310 === 80 operand(s)
+  write  6
+  read   74
+  ambig  0
+  imm    0
+    [WRITE] 10b624dc: mov    ds:0x10c2e310,eax
+    [WRITE] 10b6255a: mov    ds:0x10c2e310,eax
+    [WRITE] 10b82392: mov    DWORD PTR ds:0x10c2e310,ecx
+    [WRITE] 10b9dc44: mov    ds:0x10c2e310,eax
+    [WRITE] 10b9e118: mov    ds:0x10c2e310,eax
+    [WRITE] 10ba3a09: mov    DWORD PTR ds:0x10c2e310,ebx
+
+=== 0x10c2ea98 === 4 operand(s)
+  write  0
+  read   3
+  ambig  0
+  imm    1
+    [IMM] 10c29800: mov    DWORD PTR ds:0x10c46dd4,0x10c2ea98
+    [read] 10b5da64: mov    ecx,DWORD PTR ds:0x10c2ea98
+    [read] 10b5dacb: mov    ecx,DWORD PTR ds:0x10c2ea98
+    [read] 10b5e4cc: mov    ecx,DWORD PTR ds:0x10c2ea98
+

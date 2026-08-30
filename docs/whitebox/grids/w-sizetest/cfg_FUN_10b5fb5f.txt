@@ -1,0 +1,44 @@
+entry 10b5fb5f, 116 instructions, 42 block leaders
+block leaders and their in-edges:
+   10b5fb5f  <- (entry)   | push   ebp
+   10b5fb7b  <- 10b5fb79   | xor    eax,eax
+   10b5fb82  <- 10b5fb79   | push   edi
+   10b5fb8d  <- 10b5fb8b   | mov    eax,DWORD PTR [esi+0x80]
+   10b5fb97  <- 10b5fb95   | mov    ecx,DWORD PTR [eax+0x4]
+   10b5fb9e  <- 10b5fb9c   | cmp    DWORD PTR ds:0x10c6f1c8,0x1
+   10b5fba7  <- 10b5fba5   | cmp    DWORD PTR [esi+0x90],ecx
+   10b5fbaf  <- 10b5fb9c 10b5fbad   | mov    eax,DWORD PTR [eax+0xb1]
+   10b5fbbd  <- 10b5fb8b 10b5fb95 10b5fba5 10b5fbad   | xor    eax,eax
+   10b5fbbf  <- 10b5fbbb 10b5fbbd   | cmp    eax,edi
+   10b5fbc3  <- 10b5fbc1   | cmp    DWORD PTR ds:0x10c2eab0,edi
+   10b5fbcb  <- 10b5fbc1 10b5fbc9   | push   DWORD PTR [ebp+0x10]
+   10b5fbde  <- 10b5fbc9 10b5fbd8   | cmp    DWORD PTR ds:0x10c3de20,0x1
+   10b5fbe7  <- 10b5fbe5   | test   DWORD PTR [esi+0x94],0x400
+   10b5fbf3  <- 10b5fbf1   | mov    esi,DWORD PTR [esi+0x90]
+   10b5fbf9  <- 10b5fbe5 10b5fbf1 10b5fbf3   | mov    ebx,DWORD PTR [esi+0x4c]
+   10b5fc01  <- 10b5fbff   | test   DWORD PTR [ebp+0xc],0xf00
+   10b5fc0e  <- 10b5fbff 10b5fc08   | mov    edx,DWORD PTR [ebp-0x4]
+   10b5fc20  <- 10b5fc1a   | cmp    DWORD PTR [ebp+0x8],edi
+   10b5fc25  <- 10b5fc23   | test   ebx,0x100
+   10b5fc31  <- 10b5fc23 10b5fc2b   | mov    edi,0x2000
+   10b5fc3a  <- 10b5fc38   | test   ebx,0x200
+   10b5fc42  <- 10b5fc40   | xor    ebx,ebx
+   10b5fc4c  <- 10b5fc4a   | cmp    DWORD PTR ds:0x10c3de20,0x2
+   10b5fc55  <- 10b5fc53   | mov    edx,DWORD PTR [ebp-0x8]
+   10b5fc67  <- 10b5fc38 10b5fc40   | xor    ebx,ebx
+   10b5fc69  <- 10b5fc4a 10b5fc67   | cmp    DWORD PTR ds:0x10c3de20,0x2
+   10b5fc72  <- 10b5fc70   | mov    ecx,DWORD PTR [ebp-0x8]
+   10b5fc7e  <- 10b5fc70 10b5fc7c   | cmp    DWORD PTR ds:0x10c2e310,ebx
+   10b5fc86  <- 10b5fc84   | movzx  eax,WORD PTR [esi+0x50]
+   10b5fc92  <- 10b5fc90   | mov    eax,DWORD PTR [esi+0x4c]
+   10b5fc99  <- 10b5fc97   | cmp    DWORD PTR ds:0x10c2e2fc,ebx
+   10b5fca1  <- 10b5fc9f   | cmp    DWORD PTR [esi+0x80],ebx
+   10b5fca9  <- 10b5fca7   | test   al,0x2
+   10b5fcad  <- 10b5fcab   | cmp    DWORD PTR ds:0x10c2eaac,ebx
+   10b5fcb5  <- 10b5fcab 10b5fcb3   | test   al,0x10
+   10b5fcb9  <- 10b5fc84 10b5fc90 10b5fc97 10b5fcb7   | cmp    DWORD PTR ds:0x10c2e2fc,ebx
+   10b5fcc1  <- 10b5fcbf   | test   DWORD PTR [esi+0x4c],0x2080
+   10b5fcca  <- 10b5fbd8 10b5fc08 10b5fc1a 10b5fc2b 10b5fc53 10b5fc65 10b5fc9f 10b5fca7 10b5fcb3 10b5fcb7 10b5fcc8   | xor    eax,eax
+   10b5fcce  <- 10b5fc7c 10b5fcbf 10b5fcc8   | xor    eax,eax
+   10b5fcd1  <- 10b5fccc 10b5fcd0   | pop    edi
+   10b5fcd2  <- 10b5fb7d 10b5fcd1   | pop    esi
