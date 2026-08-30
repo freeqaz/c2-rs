@@ -116,11 +116,22 @@ out wrong. Three, and each was live:
 
 | lane | result |
 |---|---|
-| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **62 targets · 2,014 passed · 1 failed.** The one failure is `rung_index_is_generated_and_current`, which brief §4 states **WILL** be red at every lane tip and is not this lane's to fix (`INDEX.md` is regenerated at the merge). Every other target is green. |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **62 targets · 2,014 passed · 1 failed.** The one failure is `rung_index_is_generated_and_current`, which brief §4 states **WILL** be red at every lane tip and is not this lane's to fix (`INDEX.md` is regenerated at the merge). Every other target is green — **and the attribution was measured, not assumed**; see below. |
 | `c2rs selftest` | **PASS on all 214 printed rows, 0 FAIL, 0 SKIP** — verified **NOT** `SKIP: toolchain absent` **before any measurement was taken** (brief §5) |
 | `scripts/gate.sh --jobs 16 --require-graded` | **unqualified `GATE: PASS`.** `lanes: 18 in the registry — 18 PASS, 0 FAIL, 0 SKIP, 0 NO-RESULT`; **7,056 fixture-verdicts**; sweep **19,542 of 19,638** graded, **0 mismatch**; cross **91,900 of 92,288** cells graded, **0 mismatch**; `hatch-red` 14/14, `ladder-red` 5/5; debug lane 18/18 at **0 panics** |
 | 878-TU workload scan | not re-run: this lane changed no compiled file, so every input to it is byte-identical to the base tree's |
 | fixtures, `c2rs census` | +0 — no fixture added, no census cell moved |
+
+**The one red is ATTRIBUTED by a control, not by the brief's say-so.** "Expected
+red" is the shape of excuse that hides a second failure behind a first, so it
+was measured: with `docs/rungs/2026-08-29-w-emitprice.md` moved aside, the
+target reads **`ok. 4 passed; 0 failed`**; with it restored, **`3 passed;
+1 failed`**. So the red is *exactly and only* this lane's missing `INDEX.md`
+row, the other three assertions of that target — including
+`rung_docs_claim_their_tag_slug_and_fixtures_exactly_once`, which is the one
+that validates this rung's own header block — are green **over this rung**, and
+nothing else is hiding underneath. The file was restored and `touch`ed (brief
+§5's mtime trap).
 
 **`#3835`'s hazard did not bite this run, and it was checked rather than
 assumed.** The gate prints its graded-tree hash twice and nothing compares
