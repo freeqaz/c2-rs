@@ -79,7 +79,8 @@ pub use self::diag::{cause, DecodeCauses};
 pub use self::ehscope::EhScopeTuIl;
 pub use self::ininit::{InInitReport, InInitResidue, InSymbolRef};
 pub use self::gl::{
-    gl_function_attrs, gl_noinline_names, gl_symbol_conflicts, gl_symbol_index, label_counter,
+    gl_function_attrs, gl_function_instr_counts, gl_noinline_names, gl_symbol_conflicts,
+    gl_symbol_index, label_counter,
     mangled_name, mangled_names, source_path, FN_FLAG_INLINABLE,
 };
 pub use self::glalias::{

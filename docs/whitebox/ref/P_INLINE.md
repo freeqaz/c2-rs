@@ -366,11 +366,35 @@ R5-NOSITES 195, R3-SIZE64 168, R4-OBLEVEL 144. R2's 38 misses are all
 ### 3.1 F7 refutes this page's own §2.2 as a *practical* input
 
 The budget is read correctly — the instructions are there — but moving the
-caller from 48 B to 5 640 B (i.e. `B` from 1 000 to ~2 820) changes **nothing on
-12 cells** `[O]`. Consistent with §2.2 (everything at `k ≤ 40` is free of the
-budget, everything above is already refused by the ceiling), and it means the
-budget is **not reachable from the flag/size space anyone has swept**. Recorded
-as **READ, NOT CONFIRMED**; no `DISCLOSURE` row proposes it.
+caller from 48 B to 5 640 B ~~(i.e. `B` from 1 000 to ~2 820)~~ changes
+**nothing on 12 cells** `[O]`. Recorded as **READ, NOT CONFIRMED**.
+
+> **CORRECTED TWICE, 2026-08-29 and 2026-08-30. Both halves of this paragraph's
+> explanation were wrong, and the null it explains is a property of the GRID.**
+>
+> * **The arithmetic was in the wrong unit** (`WB_INSTRCOUNT_FINDINGS` §5.1).
+>   `48` and `5,640` are the D cells' emitted `.text` **bytes**, and the step to
+>   `B ≈ 2,820` divides them by two — an "instruction" of 2 bytes, on a machine
+>   whose instructions are 4, testing a quantity that is not machine
+>   instructions at all. Re-measured by reading `WORD [sym+0x50]` out of the
+>   captured `.gl`, the caller counts are **23** and **4,923**, so
+>   **`B` ranges 1,000 → 9,846**, not 1,000 → 2,820. The axis *was* varied.
+> * **The reason the null is a null is the grid's design, not c2's rule.** The
+>   caller count reaches exactly two predicates and on the D family both had
+>   slack: C17 by **7.9×** (the three callee counts are 183 / 365 / 855, all
+>   under the floor `B = 1000`, and the tightest cell still has 145 of
+>   headroom) and C16 by **6.1×** (the largest total reaches 5,778 against
+>   35,000). **Every D cell has exactly one call site**, and one site cannot
+>   drain a budget that starts at 1,000. So F7 says *"one call site cannot
+>   reach the budget"* — true, useful, and **not** the stronger *"the caller's
+>   own size is NOT an input"* that this section and `WB_INLINE_FINDINGS` §4.1
+>   both drew from it.
+> * **`no DISCLOSURE row proposes it` is no longer true of the tree.** Lane
+>   `w-budget` adopted the seed on 2026-08-30 under `DISCLOSURE W-BUDGET-1`,
+>   with `B` computed from the caller's own `.gl` `SIZE`. **READ, NOT CONFIRMED
+>   still stands**: an adoption is not an `[O]`, and the grid that would confirm
+>   C3/C17 is `WB_INSTRCOUNT_FINDINGS` §5.3's — one caller, ≥ 8 sites, callees
+>   just under the ceiling — which nobody has run.
 
 ---
 
@@ -473,7 +497,7 @@ black-box fit, not a reading of this clause · `absent`: no counterpart in
 | # | clause | addr | state | witness | exercised by the workload |
 |---|---|---|---|---|---|
 | C1 | pass entry per function; whole pass skipped when `DAT_10c40ec4` == 0 | `0x10b62675` | **absent** | — | yes |
-| C2 | caller instruction count seeded: `DAT_10c3f5cc` = (ushort)`[fn+0x50]` | `0x10b62703` | **absent** | — | not separable (F7) |
+| C2 | caller instruction count seeded: `DAT_10c3f5cc` = WORD [[fn]+`0x50`] | `0x10b62703` | **`[R]`-derived** | `splice.rs:at_pass_entry_seeded` | not separable (F7 -- whose null WB_INSTRCOUNT SS5.1 re-measures as a property of the GRID: the axis moved B 1,000 to 9,846, not to 2,820) |
 | C3 | growth budget B = clamp(2 × caller_instrs, 1000, 35000) | `0x10b62708` | **`[R]`-derived** | `splice.rs:INLINE_BUDGET_FLOOR` | not separable (F7) |
 | C4 | driver entry `FUN_10b61ee1`(fn, level=1, budget=B, 0, 100000000, 0) | `0x10b6276e` | **absent** | — | not separable |
 | C5 | site collector: one linear scan; instruction kind `0x0f` is a call site | `0x10b600e6` | **absent** | — | yes |
@@ -487,8 +511,8 @@ black-box fit, not a reading of this clause · `absent`: no counterpart in
 | C13 | legality: REQUIRE bit 6 of `[sym+0x4c]` | `0x10b5c06b` | **`[R]`-derived** | `gl.rs:FN_FLAG_INLINABLE` (`0x40`) | yes |
 | C14 | depth cap: `0x10` < level - `DAT_10c3f50c` ⇒ decline (16 levels) | `0x10b60a1c` | **`[R]`-derived** | `splice.rs:INLINE_LEVEL_DEPTH_CAP` | **no** — no cell nests 16 deep |
 | C15 | maxlevel != `0xff` && maxlevel < level ⇒ decline | `0x10b60a2f` | **`[R]`-derived** | `splice.rs:INLINE_MAXLEVEL_UNBOUNDED` | **no** — `#pragma inline_depth` in 0/100 TUs |
-| C16 | caller-huge decline: 35000 < `DAT_10c3f5cc` | `0x10b60a63` | **absent** | — | **no** |
-| C17 | budget accept/decline: budget < instrs && instrs > `0x28` ⇒ DECLINE | `0x10b60a73` | **absent** | — | not separable (F7) |
+| C16 | caller-huge decline: 35000 < `DAT_10c3f5cc` | `0x10b60a63` | **`[R]`-derived** | `splice.rs:INLINE_GROWTH_TOTAL_MAX` | **no** |
+| C17 | budget accept/decline: budget < instrs && instrs > `0x28` ⇒ DECLINE | `0x10b60a73` | **`[R]`-derived** | `splice.rs:declines_unaffordable` | not separable (F7 -- and the first-site theorem, WB_INSTRCOUNT SS5.2: B >= 1000 for every caller, so an undrained budget cannot decline a callee under 1000) |
 | C18 | the 40-instruction test, SECOND copy: cmp WORD `[callee+0x50]`, `0x28` | `0x10b625b6` | **`[R]`-derived** | `splice.rs:INLINE_CHARGE_EXEMPT_MAX` | not separable |
 | C19 | the charge: `*budget` -= WORD`[callee+0x50]`; `DAT_10c3f5cc` += same | `0x10b625bb` | **`[R]`-derived** | `splice.rs:INLINE_CHARGE_EXEMPT_MAX` | not separable |
 | C20 | the expansion recurses back into the driver for the inlined body | `0x10b620fc` | **fitted** | `splice.rs:S6-chain` | yes (#1020, 150 witnesses) |
@@ -497,7 +521,7 @@ black-box fit, not a reading of this clause · `absent`: no counterpart in
 | C23 | parameter-table selection between `DAT_10c45e18` / `DAT_10c45ed0` | `0x10b5b86d` | **unexercisable** | — | unexercisable |
 | C24 | the tested quantity WORD `[sym+0x50]` is the .gl SIZE field, arriving verbatim | `0x10b9bf6c` | **`[R]`-derived** | `gl.rs:GL_SIZE_ESCAPE_PAYLOAD` (`W-GLATTRS-1`) | yes (99 escaped records) |
 
-**Per-state split: `[R]`-derived 7 · fitted 2 · absent 12 · unexercisable 3.**
+**Per-state split: `[R]`-derived 10 · fitted 2 · absent 9 · unexercisable 3.**
 **Exercised: yes 9 · no 6 · not separable 6 · unexercisable 3.**
 
 > **Generated** from [`work/w-inlmetric/CLAUSES.tsv`](../../../work/w-inlmetric/CLAUSES.tsv) by `work/w-inlmetric/gen_table.py --write`, over **24** rows. `crates/c2-harness/tests/clause_table.rs` goes RED when this block and the table diverge, so the three hand re-syncs of 2026-08-27..29 (`#3814`) cannot recur. **Nothing between the markers is hand-editable** -- edit `CLAUSES.tsv` and re-run.
@@ -568,15 +592,41 @@ black-box fit, not a reading of this clause · `absent`: no counterpart in
    is why `INLINE_DECLINE_LOOP_BYTES` has to exist at all: a loop body priced
    in emitted bytes is over-credited by ≈ 1.55 (§5 / F9).
 
-3. **C24 is the sharpest row on the page.** The port already **decodes the
-   field c2's decision tests** — `GL_SIZE_ESCAPE_PAYLOAD` shipped it, at
-   `mismatch 0`, with a `DISCLOSURE` row — **and then discards the value.**
-   §2.1a's *"the field the port already walks past to reach the attribute byte,
-   and throws away"* is a live statement about `crates/` today. **This is not a
-   recommendation to consult it**: §2.1b measured `SIZE` as an *upper bound* on
-   the tested quantity, with `arith_012` and `mix_008` at an identical `SIZE`
-   of 115 and opposite verdicts. Consuming it would be adopting a bound as
-   though it were the quantity.
+3. **C24 was the sharpest row on the page, and lane `w-budget` consumed it.**
+   The port already **decoded the field c2's decision tests** —
+   `GL_SIZE_ESCAPE_PAYLOAD` shipped it, at `mismatch 0`, with a `DISCLOSURE`
+   row — **and then discarded the value.** §2.1a's *"the field the port already
+   walks past to reach the attribute byte, and throws away"* was a live
+   statement about `crates/` until 2026-08-30.
+
+   > **AMENDED 2026-08-30, lane `w-budget`, `DISCLOSURE W-BUDGET-1`. This item
+   > used to end *"This is not a recommendation to consult it … consuming it
+   > would be adopting a bound as though it were the quantity."* That sentence
+   > is kept here because it was right about what it was about, and it is
+   > **not** what it was read as.**
+   >
+   > Its evidence is §2.1b's matched pair — `arith_012` and `mix_008`, identical
+   > `SIZE` 115, opposite verdicts — and that pair is a measurement about
+   > **C8, the candidacy size test**. `WB_INSTRCOUNT_FINDINGS` §2.4 then
+   > measured *every identified input* to that predicate across the same two
+   > cells and found them **identical**, `ATTR = 0x68` in both: so candidacy
+   > returns the same verdict for both, whatever that verdict is, and the
+   > separator is provably **downstream**. The pair does not show `SIZE` being a
+   > bound on the seed; it shows the *candidacy decision* having an input nobody
+   > has read.
+   >
+   > For the **budget seed** the question does not arise. §2.1a and §2.2's
+   > census establish **one writer in the image and no reducer** — the
+   > block-copy classes searched rather than assumed — so what c2 loads at
+   > `0x10b626f7` is what the `.gl` record carries, to the unit. C2 and C3 read
+   > that value and nothing else.
+   >
+   > **What is still not adopted, and this item's caution transfers to it
+   > whole:** nothing keyed on this value goes near C8's ceiling. §6's brackets
+   > (static `[261,267]`, external `[93,99]`) contain no `0x10 << k` and no
+   > single value fits both, and `#3732` bans adopting 128. The port's three
+   > `INLINE_*_BYTES` ceilings stay fitted, stay in emitted bytes, and stay
+   > `unit-gap`.
 
 4. **C13 is the one clause where two independent derivations MET.**
    `WB_INLINE_FINDINGS` §1 read c2's legality test at `0x10b5c06b` as

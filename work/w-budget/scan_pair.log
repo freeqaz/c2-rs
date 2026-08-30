@@ -1,0 +1,19 @@
+scan_pair.sh — required-zero scan pair
+  workload  <HOME>/code/milohax/dc3-decomp
+  list      <HOME>/code/milohax/c2-rs/.claude/worktrees/agent-a3f0472b8c89103d4/work/dc3-workload/files.txt (878 TUs)
+  compilers <HOME>/code/milohax/c2-rs/.claude/worktrees/agent-a3f0472b8c89103d4/compilers
+  wibo      <HOME>/code/milohax/c2-rs/.claude/worktrees/agent-a3f0472b8c89103d4/../wibo/build/release/wibo
+  base      work/w-budget/c2rs-base
+  tip       work/w-budget/c2rs-tip
+  stamp at start: 15a64d92f197+42949672950+42949672950
+
+  [base] stamp BEFORE 15a64d92f197+42949672950+42949672950
+  [base] stamp AFTER  15a64d92f197+42949672950+42949672950   (exit 0, log work/w-budget/scan_base.log)
+  [base] gap-metric keys: 566
+  [tip] stamp BEFORE 15a64d92f197+42949672950+42949672950
+  [tip] stamp AFTER  15a64d92f197+42949672950+42949672950   (exit 0, log work/w-budget/scan_tip.log)
+  [tip] gap-metric keys: 566
+
+STAMP HELD: 15a64d92f197+42949672950+42949672950  (HEAD+dirty-digest, read before and after each arm)
+IDENTITY DIFF: 0 lines over 566 keys (base) / 566 keys (tip)
+PAIR: IDENTICAL

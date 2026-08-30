@@ -1546,8 +1546,124 @@ const GL_SIZE_ESCAPE_PAYLOAD: usize = 2;
 /// with no refusal and no counter (board #3237). Instrumenting that skip path
 /// is a registered deciding probe and is not built.
 pub fn gl_function_attrs(gl: &[u8]) -> Option<std::collections::BTreeMap<String, u8>> {
-    let runs = symbol_runs(gl, true);
     let mut out = std::collections::BTreeMap::new();
+    for (name, _size, attr) in gl_function_records(gl)? {
+        // A name that occurs twice with two different attribute bytes is a file
+        // this reader has no answer for. Refused rather than resolved to either,
+        // for `gl_extern_data_names`' reason one door over: a name that is a
+        // defined symbol *anywhere* must not be admitted on the strength of some
+        // other record.
+        //
+        // **Moved out of the walk by lane `w-budget` and behaviour-preserving**:
+        // the walk used to `return None` here, mid-file; now the walk finishes
+        // and this loop returns `None`. Both spellings answer `None` for the
+        // whole file, which is the only thing this function's contract says, and
+        // the two orders cannot differ because every other refusal in the walk
+        // is also whole-file.
+        if let Some(&prev) = out.get(&name) {
+            if prev != attr {
+                return None;
+            }
+        }
+        out.insert(name, attr);
+    }
+    Some(out)
+}
+
+/// **The `.gl` function record's `SIZE` field, as a VALUE** — c2's pre-codegen
+/// per-function instruction count, keyed by the record's own name, or `None`
+/// when [`gl_function_records`] refused the file.
+///
+/// # This is the field c2's inline decision tests, and until now the port threw it away
+///
+/// `WB_INSTRCOUNT_FINDINGS.md` §1–§3 read it end to end: c2 loads the **symbol**
+/// first (`mov eax,[esi]` at `0x10b626f5`) and then `movzx eax,WORD [eax+0x50]`
+/// at `0x10b626f7`, so the quantity is `WORD [[fn]+0x50]`; its **sole writer in
+/// the image is `0x10b9bf6c`**, the `.gl` reader, which stores exactly this
+/// field; and c2 never recomputes it. c2's *own* instruction count exists, is
+/// 32-bit, lives at `[fnbody+0x8e]`, is what the `"%d instrs"` diagnostic prints
+/// — and never reaches the inline decision.
+///
+/// So the value this returns is, to the unit, the value c2 seeds its inline
+/// growth budget from. `P_INLINE.md` §6.2 item 3's caution — *"consuming it
+/// would be adopting a bound as though it were the quantity"* — is about **C8's
+/// candidacy test**, where `§2.1b`'s matched pair `arith_012`/`mix_008` have an
+/// identical `SIZE` and opposite verdicts. It does not bear on the **budget
+/// seed**, which is a direct read of this field with no reducer between the two
+/// (`WB_INSTRCOUNT_FINDINGS` §2.1–§2.2: one writer, and the block-copy classes
+/// searched rather than assumed).
+///
+/// # Three encodings, and the third is refused here exactly as it is above
+///
+/// A direct byte under `0x80` is its own value; the `0x80` escape carries a
+/// two-byte little-endian payload ([`GL_SIZE_ESCAPE_PAYLOAD`]). **`0x81..=0xff`
+/// is a third form that c2 sign-extends to `65,409..65,535`**, which seeds a
+/// caller above the 35,000 growth ceiling and makes c2 decline that caller's
+/// very first site. This reader refuses it, whole-file, exactly as
+/// [`gl_function_attrs`] always has — so the port never sees such a count, never
+/// acts on one, and the hazard stays a modelled point of the decision surface
+/// rather than a live input. It has **zero witnesses** in 28,838 workload
+/// records.
+///
+/// # A name with two different counts gets NO answer, and the file is not refused
+///
+/// The attribute map refuses the whole file on a conflict, because an attribute
+/// there is a *permission* and a wrong one licenses an emit. A count is not a
+/// permission: the consumer's fallback for "no count" is the port's behaviour
+/// before this field existed. So a disagreeing name is dropped from this map and
+/// every other name keeps its answer — and, critically, **this function's
+/// `None` set is identical to [`gl_function_attrs`]'s**, so no consumer can see
+/// one reader admit a file the other refused.
+///
+/// PROV[R] DISCLOSURE `W-BUDGET-1` — `0x10b9bf6c` (the sole writer, the store
+/// this field arrives through) and `0x10b626f5`/`0x10b626f7` (the load the
+/// inline pass makes of it). The field's *width* is DISCLOSURE `W-GLATTRS-1`
+/// and is unchanged; what is new here is the **value**, which that row
+/// explicitly did not adopt.
+pub fn gl_function_instr_counts(gl: &[u8]) -> Option<std::collections::BTreeMap<String, u16>> {
+    let recs = gl_function_records(gl)?;
+    // The attribute conflict still refuses the whole file. One walk, one refusal
+    // set: a caller must not be able to get a count out of a `.gl` whose
+    // attribute map was refused, because then two readers of one record would
+    // disagree about whether the file is readable at all.
+    let mut attrs: std::collections::BTreeMap<&str, u8> = std::collections::BTreeMap::new();
+    let mut out: std::collections::BTreeMap<String, u16> = std::collections::BTreeMap::new();
+    let mut conflicted: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for (name, size, attr) in &recs {
+        if let Some(&prev) = attrs.get(name.as_str()) {
+            if prev != *attr {
+                return None;
+            }
+        }
+        attrs.insert(name.as_str(), *attr);
+        match out.get(name) {
+            Some(&prev) if prev != *size => {
+                conflicted.insert(name.clone());
+            }
+            _ => {
+                out.insert(name.clone(), *size);
+            }
+        }
+    }
+    for n in conflicted {
+        out.remove(&n);
+    }
+    Some(out)
+}
+
+/// **The one walk over the `.gl` function records** — `(name, SIZE, ATTR-low)`
+/// per record, in file order, or `None` for a file whose record shape this
+/// reader does not understand.
+///
+/// Extracted from [`gl_function_attrs`] by lane `w-budget` so that the `SIZE`
+/// **value** and the `ATTR` byte come out of one traversal. `docs/GAPS.md` §6's
+/// "one fact, one locator": a second walk that stepped the same three
+/// variable-width fields would be a second chance to get the displacement wrong,
+/// and this reader's own doc records what a wrong displacement looks like —
+/// *not an error, a fact*.
+fn gl_function_records(gl: &[u8]) -> Option<Vec<(String, u16, u8)>> {
+    let runs = symbol_runs(gl, true);
+    let mut out: Vec<(String, u16, u8)> = Vec::new();
     let mut p = 0usize;
     while p + 5 <= gl.len() {
         if !crate::codec::gl_offset_framed(gl, p) {
@@ -1582,23 +1698,25 @@ pub fn gl_function_attrs(gl: &[u8]) -> Option<std::collections::BTreeMap<String,
         // field over, and it keeps the byte as a desync canary: a walk that has
         // drifted off a record boundary is far more likely to land on a high
         // byte than on a well-formed escape.
-        match *gl.get(q)? {
-            0x80 => q += 1 + GL_SIZE_ESCAPE_PAYLOAD,
-            b if b < 0x80 => q += 1,
-            _ => return None,
-        }
-        let attr = *gl.get(q)?;
-        // A name that occurs twice with two different attribute bytes is a file
-        // this reader has no answer for. Refused rather than resolved to either,
-        // for `gl_extern_data_names`' reason one door over: a name that is a
-        // defined symbol *anywhere* must not be admitted on the strength of some
-        // other record.
-        if let Some(&prev) = out.get(&runs[k].2) {
-            if prev != attr {
-                return None;
+        //
+        // **The refusal is now load-bearing twice over** (lane `w-budget`): c2
+        // sign-extends this form to `65,409..65,535`, which is a *count* above
+        // the growth ceiling, so admitting it would hand a consumer a number
+        // that means "decline everything" and looks like a size.
+        let size: u16 = match *gl.get(q)? {
+            0x80 => {
+                let v = u16::from(*gl.get(q + 1)?) | (u16::from(*gl.get(q + 2)?) << 8);
+                q += 1 + GL_SIZE_ESCAPE_PAYLOAD;
+                v
             }
-        }
-        out.insert(runs[k].2.clone(), attr);
+            b if b < 0x80 => {
+                q += 1;
+                u16::from(b)
+            }
+            _ => return None,
+        };
+        let attr = *gl.get(q)?;
+        out.push((runs[k].2.clone(), size, attr));
         p += 5;
     }
     Some(out)

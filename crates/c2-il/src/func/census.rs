@@ -385,6 +385,20 @@ pub struct FnCensus {
     /// [`super::IlBundle::functions`] still refuses its whole TU — #971
     /// condition 4, satisfied by construction and not by care.
     pub no_effect_nothing: bool,
+    /// **c2's pre-codegen instruction count for this function** — the `.gl`
+    /// record's `SIZE` field, read by [`super::gl_function_instr_counts`], keyed
+    /// on `emit_name` exactly as [`super::IlFunction::inlinable`] is and for the
+    /// same reason (#918: two bindings, one apparent fact).
+    ///
+    /// Three-valued in the same way, and the third value carries the same
+    /// contract: **`None` is UNASKED** — no `.gl`, a `.gl` the reader refused
+    /// whole-file, no record for this name, or two records disagreeing — and
+    /// every consumer must behave exactly as it did before this field existed.
+    ///
+    /// Added by lane `w-budget` so `c2_core::splice`'s budget model can seed
+    /// `B = clamp(2 × caller_instrs, 1000, 35000)` from the quantity c2 seeds it
+    /// from. PROV[R] DISCLOSURE `W-BUDGET-1`.
+    pub gl_instr_count: Option<u16>,
 }
 
 impl FnCensus {
@@ -910,6 +924,10 @@ impl IlBundle {
         // [`super::gl::gl_function_attrs`] for why that is a whole-file answer
         // and not a per-record one.
         let attrs = super::gl::gl_function_attrs(gl);
+        // **W-BUDGET — the `.gl` `SIZE` field's VALUE, once per bundle**, from
+        // the same walk `attrs` comes out of. `None` on exactly the files
+        // `attrs` is `None` on; see [`super::gl::gl_function_instr_counts`].
+        let instr_counts = super::gl::gl_function_instr_counts(gl);
         Some(
             segs.iter()
                 .enumerate()
@@ -1795,6 +1813,17 @@ impl IlBundle {
                             // §"what it refuses").
                             no_effect_callee,
                             no_effect_nothing,
+                            // Keyed on `emit.name(i)`, the consumer's key, for
+                            // the reason spelled out at `f.inlinable` above: the
+                            // `TuContext` the splice looks this up through is
+                            // built under the same binding, and filing a
+                            // name-keyed fact under any other one attaches it to
+                            // a different function (#918).
+                            gl_instr_count: instr_counts
+                                .as_ref()
+                                .zip(emit.name(i))
+                                .and_then(|(m, n)| m.get(n))
+                                .copied(),
                         },
                         func,
                     )

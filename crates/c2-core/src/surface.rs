@@ -175,16 +175,20 @@ pub const SURFACES: &[Surface] = &[
         site: "splice.rs",
         boundary: "c2's inline growth budget across a recursive expansion — the \
                    seed clamp, the per-site division, the level, the charge, \
-                   and the site count at which the port must REFUSE because \
-                   `B` is unreadable",
-        cite: "docs/whitebox/ref/P_INLINE.md §6.6.2; c2 `0x10b623ec` (the idiv), \
-               `0x10b602ce` (the level increment); DISCLOSURE W-INLBUDGET-1; \
-               board #3762, #1020, #3719",
+                   the running growth total and the caller size at which it \
+                   caps, and the site count at which the port must REFUSE \
+                   because the caller's instruction count was unreadable",
+        cite: "docs/whitebox/ref/P_INLINE.md §6.6.2; \
+               docs/whitebox/WB_INSTRCOUNT_FINDINGS.md §1, §4, §5.2; \
+               c2 `0x10b623ec` (the idiv), `0x10b602ce` (the level increment); \
+               DISCLOSURE W-INLBUDGET-1, W-BUDGET-1; \
+               board #3762, #1020, #3719, #3849",
         guards: &[
             "INLINE_BUDGET_FLOOR",
             "INLINE_BUDGET_CEILING",
             "INLINE_LEVEL_DEPTH_CAP",
             "INLINE_CHARGE_EXEMPT_MAX",
+            "INLINE_GROWTH_TOTAL_MAX",
         ],
         rows: crate::splice::surface_rows,
         min_cells: 500,

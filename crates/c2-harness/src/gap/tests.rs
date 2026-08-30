@@ -2988,6 +2988,9 @@ fn grade_one_files_a_parse_refusal_under_the_parser_and_not_the_selector() {
             prod: "prod-not-entered",
             opt_word: Some(c2_il::OPT_WORD_O1),
             emit_name: Some("?f@@YAXXZ".into()),
+            // Lane `w-budget`: `None` is UNASKED, which is what a hand-built
+            // row with no `.gl` behind it honestly has.
+            gl_instr_count: None,
             no_effect_callee: None,
             no_effect_nothing: false,
         },

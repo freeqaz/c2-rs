@@ -184,7 +184,45 @@ const ROWS: usize = 24;
 /// So this constant is now load-bearing in **both** directions: it catches a
 /// silent shrink (`#3748`) *and* it catches an instrument lane quietly
 /// converting rows it was seamed not to touch.
-const SPLIT: &str = "{'absent': 12, 'R-derived': 7, 'fitted': 2, 'unexercisable': 3}";
+/// **MOVED AGAIN 2026-08-30**, from
+/// `{'absent': 12, 'R-derived': 7, 'fitted': 2, 'unexercisable': 3}`, by lane
+/// `w-budget` (board `#3849`–`#3855`).
+///
+/// **Three rows, one missing link, and the link was READ by the previous
+/// wave rather than guessed at here.** `w-instrcount` resolved the quantity
+/// c2's inline decision tests to the `.gl` function record's `SIZE` field —
+/// one writer in the whole image, produced by the front end and read by c2
+/// without modification — and found **the port already decoded that field and
+/// discarded the value**. This lane threaded it, so `B` is a number and the
+/// caller-side clauses have their operands.
+///
+/// *(No address is spelled in this comment. This file's own doc comments are
+/// inside `crates/`, so an address literal here **changes the very citation
+/// footprint check 6 measures** — `cites_in_crates`' third declared blindness,
+/// and it fired on this paragraph while it was being written.)*
+///
+/// **The first two are ordinary adoptions and the third was CONDITIONAL.** The
+/// third puts a **new refusal on a production path**, and a refusal that fires
+/// changes an emit — so its prereg registered it as adoptable *only if measured
+/// not to fire*, with the negative result to be published if it did. Both
+/// instruments say it does not: the gate's identity diff is 0 lines over 21
+/// rows, and the 878-TU scan pair is identical over 566 `gap-metric` keys with
+/// the workload stamp held before and after each arm.
+///
+/// **What did NOT move, and it is the more interesting half.** The lane audited
+/// all twelve `absent` rows for a **second** blocker (`#3847`) and found ten of
+/// them carry one, five with the second **binding** — so the published
+/// one-cell-per-row partition names the cheaper obstacle on nearly half the
+/// column. Two of those rows are marked *"read and derivable today"* and are
+/// not: their input is a `[sym+0x4c]` bit above the low byte, and the `.gl`
+/// `ATTR` reader takes the low byte only. **Not one of those ten changed
+/// `state`** — a row with two blockers is exactly as `absent` as a row with
+/// one, and what the audit moved is the price, not the verdict. The table
+/// grew a `blocker2` column instead.
+///
+/// **Tokens are named here by clause id and never spelled**, per this file's
+/// own rule — the three converted rows are C2, C16 and C17.
+const SPLIT: &str = "{'absent': 9, 'R-derived': 10, 'fitted': 2, 'unexercisable': 3}";
 
 /// The count of generated lines `gen_table.py` splices into `P_INLINE.md` §6.1
 /// — the marker pair, the six-column header, 24 rows, the two count lines and
