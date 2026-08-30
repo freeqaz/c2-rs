@@ -282,8 +282,12 @@ because at `/Ox` there is no size rule.
   by construction"*).
 * **BUY, U4: high.** It is a real settable decision point with a **real input
   already in the port**, which no other row on this page can say.
-* **REFUSAL COST: 0.** The clause cannot fire at `/O1`, and `/Ox` TUs never
-  reach the size seam — `IlBundle::functions` requires every segment at `/O1`.
+* **REFUSAL COST: 0.** The clause cannot fire at `/O1`, and no `/Ox` TU reaches
+  the size seam at all — `comdat.rs`'s own statement of its precondition:
+  *"`IlBundle::functions` hands a TU on only when every locally-defined callee
+  has PLAIN EXTERNAL linkage … **and every segment is at `/O1`** (the mode the
+  bound is measured at)"* (`crates/c2-core/src/comdat.rs:272`–`277`). Quoted as
+  that module's claim about its own gate, not re-derived here.
 * **Verdict: C9 is ADOPTABLE and its blocker is `none`, not `emit-change`.**
   A byte-neutral lane may take it. This is the row the partition recommends
   first, and it is the cheapest of the five.
