@@ -153,6 +153,14 @@ Three readings, and the third is the price:
    `5 + 3` cells of lost reach on a probe family.
 2. **Adopting C7's value costs wrong emits at the accept seam** — 3 at `/O1`
    raw, **24** through the naive one-instruction-is-one-PPC-word conversion.
+
+   > **The cleanest demonstration of §2.1's flip is inside this table.** Rows 3
+   > and 4 are the *same threshold on the same cells*: `INLINE_DECLINE_BYTES`
+   > **is already 128**, and it shows the same **3 FALSE-INLINE**. At the FENCE
+   > seam those 3 are lost reach and are shipped today; move that number to the
+   > ACCEPT seam and the identical 3 cells become 3 wrong emits. **The same
+   > constant, the same errors, opposite verdicts** — which is why a summed
+   > accuracy score cannot price this row and why it sat unpriced.
 3. **The only translation scoring 0/0 at `/O1` is one whose converter is fitted
    to the very bracket the incumbent constants were fitted to** — and it costs
    12 at `/Ox`. So **C7's VALUE carries no information the port does not
