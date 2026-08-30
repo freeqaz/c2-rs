@@ -160,15 +160,30 @@ the graded-tree hash below is the base tree's.
 
 | lane | result |
 |---|---|
-| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | <FILLED BELOW> |
-| `scripts/gate.sh --jobs 16 --require-graded` | <FILLED BELOW> |
-| `c2rs selftest` | all fixtures `PASS`, **0** `SKIP: toolchain absent` lines (worktree verified before any work) |
-| 878-TU workload scan | not run — no `crates/` change to grade |
+| `C2RS_REQUIRE_TOOLCHAIN=1 cargo test --workspace --release --no-fail-fast` | **62 targets · 2,014 passed · 1 failed · 2 ignored** — the one failure is `rung_index_is_generated_and_current` (below) |
+| `scripts/gate.sh --jobs 16 --require-graded` | **`GATE: PASS`** — 18/18 lanes ran and every one graded a corpus; the sweep graded **19,542 of 19,638** generated cases, the cross **91,900 of 92,288** case-lane cells, **0 mismatches anywhere**; 18/18 ran again through a DEBUG-profile `c2rs` for **7,056** more fixture-verdicts at **0 panics**. Verdict read from the `GATE:` LINE, never the exit code |
+| **graded tree** | **`c1eb31f530bd`** (810 files: `crates fixtures scripts`, content-hashed) — **identical at both ends of the run**, which is the byte-delta-0 evidence rather than an assertion of it |
+| `c2rs selftest` | all fixtures `PASS`, **0** `SKIP: toolchain absent` lines — the worktree was verified before any work, per `WAVE21_BRIEF` §5 |
+| `scripts/board_audit.sh` | 0 duplicate row numbers · 0 unresolved section anchors · 0 cited-but-absent |
+| `tracked_artifact_audit.sh` ABS_FWD regex over this lane's files | **0** absolute machine paths under `work/w-sizetest/` and `docs/whitebox/grids/w-sizetest/` |
+| 878-TU workload scan | not run — no `crates/` change to grade, and a scan that regrades an unchanged port is not evidence |
 | fixtures, `c2rs census` | not moved — `Fixtures: none` |
 
-`rung_index_is_generated_and_current` is **RED at this lane's tip** by
-construction (`INDEX.md` is regenerated at merge, `WAVE21_BRIEF` §4) and is not
-this lane's to fix.
+**The one red, and why it is expected rather than excused:**
+`rung_index_is_generated_and_current` fails because `docs/rungs/INDEX.md` is
+**generated at merge** (`WAVE21_BRIEF` §4: *"will be red at every lane tip and
+that is expected, not yours to fix"*). Its three sibling tests in the same
+target **pass**, including
+`rung_docs_claim_their_tag_slug_and_fixtures_exactly_once` — so this rung's own
+header block is validated by the same file that reports the red.
+
+**On `#3835`, which `w-gatehash` is automating this wave:** this lane's tree
+moved *during* the first gate run (docs-only commits), which is exactly the
+condition `#3835` says produces an authoritative-looking transcript over two
+different trees. It did not here, and the reason is checkable rather than
+assumed — the graded tree is hashed over `crates fixtures scripts` only, and
+`gate.sh` printed **the same hash at both ends**. That comparison was made by
+hand; making it automatic is `#3863`–`#3869`'s job.
 
 ## Found and not taken
 
