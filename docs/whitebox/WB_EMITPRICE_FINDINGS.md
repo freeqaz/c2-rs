@@ -540,6 +540,21 @@ has ever been read out of real IL by anything in this repo.
 > discharges all three, and buying it for C10 alone leaves two-thirds of its
 > value on the table.
 
+**And the unknown has TWO layers, which is worth separating so the next lane
+does not over-buy.** The reader makes the population *measurable*; it does not
+make it *non-empty*.
+
+| layer | question | state |
+|---|---|---|
+| 1 | can anything in `crates/` see the bits? | **No.** Closed by building the decoder. |
+| 2 | does the workload contain a function carrying one? | **Unknown**, and the only evidence is n = 6 with 0 hits — which leans *empty*. |
+
+So a coordinator funding this should fund it **for C10**, whose value does not
+depend on layer 2 at all (it is a decision point with a real input, `[O]`
+confirmed), and take C11/C12's layer-2 answer as a **free by-product** of the
+same reader. Funding the reader *in order to* close C11/C12 would be buying an
+unknown, and the weak evidence available points at zero.
+
 ---
 
 ## 6. The artifact check, run and reported — including that it FIRED
