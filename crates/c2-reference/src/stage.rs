@@ -113,6 +113,44 @@ pub const OPT_GATED_SITES: &[&str] = &["sched1", "sched2", "sched3", "sched0"];
 /// PROV[R] DISCLOSURE `W-STAGETAP-7` — five call-site addresses read out of `c2.dll` (`0x10b31ed7`, `0x10b31f00`, `0x10b31f18`, `0x10b31f58`, `0x10b31f69`). Names only here; the addresses live in `c2host/stagetap.c`'s `g_sites[]`. Fail-closed at run time exactly like the rows above.
 pub const CAND_SITES: &[&str] = &["cnocol", "creq", "cspill", "csel", "casg"];
 
+/// The ten **candidate-origin** sites (lane `w25-regasg`), in
+/// `c2host/stagetap.c` table order, which follows [`CAND_SITES`]: every
+/// direct call of the candidate constructor `0x10b54d32` (`cm*`), plus three
+/// call sites of the candidate destructor `0x10b2efd6` (`cf*`), whose free
+/// list the constructor pops LIFO. They let each `CAND` line carry
+/// `org <site>#<n>` and each function's `CFN` line be followed by its
+/// `CMINT` / `CFREE` log. Arm them with [`CAND_SITES`].
+/// PROV[R] DISCLOSURE `W-STAGETAP-9` — ten call-site addresses read out of `c2.dll` (`0x10b56839`, `0x10b55e66`, `0x10bfd98b`, `0x10c2073c`, `0x10b2e151`, `0x10b2e655`, `0x10b2e732`, `0x10b55e10`, `0x10bfd62f`, `0x10b313b2`). Names only here; the addresses live in `c2host/stagetap.c`'s `g_sites[]`. Fail-closed at run time exactly like the rows above.
+pub const MINT_SITES: &[&str] = &[
+    "cmk0d", "cmarena", "cmcode", "cmlive", "cmsplit1", "cmsplit2", "cmsplit3", "cfarena", "cfben", "cfcolor",
+];
+
+/// The eight **regasg** sites (lane `w25-regasg`), in `c2host/stagetap.c`
+/// table order, which follows [`MINT_SITES`].
+///
+/// `regasg.c` is c2's SECOND register allocator: it runs after COLOR and the
+/// third scheduler run, walks the tuple list forward, and gives a register to
+/// every value COLOR did not promote (expression temps). Like
+/// [`CAND_SITES`] these fire per tuple / per temp, never once per function,
+/// so the per-function hit-count tests never arm them. Arm them with
+/// [`Toolchain::replay_tapped_cands_with`] and [`CandPayload::regasg`].
+/// PROV[R] DISCLOSURE `W-STAGETAP-8` — eight call-site addresses read out of `c2.dll` (`0x10bc6491`, `0x10c1b867`, `0x10bc6418`, `0x10bc624f`, `0x10bc6145`, `0x10bc5122`, `0x10bc6021`, `0x10bc602c`). Names only here; the addresses live in `c2host/stagetap.c`'s `g_sites[]`. Fail-closed at run time exactly like the rows above.
+pub const RASG_SITES: &[&str] = &["rafn", "rarerun", "ratup", "radef", "raevict", "rareload", "raspill", "racom"];
+
+/// What the candidate payload carries.
+///
+/// The default is exactly lane `w24-c2rs`'s `stage cands`: COLOR's worklist
+/// and nothing else, for every function.
+#[derive(Clone, Debug, Default)]
+pub struct CandPayload {
+    /// Also emit the `regasg.c` payload (`RFN` / `RT` / `RASG` lines);
+    /// requires [`RASG_SITES`] in the armed list.
+    pub regasg: bool,
+    /// Emit the payload only for functions whose raw name contains this.
+    /// Payload only — it never changes what c2 compiles.
+    pub fn_filter: Option<String>,
+}
+
 /// What one armed run reported.
 ///
 /// Deliberately **not** a snapshot digest type: at this revision the payload is
@@ -864,7 +902,7 @@ impl Toolchain {
         raw: u32,
     ) -> io::Result<(ObjImage, TapReport)> {
         let (obj, rep) =
-            self.replay_tapped_inner(captured, bundle_dir, out_obj, taps, payload, raw, None, true, None, false)?;
+            self.replay_tapped_inner(captured, bundle_dir, out_obj, taps, payload, raw, None, true, None, None)?;
         // `require_obj` was true, so the missing-obj case returned `Err` above.
         let obj = obj.expect("replay_tapped_inner(require_obj = true) returned no obj");
         Ok((obj, rep))
@@ -914,7 +952,7 @@ impl Toolchain {
             Some(force_slide),
             false,
             None,
-            false,
+            None,
         )
     }
 
@@ -945,7 +983,7 @@ impl Toolchain {
             None,
             true,
             Some((ops, funcwalk)),
-            false,
+            None,
         )?;
         let obj = obj.expect("replay_tapped_inner(require_obj = true) returned no obj");
         Ok((obj, rep))
@@ -964,6 +1002,21 @@ impl Toolchain {
         out_obj: &Path,
         taps: &[&str],
     ) -> io::Result<(ObjImage, TapReport)> {
+        self.replay_tapped_cands_with(captured, bundle_dir, out_obj, taps, &CandPayload::default())
+    }
+
+    /// [`Toolchain::replay_tapped_cands`] with the payload options spelled out:
+    /// the `regasg.c` lines (lane `w25-regasg`) and a function-name filter.
+    /// The same judge applies — the caller compares the obj against a
+    /// disarmed replay.
+    pub fn replay_tapped_cands_with(
+        &self,
+        captured: &CapturedReference,
+        bundle_dir: &Path,
+        out_obj: &Path,
+        taps: &[&str],
+        opts: &CandPayload,
+    ) -> io::Result<(ObjImage, TapReport)> {
         let (obj, rep) = self.replay_tapped_inner(
             captured,
             bundle_dir,
@@ -974,7 +1027,7 @@ impl Toolchain {
             None,
             true,
             Some((false, false)),
-            true,
+            Some(opts),
         )?;
         let obj = obj.expect("replay_tapped_inner(require_obj = true) returned no obj");
         Ok((obj, rep))
@@ -992,14 +1045,33 @@ impl Toolchain {
         force_slide: Option<u32>,
         require_obj: bool,
         probe: Option<(bool, bool)>,
-        cands: bool,
+        cands: Option<&CandPayload>,
     ) -> io::Result<(Option<ObjImage>, TapReport)> {
         let (mut cmd, out_abs) = self.build_replay_command(captured, bundle_dir, out_obj)?;
-        // The candidate payload: set or REMOVED, never inherited.
-        if cands {
-            cmd.env("C2RS_STAGE_CANDS", "1");
-        } else {
-            cmd.env_remove("C2RS_STAGE_CANDS");
+        // The candidate payload and its two options: set or REMOVED, never
+        // inherited.
+        match cands {
+            Some(c) => {
+                cmd.env("C2RS_STAGE_CANDS", "1");
+                if c.regasg {
+                    cmd.env("C2RS_STAGE_REGASG", "1");
+                } else {
+                    cmd.env_remove("C2RS_STAGE_REGASG");
+                }
+                match &c.fn_filter {
+                    Some(f) if !f.is_empty() => {
+                        cmd.env("C2RS_STAGE_FNFILTER", f);
+                    }
+                    _ => {
+                        cmd.env_remove("C2RS_STAGE_FNFILTER");
+                    }
+                }
+            }
+            None => {
+                cmd.env_remove("C2RS_STAGE_CANDS");
+                cmd.env_remove("C2RS_STAGE_REGASG");
+                cmd.env_remove("C2RS_STAGE_FNFILTER");
+            }
         }
         match force_slide {
             Some(v) => {

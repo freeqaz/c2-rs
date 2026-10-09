@@ -32,7 +32,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use c2_obj::{ObjDiff, ObjImage};
-use c2_reference::stage::{TapReport, CAND_SITES, OPT_GATED_SITES, STAGE_SITES};
+use c2_reference::stage::{CandPayload, TapReport, CAND_SITES, MINT_SITES, OPT_GATED_SITES, RASG_SITES, STAGE_SITES};
 use c2_reference::Toolchain;
 
 use c2_harness::toolchain_gate::{toolchain_ready, Cap};
@@ -56,6 +56,7 @@ static STAGE_SPEC: Spec = Spec::new(
         ("--force-slide", Arity::Value),
         ("--fn", Arity::Value),
         ("--save-obj", Arity::Value),
+        ("--regasg", Arity::Flag),
     ],
 )
 .requires(&[("--cwd", "--flags-file")])
@@ -250,7 +251,8 @@ pub(crate) fn cmd_stage(rest: &[String]) -> ExitCode {
         eprintln!(
             "usage: c2rs stage <counts|snap|determinism|neutrality|cands> [--fixtures a.cpp,b.cpp] \
              [--limit N] [--runs N] [--payload] [--flag F ...]\n\
-             cands: [--fn SUBSTR] [--save-obj PATH] — register-allocation candidate dump\n\
+             cands: [--fn SUBSTR] [--save-obj PATH] [--regasg] — register-allocation candidate dump\n\
+             (--regasg adds the regasg.c second-allocator lines: RFN / RT / RASG)\n\
              default flags: /O1 /Oi /EHsc /GS- /c (the workload's own profile)"
         );
         return ExitCode::from(2);
@@ -324,7 +326,15 @@ pub(crate) fn cmd_stage(rest: &[String]) -> ExitCode {
         "counts" => cmd_counts(&tc, &fixtures, &flags, cwd),
         "snap" => cmd_snap(&tc, &fixtures, &flags, raw, cwd),
         "determinism" => cmd_determinism(&tc, &fixtures, &flags, payload, runs, cwd),
-        "cands" => cmd_cands(&tc, &fixtures, &flags, cwd, args.get("--fn"), args.path("--save-obj")),
+        "cands" => cmd_cands(
+            &tc,
+            &fixtures,
+            &flags,
+            cwd,
+            args.get("--fn"),
+            args.path("--save-obj"),
+            args.has("--regasg"),
+        ),
         _ => unreachable!(),
     }
 }
@@ -1041,6 +1051,29 @@ fn cmd_determinism(
 ///   non-zero cost entries for that candidate;
 /// * `CAND nocol` / `spill` / `req` — the other three exits of the pop.
 ///
+/// Every `CAND` line also carries `org <site>#<n>` (lane `w25-regasg`): which
+/// of the [`MINT_SITES`] constructor call sites minted that candidate id, and the mint's
+/// position within the function — `k0d` (globregs' constant/address
+/// pre-pass, a FORWARD tuple walk), `arena` (the symbol-arena x version
+/// mint), `live`, `code`, `split1..3`. A `k0d` candidate also prints
+/// `val k<operand kind> <name | #constant>`.
+///
+/// With `--regasg` (lane `w25-regasg`) the eight [`RASG_SITES`] are armed
+/// too, and each function also gets the `regasg.c` second-allocator lines:
+///
+/// * `RFN` — the regasg driver's entry for the function (with the round-robin
+///   flag `rr` and the FPR-list flag `fv`);
+/// * `RT` — every real tuple in the order regasg walks it (the third
+///   scheduler run's output, NOT the final order), with its block number
+///   (label = cursor reset), mnemonic, defs `d{}` and uses `u{}`;
+/// * `RASG sel` — a temp sent to the selector: symbol, class, copy hint
+///   (`pref`), the class cursor (`cur`) and the class list in order with
+///   `*` occupied / `!` interfering marks; `RASG asg` — the register taken;
+///   `RASG spill` — none was free.
+///
+/// `--fn` is forwarded to the tap as a payload filter, so a whole dc3 TU
+/// stays inside the payload arena.
+///
 /// The judge line is `stage-tap-obj-differs` (REQUIRED 0): the armed obj
 /// must be byte-identical to the disarmed one. `replay-vs-capture-differs`
 /// checks the disarmed replay against the capture's own obj.
@@ -1051,9 +1084,15 @@ fn cmd_cands(
     cwd: Option<&Path>,
     fn_filter: Option<&str>,
     save_obj: Option<PathBuf>,
+    regasg: bool,
 ) -> ExitCode {
     let mut taps: Vec<&str> = vec!["color"];
     taps.extend_from_slice(CAND_SITES);
+    taps.extend_from_slice(MINT_SITES);
+    if regasg {
+        taps.extend_from_slice(RASG_SITES);
+    }
+    let opts = CandPayload { regasg, fn_filter: fn_filter.map(str::to_string) };
     let (mut differs, mut fired, mut errs, mut replay_differs) = (0usize, 0usize, 0usize, 0usize);
     for cpp in fixtures {
         let name = cpp.display().to_string();
@@ -1095,7 +1134,7 @@ fn cmd_cands(
         if let Some(p) = &save_obj {
             let _ = std::fs::write(p, disarmed.as_bytes());
         }
-        let (armed, rep) = match tc.replay_tapped_cands(&captured, &il, &out, &taps) {
+        let (armed, rep) = match tc.replay_tapped_cands_with(&captured, &il, &out, &taps, &opts) {
             Ok(v) => v,
             Err(e) => {
                 eprintln!("cands: {name}: armed replay: {e}");
@@ -1120,7 +1159,14 @@ fn cmd_cands(
                 if show {
                     println!("{l}");
                 }
-            } else if l.starts_with("CAND ") && show {
+            } else if let Some(rest) = l.strip_prefix("RFN ") {
+                show = fn_filter.map_or(true, |f| rest.contains(f));
+                if show {
+                    println!("{l}");
+                }
+            } else if (l.starts_with("CAND ") || l.starts_with("CMINT ") || l.starts_with("  CMINT ") || l.starts_with("CFREE ") || l.starts_with("  CFREE ") || l.starts_with("RFN-RERUN")) && show {
+                println!("  {l}");
+            } else if (l.starts_with("RT ") || l.starts_with("RASG ")) && show {
                 println!("  {l}");
             } else if l.starts_with("REFUSE") {
                 println!("  {l}");
