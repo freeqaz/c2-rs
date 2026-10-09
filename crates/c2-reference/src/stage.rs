@@ -137,6 +137,19 @@ pub const MINT_SITES: &[&str] = &[
 /// PROV[R] DISCLOSURE `W-STAGETAP-8` — eight call-site addresses read out of `c2.dll` (`0x10bc6491`, `0x10c1b867`, `0x10bc6418`, `0x10bc624f`, `0x10bc6145`, `0x10bc5122`, `0x10bc6021`, `0x10bc602c`). Names only here; the addresses live in `c2host/stagetap.c`'s `g_sites[]`. Fail-closed at run time exactly like the rows above.
 pub const RASG_SITES: &[&str] = &["rafn", "rarerun", "ratup", "radef", "raevict", "rareload", "raspill", "racom"];
 
+/// The four **benefit** sites (lane `w25-regasg`), in `c2host/stagetap.c`
+/// table order, which follows [`RASG_SITES`]: the two calls in globregs'
+/// step-4 walk that precede its only two pre-COLOR writes of `cand+0x40`
+/// (a def in an opcode-`0x2b7` tuple decrements it, a use of a versioned
+/// symbol increments it), and the call of the negative-benefit pass, where
+/// the field is final; plus the call inside that pass that rewrites a
+/// one-block local onto a fresh temp (the pass's second, benefit-free free
+/// source). Each function's `CFN` line is then followed by one
+/// `CBEN` line per candidate: c2's own benefit beside the recount of its
+/// terms. Arm them with [`CAND_SITES`].
+/// PROV[R] DISCLOSURE `W-STAGETAP-10` — four call-site addresses read out of `c2.dll` (`0x10b55fb7`, `0x10b563ac`, `0x10b57802`, `0x10bfd32b`). Names only here; the addresses live in `c2host/stagetap.c`'s `g_sites[]`. Fail-closed at run time exactly like the rows above.
+pub const BEN_SITES: &[&str] = &["cbdef", "cbuse", "cbpre", "cbdem"];
+
 /// What the candidate payload carries.
 ///
 /// The default is exactly lane `w24-c2rs`'s `stage cands`: COLOR's worklist

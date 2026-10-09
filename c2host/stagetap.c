@@ -207,6 +207,42 @@ static const TapSite g_sites[] = {
     { "rareload", 0x10bc5122u, 0x10bc58d5u, "regasg selector: spill reload" },
     { "raspill",  0x10bc6021u, 0x10bc4eaeu, "regasg selector found no register: spill" },
     { "racom",    0x10bc602cu, 0x10bc4ba1u, "regasg commit, register in ecx, symbol in edx" },
+    /* THE BENEFIT SITES (lane w25-regasg, DISCLOSURE `W-STAGETAP-10`): the
+     * terms of `cand+0x40`, the benefit globregs' negative-benefit pass
+     * FUN_10bfcf7c tests (`cmp DWORD PTR [eax+0x40],0x0` / `jge` at
+     * 0x10bfcfdd, 0x10bfd0a1). Before COLOR the field has exactly two
+     * writers, both in the step-4 walk FUN_10b55eae (all other pre-COLOR
+     * writers of `[r+0x40]` are BLOCK records):
+     *   10b561fd: ff 48 40 dec DWORD PTR [eax+0x40]  ; a DEF in a tuple with
+     *            opcode 0x2b7 (0x10b55fe9), symbol versioned
+     *   10b563c3: ff 47 40 inc DWORD PTR [edi+0x40]  ; a USE whose symbol is
+     *            versioned (`[[op+0x18]+0x34]+0x18 != 0`, 0x10b563b4..bb)
+     * plus 0x10b560df `mov DWORD PTR [eax+0x40],0x10000000` (a pinned value).
+     * The two calls immediately before each are the observation points;
+     * the candidate is `op+0x1c`, stored just before each call (0x10b55fa9,
+     * 0x10b56398).
+     *   10b55fb2: 8b d3 mov edx,ebx / 10b55fb7: e8 13 60 0a 00 call 0x10bfbfcf
+     *            ; ecx = tuple ([ebp-0x4]), edx = the DEF operand
+     *   10b563a7: 8b d3 mov edx,ebx / 10b563ac: e8 4e 5c 0a 00 call 0x10bfbfff
+     *            ; ecx = tuple, edx = the USE operand
+     *   10b57800: 8b ce mov ecx,esi / 10b57802: e8 75 57 0a 00 call 0x10bfcf7c
+     *            ; THE NEGATIVE-BENEFIT PASS, ecx = function record: the
+     *            benefit of every candidate is final here
+     */
+    { "cbdef",    0x10b55fb7u, 0x10bfbfcfu, "benefit term: a def in the step-4 walk" },
+    { "cbuse",    0x10b563acu, 0x10bfbfffu, "benefit term: a use in the step-4 walk" },
+    { "cbpre",    0x10b57802u, 0x10bfcf7cu, "before the negative-benefit pass" },
+    /* Inside that pass, 0x10bfd0fd..0x10bfd3fc is a SECOND free source with
+     * no benefit test at all: a candidate of an UNVERSIONED symbol
+     * (`[[sym+0x34]+0x18] == 0`) whose every reference lies in one block and
+     * which has exactly one qualifying def is rewritten onto a fresh temp
+     * (FUN_10bd42ff for one use, FUN_10bd432e otherwise) and its id added to
+     * the free set the loop at 0x10bfd636 drains in ASCENDING id order.
+     *   10bfd323: 8b 56 2c mov edx,[esi+0x2c]   ; the def operand (-> cand)
+     *   10bfd328: 53       push ebx             ; the NEW temp symbol
+     *   10bfd32b: e8 d9 a7 fd ff call 0x10bd7b09 ; ecx = the def tuple
+     */
+    { "cbdem",    0x10bfd32bu, 0x10bd7b09u, "demotion: a one-block local onto a fresh temp" },
 };
 #define N_SITES ((int)(sizeof(g_sites) / sizeof(g_sites[0])))
 
@@ -889,8 +925,21 @@ static unsigned int  g_mint_n = 0;
 #define MLOG_MAX 4096u
 static unsigned int  g_mlog_id[MLOG_MAX], g_mlog_sym[MLOG_MAX];
 static unsigned char g_mlog_site[MLOG_MAX], g_mlog_reuse[MLOG_MAX];
+static unsigned int  g_mlog_x[MLOG_MAX];      /* CFREE: cand+0x40; CDEMOTE: the new temp */
+static unsigned int  g_mlog_op[MLOG_MAX];     /* CDEMOTE: the def tuple's opcode */
 static unsigned int  g_mlog_n = 0;
 static int           g_in_color = 0;
+
+static void ap_mnem(unsigned int opcode);
+static void ap_symk(unsigned int sym)
+{
+    unsigned int sk = 0;
+    if (plausible(sym)) {
+        ap_dec(csym_ordinal(sym));
+        rd8(sym, 0x4, &sk);
+        ap("/k"); ap_hex(sk, 2);
+    } else ap("?");
+}
 
 static void ap_cmint(unsigned int seq, unsigned int id, int site, int reuse, unsigned int sym)
 {
@@ -900,12 +949,34 @@ static void ap_cmint(unsigned int seq, unsigned int id, int site, int reuse, uns
     ap(" ");      ap(g_sites[site].name + 2);
     ap(reuse == 2 ? "" : reuse ? " reuse" : " fresh");
     ap(" sym ");
-    if (plausible(sym)) {
-        ap_dec(csym_ordinal(sym));
-        rd8(sym, 0x4, &sk);
-        ap("/k"); ap_hex(sk, 2);
-    } else ap("?");
+    ap_symk(sym);
+    (void)sk;
     ap("\n");
+}
+
+static void ap_cmint_x(unsigned int seq, unsigned int id, int site, int reuse, unsigned int sym,
+                       unsigned int x, unsigned int op)
+{
+    if (reuse == 3) {
+        ap("CDEMOTE "); ap_dec(seq);
+        ap(" id ");     ap_dec(id);
+        ap(" sym ");    ap_symk(sym);
+        ap(" def ");    ap_mnem(op);
+        ap(" -> temp "); ap_symk(x);
+        ap("\n");
+        return;
+    }
+    if (reuse == 2) {
+        ap("CFREE "); ap_dec(seq);
+        ap(" id ");   ap_dec(id);
+        ap(" ");      ap(g_sites[site].name + 2);
+        ap(" sym ");  ap_symk(sym);
+        ap(" b40 ");
+        if ((int)x < 0) { ap("-"); ap_dec((unsigned int)(-(int)x)); } else ap_dec(x);
+        ap("\n");
+        return;
+    }
+    ap_cmint(seq, id, site, reuse, sym);
 }
 
 static void free_note(int site, unsigned int cand)
@@ -913,15 +984,37 @@ static void free_note(int site, unsigned int cand)
     unsigned int id = 0, sym = 0;
     if (!rd32(cand, 0x1c, &id)) return;
     rd32(cand, 0x00, &sym);
+    unsigned int b40 = 0;
+    rd32(cand, 0x40, &b40);
     if (g_in_color) {
-        if (g_show) { ap("  "); ap_cmint(g_mint_n, id, site, 2, sym); }
+        if (g_show) { ap("  "); ap_cmint_x(g_mint_n, id, site, 2, sym, b40, 0); }
     } else if (g_mlog_n < MLOG_MAX) {
         g_mlog_id[g_mlog_n] = id; g_mlog_sym[g_mlog_n] = sym;
         g_mlog_site[g_mlog_n] = (unsigned char)site; g_mlog_reuse[g_mlog_n] = 2;
+        g_mlog_x[g_mlog_n] = b40; g_mlog_op[g_mlog_n] = 0;
         g_mlog_n++;
     }
     g_mint_n++;
 }
+
+/* `cbdem`: ecx = the def tuple, edx = its def operand (whose `+0x1c` is
+ * still the candidate being demoted), [esp+4] = the new temp symbol. */
+static void demote_note(int site, unsigned int tuple, unsigned int op, unsigned int callee_esp)
+{
+    unsigned int cand = 0, id = 0, sym = 0, nsym = 0, opc = 0;
+    if (!rd32(op, 0x1c, &cand) || !plausible(cand) || !rd32(cand, 0x1c, &id)) return;
+    rd32(cand, 0x00, &sym);
+    rd32(tuple, 0x4, &opc);
+    memcpy(&nsym, (const void *)(uintptr_t)(callee_esp + 4u), 4);
+    if (g_mlog_n < MLOG_MAX) {
+        g_mlog_id[g_mlog_n] = id; g_mlog_sym[g_mlog_n] = sym;
+        g_mlog_site[g_mlog_n] = (unsigned char)site; g_mlog_reuse[g_mlog_n] = 3;
+        g_mlog_x[g_mlog_n] = nsym; g_mlog_op[g_mlog_n] = opc;
+        g_mlog_n++;
+    }
+}
+
+static void ben_reset(void);
 
 static void mint_note(int site, unsigned int sym)
 {
@@ -929,7 +1022,7 @@ static void mint_note(int site, unsigned int sym)
     fl = *(const unsigned int *)(uintptr_t)(C2_CANDFREE_VA + g_slide);
     if (fl == 0) id = *(const unsigned int *)(uintptr_t)(C2_CANDID_VA + g_slide);
     else if (!rd32(fl, 0x1c, &id)) return;
-    if (id == 1u && fl == 0) { g_mint_n = 0; g_mlog_n = 0; g_in_color = 0; }  /* a fresh function */
+    if (id == 1u && fl == 0) { g_mint_n = 0; g_mlog_n = 0; g_in_color = 0; ben_reset(); }  /* a fresh function */
     if (id < MINT_MAX) { g_mint_site[id] = (unsigned char)(site + 1); g_mint_seq[id] = g_mint_n; }
     if (g_in_color) {
         if (g_show) { ap("  "); ap_cmint(g_mint_n, id, site, fl != 0, sym); }
@@ -939,6 +1032,109 @@ static void mint_note(int site, unsigned int sym)
         g_mlog_n++;
     }
     g_mint_n++;
+}
+
+/* ---------------------------------------------------------------------------
+ * THE BENEFIT TERMS (lane w25-regasg, DISCLOSURE `W-STAGETAP-10`). Before
+ * COLOR, `cand+0x40` is written only by the step-4 walk FUN_10b55eae:
+ *
+ *   per DEF operand  (after 0x10b55fb7): if the symbol is versioned
+ *                    (`[[sym+0x34]+0x18] != 0`, 0x10b55fbc..c3) and the
+ *                    tuple's opcode is 0x2b7 (0x10b55fe9) -> `dec` (0x10b561fd)
+ *   per USE operand  (after 0x10b563ac): if the symbol is versioned
+ *                    (0x10b563b1..bb)                       -> `inc` (0x10b563c3)
+ *   pinned           0x10b560df writes 0x10000000 (spill-home path)
+ *
+ * so the benefit the negative-benefit pass FUN_10bfcf7c reads is
+ *   ben = (versioned uses) - (versioned defs in 0x2b7 tuples)   [or pinned].
+ * The tap counts each term at its call, keyed by candidate id (`op+0x1c` is
+ * the candidate, stored just before both calls), and at `cbpre` reads the
+ * field the pass is about to test, so every `CBEN` line is CHECKED: the
+ * recount and c2's own field must agree, or the line says `DIFF`.
+ * ------------------------------------------------------------------------- */
+#define BT_MAX 4096u
+static unsigned int   g_bt_cand[BT_MAX], g_bt_sym[BT_MAX];
+static unsigned short g_bt_use[BT_MAX], g_bt_unc[BT_MAX], g_bt_kill[BT_MAX], g_bt_def[BT_MAX];
+static unsigned int   g_bt_max = 0;
+/* the CBEN snapshot taken at `cbpre`, flushed after the CMINT log */
+static unsigned int   g_bs_id[BT_MAX], g_bs_sym[BT_MAX], g_bs_n = 0;
+static int            g_bs_ben[BT_MAX];
+static unsigned short g_bs_use[BT_MAX], g_bs_unc[BT_MAX], g_bs_kill[BT_MAX], g_bs_def[BT_MAX];
+
+static void ben_reset(void)
+{
+    unsigned int k;
+    for (k = 0; k <= g_bt_max && k < BT_MAX; k++) {
+        g_bt_cand[k] = 0; g_bt_sym[k] = 0;
+        g_bt_use[k] = g_bt_unc[k] = g_bt_kill[k] = g_bt_def[k] = 0;
+    }
+    g_bt_max = 0; g_bs_n = 0;
+}
+
+/* `[[sym+0x34]+0x18] != 0` — the versioned test both arms apply. */
+static int ben_versioned(unsigned int sym)
+{
+    unsigned int v = 0, n = 0;
+    if (!plausible(sym) || !rd32(sym, 0x34, &v) || !plausible(v)) return 0;
+    if (!rd32(v, 0x18, &n)) return 0;
+    return n != 0;
+}
+
+static void ben_note(int is_def, unsigned int tuple, unsigned int op)
+{
+    unsigned int cand = 0, id = 0, sym = 0, opc = 0;
+    if (!rd32(op, 0x1c, &cand) || !plausible(cand) || !rd32(cand, 0x1c, &id)) return;
+    if (id >= BT_MAX) return;
+    rd32(op, 0x18, &sym);
+    rd32(tuple, 0x4, &opc);
+    g_bt_cand[id] = cand;
+    if (g_bt_sym[id] == 0) rd32(cand, 0x00, &g_bt_sym[id]);
+    if (id > g_bt_max) g_bt_max = id;
+    if (is_def) {
+        if (ben_versioned(sym) && opc == 0x2b7u) g_bt_kill[id]++;
+        else g_bt_def[id]++;
+    } else {
+        if (ben_versioned(sym)) g_bt_use[id]++;
+        else g_bt_unc[id]++;
+    }
+}
+
+static void ben_snapshot(void)
+{
+    unsigned int k, b = 0;
+    g_bs_n = 0;
+    for (k = 1; k <= g_bt_max && k < BT_MAX; k++) {
+        if (!g_bt_cand[k] || !rd32(g_bt_cand[k], 0x40, &b)) continue;
+        g_bs_id[g_bs_n] = k; g_bs_sym[g_bs_n] = g_bt_sym[k];
+        g_bs_ben[g_bs_n] = (int)b;
+        g_bs_use[g_bs_n] = g_bt_use[k]; g_bs_unc[g_bs_n] = g_bt_unc[k];
+        g_bs_kill[g_bs_n] = g_bt_kill[k]; g_bs_def[g_bs_n] = g_bt_def[k];
+        g_bs_n++;
+    }
+}
+
+static void ap_ben_log(void)
+{
+    unsigned int k, sk = 0;
+    for (k = 0; k < g_bs_n; k++) {
+        int pred = (int)g_bs_use[k] - (int)g_bs_kill[k];
+        ap("  CBEN id "); ap_dec(g_bs_id[k]);
+        ap(" sym ");
+        if (plausible(g_bs_sym[k])) {
+            ap_dec(csym_ordinal(g_bs_sym[k])); rd8(g_bs_sym[k], 0x4, &sk);
+            ap("/k"); ap_hex(sk, 2);
+        } else ap("?");
+        ap(" ben ");
+        if (g_bs_ben[k] < 0) { ap("-"); ap_dec((unsigned int)(-g_bs_ben[k])); }
+        else ap_dec((unsigned int)g_bs_ben[k]);
+        ap(" = use "); ap_dec(g_bs_use[k]);
+        ap(" - kill "); ap_dec(g_bs_kill[k]);
+        ap(" (unversioned-use "); ap_dec(g_bs_unc[k]);
+        ap(", other-def "); ap_dec(g_bs_def[k]); ap(")");
+        if (g_bs_ben[k] == 0x10000000) ap(" pinned");
+        else if (g_bs_ben[k] != pred) ap(" DIFF");
+        ap(g_bs_ben[k] < 0 ? " NEG\n" : "\n");
+    }
 }
 
 /* For a kind-0xd symbol (FUN_10b5673e's constants/addresses): the operand it
@@ -1327,6 +1523,17 @@ unsigned int tap_enter(unsigned int retaddr, unsigned int ecx,
              * sidesteps that unknown entirely, which is why this site exists. */
             if (g_sites[i].name[0] == 'c' && strcmp(g_sites[i].name, "color") != 0) {
                 /* A CANDIDATE site: never a phase, never a function count. */
+                if (g_sites[i].name[1] == 'b') {
+                    /* A BENEFIT site: bookkeeping only, flushed at `color`. */
+                    if (g_payload && g_cands) {
+                        const char *nm = g_sites[i].name;
+                        if (strcmp(nm, "cbdef") == 0)      ben_note(1, ecx, edx);
+                        else if (strcmp(nm, "cbuse") == 0) ben_note(0, ecx, edx);
+                        else if (strcmp(nm, "cbdem") == 0) demote_note(i, ecx, edx, callee_esp);
+                        else                               ben_snapshot();
+                    }
+                    return g_realtgt[i];
+                }
                 if (g_sites[i].name[1] == 'f') {
                     if (g_payload && g_cands) free_note(i, ecx);
                     return g_realtgt[i];
@@ -1404,9 +1611,11 @@ unsigned int tap_enter(unsigned int retaddr, unsigned int ecx,
                     ap("\n");
                     for (k = 0; k < g_mlog_n; k++) {
                         ap("  ");
-                        ap_cmint(k, g_mlog_id[k], g_mlog_site[k], g_mlog_reuse[k], g_mlog_sym[k]);
+                        ap_cmint_x(k, g_mlog_id[k], g_mlog_site[k], g_mlog_reuse[k], g_mlog_sym[k],
+                                   g_mlog_x[k], g_mlog_op[k]);
                     }
                     if (g_mlog_n >= MLOG_MAX) ap("  CMINT log-truncated\n");
+                    ap_ben_log();
                 }
                 g_mlog_n = 0;
                 g_in_color = 1;

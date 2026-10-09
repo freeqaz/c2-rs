@@ -32,7 +32,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use c2_obj::{ObjDiff, ObjImage};
-use c2_reference::stage::{CandPayload, TapReport, CAND_SITES, MINT_SITES, OPT_GATED_SITES, RASG_SITES, STAGE_SITES};
+use c2_reference::stage::{CandPayload, TapReport, BEN_SITES, CAND_SITES, MINT_SITES, OPT_GATED_SITES, RASG_SITES, STAGE_SITES};
 use c2_reference::Toolchain;
 
 use c2_harness::toolchain_gate::{toolchain_ready, Cap};
@@ -1058,6 +1058,13 @@ fn cmd_determinism(
 /// mint), `live`, `code`, `split1..3`. A `k0d` candidate also prints
 /// `val k<operand kind> <name | #constant>`.
 ///
+/// The three [`BEN_SITES`] add, after each function's `CMINT`/`CFREE` log, one
+/// `CBEN id <id> sym <s> ben <b> = use <u> - kill <k> (...)` line per candidate
+/// globregs' step-4 walk touched: `cand+0x40` as the negative-benefit pass
+/// is about to read it, beside the recount of its two terms (uses of a
+/// versioned symbol, minus defs in opcode-`0x2b7` tuples). A recount that
+/// disagrees with c2's field prints `DIFF`; a negative benefit prints `NEG`.
+///
 /// With `--regasg` (lane `w25-regasg`) the eight [`RASG_SITES`] are armed
 /// too, and each function also gets the `regasg.c` second-allocator lines:
 ///
@@ -1089,6 +1096,7 @@ fn cmd_cands(
     let mut taps: Vec<&str> = vec!["color"];
     taps.extend_from_slice(CAND_SITES);
     taps.extend_from_slice(MINT_SITES);
+    taps.extend_from_slice(BEN_SITES);
     if regasg {
         taps.extend_from_slice(RASG_SITES);
     }
@@ -1164,7 +1172,7 @@ fn cmd_cands(
                 if show {
                     println!("{l}");
                 }
-            } else if (l.starts_with("CAND ") || l.starts_with("CMINT ") || l.starts_with("  CMINT ") || l.starts_with("CFREE ") || l.starts_with("  CFREE ") || l.starts_with("RFN-RERUN")) && show {
+            } else if (l.starts_with("CAND ") || l.starts_with("CMINT ") || l.starts_with("  CMINT ") || l.starts_with("CFREE ") || l.starts_with("  CFREE ") || l.starts_with("  CBEN ") || l.starts_with("  CDEMOTE ") || l.starts_with("RFN-RERUN")) && show {
                 println!("  {l}");
             } else if (l.starts_with("RT ") || l.starts_with("RASG ")) && show {
                 println!("  {l}");
