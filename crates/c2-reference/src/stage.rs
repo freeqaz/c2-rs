@@ -101,6 +101,18 @@ pub const STAGE_SITES: &[&str] = &[
 /// PROV[O] DISCLOSURE `W-STAGETAP-1`'s fix round supplied the `[R]` half (the optimizer flag `0x10c2e2fc`, the three `cmp` sites, and the SECOND per-function gate at `0x10b7dc8b`/`0x10b7dcca`/`0x10b7dd09`); WHICH four sites are gated is graded against the live tap. The doc above states the bound explicitly — `hits_at(site) == procs` at `/O1` is empirical over these fixtures, not a property of the code.
 pub const OPT_GATED_SITES: &[&str] = &["sched1", "sched2", "sched3", "sched0"];
 
+/// The five **register-allocation candidate** sites (lane `w24-c2rs`), in
+/// `c2host/stagetap.c` table order, which follows [`STAGE_SITES`].
+///
+/// Kept OUT of [`STAGE_SITES`] on purpose: every row there fires once per
+/// function, and `tests/stage.rs` asserts exactly that, whereas these fire
+/// once per allocation CANDIDATE inside the colour driver `0x10b31c9a`'s
+/// worklist loop (`docs/whitebox/ref/P_REGALLOC.md` §1). Arm them together
+/// with `color` (which supplies the per-function `CFN` identity line) and set
+/// the candidate payload with [`Toolchain::replay_tapped_cands`].
+/// PROV[R] DISCLOSURE `W-STAGETAP-7` — five call-site addresses read out of `c2.dll` (`0x10b31ed7`, `0x10b31f00`, `0x10b31f18`, `0x10b31f58`, `0x10b31f69`). Names only here; the addresses live in `c2host/stagetap.c`'s `g_sites[]`. Fail-closed at run time exactly like the rows above.
+pub const CAND_SITES: &[&str] = &["cnocol", "creq", "cspill", "csel", "casg"];
+
 /// What one armed run reported.
 ///
 /// Deliberately **not** a snapshot digest type: at this revision the payload is
@@ -852,7 +864,7 @@ impl Toolchain {
         raw: u32,
     ) -> io::Result<(ObjImage, TapReport)> {
         let (obj, rep) =
-            self.replay_tapped_inner(captured, bundle_dir, out_obj, taps, payload, raw, None, true, None)?;
+            self.replay_tapped_inner(captured, bundle_dir, out_obj, taps, payload, raw, None, true, None, false)?;
         // `require_obj` was true, so the missing-obj case returned `Err` above.
         let obj = obj.expect("replay_tapped_inner(require_obj = true) returned no obj");
         Ok((obj, rep))
@@ -902,6 +914,7 @@ impl Toolchain {
             Some(force_slide),
             false,
             None,
+            false,
         )
     }
 
@@ -932,6 +945,36 @@ impl Toolchain {
             None,
             true,
             Some((ops, funcwalk)),
+            false,
+        )?;
+        let obj = obj.expect("replay_tapped_inner(require_obj = true) returned no obj");
+        Ok((obj, rep))
+    }
+
+    /// The **register-allocation candidate** dump (lane `w24-c2rs`): arms
+    /// `taps` (normally `color` + [`CAND_SITES`]) with the payload on and
+    /// `C2RS_STAGE_CANDS=1`, so the report's `lines` carry one `CFN` line per
+    /// coloured function and one `CAND` line per candidate event. The caller
+    /// compares the obj against a disarmed replay — that compare, not this
+    /// payload, is the judge (`stage-tap-obj-differs` must stay 0).
+    pub fn replay_tapped_cands(
+        &self,
+        captured: &CapturedReference,
+        bundle_dir: &Path,
+        out_obj: &Path,
+        taps: &[&str],
+    ) -> io::Result<(ObjImage, TapReport)> {
+        let (obj, rep) = self.replay_tapped_inner(
+            captured,
+            bundle_dir,
+            out_obj,
+            taps,
+            true,
+            0,
+            None,
+            true,
+            Some((false, false)),
+            true,
         )?;
         let obj = obj.expect("replay_tapped_inner(require_obj = true) returned no obj");
         Ok((obj, rep))
@@ -949,8 +992,15 @@ impl Toolchain {
         force_slide: Option<u32>,
         require_obj: bool,
         probe: Option<(bool, bool)>,
+        cands: bool,
     ) -> io::Result<(Option<ObjImage>, TapReport)> {
         let (mut cmd, out_abs) = self.build_replay_command(captured, bundle_dir, out_obj)?;
+        // The candidate payload: set or REMOVED, never inherited.
+        if cands {
+            cmd.env("C2RS_STAGE_CANDS", "1");
+        } else {
+            cmd.env_remove("C2RS_STAGE_CANDS");
+        }
         match force_slide {
             Some(v) => {
                 cmd.env("C2RS_STAGE_FORCE_SLIDE", format!("{v:x}"));

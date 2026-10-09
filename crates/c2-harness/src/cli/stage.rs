@@ -32,7 +32,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use c2_obj::{ObjDiff, ObjImage};
-use c2_reference::stage::{TapReport, OPT_GATED_SITES, STAGE_SITES};
+use c2_reference::stage::{TapReport, CAND_SITES, OPT_GATED_SITES, STAGE_SITES};
 use c2_reference::Toolchain;
 
 use c2_harness::toolchain_gate::{toolchain_ready, Cap};
@@ -54,6 +54,8 @@ static STAGE_SPEC: Spec = Spec::new(
         ("--cwd", Arity::Value),
         ("--flag", Arity::Repeated),
         ("--force-slide", Arity::Value),
+        ("--fn", Arity::Value),
+        ("--save-obj", Arity::Value),
     ],
 )
 .requires(&[("--cwd", "--flags-file")])
@@ -244,10 +246,11 @@ pub(crate) fn cmd_stage(rest: &[String]) -> ExitCode {
         Err(c) => return c,
     };
     let sub = args.first().unwrap_or("").to_string();
-    if !["counts", "snap", "determinism", "neutrality"].contains(&sub.as_str()) {
+    if !["counts", "snap", "determinism", "neutrality", "cands"].contains(&sub.as_str()) {
         eprintln!(
-            "usage: c2rs stage <counts|snap|determinism|neutrality> [--fixtures a.cpp,b.cpp] \
+            "usage: c2rs stage <counts|snap|determinism|neutrality|cands> [--fixtures a.cpp,b.cpp] \
              [--limit N] [--runs N] [--payload] [--flag F ...]\n\
+             cands: [--fn SUBSTR] [--save-obj PATH] — register-allocation candidate dump\n\
              default flags: /O1 /Oi /EHsc /GS- /c (the workload's own profile)"
         );
         return ExitCode::from(2);
@@ -321,6 +324,7 @@ pub(crate) fn cmd_stage(rest: &[String]) -> ExitCode {
         "counts" => cmd_counts(&tc, &fixtures, &flags, cwd),
         "snap" => cmd_snap(&tc, &fixtures, &flags, raw, cwd),
         "determinism" => cmd_determinism(&tc, &fixtures, &flags, payload, runs, cwd),
+        "cands" => cmd_cands(&tc, &fixtures, &flags, cwd, args.get("--fn"), args.path("--save-obj")),
         _ => unreachable!(),
     }
 }
@@ -1021,4 +1025,118 @@ fn cmd_determinism(
     }
     let _ = OPT_GATED_SITES;
     ExitCode::SUCCESS
+}
+
+/// **The register-allocation candidate dump** (lane `w24-c2rs`).
+///
+/// Per TU: capture, a DISARMED replay (the control), and a replay with
+/// `color` + [`CAND_SITES`] armed and the candidate payload on. Prints, per
+/// coloured function whose name contains `--fn` (all when absent), the `CFN`
+/// identity line and every `CAND` event in worklist-pop order:
+///
+/// * `CAND sel` — popped and sent to the selector: id, priority (`cand+0x0c`),
+///   tie key (`cand+0x44`), benefit (`+0x40`), refs, symbol ordinal and the
+///   allowed register set;
+/// * `CAND asg` — the register the selector chose, and the selector's
+///   non-zero cost entries for that candidate;
+/// * `CAND nocol` / `spill` / `req` — the other three exits of the pop.
+///
+/// The judge line is `stage-tap-obj-differs` (REQUIRED 0): the armed obj
+/// must be byte-identical to the disarmed one. `replay-vs-capture-differs`
+/// checks the disarmed replay against the capture's own obj.
+fn cmd_cands(
+    tc: &Toolchain,
+    fixtures: &[PathBuf],
+    flags: &[String],
+    cwd: Option<&Path>,
+    fn_filter: Option<&str>,
+    save_obj: Option<PathBuf>,
+) -> ExitCode {
+    let mut taps: Vec<&str> = vec!["color"];
+    taps.extend_from_slice(CAND_SITES);
+    let (mut differs, mut fired, mut errs, mut replay_differs) = (0usize, 0usize, 0usize, 0usize);
+    for cpp in fixtures {
+        let name = cpp.display().to_string();
+        let w = Scratch::or_work(None, "cands");
+        let abs = match cpp.canonicalize() {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("cands: {name}: {e}");
+                errs += 1;
+                continue;
+            }
+        };
+        let captured = match tc.capture_reference_with(
+            &c2_reference::to_wibo_path(&abs),
+            &w.path().join("cap"),
+            flags,
+            cwd,
+        ) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("cands: {name}: capture: {e}");
+                errs += 1;
+                continue;
+            }
+        };
+        let out = captured.ref_obj_path.clone();
+        let il = w.path().join("il");
+        let disarmed = match tc.replay_tapped_raw(&captured, &il, &out, &[], false, 0) {
+            Ok((o, _)) => o,
+            Err(e) => {
+                eprintln!("cands: {name}: disarmed replay: {e}");
+                errs += 1;
+                continue;
+            }
+        };
+        if ObjImage::diff(&captured.ref_obj, &disarmed) != ObjDiff::Identical {
+            replay_differs += 1;
+        }
+        if let Some(p) = &save_obj {
+            let _ = std::fs::write(p, disarmed.as_bytes());
+        }
+        let (armed, rep) = match tc.replay_tapped_cands(&captured, &il, &out, &taps) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("cands: {name}: armed replay: {e}");
+                errs += 1;
+                continue;
+            }
+        };
+        if rep.armed_and_fired() {
+            fired += 1;
+        }
+        if ObjImage::diff(&disarmed, &armed) != ObjDiff::Identical {
+            differs += 1;
+        }
+        println!("TU {name}");
+        for (site, reason) in &rep.refused {
+            println!("  REFUSED {site}: {reason}");
+        }
+        let mut show = false;
+        for l in &rep.lines {
+            if let Some(rest) = l.strip_prefix("CFN ") {
+                show = fn_filter.map_or(true, |f| rest.contains(f));
+                if show {
+                    println!("{l}");
+                }
+            } else if l.starts_with("CAND ") && show {
+                println!("  {l}");
+            } else if l.starts_with("REFUSE") {
+                println!("  {l}");
+            }
+        }
+        for s in &taps {
+            println!("  hits {s} = {}", rep.hits_at(s));
+        }
+    }
+    println!("stage-tap-obj-differs {differs}");
+    println!("stage-tap-armed-and-fired {fired}");
+    println!("replay-vs-capture-differs {replay_differs}");
+    println!("cands-errors {errs}");
+    if differs > 0 || errs > 0 {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    }
 }
