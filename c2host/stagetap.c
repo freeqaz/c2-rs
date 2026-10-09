@@ -116,6 +116,30 @@ static const TapSite g_sites[] = {
      * region-finder ENTRY, run 4 has no successor run, and every `sched0`
      * block is therefore run 4's INPUT. */
     { "after0",   0x10b7e701u, 0x10b7e032u, "after the FINAL schedule, function record in ecx" },
+    /* THE CANDIDATE SITES (lane w24-c2rs, DISCLOSURE `W-STAGETAP-7`). All five
+     * live in the allocator driver 0x10b31c9a's worklist loop
+     * (P_REGALLOC.md §1), and unlike every row above they fire once per
+     * CANDIDATE, not once per function — which is why the Rust side keeps them
+     * in a SEPARATE list (`c2_reference::stage::CAND_SITES`) and the
+     * per-function hit-count tests never arm them.
+     *
+     *   10b31ed5: 8b cf        mov ecx,edi          ; edi = popped candidate
+     *   10b31ed7: e8 26 f5 ff ff call 0x10b31402    ; benefit <= 0: not coloured
+     *   10b31efe: 8b cf        mov ecx,edi
+     *   10b31f00: e8 28 99 ff ff call 0x10b2b82d    ; RE-INSERT by priority
+     *   10b31f16: 8b cf        mov ecx,edi
+     *   10b31f18: e8 27 f6 ff ff call 0x10b31544    ; allowed set EMPTY: spill
+     *   10b31f53: 8b cf        mov ecx,edi          ; edx = ebx = class
+     *   10b31f58: e8 9b c8 ff ff call 0x10b2e7f8    ; THE SELECTOR
+     *   10b31f68: 57           push edi             ; cand is [esp+4] at entry
+     *   10b31f69: e8 5b fb ff ff call 0x10b31ac9    ; after the selector wrote
+     *                                               ; cand+0x10 (0x10b2e92e)
+     */
+    { "cnocol",   0x10b31ed7u, 0x10b31402u, "candidate popped with benefit <= 0 (not coloured)" },
+    { "creq",     0x10b31f00u, 0x10b2b82du, "candidate re-inserted into the worklist" },
+    { "cspill",   0x10b31f18u, 0x10b31544u, "candidate popped with an EMPTY allowed set" },
+    { "csel",     0x10b31f58u, 0x10b2e7f8u, "THE SELECTOR, candidate in ecx, class in edx" },
+    { "casg",     0x10b31f69u, 0x10b31ac9u, "after the selector, candidate at [esp+4]" },
 };
 #define N_SITES ((int)(sizeof(g_sites) / sizeof(g_sites[0])))
 
@@ -168,6 +192,16 @@ static int          g_ops = 0;
  * re-reads regions k..n; a function walk visits each tuple exactly once and,
  * unlike the region tap, has an observation point at the `after0` site. */
 static int          g_walkfn = 0;
+
+/* C2RS_STAGE_CANDS=1 — the register-allocation candidate payload at the
+ * five candidate sites (lane w24-c2rs). Off by default; independent of
+ * C2RS_STAGE_PAYLOAD's tuple walk except that the arena is only flushed when
+ * the payload is on, so the Rust seam sets both. */
+static int          g_cands = 0;
+static unsigned int g_cfn = 0;          /* COLOR entries = functions coloured */
+#define CSYM_MAX 1024u
+static unsigned int g_csym[CSYM_MAX];   /* per-function symbol-pointer ordinals */
+static unsigned int g_ncsym = 0;
 
 static const char  *g_phase = "none";
 static unsigned int g_fn = 0;
@@ -690,6 +724,131 @@ static void tap_walk_tuples(unsigned int t)
     ap_reserved("REFUSE region walk-overrun\n");
 }
 
+/* ---------------------------------------------------------------------------
+ * THE CANDIDATE PAYLOAD (lane w24-c2rs) — every offset with its witness, all
+ * [R] from c2.dll sha256 c80981c0…a66258 and DISCLOSURE row `W-STAGETAP-7`:
+ *
+ *   cand+0x00  the local SYMBOL the candidate was minted from
+ *              (`FUN_10b54d32(s)`, P_GLOBREGS.md §1 step 3; read back at
+ *              0x10b31eba `mov eax,[edi]` / `cmp BYTE PTR [eax+0x4],0xd`)
+ *   cand+0x04..+0x07  kind / flag bytes (`test BYTE PTR [edi+0x5],0x4` at
+ *              0x10b31ee1)
+ *   cand+0x0c  THE PRIORITY (comparator primary key, signed)
+ *   cand+0x10  assigned register descriptor = 0x10c2f088 + reg*0x60
+ *              (0x10b2e926 `imul eax,eax,0x60` / `add eax,0x10c2f088` /
+ *              `mov [ebx+0x10],eax`)
+ *   cand+0x1c  candidate id (per-function, dense from 1)
+ *   cand+0x20  allowed set: sparse bitset, head at [set]; each chunk is
+ *              {base & ~63, lo32, hi32, next} (0x10b26d68), bit i of a chunk
+ *              tested against the mask pair at 0x10b014c0 + i*8 (0x10b26f46)
+ *   cand+0x24  ref count;  cand+0x40  benefit (popped arm tests `> 0` at
+ *              0x10b31ea9);  cand+0x44  THE TIE KEY (tuple-visit ordinal)
+ *   0x10c435e8 the selector's cost array, 357 ints, still holding THIS
+ *              candidate's costs at the `casg` site (it is memset at the
+ *              selector's entry, P_REGALLOC.md §3)
+ *
+ * Register numbers print in c2's own numbering (P_REGALLOC.md §2.1):
+ * 1..32 = r0..r31 as n-1 (2 = sp, 3 = toc), 34..65 = fp0..fp31 as n-34.
+ * ------------------------------------------------------------------------- */
+#define C2_REGDESC_VA  0x10c2f088u
+#define C2_COSTARR_VA  0x10c435e8u
+#define C2_BITMASK_VA  0x10b014c0u
+#define C2_NREGS       357u
+
+static void ap_sdec(unsigned int v)
+{
+    if ((int)v < 0) { ap("-"); ap_dec((unsigned int)(-(int)v)); }
+    else ap_dec(v);
+}
+
+static void ap_regname(unsigned int n)
+{
+    if (n >= 1u && n <= 32u)       { ap("r");  ap_dec(n - 1u); }
+    else if (n >= 34u && n <= 65u) { ap("f");  ap_dec(n - 34u); }
+    else                           { ap("#");  ap_dec(n); }
+}
+
+static unsigned int csym_ordinal(unsigned int sym)
+{
+    unsigned int i;
+    for (i = 0; i < g_ncsym; i++) if (g_csym[i] == sym) return i;
+    if (g_ncsym < CSYM_MAX) { g_csym[g_ncsym] = sym; return g_ncsym++; }
+    return 0xffffffffu;
+}
+
+static void ap_bitset(unsigned int setp)
+{
+    unsigned int chunk = 0, n = 0;
+    const unsigned int *mask = (const unsigned int *)(uintptr_t)(C2_BITMASK_VA + g_slide);
+    if (!rd32(setp, 0, &chunk)) { ap("<unread>"); return; }
+    ap("{");
+    while (chunk != 0 && n < 64u) {
+        unsigned int base = 0, lo = 0, hi = 0, nxt = 0, i;
+        if (!plausible(chunk)) { ap("<implausible>"); break; }
+        rd32(chunk, 0x0, &base);
+        rd32(chunk, 0x4, &lo);
+        rd32(chunk, 0x8, &hi);
+        rd32(chunk, 0xc, &nxt);
+        for (i = 0; i < 64u; i++) {
+            if ((lo & mask[i * 2u]) | (hi & mask[i * 2u + 1u])) {
+                ap(" "); ap_regname(base + i);
+            }
+        }
+        chunk = nxt;
+        n++;
+    }
+    ap(" }");
+}
+
+static void ap_cand(const char *what, unsigned int cand, int with_allowed)
+{
+    unsigned int v = 0, sym = 0, sk = 0, fl = 0;
+    ap("CAND "); ap(what);
+    ap(" fn ");  ap_dec(g_cfn);
+    if (!plausible(cand)) { ap(" <unread>\n"); return; }
+    rd32(cand, 0x1c, &v); ap(" id ");  ap_dec(v);
+    rd32(cand, 0x0c, &v); ap(" pri "); ap_sdec(v);
+    rd32(cand, 0x44, &v); ap(" tie "); ap_dec(v);
+    rd32(cand, 0x40, &v); ap(" ben "); ap_sdec(v);
+    rd32(cand, 0x24, &v); ap(" ref "); ap_sdec(v);
+    rd32(cand, 0x04, &fl); ap(" fl "); ap_hex(fl, 8);
+    rd32(cand, 0x00, &sym);
+    ap(" sym ");
+    if (plausible(sym)) {
+        ap_dec(csym_ordinal(sym));
+        rd8(sym, 0x4, &sk);
+        ap("/k"); ap_hex(sk, 2);
+    } else {
+        ap("?");
+    }
+    if (with_allowed) {
+        rd32(cand, 0x20, &v);
+        ap(" allowed ");
+        if (v == 0) ap("none"); else ap_bitset(v);
+    }
+    ap("\n");
+}
+
+static void ap_assigned(unsigned int cand)
+{
+    unsigned int d = 0, id = 0, i, base = C2_REGDESC_VA + g_slide;
+    const int *cost = (const int *)(uintptr_t)(C2_COSTARR_VA + g_slide);
+    ap("CAND asg fn "); ap_dec(g_cfn);
+    if (!plausible(cand)) { ap(" <unread>\n"); return; }
+    rd32(cand, 0x1c, &id); ap(" id "); ap_dec(id);
+    rd32(cand, 0x10, &d);
+    ap(" reg ");
+    if (d >= base && (d - base) % 0x60u == 0 && (d - base) / 0x60u < C2_NREGS)
+        ap_regname((d - base) / 0x60u);
+    else if (d == 0) ap("none");
+    else ap("<off-table>");
+    ap(" cost");
+    for (i = 0; i < C2_NREGS; i++) {
+        if (cost[i] != 0) { ap(" "); ap_regname(i); ap(":"); ap_sdec((unsigned int)cost[i]); }
+    }
+    ap("\n");
+}
+
 /* Called from the thunk. Returns the real call target for this site.
  *
  * MUST NOT call back into c2 and MUST NOT do I/O (see the header comment on
@@ -709,6 +868,35 @@ unsigned int tap_enter(unsigned int retaddr, unsigned int ecx,
              * and the function-record -> tuple-list-head offset is not known.
              * Taking the tuple pointer from the region finder's own argument
              * sidesteps that unknown entirely, which is why this site exists. */
+            if (g_sites[i].name[0] == 'c' && strcmp(g_sites[i].name, "color") != 0) {
+                /* A CANDIDATE site: never a phase, never a function count. */
+                if (g_payload && g_cands) {
+                    const char *nm = g_sites[i].name;
+                    if (strcmp(nm, "csel") == 0)        ap_cand("sel", ecx, 1);
+                    else if (strcmp(nm, "cnocol") == 0) ap_cand("nocol", ecx, 0);
+                    else if (strcmp(nm, "cspill") == 0) ap_cand("spill", ecx, 0);
+                    else if (strcmp(nm, "creq") == 0)   ap_cand("req", ecx, 0);
+                    else if (strcmp(nm, "casg") == 0) {
+                        unsigned int cand = 0;
+                        /* The stack is c2's own live frame, so it is read
+                         * directly: `plausible` is a HEAP filter and refuses
+                         * wibo's high stack addresses. */
+                        memcpy(&cand, (const void *)(uintptr_t)(callee_esp + 4u), 4);
+                        ap_assigned(cand);
+                    }
+                    if (g_arena_full) ap_reserved("REFUSE cand arena-full\n");
+                }
+                return g_realtgt[i];
+            }
+            if (strcmp(g_sites[i].name, "color") == 0) {
+                g_cfn++;
+                g_ncsym = 0;
+                if (g_payload && g_cands) {
+                    ap("CFN ");  ap_dec(g_cfn);
+                    ap_symid(ecx);
+                    ap("\n");
+                }
+            }
             if (strcmp(g_sites[i].name, "region") != 0) {
                 g_phase = g_sites[i].name;
                 if (strcmp(g_phase, "sched1") == 0) g_fn++;
@@ -805,6 +993,10 @@ int tap_arm(HMODULE h, void *invoke_fn)
         g_payload = (pl && *pl && *pl != '0');
         g_ops = (ops && *ops && *ops != '0');
         g_walkfn = (fw && *fw && *fw != '0');
+        {
+            const char *cd = getenv("C2RS_STAGE_CANDS");
+            g_cands = (cd && *cd && *cd != '0');
+        }
         g_raw = 0;
         if (rw && *rw) {
             unsigned int v = 0;
