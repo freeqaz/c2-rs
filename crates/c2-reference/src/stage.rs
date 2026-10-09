@@ -150,6 +150,23 @@ pub const RASG_SITES: &[&str] = &["rafn", "rarerun", "ratup", "radef", "raevict"
 /// PROV[R] DISCLOSURE `W-STAGETAP-10` — four call-site addresses read out of `c2.dll` (`0x10b55fb7`, `0x10b563ac`, `0x10b57802`, `0x10bfd32b`). Names only here; the addresses live in `c2host/stagetap.c`'s `g_sites[]`. Fail-closed at run time exactly like the rows above.
 pub const BEN_SITES: &[&str] = &["cbdef", "cbuse", "cbpre", "cbdem"];
 
+/// The eight **commutative-operand-order** sites (lane `w25-regasg`), in
+/// `c2host/stagetap.c` table order, which follows [`BEN_SITES`].
+///
+/// c2 orders every commutative tuple's use list in ONE pass, `0x10b95e97`,
+/// whose worker `0x10b929d6` merge-sorts the list (`0x10b34d68`, comparator
+/// `0x10b8fb2e`) DESCENDING by a key built by `0x10b9049b` / `0x10b8fb47`:
+/// `(SU << 24) | (node count << 16) | hash16` for a subexpression, and
+/// `0x10000 | hash16` for a leaf (no `0x10000` for a constant). The pass runs
+/// once on the IL and twice after lowering; the LAST run fixes the emitted
+/// operand order. `cqil0`/`cqlo0`/`cqlo2` sit on the three calls of the pass
+/// (each dump is taken before the call), `cqil1`/`cqlo1`/`cqlo3` on the next
+/// call after each, `cqmach` on the third driver's first pass (machine
+/// opcodes), and `cqsort` on the sort call itself. Arm them with
+/// [`RASG_SITES`] (the payload needs `CandPayload::regasg`).
+/// PROV[R] DISCLOSURE `W-STAGETAP-11` — eight call-site addresses read out of `c2.dll` (`0x10b7dbd0`, `0x10b7dbe8`, `0x10b7e92f`, `0x10b7e93c`, `0x10b7e957`, `0x10b7e974`, `0x10b7dc09`, `0x10b92b15`). Names only here; the addresses live in `c2host/stagetap.c`'s `g_sites[]`. Fail-closed at run time exactly like the rows above.
+pub const COMMU_SITES: &[&str] = &["cqil0", "cqil1", "cqlo0", "cqlo1", "cqlo2", "cqlo3", "cqmach", "cqsort"];
+
 /// What the candidate payload carries.
 ///
 /// The default is exactly lane `w24-c2rs`'s `stage cands`: COLOR's worklist

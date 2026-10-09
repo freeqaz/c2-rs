@@ -32,7 +32,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use c2_obj::{ObjDiff, ObjImage};
-use c2_reference::stage::{CandPayload, TapReport, BEN_SITES, CAND_SITES, MINT_SITES, OPT_GATED_SITES, RASG_SITES, STAGE_SITES};
+use c2_reference::stage::{CandPayload, TapReport, BEN_SITES, CAND_SITES, COMMU_SITES, MINT_SITES, OPT_GATED_SITES, RASG_SITES, STAGE_SITES};
 use c2_reference::Toolchain;
 
 use c2_harness::toolchain_gate::{toolchain_ready, Cap};
@@ -63,6 +63,8 @@ static STAGE_SPEC: Spec = Spec::new(
 .positionals(1);
 
 /// The workload's own optimization profile — the one the 878 TUs compile at.
+/// The commutative-order probe sites (`q00`..`q31`, stagetap.c).
+
 fn default_flags() -> Vec<String> {
     ["/O1", "/Oi", "/EHsc", "/GS-", "/c"]
         .iter()
@@ -1078,6 +1080,17 @@ fn cmd_determinism(
 ///   `*` occupied / `!` interfering marks; `RASG asg` — the register taken;
 ///   `RASG spill` — none was free.
 ///
+/// With `--regasg` the eight [`COMMU_SITES`] are armed as well. By default
+/// each function gets one `CQ cqlo3` header and one `CQT` line per tuple with
+/// two or more uses: the operand lists after c2's LAST operand sort, which is
+/// the order the machine instruction keeps, each operand with its sort key
+/// in braces (`V<sid>` variable, `T<sid>` temp, `M<kind>{key}[d w b]` memory
+/// operand with displacement, type and base). The list is sorted DESCENDING
+/// by key. `C2RS_CQ_SITES=cqil0,cqlo1,...` picks other dump points,
+/// `C2RS_CQ_SORT=1` adds `CQS` lines (the list as the comparator saw it,
+/// single-use temps folded into their defining subexpression), and
+/// `C2RS_CQ_DEF=1` prints each temp's defining tuple.
+///
 /// `--fn` is forwarded to the tap as a payload filter, so a whole dc3 TU
 /// stays inside the payload arena.
 ///
@@ -1099,6 +1112,7 @@ fn cmd_cands(
     taps.extend_from_slice(BEN_SITES);
     if regasg {
         taps.extend_from_slice(RASG_SITES);
+        taps.extend_from_slice(COMMU_SITES);
     }
     let opts = CandPayload { regasg, fn_filter: fn_filter.map(str::to_string) };
     let (mut differs, mut fired, mut errs, mut replay_differs) = (0usize, 0usize, 0usize, 0usize);
@@ -1173,6 +1187,9 @@ fn cmd_cands(
                     println!("{l}");
                 }
             } else if (l.starts_with("CAND ") || l.starts_with("CMINT ") || l.starts_with("  CMINT ") || l.starts_with("CFREE ") || l.starts_with("  CFREE ") || l.starts_with("  CBEN ") || l.starts_with("  CDEMOTE ") || l.starts_with("RFN-RERUN")) && show {
+                println!("  {l}");
+            } else if l.starts_with("CQ") {
+                // Filtered on the C side (`name_matches` at each `cq*` site).
                 println!("  {l}");
             } else if (l.starts_with("RT ") || l.starts_with("RASG ")) && show {
                 println!("  {l}");

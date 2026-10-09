@@ -229,6 +229,8 @@ static const TapSite g_sites[] = {
      *            ; THE NEGATIVE-BENEFIT PASS, ecx = function record: the
      *            benefit of every candidate is final here
      */
+    /* COMMUTATIVE-ORDER PROBE: every pass call of the per-function driver
+     * before sched1 whose ecx is the function record (`mov ecx,esi`). */
     { "cbdef",    0x10b55fb7u, 0x10bfbfcfu, "benefit term: a def in the step-4 walk" },
     { "cbuse",    0x10b563acu, 0x10bfbfffu, "benefit term: a use in the step-4 walk" },
     { "cbpre",    0x10b57802u, 0x10bfcf7cu, "before the negative-benefit pass" },
@@ -243,6 +245,22 @@ static const TapSite g_sites[] = {
      *   10bfd32b: e8 d9 a7 fd ff call 0x10bd7b09 ; ecx = the def tuple
      */
     { "cbdem",    0x10bfd32bu, 0x10bd7b09u, "demotion: a one-block local onto a fresh temp" },
+    /* Commutative operand order (lane w25-regasg, `CQ`/`CQT`/`CQS` lines).
+     * Each row is a pass call made with ecx = the function record; the dump
+     * runs at the call, i.e. BEFORE the pass. 0x10b95e97 is the operand-sort
+     * pass (0x10b929d6 sorts each commutative tuple's use list by the
+     * 0x10b9049b / 0x10b8fb47 key, descending, merge sort 0x10b34d68 with
+     * comparator 0x10b8fb2e). It runs once on the IL (first driver) and twice
+     * after lowering (second driver 0x10b7e8e9); the LAST run fixes the
+     * machine operand order. */
+    { "cqil0",    0x10b7dbd0u, 0x10b95e97u, "first driver: IL operand sort (dump = before it)" },
+    { "cqil1",    0x10b7dbe8u, 0x10bd36cfu, "first driver: after the IL operand sort" },
+    { "cqlo0",    0x10b7e92fu, 0x10b95e97u, "second driver: lowered operand sort #1 (dump = before it)" },
+    { "cqlo1",    0x10b7e93cu, 0x10b84869u, "second driver: after lowered sort #1" },
+    { "cqlo2",    0x10b7e957u, 0x10b95e97u, "second driver: lowered operand sort #2 (dump = before it)" },
+    { "cqlo3",    0x10b7e974u, 0x10b7f753u, "second driver: after lowered sort #2 -- the order is final" },
+    { "cqmach",   0x10b7dc09u, 0x10c16569u, "third driver: machine opcodes (order as emitted)" },
+    { "cqsort",   0x10b92b15u, 0x10b34d68u, "0x10b929d6: the sort call itself (operand keys at sort time)" },
 };
 #define N_SITES ((int)(sizeof(g_sites) / sizeof(g_sites[0])))
 
@@ -1506,6 +1524,112 @@ static void ra_commit(unsigned int reg, unsigned int sym)
  *
  * MUST NOT call back into c2 and MUST NOT do I/O (see the header comment on
  * why the payload is buffered). Counting only, in this revision. */
+#define C2_VERSYM_VA 0x10c2e3f0u
+
+/* THE COMMUTATIVE-ORDER PROBE (lane w25-regasg). At a `cq*` site (ecx = the
+ * function record) print `CQ <site>` and then one `CQT` line per tuple whose
+ * use list has two or more entries, in the backward walk order
+ * (`block+0x20` last, `tuple+0x10` prev): block, reverse index, opcode, and
+ * each operand with its sort key `op+0x10` in braces. `cqsort` prints a `CQS`
+ * line with the list as the comparator sees it (single-use temps folded into
+ * their defining expression, operand kind 0x0d). Which sites dump is chosen
+ * by C2RS_CQ_SITES (comma list of site names; default `cqlo3`, the final
+ * order); `cqsort` dumps only with C2RS_CQ_SORT set; C2RS_CQ_DEF adds each
+ * temp's defining tuple `<opcode kind ndefs +0x10>`. Payload only. */
+static unsigned int g_cqfunc = 0;
+
+static int cq_selected(const char *name)
+{
+    const char *list = getenv("C2RS_CQ_SITES");
+    size_t n = strlen(name);
+    if (!list) return strcmp(name, "cqlo3") == 0;
+    while (*list) {
+        const char *e = strchr(list, ',');
+        size_t len = e ? (size_t)(e - list) : strlen(list);
+        if (len == n && strncmp(list, name, n) == 0) return 1;
+        if (!e) break;
+        list = e + 1;
+    }
+    return 0;
+}
+/* One operand, compactly: V<sid>{key} for a variable reached through the
+ * versioning sentinel, T<sid>{key} for a temp, M{key}[d w b] for a memory
+ * operand (kind 5/6: displacement word +0x28, type half +0x4, base operand
+ * +0x2c, printed one level deep), else the raw words. */
+static void cq_operand(unsigned int op, int depth)
+{
+    unsigned int k = 0, sym = 0, w18 = 0, sid = 0, key = 0;
+    rd8(op, 0x8, &k); rd32(op, 0x1c, &sym); rd32(op, 0x18, &w18); rd32(op, 0x10, &key);
+    if (k == 1u && sym == C2_VERSYM_VA + g_slide && plausible(w18)) {
+        rd32(w18, 0x1c, &sid); ap("V"); ap_dec(sid); ap("{"); ap_hex(key, 8); ap("}");
+    } else if (k == 1u && plausible(sym)) {
+        unsigned int def = 0;
+        rd32(sym, 0x1c, &sid); ap("T"); ap_dec(sid); ap("{"); ap_hex(key, 8); ap("}");
+        rd32(sym, 0x14, &def);
+        if (getenv("C2RS_CQ_DEF")) {
+            if (def != 0 && plausible(def)) {
+                unsigned int dop = 0, dl = 0, nd = 0, dk = 0, dkey = 0, bk = 0;
+                rd32(def, 0x4, &dop); rd32(def, 0x2c, &dl); rd32(def, 0x10, &dkey); rd8(def, 0x8, &bk);
+                while (dl != 0 && plausible(dl) && nd < 16u) {
+                    rd8(dl, 0x8, &dk);
+                    if (dk == 1u || dk == 2u) nd++;
+                    rd32(dl, 0x0, &dl);
+                }
+                ap("<"); ap_hex(dop & 0xffffu, 3); ap(" k"); ap_hex(bk, 2); ap(" nd"); ap_dec(nd); ap(" "); ap_hex(dkey, 8); ap(">");
+            } else ap("<nodef>");
+        }
+    } else if ((k == 1u || k == 2u) && plausible(w18)) {
+        unsigned int sk = 0;
+        rd32(w18, 0x1c, &sid); rd8(w18, 0x4, &sk);
+        ap("V"); ap_dec(sid); ap("/k"); ap_hex(k, 2); ap("s"); ap_hex(sk, 2); ap("{"); ap_hex(key, 8); ap("}");
+    } else if ((k == 5u || k == 6u) && depth < 2) {
+        unsigned int d = 0, w4 = 0, base = 0;
+        rd32(op, 0x28, &d); rd32(op, 0x4, &w4); rd32(op, 0x2c, &base);
+        ap("M"); ap_hex(k, 1); ap("{"); ap_hex(key, 8); ap("}[d"); ap_hex(d, 8); ap(" w"); ap_hex(w4 & 0xffffu, 4); ap(" b ");
+        if (base != 0 && plausible(base)) cq_operand(base, depth + 1); else ap("-");
+        ap("]");
+    } else {
+        unsigned int a14 = 0;
+        rd32(op, 0x14, &a14);
+        ap("k"); ap_hex(k, 2); ap("["); ap_hex(key, 8); ap(","); ap_hex(a14, 8);
+        ap(","); ap_hex(w18, 8); ap(","); ap_hex(sym, 8); ap("]");
+    }
+}
+
+static void commu_compact(unsigned int func, const char *label)
+{
+    unsigned int hdr = 0, blk = 0, nb = 0;
+    if (!rd32(func, 0x8, &hdr) || !plausible(hdr) || !rd32(hdr, 0x4, &blk)) return;
+    ap("CQ "); ap(label); ap_symid(func); ap("\n");
+    while (blk != 0 && nb < BLK_MAX) {
+        unsigned int t = 0, stop = 0, i = 0, nxb = 0;
+        if (!plausible(blk) || !rd32(blk, 0x20, &t) || !rd32(blk, 0x1c, &stop)) return;
+        while (t != 0 && t != stop && i < WALK_MAX && plausible(t)) {
+            unsigned int fl = 0, opc = 0, op = 0, j = 0, prev = 0;
+            rd8(t, 0x9, &fl); rd32(t, 0x4, &opc); rd32(t, 0x10, &prev);
+            if (fl & 1u) {
+                rd32(t, 0x28, &op);
+                if (op != 0 && plausible(op)) {
+                    unsigned int second = 0;
+                    rd32(op, 0x0, &second);
+                    if (second != 0) {
+                        ap("CQT "); ap(label); ap(" t "); ap_hex(t, 8); ap(" b "); ap_dec(nb); ap(" r "); ap_dec(i);
+                        ap(" "); ap_hex(opc, 3);
+                        while (op != 0 && j < OPS_MAX && plausible(op)) {
+                            ap(" "); cq_operand(op, 0);
+                            rd32(op, 0x0, &op); j++;
+                        }
+                        ap("\n");
+                    }
+                }
+            }
+            i++; t = prev;
+        }
+        if (!rd32(blk, 0x4, &nxb)) return;
+        nb++; blk = nxb;
+    }
+}
+
 unsigned int tap_enter(unsigned int retaddr, unsigned int ecx,
                        unsigned int edx, unsigned int callee_esp)
 {
@@ -1515,6 +1639,26 @@ unsigned int tap_enter(unsigned int retaddr, unsigned int ecx,
     for (i = 0; i < N_SITES; i++) {
         if (g_armed[i] && g_retaddr[i] == retaddr) {
             g_hits[i]++;
+            /* The commutative-order sites go first: their names share the
+             * candidate sites' leading 'c'. */
+            if (strcmp(g_sites[i].name, "cqsort") == 0) {
+                if (g_payload && g_regasg && g_cqfunc && getenv("C2RS_CQ_SORT")) {
+                    unsigned int op = ecx, j = 0;
+                    ap("CQS");
+                    while (op != 0 && j < OPS_MAX && plausible(op)) { ap(" "); cq_operand(op, 0); rd32(op, 0x0, &op); j++; }
+                    ap("\n");
+                }
+                return g_realtgt[i];
+            }
+            if (g_sites[i].name[0] == 'c' && g_sites[i].name[1] == 'q') {
+                const char *nm = g_sites[i].name;
+                int match = g_payload && g_regasg && name_matches(ecx);
+                /* `cqsort` fires inside the three sort passes only. */
+                g_cqfunc = (match && (strcmp(nm, "cqil0") == 0 || strcmp(nm, "cqlo0") == 0
+                                      || strcmp(nm, "cqlo2") == 0)) ? ecx : 0;
+                if (match && cq_selected(nm)) commu_compact(ecx, nm);
+                return g_realtgt[i];
+            }
             /* PAYLOAD. Only the region site has a live TUPLE pointer in ecx —
              * at the six per-function phase sites ecx is the FUNCTION record
              * (0x10b7dc59 `mov esi,ecx`, then `mov ecx,esi` before each call),
@@ -1622,7 +1766,9 @@ unsigned int tap_enter(unsigned int retaddr, unsigned int ecx,
             }
             if (strcmp(g_sites[i].name, "region") != 0) {
                 g_phase = g_sites[i].name;
-                if (strcmp(g_phase, "sched1") == 0) g_fn++;
+                if (strcmp(g_phase, "sched1") == 0) {
+                    g_fn++;
+                }
                 /* ecx is the FUNCTION RECORD at every one of these sites
                  * (`0x10b7dc59 mov esi,ecx` then `mov ecx,esi` before each
                  * call; `0x10b7e6b0 mov esi,ecx` then `0x10b7e6ff mov ecx,esi`

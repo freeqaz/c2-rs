@@ -34,7 +34,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use c2_obj::{ObjDiff, ObjImage};
-use c2_reference::stage::{BEN_SITES, CAND_SITES, MINT_SITES, OPT_GATED_SITES, RASG_SITES, STAGE_SITES};
+use c2_reference::stage::{BEN_SITES, CAND_SITES, COMMU_SITES, MINT_SITES, OPT_GATED_SITES, RASG_SITES, STAGE_SITES};
 use c2_reference::Toolchain;
 
 // PROV[N] a scratch-directory counter.
@@ -475,6 +475,7 @@ fn the_two_site_tables_are_one_table() {
             .chain(MINT_SITES.iter())
             .chain(RASG_SITES.iter())
             .chain(BEN_SITES.iter())
+            .chain(COMMU_SITES.iter())
             .map(|s| s.to_string())
             .collect::<Vec<_>>(),
         "c2host/stagetap.c's table and c2-reference::stage::STAGE_SITES have \
